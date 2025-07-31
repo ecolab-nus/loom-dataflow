@@ -1,5 +1,5 @@
-#include "scalein.h"
-#include "scaleout.h"
+#include "scalein/scalein.h"
+#include "scaleout/scaleout.h"
 #include <iostream>
 
 int main() {

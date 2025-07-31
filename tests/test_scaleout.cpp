@@ -1,4 +1,4 @@
-#include "scaleout.h"
+#include "scaleout/scaleout.h"
 #include <gtest/gtest.h>
 
 class ScaleOutTest : public ::testing::Test {

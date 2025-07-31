@@ -1,4 +1,4 @@
-#include "scalein.h"
+#include "scalein/scalein.h"
 #include <gtest/gtest.h>
 
 class ScaleInTest : public ::testing::Test {
