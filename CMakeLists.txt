@@ -39,6 +39,17 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/bin/main.cpp")
     )
 endif()
 
+# Create resource management demo executable
+if(EXISTS "${CMAKE_SOURCE_DIR}/bin/resource_demo.cpp")
+    add_executable(${PROJECT_NAME}_resource_demo bin/resource_demo.cpp)
+    target_link_libraries(${PROJECT_NAME}_resource_demo 
+        scaleout
+    )
+    target_include_directories(${PROJECT_NAME}_resource_demo PRIVATE 
+        src
+    )
+endif()
+
 # GoogleTest setup
 include(FetchContent)
 FetchContent_Declare(

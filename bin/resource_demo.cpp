@@ -1,0 +1,176 @@
+#include "scaleout/resources/mem_capacity.h"
+#include "scaleout/resources/mem_port.h"
+#include "scaleout/resources/resource_manager.h"
+#include <exception>
+#include <iostream>
+
+/**
+ * @file resource_demo.cpp
+ * @brief Dedicated executable for demonstrating the resource management system
+ *
+ * This program showcases the capabilities of the MemoryPort and MemoryCapacity
+ * resource classes along with the ResourceManager system.
+ */
+
+/**
+ * @brief Demonstrate basic resource creation and management
+ */
+void demonstrateBasicUsage() {
+  std::cout << "=== Resource Management Example ===" << std::endl;
+
+  // Get the resource manager instance
+  auto &manager = scaleout::resources::ResourceManager::getInstance();
+
+  // Create some memory ports
+  auto read_port = manager.createResource<scaleout::resources::MemoryPort>(
+      scaleout::resources::MemoryPort::PortType::READ, 64, "DDR4_Read_Port_1");
+  auto write_port = manager.createResource<scaleout::resources::MemoryPort>(
+      scaleout::resources::MemoryPort::PortType::WRITE, 64,
+      "DDR4_Write_Port_1");
+  auto rw_port = manager.createResource<scaleout::resources::MemoryPort>(
+      scaleout::resources::MemoryPort::PortType::READ_WRITE, 128,
+      "DDR4_RW_Port_1");
+
+  // Create some memory capacities
+  auto main_memory =
+      manager.createResource<scaleout::resources::MemoryCapacity>(
+          1024 * 1024 * 1024, "Main_Memory_1GB"); // 1GB
+  auto cache_memory =
+      manager.createResource<scaleout::resources::MemoryCapacity>(
+          64 * 1024, "L2_Cache_64KB"); // 64KB
+
+  // Display resource information
+  std::cout << "\nCreated Resources:" << std::endl;
+  std::cout << read_port->toString() << std::endl;
+  std::cout << write_port->toString() << std::endl;
+  std::cout << rw_port->toString() << std::endl;
+  std::cout << main_memory->toString() << std::endl;
+  std::cout << cache_memory->toString() << std::endl;
+
+  // Show resource statistics
+  auto stats = manager.getResourceStatistics();
+  std::cout << "\nResource Statistics:" << std::endl;
+  for (const auto &stat : stats) {
+    std::cout << stat.first << ": " << stat.second << " instances" << std::endl;
+  }
+
+  // Demonstrate resource usage
+  std::cout << "\n=== Resource Usage Demonstration ===" << std::endl;
+
+  // Use memory ports
+  if (read_port->isAvailable()) {
+    std::cout << "Reserving read port..." << std::endl;
+    read_port->reserve();
+    std::cout << "Read port available: " << read_port->isAvailable()
+              << std::endl;
+  }
+
+  // Use memory capacity
+  std::cout << "Main memory utilization: "
+            << main_memory->getUtilizationPercentage() << "%" << std::endl;
+
+  if (main_memory->canAllocate(1024 * 1024)) { // 1MB
+    main_memory->allocate(1024 * 1024);
+    std::cout << "Allocated 1MB, new utilization: "
+              << main_memory->getUtilizationPercentage() << "%" << std::endl;
+  }
+
+  // Find resources by ID
+  auto found_port = manager.findResource<scaleout::resources::MemoryPort>(
+      read_port->getResourceId());
+  if (found_port) {
+    std::cout << "Found port by ID: " << found_port->toString() << std::endl;
+  }
+
+  // Reset resources
+  read_port->reset();
+  main_memory->reset();
+  std::cout << "\nAfter reset:" << std::endl;
+  std::cout << "Read port available: " << read_port->isAvailable() << std::endl;
+  std::cout << "Main memory utilization: "
+            << main_memory->getUtilizationPercentage() << "%" << std::endl;
+}
+
+/**
+ * @brief Demonstrate advanced resource management features
+ */
+void demonstrateAdvancedUsage() {
+  std::cout << "\n=== Advanced Resource Management ===" << std::endl;
+
+  auto &manager = scaleout::resources::ResourceManager::getInstance();
+
+  // Create multiple resources of the same type
+  for (int i = 0; i < 3; ++i) {
+    manager.createResource<scaleout::resources::MemoryPort>(
+        scaleout::resources::MemoryPort::PortType::READ_WRITE, 32,
+        "Port_" + std::to_string(i));
+  }
+
+  // Get all ports
+  auto all_ports = manager.getAllResources<scaleout::resources::MemoryPort>();
+  std::cout << "Total MemoryPort instances: " << all_ports.size() << std::endl;
+
+  // Reserve all available ports
+  int reserved_count = 0;
+  for (auto &port : all_ports) {
+    if (port->isAvailable() && port->reserve()) {
+      reserved_count++;
+    }
+  }
+  std::cout << "Reserved " << reserved_count << " ports" << std::endl;
+
+  // Show availability status
+  std::cout << "Port availability status:" << std::endl;
+  for (const auto &port : all_ports) {
+    std::cout << "  " << port->getResourceName() << ": "
+              << (port->isAvailable() ? "Available" : "Reserved") << std::endl;
+  }
+
+  // Clean up - remove some resources
+  if (!all_ports.empty()) {
+    uint64_t id_to_remove = all_ports[0]->getResourceId();
+    if (manager.removeResource<scaleout::resources::MemoryPort>(id_to_remove)) {
+      std::cout << "Removed resource with ID: " << id_to_remove << std::endl;
+    }
+  }
+
+  std::cout << "Remaining MemoryPort instances: "
+            << manager.getResourceCount<scaleout::resources::MemoryPort>()
+            << std::endl;
+}
+
+int main() {
+  std::cout << "======================================" << std::endl;
+  std::cout << "  TMD Resource Management Demo" << std::endl;
+  std::cout << "======================================" << std::endl;
+  std::cout << std::endl;
+
+  try {
+    // Run the basic resource management demonstration
+    demonstrateBasicUsage();
+
+    // Run the advanced resource management demonstration
+    demonstrateAdvancedUsage();
+
+    std::cout << std::endl;
+    std::cout << "======================================" << std::endl;
+    std::cout << "  Resource Demo Completed Successfully!" << std::endl;
+    std::cout << "======================================" << std::endl;
+
+  } catch (const std::exception &e) {
+    std::cerr << std::endl;
+    std::cerr << "======================================" << std::endl;
+    std::cerr << "  Error in Resource Management Demo" << std::endl;
+    std::cerr << "======================================" << std::endl;
+    std::cerr << "Error details: " << e.what() << std::endl;
+    return 1;
+  } catch (...) {
+    std::cerr << std::endl;
+    std::cerr << "======================================" << std::endl;
+    std::cerr << "  Unknown Error in Resource Demo" << std::endl;
+    std::cerr << "======================================" << std::endl;
+    return 1;
+  }
+
+  return 0;
+}

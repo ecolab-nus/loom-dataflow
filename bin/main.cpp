@@ -5,6 +5,7 @@
 int main() {
   std::cout << "TMD Application" << std::endl;
   std::cout << "Demonstrating scale-in and scale-out libraries:" << std::endl;
+  std::cout << std::endl;
 
   // Create and use scale-out functionality
   scaleout::ScaleOut scaleout_service;
@@ -14,7 +15,11 @@ int main() {
   scalein::ScaleIn scalein_service;
   scalein_service.scale();
 
+  std::cout << std::endl;
   std::cout << "Application completed successfully!" << std::endl;
+  std::cout << std::endl;
+  std::cout << "Note: For resource management demo, run: ./tmd_resource_demo"
+            << std::endl;
 
   return 0;
 }
