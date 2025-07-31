@@ -72,3 +72,6 @@ _deps/
 
 # 
 .cache/
+
+# Build directory
+build/

@@ -23,6 +23,7 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+<<<<<<< Updated upstream
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
@@ -41,6 +42,23 @@ list(FILTER SOURCES EXCLUDE REGEX ".*main\\.cpp$")
 if(SOURCES)
     add_library(${PROJECT_NAME}_lib ${SOURCES})
     target_include_directories(${PROJECT_NAME}_lib PUBLIC src)
+=======
+# Add subdirectories for static libraries
+add_subdirectory(src/scaleout)
+add_subdirectory(src/scalein)
+
+# Create main executable from bin/main.cpp
+if(EXISTS "${CMAKE_SOURCE_DIR}/bin/main.cpp")
+    add_executable(${PROJECT_NAME} bin/main.cpp)
+    target_link_libraries(${PROJECT_NAME} 
+        scaleout 
+        scalein
+    )
+    target_include_directories(${PROJECT_NAME} PRIVATE 
+        src/scaleout 
+        src/scalein
+    )
+>>>>>>> Stashed changes
 endif()
 
 # GoogleTest setup
@@ -66,6 +84,7 @@ if(TEST_SOURCES)
     # Create test executable
     add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES})
     
+<<<<<<< Updated upstream
     # Link against GoogleTest and the project library
     target_link_libraries(${PROJECT_NAME}_tests 
         gtest_main
@@ -78,6 +97,20 @@ if(TEST_SOURCES)
     endif()
     
     target_include_directories(${PROJECT_NAME}_tests PRIVATE src)
+=======
+    # Link against GoogleTest and the static libraries
+    target_link_libraries(${PROJECT_NAME}_tests 
+        gtest_main
+        gmock_main
+        scaleout
+        scalein
+    )
+    
+    target_include_directories(${PROJECT_NAME}_tests PRIVATE 
+        src/scaleout 
+        src/scalein
+    )
+>>>>>>> Stashed changes
     
     # Add tests to CTest
     include(GoogleTest)
