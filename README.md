@@ -26,41 +26,83 @@ brew install cmake
 - Install Visual Studio 2019 or later with C++ support
 - Install CMake from https://cmake.org/download/
 
+### MLIR Dependencies (Required):
+
+This project requires MLIR support for the standalone dialect with specific default installation paths:
+
+1. **Build and install LLVM/MLIR**: Follow the instructions in `src/scaleout/standalone/README.md` to build LLVM with MLIR support and install it to the **exact default location**: `$HOME/opt/llvm-mlir`
+
+2. **LLVM-lit location**: The build expects `llvm-lit` to be available at: `$HOME/llvm-project/build/bin/llvm-lit`
+
+3. **Default CMake paths expected**:
+   - **MLIR cmake files**: `$HOME/opt/llvm-mlir/lib/cmake/mlir`
+   - **LLVM External Lit**: `$HOME/llvm-project/build/bin/llvm-lit`
+
+4. **Additional dependencies**: 
+   - Ninja build system: `sudo pacman -S ninja` (Arch), `sudo apt install ninja-build` (Ubuntu)
+   - LLD linker (usually included with LLVM)
+
+**Note**: If you have MLIR installed in different locations, you can override these paths using the build script options or CMake variables.
+
+#### Quick Reference: Building LLVM/MLIR with Correct Paths
+
+```bash
+# Clone LLVM project (if not already done)
+git clone https://github.com/llvm/llvm-project.git $HOME/llvm-project
+
+# Build and install LLVM/MLIR to the expected location
+cd $HOME/llvm-project
+mkdir build && cd build
+
+cmake -G Ninja ../llvm \
+   -DLLVM_ENABLE_PROJECTS=mlir \
+   -DLLVM_BUILD_EXAMPLES=ON \
+   -DLLVM_TARGETS_TO_BUILD="Native" \
+   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+   -DLLVM_ENABLE_ASSERTIONS=ON \
+   -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+   -DLLVM_ENABLE_LLD=ON \
+   -DMLIR_INCLUDE_INTEGRATION_TESTS=ON \
+   -DCMAKE_INSTALL_PREFIX=$HOME/opt/llvm-mlir \
+   -DLLVM_BUILD_UTILS=ON \
+   -DLLVM_INSTALL_UTILS=ON
+
+cmake --build . --target check-mlir
+ninja install
+```
+
+This will install MLIR cmake files to `$HOME/opt/llvm-mlir/lib/cmake/mlir` and llvm-lit will be available at `$HOME/llvm-project/build/bin/llvm-lit`.
+
 ## Building the Project
 
 ### Using the Build Script (Linux/macOS):
+
+**Basic build:**
 ```bash
 ./build.sh
 ```
 
-### Manual Build:
+**Build with custom MLIR paths:**
 ```bash
-# Create build directory
-mkdir -p build
-cd build
+./build.sh --mlir-dir=/custom/path/to/mlir --llvm-lit=/path/to/llvm-lit
+```
 
-# Configure with CMake
-cmake .. -DCMAKE_BUILD_TYPE=Release
+**Get help:**
+```bash
+./build.sh --help
+```
 
-# Build the project
+### Manual Build:
+
+```bash
+mkdir -p build && cd build
+cmake -G Ninja .. \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DMLIR_DIR=$HOME/opt/llvm-mlir/lib/cmake/mlir \
+  -DLLVM_EXTERNAL_LIT=$HOME/llvm-project/build/bin/llvm-lit \
+  -DLLVM_USE_LINKER=lld
 cmake --build . --config Release
-
-# Run tests
 ctest --output-on-failure
-```
-
-## Project Structure
-
-```
-tmd/
-├── CMakeLists.txt          # Main CMake configuration
-├── build.sh               # Build script
-├── src/                   # Source files
-│   ├── main.cpp           # Main application entry point
-│   ├── calculator.h       # Example header file
-│   └── calculator.cpp     # Example implementation
-└── tests/                 # Test files
-    └── test_calculator.cpp # GoogleTest unit tests
 ```
 
 ## Running
@@ -69,13 +111,19 @@ After building, you can run:
 
 - **Main application**: `./build/tmd`
 - **Tests**: `./build/tmd_tests` or `cd build && ctest`
+- **MLIR Standalone Tools**:
+  - `./build/standalone-opt`: MLIR optimization tool
+  - `./build/standalone-translate`: MLIR translation tool
+- **MLIR Tests**: `cd build && cmake --build . --target check-standalone`
 
 ## Features
 
-- **Modern CMake**: Uses CMake 3.14+ with modern practices
+- **Modern CMake**: Uses CMake 3.20+ with modern practices
 - **GoogleTest Integration**: Automatic download and setup using FetchContent
-- **Cross-platform**: Works on Linux, macOS, and Windows
+- **Cross-platform**: Works on Linux, macOS, and Windows  
 - **Automatic Test Discovery**: Tests are automatically discovered by CTest
+- **MLIR Integration**: Built-in MLIR standalone dialect support for advanced compiler tooling
+- **Flexible Build Configuration**: Easy configuration for different MLIR paths
 - **C++17 Standard**: Modern C++ features enabled
 - **Compiler Warnings**: Strict warning levels enabled
 

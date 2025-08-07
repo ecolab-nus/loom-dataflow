@@ -1,7 +1,51 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.20.0)
 
-# Project name and version
-project(tmd VERSION 1.0.0 LANGUAGES CXX)
+# Project name and version - MLIR requires both CXX and C languages
+project(tmd VERSION 1.0.0 LANGUAGES CXX C)
+
+# MLIR Configuration
+# Set MLIR paths - these can be overridden via command line
+if(NOT DEFINED MLIR_DIR)
+    set(MLIR_DIR "$ENV{HOME}/opt/llvm-mlir/lib/cmake/mlir" CACHE PATH "Path to MLIR cmake files")
+endif()
+
+if(NOT DEFINED LLVM_EXTERNAL_LIT)
+    set(LLVM_EXTERNAL_LIT "$ENV{HOME}/llvm-project/build/bin/llvm-lit" CACHE PATH "Path to llvm-lit executable")
+endif()
+
+if(NOT DEFINED LLVM_USE_LINKER)
+    set(LLVM_USE_LINKER "lld" CACHE STRING "Linker to use")
+endif()
+
+# Find MLIR package
+find_package(MLIR REQUIRED CONFIG)
+
+message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+message(STATUS "LLVM External Lit: ${LLVM_EXTERNAL_LIT}")
+
+# Set LLVM/MLIR paths
+set(LLVM_RUNTIME_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/bin)
+set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/lib)
+set(MLIR_BINARY_DIR ${CMAKE_BINARY_DIR})
+
+# Add LLVM/MLIR cmake modules
+list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+
+# Include necessary LLVM/MLIR modules
+include(TableGen)
+include(AddLLVM)
+include(AddMLIR)
+include(HandleLLVMOptions)
+
+# Configure Python support if needed
+if(MLIR_ENABLE_BINDINGS_PYTHON)
+    include(MLIRDetectPythonEnv)
+    mlir_configure_python_dev_packages()
+endif()
+
+message(STATUS "MLIR support enabled")
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)

@@ -7,3 +7,7 @@ add_library(scaleout STATIC
 )
 
 target_include_directories(scaleout PUBLIC . resources)
+
+# Add standalone MLIR dialect
+message(STATUS "Adding standalone MLIR dialect to scaleout")
+add_subdirectory(standalone)
