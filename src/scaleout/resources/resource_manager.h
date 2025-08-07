@@ -12,7 +12,7 @@ namespace scaleout {
 namespace resources {
 
 /**
- * @brief Simplified resource manager for managing all resource instances
+ * @brief Resource manager for managing all resource instances
  *
  * The ResourceManager provides centralized management for all resources,
  * including creation, tracking, and lifecycle management without type-based
