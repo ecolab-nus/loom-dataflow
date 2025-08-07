@@ -3,6 +3,8 @@
 #include "scaleout/resources/resource_manager.h"
 #include <exception>
 #include <iostream>
+#include <memory>
+#include <vector>
 
 /**
  * @file resource_demo.cpp
@@ -22,22 +24,27 @@ void demonstrateBasicUsage() {
   auto &manager = scaleout::resources::ResourceManager::getInstance();
 
   // Create some memory ports
-  auto read_port = manager.createResource<scaleout::resources::MemoryPort>(
+  auto read_port = std::make_shared<scaleout::resources::MemoryPort>(
       scaleout::resources::MemoryPort::PortType::READ, 64, "DDR4_Read_Port_1");
-  auto write_port = manager.createResource<scaleout::resources::MemoryPort>(
+  auto write_port = std::make_shared<scaleout::resources::MemoryPort>(
       scaleout::resources::MemoryPort::PortType::WRITE, 64,
       "DDR4_Write_Port_1");
-  auto rw_port = manager.createResource<scaleout::resources::MemoryPort>(
+  auto rw_port = std::make_shared<scaleout::resources::MemoryPort>(
       scaleout::resources::MemoryPort::PortType::READ_WRITE, 128,
       "DDR4_RW_Port_1");
 
   // Create some memory capacities
-  auto main_memory =
-      manager.createResource<scaleout::resources::MemoryCapacity>(
-          1024 * 1024 * 1024, "Main_Memory_1GB"); // 1GB
-  auto cache_memory =
-      manager.createResource<scaleout::resources::MemoryCapacity>(
-          64 * 1024, "L2_Cache_64KB"); // 64KB
+  auto main_memory = std::make_shared<scaleout::resources::MemoryCapacity>(
+      1024 * 1024 * 1024, "Main_Memory_1GB"); // 1GB
+  auto cache_memory = std::make_shared<scaleout::resources::MemoryCapacity>(
+      64 * 1024, "L2_Cache_64KB"); // 64KB
+
+  // Add resources to the manager
+  manager.addResource(read_port);
+  manager.addResource(write_port);
+  manager.addResource(rw_port);
+  manager.addResource(main_memory);
+  manager.addResource(cache_memory);
 
   // Display resource information
   std::cout << "\nCreated Resources:" << std::endl;
@@ -76,10 +83,10 @@ void demonstrateBasicUsage() {
   }
 
   // Find resources by ID
-  auto found_port = manager.findResource<scaleout::resources::MemoryPort>(
-      read_port->getResourceId());
-  if (found_port) {
-    std::cout << "Found port by ID: " << found_port->toString() << std::endl;
+  auto found_resource = manager.findResource(read_port->getResourceId());
+  if (found_resource) {
+    std::cout << "Found resource by ID: " << found_resource->toString()
+              << std::endl;
   }
 
   // Reset resources
@@ -100,14 +107,27 @@ void demonstrateAdvancedUsage() {
   auto &manager = scaleout::resources::ResourceManager::getInstance();
 
   // Create multiple resources of the same type
+  std::vector<std::shared_ptr<scaleout::resources::MemoryPort>> new_ports;
   for (int i = 0; i < 3; ++i) {
-    manager.createResource<scaleout::resources::MemoryPort>(
+    auto port = std::make_shared<scaleout::resources::MemoryPort>(
         scaleout::resources::MemoryPort::PortType::READ_WRITE, 32,
         "Port_" + std::to_string(i));
+    manager.addResource(port);
+    new_ports.push_back(port);
   }
 
-  // Get all ports
-  auto all_ports = manager.getAllResources<scaleout::resources::MemoryPort>();
+  // Get all resources and filter for MemoryPort
+  auto all_resources = manager.getAllResources();
+  std::vector<std::shared_ptr<scaleout::resources::MemoryPort>> all_ports;
+  for (const auto &resource : all_resources) {
+    if (resource->getResourceTypeName() == "MemoryPort") {
+      auto port =
+          std::dynamic_pointer_cast<scaleout::resources::MemoryPort>(resource);
+      if (port) {
+        all_ports.push_back(port);
+      }
+    }
+  }
   std::cout << "Total MemoryPort instances: " << all_ports.size() << std::endl;
 
   // Reserve all available ports
@@ -129,13 +149,20 @@ void demonstrateAdvancedUsage() {
   // Clean up - remove some resources
   if (!all_ports.empty()) {
     uint64_t id_to_remove = all_ports[0]->getResourceId();
-    if (manager.removeResource<scaleout::resources::MemoryPort>(id_to_remove)) {
+    if (manager.removeResource(id_to_remove)) {
       std::cout << "Removed resource with ID: " << id_to_remove << std::endl;
     }
   }
 
-  std::cout << "Remaining MemoryPort instances: "
-            << manager.getResourceCount<scaleout::resources::MemoryPort>()
+  // Count remaining MemoryPort instances
+  auto remaining_resources = manager.getAllResources();
+  int memory_port_count = 0;
+  for (const auto &resource : remaining_resources) {
+    if (resource->getResourceTypeName() == "MemoryPort") {
+      memory_port_count++;
+    }
+  }
+  std::cout << "Remaining MemoryPort instances: " << memory_port_count
             << std::endl;
 }
 
