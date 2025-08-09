@@ -127,13 +127,13 @@ public:
    * @brief Get the type name of this resource
    * @return std::string The type name (to be implemented by derived classes)
    */
-  virtual std::string getResourceTypeName() const = 0;
+  virtual std::string getResourceTypeName() const override = 0;
 
   /**
    * @brief Check if the resource is available for use
    * @return true if available, false otherwise
    */
-  virtual bool isAvailable() const = 0;
+  virtual bool isAvailable() const override = 0;
 
   /**
    * @brief Get string representation of the resource
@@ -147,7 +147,7 @@ public:
   /**
    * @brief Reset the resource to its initial state
    */
-  virtual void reset() = 0;
+  virtual void reset() override = 0;
 };
 
 // Static member definition
