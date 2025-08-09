@@ -13,10 +13,15 @@
     "C_Cpp.errorSquiggles": "enabled",
     "cmake.buildDirectory": "${workspaceFolder}/build",
     "cmake.configureOnOpen": true,
-    "cmake.generator": "Unix Makefiles",
+    "cmake.generator": "Ninja",
     "files.associations": {
         "*.h": "cpp",
         "*.cpp": "cpp",
         "*.hpp": "cpp"
+    },
+    "cmake.configureSettings": {
+        "MLIR_DIR": "/opt/llvm-mlir/lib/cmake/mlir",
+        "LLVM_USE_LINKER": "lld",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
     }
 }

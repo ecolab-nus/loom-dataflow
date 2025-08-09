@@ -8,18 +8,18 @@ Before building this project, you need to install the following dependencies:
 
 ### On Arch Linux:
 ```bash
-sudo pacman -S cmake gcc make
+sudo pacman -S cmake gcc make ninja lld
 ```
 
 ### On Ubuntu/Debian:
 ```bash
 sudo apt update
-sudo apt install cmake build-essential
+sudo apt install cmake build-essential ninja-build lld
 ```
 
 ### On macOS:
 ```bash
-brew install cmake
+brew install cmake ninja
 ```
 
 ### On Windows:
@@ -30,13 +30,15 @@ brew install cmake
 
 This project requires MLIR support for the standalone dialect with specific default installation paths:
 
-1. **Build and install LLVM/MLIR**: Follow the instructions in `src/scaleout/standalone/README.md` to build LLVM with MLIR support and install it to the **exact default location**: `$HOME/opt/llvm-mlir`
+1. **Build and install LLVM/MLIR**: Follow the instructions in `src/scaleout/standalone/README.md` to build LLVM with MLIR support and install it to the **default location**: `/opt/llvm-mlir` (you can use another location, but then pass `-DMLIR_DIR=...` during configure or set it in your IDE settings)
 
-2. **LLVM-lit location**: The build expects `llvm-lit` to be available at: `$HOME/llvm-project/build/bin/llvm-lit`
+2. **lit/llvm-lit location**: The build expects a lit runner on your PATH (prefer `lit`). Recommended installs:
+   - `pipx install lit` (isolated, recommended). After install, run `pipx ensurepath` and open a new shell so `lit` is on PATH.
+   - `python3 -m venv ~/.venvs/lit && ~/.venvs/lit/bin/pip install lit`
 
 3. **Default CMake paths expected**:
-   - **MLIR cmake files**: `$HOME/opt/llvm-mlir/lib/cmake/mlir`
-   - **LLVM External Lit**: `$HOME/llvm-project/build/bin/llvm-lit`
+   - **MLIR cmake files**: `/opt/llvm-mlir/lib/cmake/mlir`
+    - **LLVM External Lit**: auto-detected (`which llvm-lit` or `which lit`)
 
 4. **Additional dependencies**: 
    - Ninja build system: `sudo pacman -S ninja` (Arch), `sudo apt install ninja-build` (Ubuntu)
@@ -63,7 +65,7 @@ cmake -G Ninja ../llvm \
    -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
    -DLLVM_ENABLE_LLD=ON \
    -DMLIR_INCLUDE_INTEGRATION_TESTS=ON \
-   -DCMAKE_INSTALL_PREFIX=$HOME/opt/llvm-mlir \
+   -DCMAKE_INSTALL_PREFIX=/opt/llvm-mlir \
    -DLLVM_BUILD_UTILS=ON \
    -DLLVM_INSTALL_UTILS=ON
 
@@ -71,7 +73,7 @@ cmake --build . --target check-mlir
 ninja install
 ```
 
-This will install MLIR cmake files to `$HOME/opt/llvm-mlir/lib/cmake/mlir` and llvm-lit will be available at `$HOME/llvm-project/build/bin/llvm-lit`.
+This will install MLIR cmake files to `/opt/llvm-mlir/lib/cmake/mlir`. Note that many installs do not ship `llvm-lit` in the install tree; prefer installing `lit` via pipx or in a venv and using it from your PATH.
 
 ## Building the Project
 
@@ -82,7 +84,7 @@ This will install MLIR cmake files to `$HOME/opt/llvm-mlir/lib/cmake/mlir` and l
 ./build.sh
 ```
 
-**Build with custom MLIR paths:**
+**Build with custom MLIR/Lit paths:**
 ```bash
 ./build.sh --mlir-dir=/custom/path/to/mlir --llvm-lit=/path/to/llvm-lit
 ```
@@ -98,8 +100,8 @@ This will install MLIR cmake files to `$HOME/opt/llvm-mlir/lib/cmake/mlir` and l
 mkdir -p build && cd build
 cmake -G Ninja .. \
   -DCMAKE_BUILD_TYPE=Release \
-  -DMLIR_DIR=$HOME/opt/llvm-mlir/lib/cmake/mlir \
-  -DLLVM_EXTERNAL_LIT=$HOME/llvm-project/build/bin/llvm-lit \
+  -DMLIR_DIR=/opt/llvm-mlir/lib/cmake/mlir \
+  -DLLVM_EXTERNAL_LIT=$(command -v lit || command -v llvm-lit) \
   -DLLVM_USE_LINKER=lld
 cmake --build . --config Release
 ctest --output-on-failure
@@ -163,9 +165,9 @@ To resolve undefined symbols and get proper IntelliSense support:
 
 2. **Manual Setup**:
    ```bash
-   # Build with debug symbols and compile commands
-   rm -rf build && mkdir build && cd build
-   cmake .. -DCMAKE_BUILD_TYPE=Debug
+# Build with debug symbols and compile commands (Ninja generator)
+rm -rf build && mkdir build && cd build
+cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Debug -DMLIR_DIR=/opt/llvm-mlir/lib/cmake/mlir
    cmake --build . --parallel
    ```
 
@@ -193,6 +195,8 @@ If you still see undefined symbols:
 2. Restart Cursor/VSCode completely
 3. Use `Ctrl+Shift+P` → `C/C++: Reload IntelliSense`
 4. Check that `build/compile_commands.json` exists
+5. Use `CMake: Delete Cache and Reconfigure` after switching generators or MLIR paths
+6. If CTest cannot find the test runner, install `lit` and/or set: `-DLLVM_EXTERNAL_LIT=$(which llvm-lit || which lit)`
 
 ## CMake Options
 

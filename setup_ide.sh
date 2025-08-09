@@ -15,8 +15,34 @@ echo "🏗️  Building project with debug symbols..."
 mkdir -p build
 cd build
 
+# MLIR directory (can be overridden by env)
+MLIR_DIR=${MLIR_DIR:-/opt/llvm-mlir/lib/cmake/mlir}
+# Prefer Python 'lit' on PATH; allow override via env
+LLVM_EXTERNAL_LIT=${LLVM_EXTERNAL_LIT:-}
+
+echo "Using MLIR_DIR=$MLIR_DIR"
+
+# Auto-detect lit/llvm-lit if not provided (prefer 'lit')
+if [[ -z "$LLVM_EXTERNAL_LIT" ]]; then
+    if command -v lit >/dev/null 2>&1; then
+        LLVM_EXTERNAL_LIT=$(command -v lit)
+    elif command -v llvm-lit >/dev/null 2>&1; then
+        LLVM_EXTERNAL_LIT=$(command -v llvm-lit)
+    elif [[ -x "$HOME/llvm-project/build/bin/llvm-lit" ]]; then
+        LLVM_EXTERNAL_LIT="$HOME/llvm-project/build/bin/llvm-lit"
+    else
+        echo "ERROR: lit/llvm-lit not found. Install one of:"
+        # Removed apt python3-lit as it may not exist on Ubuntu
+        echo "  - pipx install lit (preferred); then run: pipx ensurepath and open a new shell"
+        echo "  - python3 -m venv ~/.venvs/lit && ~/.venvs/lit/bin/pip install lit"
+        exit 1
+    fi
+fi
+
+echo "Using LLVM_EXTERNAL_LIT=$LLVM_EXTERNAL_LIT"
+
 # Configure with debug symbols and compile commands export
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMLIR_DIR="$MLIR_DIR" -DLLVM_EXTERNAL_LIT="$LLVM_EXTERNAL_LIT" -DLLVM_USE_LINKER=lld
 
 # Build the project
 cmake --build . --parallel

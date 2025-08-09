@@ -6,9 +6,16 @@
             "type": "shell",
             "command": "cmake",
             "args": [
-                "-B", "${workspaceFolder}/build",
-                "-S", "${workspaceFolder}",
-                "-DCMAKE_BUILD_TYPE=Debug"
+                "-B",
+                "${workspaceFolder}/build",
+                "-S",
+                "${workspaceFolder}",
+                "-G",
+                "Ninja",
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-DMLIR_DIR=/opt/llvm-mlir/lib/cmake/mlir",
+                "-DLLVM_USE_LINKER=lld",
+                "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
             ],
             "group": "build",
             "presentation": {
@@ -24,8 +31,10 @@
             "type": "shell",
             "command": "cmake",
             "args": [
-                "--build", "${workspaceFolder}/build",
-                "--config", "Debug",
+                "--build",
+                "${workspaceFolder}/build",
+                "--config",
+                "Debug",
                 "--parallel"
             ],
             "group": {
@@ -46,7 +55,8 @@
             "type": "shell",
             "command": "ctest",
             "args": [
-                "--test-dir", "${workspaceFolder}/build",
+                "--test-dir",
+                "${workspaceFolder}/build",
                 "--output-on-failure"
             ],
             "group": "test",
@@ -63,7 +73,10 @@
             "label": "Clean Build",
             "type": "shell",
             "command": "rm",
-            "args": ["-rf", "${workspaceFolder}/build"],
+            "args": [
+                "-rf",
+                "${workspaceFolder}/build"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,

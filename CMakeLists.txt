@@ -6,11 +6,7 @@ project(tmd VERSION 1.0.0 LANGUAGES CXX C)
 # MLIR Configuration
 # Set MLIR paths - these can be overridden via command line
 if(NOT DEFINED MLIR_DIR)
-    set(MLIR_DIR "$ENV{HOME}/opt/llvm-mlir/lib/cmake/mlir" CACHE PATH "Path to MLIR cmake files")
-endif()
-
-if(NOT DEFINED LLVM_EXTERNAL_LIT)
-    set(LLVM_EXTERNAL_LIT "$ENV{HOME}/llvm-project/build/bin/llvm-lit" CACHE PATH "Path to llvm-lit executable")
+    set(MLIR_DIR "/opt/llvm-mlir/lib/cmake/mlir" CACHE PATH "Path to MLIR cmake files")
 endif()
 
 if(NOT DEFINED LLVM_USE_LINKER)
@@ -22,7 +18,6 @@ find_package(MLIR REQUIRED CONFIG)
 
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-message(STATUS "LLVM External Lit: ${LLVM_EXTERNAL_LIT}")
 
 # Set LLVM/MLIR paths
 set(LLVM_RUNTIME_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/bin)
