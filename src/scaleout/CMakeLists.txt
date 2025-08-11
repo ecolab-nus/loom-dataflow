@@ -2,8 +2,9 @@
 add_library(scaleout STATIC
     scaleout.cpp
     scaleout.h
-    resources/mem_port.cpp
-    resources/mem_capacity.cpp
+    resources/memory.cpp
+    resources/ring.cpp
+    resources/chain.cpp
 )
 
 target_include_directories(scaleout PUBLIC . resources)

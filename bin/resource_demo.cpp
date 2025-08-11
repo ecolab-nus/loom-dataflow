@@ -1,5 +1,4 @@
-#include "scaleout/resources/mem_capacity.h"
-#include "scaleout/resources/mem_port.h"
+#include "scaleout/resources/memory.h"
 #include "scaleout/resources/resource_manager.h"
 #include <exception>
 #include <iostream>
@@ -23,21 +22,21 @@ void demonstrateBasicUsage() {
   // Get the resource manager instance
   auto &manager = scaleout::resources::ResourceManager::getInstance();
 
-  // Create some memory ports
+  // Create some on-chip SRAM ports
   auto read_port = std::make_shared<scaleout::resources::MemoryPort>(
-      scaleout::resources::MemoryPort::PortType::READ, 64, "DDR4_Read_Port_1");
+      scaleout::resources::MemoryPort::PortType::READ, 64, "SRAM_Read_Port_0");
   auto write_port = std::make_shared<scaleout::resources::MemoryPort>(
       scaleout::resources::MemoryPort::PortType::WRITE, 64,
-      "DDR4_Write_Port_1");
+      "SRAM_Write_Port_0");
   auto rw_port = std::make_shared<scaleout::resources::MemoryPort>(
       scaleout::resources::MemoryPort::PortType::READ_WRITE, 128,
-      "DDR4_RW_Port_1");
+      "SRAM_RW_Port_0");
 
-  // Create some memory capacities
+  // Create some on-chip SRAM capacities
   auto main_memory = std::make_shared<scaleout::resources::MemoryCapacity>(
-      1024 * 1024 * 1024, "Main_Memory_1GB"); // 1GB
+      256 * 1024, "SPAD_0_256KB"); // 256KB SRAM scratchpad
   auto cache_memory = std::make_shared<scaleout::resources::MemoryCapacity>(
-      64 * 1024, "L2_Cache_64KB"); // 64KB
+      64 * 1024, "SPAD_1_64KB"); // 64KB SRAM scratchpad
 
   // Add resources to the manager
   manager.addResource(read_port);
@@ -64,21 +63,21 @@ void demonstrateBasicUsage() {
   // Demonstrate resource usage
   std::cout << "\n=== Resource Usage Demonstration ===" << std::endl;
 
-  // Use memory ports
+  // Use SRAM ports
   if (read_port->isAvailable()) {
-    std::cout << "Reserving read port..." << std::endl;
-    read_port->reserve();
+    std::cout << "Acquiring read port..." << std::endl;
+    read_port->acquire();
     std::cout << "Read port available: " << read_port->isAvailable()
               << std::endl;
   }
 
-  // Use memory capacity
-  std::cout << "Main memory utilization: "
-            << main_memory->getUtilizationPercentage() << "%" << std::endl;
+  // Use SRAM capacity
+  std::cout << "SPAD_0 utilization: " << main_memory->getUtilizationPercentage()
+            << "%" << std::endl;
 
-  if (main_memory->canAllocate(1024 * 1024)) { // 1MB
-    main_memory->allocate(1024 * 1024);
-    std::cout << "Allocated 1MB, new utilization: "
+  if (main_memory->canConsume(32 * 1024)) { // 32KB
+    main_memory->consume(32 * 1024);
+    std::cout << "Consumed 32KB, new utilization: "
               << main_memory->getUtilizationPercentage() << "%" << std::endl;
   }
 
@@ -133,7 +132,7 @@ void demonstrateAdvancedUsage() {
   // Reserve all available ports
   int reserved_count = 0;
   for (auto &port : all_ports) {
-    if (port->isAvailable() && port->reserve()) {
+    if (port->isAvailable() && port->acquire()) {
       reserved_count++;
     }
   }

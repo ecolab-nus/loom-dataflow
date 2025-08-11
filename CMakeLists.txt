@@ -89,6 +89,17 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/bin/resource_demo.cpp")
     )
 endif()
 
+# Create module demo executable
+if(EXISTS "${CMAKE_SOURCE_DIR}/bin/module_demo.cpp")
+    add_executable(${PROJECT_NAME}_module_demo bin/module_demo.cpp)
+    target_link_libraries(${PROJECT_NAME}_module_demo 
+        scaleout
+    )
+    target_include_directories(${PROJECT_NAME}_module_demo PRIVATE 
+        src
+    )
+endif()
+
 # GoogleTest setup
 include(FetchContent)
 FetchContent_Declare(

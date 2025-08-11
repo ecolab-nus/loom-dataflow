@@ -1,8 +1,47 @@
-#include "mem_port.h"
+#include "memory.h"
 
 namespace scaleout {
 namespace resources {
 
+// MemoryCapacity
+MemoryCapacity::MemoryCapacity(size_t total_size,
+                               const std::string &resource_name)
+    : Resource<MemoryCapacity>(resource_name), total_size_(total_size),
+      available_size_(total_size) {
+  initializeResourceName();
+}
+
+double MemoryCapacity::getUtilizationPercentage() const {
+  if (total_size_ == 0) {
+    return 0.0;
+  }
+  return static_cast<double>(getUsedSize()) / static_cast<double>(total_size_) *
+         100.0;
+}
+
+bool MemoryCapacity::consume(size_t size) {
+  if (size > available_size_) {
+    return false;
+  }
+  available_size_ -= size;
+  return true;
+}
+
+bool MemoryCapacity::release(size_t size) {
+  if (size > (total_size_ - available_size_)) {
+    return false;
+  }
+  available_size_ = std::min(total_size_, available_size_ + size);
+  return true;
+}
+
+bool MemoryCapacity::canConsume(size_t size) const {
+  return size <= available_size_;
+}
+
+void MemoryCapacity::reset() { available_size_ = total_size_; }
+
+// MemoryPort
 MemoryPort::MemoryPort(PortType port_type, size_t port_width,
                        const std::string &resource_name)
     : Resource<MemoryPort>(resource_name), port_type_(port_type),
@@ -10,7 +49,7 @@ MemoryPort::MemoryPort(PortType port_type, size_t port_width,
   initializeResourceName();
 }
 
-bool MemoryPort::reserve() {
+bool MemoryPort::acquire() {
   if (!is_available_) {
     return false;
   }
