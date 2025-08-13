@@ -2,8 +2,9 @@
 
 #include "../resources/memory.h"
 #include "../resources/ring.h"
-#include "module.h"
+#include "network.h"
 #include <cstddef>
+#include <vector>
 
 namespace scaleout {
 namespace modules {
@@ -16,7 +17,7 @@ namespace modules {
  *   for the broadcasted element(s).
  * - Reduction: consume ring once. No per-core memory reservation by default.
  */
-class Torus : public Module {
+class Torus : public NetworkModule {
 private:
   resources::Ring &ring_;
   // Optional per-core local memory capacities; if provided, used for
@@ -26,12 +27,12 @@ private:
   std::vector<resources::MemoryBank *> per_core_memory_groups_;
 
 public:
-  Torus(std::vector<int> core_ids, resources::Ring &ring,
+  Torus(std::string moduleName, std::vector<int> core_ids,
+        const mlir::AffineMap &coreIndexMap, resources::Ring &ring,
         std::vector<resources::MemoryCapacity *> per_core_memory = {},
-        std::vector<resources::MemoryBank *> per_core_memory_groups = {},
-        const std::string &name = "Torus")
-      : Module(name, std::move(core_ids)), ring_(ring),
-        per_core_memory_(std::move(per_core_memory)),
+        std::vector<resources::MemoryBank *> per_core_memory_groups = {})
+      : NetworkModule(moduleName, std::move(core_ids), coreIndexMap),
+        ring_(ring), per_core_memory_(std::move(per_core_memory)),
         per_core_memory_groups_(std::move(per_core_memory_groups)) {}
 
   std::string getTypeName() const override { return "Torus"; }

@@ -1,3 +1,7 @@
+#include "mlir/IR/AffineExpr.h"
+#include "mlir/IR/AffineMap.h"
+#include "mlir/IR/MLIRContext.h"
+#include "scaleout/modules/chain.h"
 #include "scaleout/modules/mesh2d.h"
 #include "scaleout/modules/torus.h"
 #include "scaleout/resources/chain.h"
@@ -44,7 +48,12 @@ static void demonstrateTorusWithMemoryBanks() {
     banks.push_back(banks_storage.back().get());
   }
 
-  modules::Torus torus(core_ids, ring, /*per_core_memory*/ {},
+  mlir::MLIRContext ctx;
+  auto dim = mlir::getAffineDimExpr(0, &ctx);
+  mlir::AffineMap torusMap = mlir::AffineMap::get(1, 0, dim);
+
+  modules::Torus torus("TorusBanks", core_ids, torusMap, ring,
+                       /*per_core_memory*/ {},
                        /*per_core_memory_banks*/ banks);
 
   const size_t element_bytes = 4; // Broadcasting 4 bytes
@@ -104,7 +113,12 @@ static void demonstrateTorusCapacityOnly() {
     capacity_ptrs.push_back(capacities.back().get());
   }
 
-  modules::Torus torus(core_ids, ring, capacity_ptrs, /*banks*/ {});
+  mlir::MLIRContext ctx;
+  auto dim = mlir::getAffineDimExpr(0, &ctx);
+  mlir::AffineMap torusMap = mlir::AffineMap::get(1, 0, dim);
+
+  modules::Torus torus("TorusCapacity", core_ids, torusMap, ring, capacity_ptrs,
+                       /*banks*/ {});
   const size_t bytes = 8;
 
   std::cout << "Ring available before: " << ring.isAvailable() << std::endl;
@@ -124,12 +138,36 @@ static void demonstrateMesh2D() {
   // Build a 2x2 mesh
   size_t rows = 2, cols = 2;
   std::vector<int> core_ids{0, 1, 2, 3};
-  resources::Chain h0("H0"), h1("H1");
-  resources::Chain v0("V0"), v1("V1");
-  std::vector<resources::Chain *> horizontal{&h0, &h1};
-  std::vector<resources::Chain *> vertical{&v0, &v1};
+  // Build resources
+  resources::Chain h0_r("H0"), h1_r("H1");
+  resources::Chain v0_r("V0"), v1_r("V1");
 
-  modules::Mesh2D mesh(rows, cols, core_ids, horizontal, vertical);
+  // Build module chains per row/col with identity 1D maps
+  mlir::MLIRContext ctx;
+  auto d = mlir::getAffineDimExpr(0, &ctx);
+  mlir::AffineMap oneD = mlir::AffineMap::get(1, 0, d);
+
+  std::vector<int> row0{0, 1};
+  std::vector<int> row1{2, 3};
+  std::vector<int> col0{0, 2};
+  std::vector<int> col1{1, 3};
+
+  modules::Chain h0("H0mod", row0, oneD, h0_r);
+  modules::Chain h1("H1mod", row1, oneD, h1_r);
+  modules::Chain v0("V0mod", col0, oneD, v0_r);
+  modules::Chain v1("V1mod", col1, oneD, v1_r);
+
+  std::vector<modules::Chain *> horizontal{&h0, &h1};
+  std::vector<modules::Chain *> vertical{&v0, &v1};
+
+  // Mesh mapping: (i,j)[N] -> i*N + j
+  auto i = mlir::getAffineDimExpr(0, &ctx);
+  auto j = mlir::getAffineDimExpr(1, &ctx);
+  auto N = mlir::getAffineSymbolExpr(0, &ctx);
+  mlir::AffineMap meshMap = mlir::AffineMap::get(2, 1, i * N + j);
+
+  modules::Mesh2D mesh("Mesh2x2", core_ids, meshMap, rows, cols, horizontal,
+                       vertical);
 
   std::cout << "Mesh available before: " << mesh.isAvailable() << std::endl;
   bool ok = mesh.acquire();

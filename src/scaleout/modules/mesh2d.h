@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../resources/chain.h"
-#include "module.h"
+#include "chain.h"
+#include "network.h"
 #include <cstddef>
 #include <utility>
 #include <vector>
@@ -16,20 +16,21 @@ namespace modules {
  * chains (left-right) and num_cols vertical chains (top-down). Reduction is
  * not supported here by design; use Torus for that.
  */
-class Mesh2D : public Module {
+class Mesh2D : public NetworkModule {
 private:
   size_t num_rows_;
   size_t num_cols_;
-  std::vector<resources::Chain *> horizontal_chains_;
-  std::vector<resources::Chain *> vertical_chains_;
+  std::vector<Chain *> horizontal_chains_;
+  std::vector<Chain *> vertical_chains_;
 
 public:
-  Mesh2D(size_t num_rows, size_t num_cols, std::vector<int> core_ids,
-         std::vector<resources::Chain *> horizontal_chains,
-         std::vector<resources::Chain *> vertical_chains,
-         const std::string &name = "Mesh2D")
-      : Module(name, std::move(core_ids)), num_rows_(num_rows),
-        num_cols_(num_cols), horizontal_chains_(std::move(horizontal_chains)),
+  Mesh2D(std::string name, std::vector<int> core_ids,
+         const mlir::AffineMap &coreIndexMap, size_t num_rows, size_t num_cols,
+         std::vector<Chain *> horizontal_chains,
+         std::vector<Chain *> vertical_chains)
+      : NetworkModule(name, std::move(core_ids), coreIndexMap),
+        num_rows_(num_rows), num_cols_(num_cols),
+        horizontal_chains_(std::move(horizontal_chains)),
         vertical_chains_(std::move(vertical_chains)) {}
 
   std::string getTypeName() const override { return "Mesh2D"; }
@@ -57,7 +58,7 @@ public:
       return false;
     }
     for (auto *c : horizontal_chains_) {
-      if (!c->consume()) {
+      if (!c->acquire()) {
         // Rollback already acquired chains
         for (auto *r : horizontal_chains_) {
           if (r == c)
@@ -68,7 +69,7 @@ public:
       }
     }
     for (auto *c : vertical_chains_) {
-      if (!c->consume()) {
+      if (!c->acquire()) {
         // Rollback all horizontal and prior vertical
         for (auto *r : horizontal_chains_) {
           r->release();
