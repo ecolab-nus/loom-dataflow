@@ -17,3 +17,4 @@ mlir_check_all_link_libraries(scaleout)
 # Add standalone MLIR dialect
 message(STATUS "Adding standalone MLIR dialect to scaleout")
 add_subdirectory(standalone)
+add_subdirectory(mlir)
