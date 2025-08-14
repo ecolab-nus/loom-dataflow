@@ -4,7 +4,7 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/src/**",
+                "${workspaceFolder}/lib/**",
                 "${workspaceFolder}/build/_deps/googletest-src/googletest/include",
                 "${workspaceFolder}/build/_deps/googletest-src/googlemock/include",
                 "/usr/include/**"

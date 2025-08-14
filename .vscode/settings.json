@@ -2,7 +2,7 @@
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
     "C_Cpp.default.includePath": [
-        "${workspaceFolder}/src",
+        "${workspaceFolder}/lib",
         "${workspaceFolder}/build/_deps/googletest-src/googletest/include",
         "${workspaceFolder}/build/_deps/googletest-src/googlemock/include"
     ],

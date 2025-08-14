@@ -30,7 +30,7 @@ brew install cmake ninja
 
 This project requires MLIR support for the standalone dialect with specific default installation paths:
 
-1. **Build and install LLVM/MLIR**: Follow the instructions in `src/scaleout/standalone/README.md` to build LLVM with MLIR support and install it to the **default location**: `/opt/llvm-mlir` (you can use another location, but then pass `-DMLIR_DIR=...` during configure or set it in your IDE settings)
+1. **Build and install LLVM/MLIR**: Follow the instructions in `lib/scaleout/standalone/README.md` to build LLVM with MLIR support and install it to the **default location**: `/opt/llvm-mlir` (you can use another location, but then pass `-DMLIR_DIR=...` during configure or set it in your IDE settings)
 
 2. **lit/llvm-lit location**: The build expects a lit runner on your PATH (prefer `lit`). Recommended installs:
    - `pipx install lit` (isolated, recommended). After install, run `pipx ensurepath` and open a new shell so `lit` is on PATH.
@@ -132,7 +132,7 @@ After building, you can run:
 ## Adding New Code
 
 ### Adding Source Files:
-1. Create `.cpp` and `.h` files in the `src/` directory
+1. Create `.cpp` and `.h` files in the `lib/` directory
 2. CMake will automatically find and include them
 
 ### Adding Tests:

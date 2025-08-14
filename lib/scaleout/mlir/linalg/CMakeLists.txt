@@ -20,7 +20,6 @@ target_link_libraries(tmd_linalg_list_ops PRIVATE
 mlir_check_all_link_libraries(tmd_linalg_list_ops)
 
 
-
 # Analyzer that emits a Transform IR file to tile the first reduction by 8.
 set(LINALG_TILE_REDUCE_TRANSFORM_SRC linalg_tile_reduce_transform.cpp)
 
@@ -48,4 +47,5 @@ target_link_libraries(tmd_linalg_tile_reduce_transform PRIVATE
 )
 
 mlir_check_all_link_libraries(tmd_linalg_tile_reduce_transform)
+
 

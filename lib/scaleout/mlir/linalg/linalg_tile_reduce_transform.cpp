@@ -22,7 +22,6 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/WithColor.h"
-#include <iostream>
 
 using namespace mlir;
 

@@ -63,8 +63,8 @@ else()
 endif()
 
 # Add subdirectories for static libraries
-add_subdirectory(src/scaleout)
-add_subdirectory(src/scalein)
+add_subdirectory(lib/scaleout)
+add_subdirectory(lib/scalein)
 
 # Create main executable from bin/main.cpp
 if(EXISTS "${CMAKE_SOURCE_DIR}/bin/main.cpp")
@@ -74,7 +74,7 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/bin/main.cpp")
         scalein
     )
     target_include_directories(${PROJECT_NAME} PRIVATE 
-        src
+        lib
     )
 endif()
 
@@ -85,7 +85,7 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/bin/resource_demo.cpp")
         scaleout
     )
     target_include_directories(${PROJECT_NAME}_resource_demo PRIVATE 
-        src
+        lib
     )
 endif()
 
@@ -96,7 +96,7 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/bin/module_demo.cpp")
         scaleout
     )
     target_include_directories(${PROJECT_NAME}_module_demo PRIVATE 
-        src
+        lib
     )
 endif()
 
@@ -132,7 +132,7 @@ if(TEST_SOURCES)
     )
     
     target_include_directories(${PROJECT_NAME}_tests PRIVATE 
-        src
+        lib
     )
     
     # Add tests to CTest
