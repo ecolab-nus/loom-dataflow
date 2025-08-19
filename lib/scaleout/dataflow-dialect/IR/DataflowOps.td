@@ -15,13 +15,24 @@ class DF_Op<string mnemonic, list<Trait> traits = []>
 def ChainedLoadOp : DF_Op<"chained_load"> {
   let summary = "Load via a chain-like network";
   let description = [{
-    `df.chained_load` models a hardware data-movement: loading an element from
-    a memref using affine indexing, routed through a chain along one hardware
-    iterator dimension. The `iterator` attribute must correspond to one of the
-    iterators of the innermost enclosing `affine.parallel`.
+    `df.chained_load` loads a single element from a memref using affine
+    indexing, and additionally carries an iterator selector used to model
+    hardware routing along a chain. The `iterator` value is a 64-bit integer
+    and should correspond to a valid hardware iterator dimension (e.g., one of
+    the iterators of the innermost enclosing `affine.parallel`).
 
-    Syntax (custom printer to match affine-like style):
-      `%v = df.chained_load %memref[<affine-exprs>] iterator(<piv>) : memref<T>`
+    Syntax (custom parser/printer):
+      `%v = df.chained_load %memref[<affine-exprs-over-ssa-ids>] : memref<...>, over iter(<VI>)`
+
+    - `%memref` is the memref operand.
+    - The affine index list reuses the `affine.load` syntax and semantics, i.e.,
+      `multi-dim-affine-map-of-ssa-ids` parsed/printed via
+      `parseAffineMapOfSSAIds`/`printAffineMapOfSSAIds`.
+    - The result type is the element type of the memref.
+    - The trailing clause `, over iter(VI)` sets the integral `iterator`.
+
+    Example:
+      `%0 = df.chained_load %arg0[%arg1 + 3, %arg2 + 7] : memref<100x100xf32>, over iter(5)`
   }];
 
   let arguments = (ins AnyMemRef:$memref,
@@ -31,12 +42,9 @@ def ChainedLoadOp : DF_Op<"chained_load"> {
 
   let results = (outs AnyType:$result);
 
-  // Declarative assembly format
-  let assemblyFormat = [{
-    $memref `[` $indices `]`
-    `iterator` `(` $iterator `)`
-    `map` `(` $map `)` attr-dict `:` type($memref) `,` type($result)
-  }];
+  // Custom parser/printer implements the syntax shown above, including the
+  // trailing ", over iter(VI)" clause.
+  let hasCustomAssemblyFormat = 1;
 }
 
 
