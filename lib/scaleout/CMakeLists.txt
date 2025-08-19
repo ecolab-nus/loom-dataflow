@@ -14,7 +14,5 @@ target_include_directories(scaleout PUBLIC . resources modules ${MLIR_INCLUDE_DI
 target_link_libraries(scaleout PUBLIC MLIRIR)
 mlir_check_all_link_libraries(scaleout)
 
-# Add standalone MLIR dialect
-message(STATUS "Adding standalone MLIR dialect to scaleout")
-add_subdirectory(standalone)
+# Add MLIR components
 add_subdirectory(mlir)

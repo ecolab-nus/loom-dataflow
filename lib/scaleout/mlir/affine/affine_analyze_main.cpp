@@ -2,7 +2,6 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/AsmState.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -11,16 +10,21 @@
 #include "mlir/Support/FileUtilities.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
-#include <iostream>
 
 using namespace mlir;
+
+namespace tmd_affine_analysis {
+
+LogicalResult runSyntaxCheck(func::FuncOp funcOp);
+void runInputSharingAnalysis(func::FuncOp funcOp);
+
+} // namespace tmd_affine_analysis
 
 int main(int argc, char **argv) {
   MLIRContext context;
   (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
   context.loadDialect<mlir::func::FuncDialect, mlir::affine::AffineDialect,
-                      mlir::memref::MemRefDialect, mlir::arith::ArithDialect,
-                      mlir::scf::SCFDialect>();
+                      mlir::memref::MemRefDialect, mlir::arith::ArithDialect>();
 
   llvm::SourceMgr sourceMgr;
   const char *filename = argc > 1 ? argv[1] : "-";
@@ -38,15 +42,22 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  module->walk([&](Operation *op) {
-    if (op->getDialect() &&
-        llvm::isa<mlir::affine::AffineDialect>(op->getDialect())) {
-      std::string buf;
-      llvm::raw_string_ostream os(buf);
-      op->print(os);
-      std::cout << os.str() << "\n";
+  // Capture AsmState now to preserve original SSA names when printing later.
+  AsmState asmState(*module);
+
+  bool hadError = false;
+  module->walk([&](func::FuncOp funcOp) {
+    if (failed(tmd_affine_analysis::runSyntaxCheck(funcOp))) {
+      hadError = true;
+      return;
     }
+    tmd_affine_analysis::runInputSharingAnalysis(funcOp);
   });
 
+  if (hadError)
+    return 2;
+
+  module->print(llvm::outs(), asmState);
+  llvm::outs() << "\n";
   return 0;
 }
