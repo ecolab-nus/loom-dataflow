@@ -15,4 +15,4 @@ target_link_libraries(scaleout PUBLIC MLIRIR)
 mlir_check_all_link_libraries(scaleout)
 
 # Add MLIR components
-add_subdirectory(mlir)
+add_subdirectory(analyses)
