@@ -107,6 +107,41 @@ cmake --build . --config Release
 ctest --output-on-failure
 ```
 
+### Which script should I use?
+
+- **build.sh**: One-shot configure + build + test in Release mode.
+  - **Use when**: You want a production-like build and to run tests (CI/local sanity build).
+  - **Behavior**: Creates `build/` if missing (no clean), auto-detects `lit/llvm-lit`, uses Ninja and `lld`.
+  - **Override paths**: `./build.sh --mlir-dir=… --llvm-lit=…` or set `MLIR_DIR`/`LLVM_EXTERNAL_LIT` env vars.
+
+- **setup_ide.sh**: Developer/IDE-oriented Debug build that generates `build/compile_commands.json`.
+  - **Use when**: First-time IDE setup or when IntelliSense/symbol resolution is incorrect.
+  - **Behavior**: Deletes and recreates `build/`, configures Debug with `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`, auto-detects `lit/llvm-lit`, builds, and verifies `compile_commands.json` exists.
+  - **Note**: It does not write IDE settings files; IDEs (Cursor/VSCode) use `compile_commands.json` with the recommended extensions.
+
+### Build directory behavior
+
+- Both scripts use the same out-of-source directory: `build/`.
+- `setup_ide.sh` runs a clean Debug configuration (`rm -rf build`), while `build.sh` performs a faster incremental Release build (`mkdir -p build`).
+- Running them sequentially is fine; do not run them concurrently.
+- To keep Debug and Release builds side-by-side, use separate directories with the manual commands, for example:
+
+```bash
+# Debug tree
+cmake -S . -B build-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+  -DMLIR_DIR=/opt/llvm-mlir/lib/cmake/mlir \
+  -DLLVM_EXTERNAL_LIT=$(command -v lit || command -v llvm-lit) \
+  -DLLVM_USE_LINKER=lld
+cmake --build build-debug --parallel
+
+# Release tree
+cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DMLIR_DIR=/opt/llvm-mlir/lib/cmake/mlir \
+  -DLLVM_EXTERNAL_LIT=$(command -v lit || command -v llvm-lit) \
+  -DLLVM_USE_LINKER=lld
+cmake --build build-release --config Release
+```
+
 ## Running
 
 After building, you can run:
