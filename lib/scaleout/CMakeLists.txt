@@ -16,3 +16,9 @@ mlir_check_all_link_libraries(scaleout)
 
 # Add MLIR components
 add_subdirectory(analyses)
+
+# Dataflow dialect (df)
+add_subdirectory(dataflow-dialect)
+
+# Ensure the main library depends on the dialect so it builds in the project
+target_link_libraries(scaleout PUBLIC tmdDataflowDialect)

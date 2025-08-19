@@ -100,6 +100,26 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/bin/module_demo.cpp")
     )
 endif()
 
+# Dataflow dialect parse/print tool
+if(EXISTS "${CMAKE_SOURCE_DIR}/bin/df_parse_print.cpp")
+    add_executable(${PROJECT_NAME}_df_parse_print bin/df_parse_print.cpp)
+    target_link_libraries(${PROJECT_NAME}_df_parse_print 
+        PRIVATE
+        tmdDataflowDialect
+        MLIRIR
+        MLIRParser
+        MLIRSupport
+        MLIRFuncDialect
+        MLIRAffineDialect
+        MLIRMemRefDialect
+        MLIRArithDialect
+    )
+    target_include_directories(${PROJECT_NAME}_df_parse_print PRIVATE 
+        lib
+        ${MLIR_INCLUDE_DIRS}
+    )
+endif()
+
 # GoogleTest setup
 include(FetchContent)
 FetchContent_Declare(
