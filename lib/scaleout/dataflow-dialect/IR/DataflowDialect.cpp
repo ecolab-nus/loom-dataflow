@@ -1,3 +1,4 @@
+#include "mlir/Bytecode/BytecodeOpInterface.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/Builders.h"
@@ -23,3 +24,7 @@ void DataflowDialect::initialize() {
 #include "DataflowOps.cpp.inc"
       >();
 }
+
+// Emit op method definitions in this translation unit, like Toy Ch2.
+#define GET_OP_CLASSES
+#include "DataflowOps.cpp.inc"

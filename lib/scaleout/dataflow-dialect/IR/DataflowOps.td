@@ -32,13 +32,12 @@ def ChainedLoadOp : DF_Op<"chained_load"> {
   let results = (outs AnyType:$result);
 
   // Declarative assembly format
-  // Example:
-  //   %v = df.chained_load %A[%i0, %i1] iterator(2) map(affine_map<(d0, d1) -> (d0)>) : f32
   let assemblyFormat = [{
     $memref `[` $indices `]`
     `iterator` `(` $iterator `)`
     `map` `(` $map `)` attr-dict `:` type($memref) `,` type($result)
   }];
 }
+
 
 
