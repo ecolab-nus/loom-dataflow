@@ -14,8 +14,8 @@ For a 8x8 2D-mesh array, you would declare
 ```
 %x = df.spatial_dim 8
 %y = df.spatial_dim 8
-%horizontal_chains = df.chains[%x, %x+1]
-%vertical_chains = df.chains[%y, %y+1]
+%horizontal_chains = "df.chains"(%x, %y) {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : (index, index) -> !df.chain
+%vertical_chains = "df.chains"(%x, %y) {map = affine_map<(d0, d1) -> (d0, d1 + 1)>} : (index, index) -> !df.chain
 ```
 Note that the vertical_chains represent all chains for each row of cores, because `%y` is missing.
 As a result, this means each `core` at `%x,%y` can send data to `%x+1,%y` and can send data to `%x, %y+1`.

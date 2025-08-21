@@ -14,11 +14,10 @@ module {
       affine.for %k = 0 to %K {
         %a = affine.load %A[%m, %k] : memref<?x?xf32>
         %b = affine.load %B[%k, %n] : memref<?x?xf32>
+        %c = affine.load %C[%m, %n] : memref<?x?xf32>
+        affine.store %c, %C[%m, %n] : memref<?x?xf32>
       }
-      %c = affine.load %C[%m, %n] : memref<?x?xf32>
-      affine.store %c, %C[%m, %n] : memref<?x?xf32>
     }
-
     return
   }
 }
