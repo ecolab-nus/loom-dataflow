@@ -11,7 +11,7 @@ include "DataflowTypes.td"
 class DF_Op<string mnemonic, list<Trait> traits = []>
   : Op<Dataflow_Dialect, mnemonic, traits> {}
 
-// Bring in hardware declaration ops (df.spatial_dim, df.chains)
+// Bring in hardware declaration ops (df.spatial_dim, df.interconnects)
 include "DataflowHwDeclOps.td"
 
 // df.chained_load : similar to affine.load's operands/attributes, plus 'iterator'
@@ -21,7 +21,7 @@ def ChainedLoadOp : DF_Op<"chained_load"> {
     `df.chained_load` loads a single element from a memref using affine
     indexing, and additionally carries an iterator selector used to model
     hardware routing along a chain. The `over` clause specifies an SSA handle
-    produced by `df.chains`.
+    produced by `df.interconnects`.
 
     Syntax (custom parser/printer):
       `%v = df.chained_load %memref[<affine-exprs-over-ssa-ids>] : memref<...>, over %chain`
@@ -40,7 +40,7 @@ def ChainedLoadOp : DF_Op<"chained_load"> {
   let arguments = (ins AnyMemRef:$memref,
                         Variadic<Index>:$indices,
                         AffineMapAttr:$map,
-                        ChainHandleType:$chain);
+                        InterconnectHandleType:$chain);
 
   let results = (outs AnyType:$result);
 

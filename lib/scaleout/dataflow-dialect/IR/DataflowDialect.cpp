@@ -76,7 +76,7 @@ ParseResult ChainedLoadOp::parse(OpAsmParser &parser, OperationState &result) {
                              result.operands))
     return failure();
   if (parser.resolveOperand(chainInfo,
-                            ChainHandleType::get(builder.getContext()),
+                            InterconnectHandleType::get(builder.getContext()),
                             result.operands))
     return failure();
 

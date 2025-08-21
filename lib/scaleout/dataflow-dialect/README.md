@@ -6,16 +6,16 @@ First, you need to declare the dimensions of scaleout.
 You can do that with `%dim_name = df.spatial_dim constant` to declare a dimension of size constant, i.e. from `0` to `constant`.
 
 Then you need to declare the interconnects among the dimensions.
-Currently we only support `affine_chains`.
-You can declare affine chains with an affine expression: `%chain_name = df.chains[multi-dim-affine-map-of-ssa-ids]`, where the ssa-ids in the affine expression must be the dimensions declared with `df.spatial_dim`. The `multi-dim-affine-map-of-ssa-ids` is the same syntax as when you use `affine.load[multi-dim-affine-map-of-ssa-ids]` in the affine dialect. It assumes that the input dimensions are all dimensions declared with `df.spatial_dim`, so any missing dimension is considered as a repetition.
+Currently we only support `affine interconnects`.
+You can declare affine interconnects with an affine expression: `%chain_name = df.interconnects[multi-dim-affine-map-of-ssa-ids]`, where the ssa-ids in the affine expression must be the dimensions declared with `df.spatial_dim`. The `multi-dim-affine-map-of-ssa-ids` is the same syntax as when you use `affine.load[multi-dim-affine-map-of-ssa-ids]` in the affine dialect. It assumes that the input dimensions are all dimensions declared with `df.spatial_dim`, so any missing dimension is considered as a repetition.
 
 ### Example
 For a 8x8 2D-mesh array, you would declare
 ```
 %x = df.spatial_dim 8
 %y = df.spatial_dim 8
-%horizontal_chains = "df.chains"(%x, %y) {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : (index, index) -> !df.chain
-%vertical_chains = "df.chains"(%x, %y) {map = affine_map<(d0, d1) -> (d0, d1 + 1)>} : (index, index) -> !df.chain
+%horizontal_chains = "df.interconnects"(%x, %y) {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : (index, index) -> !df.interconnect
+%vertical_chains = "df.interconnects"(%x, %y) {map = affine_map<(d0, d1) -> (d0, d1 + 1)>} : (index, index) -> !df.interconnect
 ```
 Note that the vertical_chains represent all chains for each row of cores, because `%y` is missing.
 As a result, this means each `core` at `%x,%y` can send data to `%x+1,%y` and can send data to `%x, %y+1`.

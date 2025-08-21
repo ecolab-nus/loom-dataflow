@@ -5,17 +5,17 @@
 include "mlir/IR/AttrTypeBase.td"
 include "DataflowDialect.td"
 
-// A minimal, opaque handle type representing a chain interconnect
-// configuration. Printed as: !df.chain
-def ChainHandleType : TypeDef<Dataflow_Dialect, "ChainHandle"> {
-  let mnemonic = "chain";
-  let summary = "Opaque chain handle type";
+// A minimal, opaque handle type representing an interconnect configuration
+// Printed as: !df.interconnect
+def InterconnectHandleType : TypeDef<Dataflow_Dialect, "InterconnectHandle"> {
+  let mnemonic = "interconnect";
+  let summary = "Opaque interconnect handle type";
   let description = [{
-    An opaque handle representing a chain interconnect configuration declared
-    by `df.chains`. This type carries no semantics by itself and exists to
+    An opaque handle representing an interconnect configuration declared
+    by `df.interconnects`. This type carries no semantics by itself and exists to
     avoid reusing unrelated builtin types (e.g., `i64`).
 
-    Syntax: `!df.chain`
+    Syntax: `!df.interconnect`
   }];
 }
 
