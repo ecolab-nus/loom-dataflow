@@ -5,7 +5,7 @@ module {
       %C: memref<?x?xf32>,     // M x N
       %M: index, %N: index, %K: index) {
 
-    // Declare 8x8 mesh using chains
+    // Declare 8x8 mesh using interconnect
     %x = df.spatial_dim 8
     %y = df.spatial_dim 8
     %horizontal_chains = "df.interconnects"(%x, %y) {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : (index, index) -> !df.interconnect
