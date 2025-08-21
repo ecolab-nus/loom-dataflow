@@ -52,6 +52,277 @@ static SmallVector<Value, 4> collectEnclosingForIVs(Operation *start,
   return ivs;
 }
 
+// Collect all enclosing induction variables (affine.parallel IVs in order and
+// affine.for IVs) from outermost to innermost.
+static SmallVector<Value, 8> collectAllEnclosingIVs(Operation *start) {
+  SmallVector<Operation *, 8> parents;
+  for (Operation *p = start->getParentOp(); p; p = p->getParentOp())
+    parents.push_back(p); // inner .. outer
+
+  SmallVector<Value, 8> ivs;
+  // iterate outer .. inner, preserving per-op IV order
+  for (auto it = parents.rbegin(); it != parents.rend(); ++it) {
+    Operation *parent = *it;
+    if (auto par = dyn_cast<affine::AffineParallelOp>(parent)) {
+      for (Value iv : par.getIVs())
+        ivs.push_back(iv);
+    } else if (auto forOp = dyn_cast<affine::AffineForOp>(parent)) {
+      ivs.push_back(forOp.getInductionVar());
+    }
+  }
+  return ivs;
+}
+
+// Simple integer rational number to perform exact RREF.
+struct IntRational {
+  int64_t num;
+  int64_t den;
+};
+
+static int64_t gcdll(int64_t a, int64_t b) {
+  if (a < 0)
+    a = -a;
+  if (b < 0)
+    b = -b;
+  while (b != 0) {
+    int64_t t = a % b;
+    a = b;
+    b = t;
+  }
+  return a == 0 ? 1 : a;
+}
+
+static IntRational makeRat(int64_t n, int64_t d) {
+  if (d < 0) {
+    n = -n;
+    d = -d;
+  }
+  if (n == 0)
+    return {0, 1};
+  int64_t g = gcdll(n, d);
+  return {n / g, d / g};
+}
+
+static IntRational subRat(const IntRational &a, const IntRational &b) {
+  return makeRat(a.num * b.den - b.num * a.den, a.den * b.den);
+}
+static IntRational mulRat(const IntRational &a, const IntRational &b) {
+  return makeRat(a.num * b.num, a.den * b.den);
+}
+static IntRational divRat(const IntRational &a, const IntRational &b) {
+  return makeRat(a.num * b.den, a.den * b.num);
+}
+
+// Compute RREF over rationals; returns pivot column per pivot row.
+static SmallVector<int, 8>
+rref(SmallVector<SmallVector<IntRational, 8>, 8> &M) {
+  const int m = static_cast<int>(M.size());
+  const int n = m ? static_cast<int>(M[0].size()) : 0;
+  int r = 0;
+  SmallVector<int, 8> pivotCol;
+  for (int c = 0; c < n && r < m; ++c) {
+    int pivot = -1;
+    for (int i = r; i < m; ++i) {
+      if (M[i][c].num != 0) {
+        pivot = i;
+        break;
+      }
+    }
+    if (pivot < 0)
+      continue;
+    if (pivot != r)
+      std::swap(M[pivot], M[r]);
+    // Normalize row r
+    IntRational lead = M[r][c];
+    for (int j = c; j < n; ++j)
+      M[r][j] = divRat(M[r][j], lead);
+    // Eliminate other rows
+    for (int i = 0; i < m; ++i) {
+      if (i == r)
+        continue;
+      IntRational factor = M[i][c];
+      if (factor.num == 0)
+        continue;
+      for (int j = c; j < n; ++j)
+        M[i][j] = subRat(M[i][j], mulRat(factor, M[r][j]));
+    }
+    pivotCol.push_back(c);
+    ++r;
+  }
+  return pivotCol;
+}
+
+// Compute primitive integer nullspace basis vectors of integer matrix A
+// (m x n). Returns a list of integer vectors (size n).
+static SmallVector<SmallVector<int64_t, 8>, 4> computePrimitiveIntegerNullspace(
+    const SmallVector<SmallVector<int64_t, 8>, 8> &A) {
+  const int m = static_cast<int>(A.size());
+  const int n = m ? static_cast<int>(A[0].size()) : 0;
+  SmallVector<SmallVector<IntRational, 8>, 8> M(m,
+                                                SmallVector<IntRational, 8>(n));
+  for (int i = 0; i < m; ++i)
+    for (int j = 0; j < n; ++j)
+      M[i][j] = makeRat(A[i][j], 1);
+  SmallVector<int, 8> pivots = rref(M);
+  llvm::SmallBitVector isPivot(n, false);
+  for (int c : pivots)
+    isPivot.set(c);
+  SmallVector<int, 8> freeCols;
+  for (int c = 0; c < n; ++c)
+    if (!isPivot.test(c))
+      freeCols.push_back(c);
+  SmallVector<SmallVector<int64_t, 8>, 4> basis;
+  if (freeCols.empty())
+    return basis; // trivial nullspace
+
+  // Map from pivot row to pivot column index
+  SmallVector<int, 8> pivotRowToCol;
+  pivotRowToCol.assign(pivots.begin(), pivots.end());
+
+  for (int fCol : freeCols) {
+    SmallVector<IntRational, 8> x(n, makeRat(0, 1));
+    x[fCol] = makeRat(1, 1);
+    // For each pivot row r, pivot column pc
+    for (int r = 0; r < static_cast<int>(pivotRowToCol.size()); ++r) {
+      int pc = pivotRowToCol[r];
+      // x_pc = - M[r][fCol]
+      x[pc] = subRat(makeRat(0, 1), M[r][fCol]);
+    }
+    // Convert rational vector to primitive integer vector
+    int64_t lcmDen = 1;
+    for (int j = 0; j < n; ++j) {
+      int64_t den = x[j].den;
+      int64_t g = gcdll(lcmDen, den);
+      lcmDen = (lcmDen / g) * den;
+    }
+    SmallVector<int64_t, 8> vec(n, 0);
+    for (int j = 0; j < n; ++j)
+      vec[j] = x[j].num * (lcmDen / x[j].den);
+    // Normalize by gcd
+    int64_t g = 0;
+    for (int j = 0; j < n; ++j)
+      g = gcdll(g, vec[j]);
+    if (g == 0)
+      g = 1;
+    for (int j = 0; j < n; ++j)
+      vec[j] /= g;
+    // Normalize sign: make first nonzero positive
+    for (int j = 0; j < n; ++j) {
+      if (vec[j] != 0) {
+        if (vec[j] < 0) {
+          for (int k = 0; k < n; ++k)
+            vec[k] = -vec[k];
+        }
+        break;
+      }
+    }
+    basis.push_back(std::move(vec));
+  }
+  return basis;
+}
+
+// Attach primitive reuse vectors attribute to each affine.load.
+void attachPrimitiveReuseVectors(func::FuncOp funcOp) {
+  MLIRContext *ctx = funcOp.getContext();
+  funcOp.walk([&](affine::AffineLoadOp loadOp) {
+    // Collect iterators
+    SmallVector<Value, 8> iterIVs =
+        collectAllEnclosingIVs(loadOp.getOperation());
+    if (iterIVs.empty())
+      return;
+
+    // Compose and canonicalize map and operands
+    AffineMap map = loadOp.getAffineMap();
+    SmallVector<Value, 8> operands(loadOp.getMapOperands());
+    mlir::affine::fullyComposeAffineMapAndOperands(&map, &operands);
+    mlir::affine::canonicalizeMapAndOperands(&map, &operands);
+
+    const unsigned numDims = map.getNumDims();
+    const unsigned numSyms = map.getNumSymbols();
+
+    // Map each map dim operand to iterator index or -1
+    llvm::DenseMap<Value, unsigned> iterIndexOf;
+    for (unsigned i = 0; i < iterIVs.size(); ++i)
+      iterIndexOf[iterIVs[i]] = i;
+    SmallVector<int, 8> dimToIterIdx(numDims, -1);
+    for (unsigned d = 0; d < numDims; ++d) {
+      auto it = iterIndexOf.find(operands[d]);
+      if (it != iterIndexOf.end())
+        dimToIterIdx[d] = static_cast<int>(it->second);
+    }
+
+    // Build coefficient matrix A (rows = results, cols = numIters).
+    SmallVector<SmallVector<int64_t, 8>, 8> A;
+    A.resize(map.getNumResults());
+    for (unsigned r = 0; r < map.getNumResults(); ++r) {
+      A[r].assign(iterIVs.size(), 0);
+      AffineExpr expr = map.getResult(r);
+      AffineExpr orig = simplifyAffineExpr(expr, numDims, numSyms);
+      // Prebuild identity sym replacements
+      SmallVector<AffineExpr, 8> symRepls;
+      symRepls.reserve(numSyms);
+      for (unsigned s = 0; s < numSyms; ++s)
+        symRepls.push_back(getAffineSymbolExpr(s, ctx));
+      for (unsigned j = 0; j < iterIVs.size(); ++j) {
+        // Build dim replacements: increment dims that correspond to iter j by 1
+        SmallVector<AffineExpr, 8> dimRepls;
+        dimRepls.reserve(numDims);
+        for (unsigned d = 0; d < numDims; ++d) {
+          AffineExpr dExpr = getAffineDimExpr(d, ctx);
+          int iterIdx = dimToIterIdx[d];
+          if (iterIdx == static_cast<int>(j))
+            dimRepls.push_back(dExpr + getAffineConstantExpr(1, ctx));
+          else
+            dimRepls.push_back(dExpr);
+        }
+        AffineExpr shifted = simplifyAffineExpr(
+            expr.replaceDimsAndSymbols(dimRepls, symRepls), numDims, numSyms);
+        AffineExpr delta = simplifyAffineExpr(shifted - orig, numDims, numSyms);
+        if (auto c = dyn_cast<AffineConstantExpr>(delta))
+          A[r][j] = static_cast<int64_t>(c.getValue());
+        else
+          A[r][j] = 0; // Non-constant delta: treat as zero (conservative)
+      }
+    }
+
+    SmallVector<SmallVector<int64_t, 8>, 4> basis =
+        computePrimitiveIntegerNullspace(A);
+
+    // Expand to include both directions (v and -v) for each primitive vector.
+    SmallVector<SmallVector<int64_t, 8>, 4> expanded;
+    expanded.reserve(basis.size() * 2);
+    for (auto &v : basis) {
+      bool allZero = true;
+      for (int64_t x : v)
+        if (x != 0) {
+          allZero = false;
+          break;
+        }
+      if (allZero)
+        continue;
+      expanded.push_back(v);
+      SmallVector<int64_t, 8> neg(v.begin(), v.end());
+      for (int64_t &x : neg)
+        x = -x;
+      expanded.push_back(std::move(neg));
+    }
+
+    // Convert to attribute: array<array<index>> named
+    // tmd.reuse.primitive_vectors
+    SmallVector<Attribute, 4> vecAttrs;
+    vecAttrs.reserve(expanded.size());
+    for (auto &vec : expanded) {
+      SmallVector<Attribute, 8> ints;
+      ints.reserve(vec.size());
+      for (int64_t v : vec)
+        ints.push_back(IntegerAttr::get(IndexType::get(ctx), v));
+      vecAttrs.push_back(ArrayAttr::get(ctx, ints));
+    }
+    loadOp->setAttr("tmd.reuse.primitive_vectors",
+                    ArrayAttr::get(ctx, vecAttrs));
+  });
+}
+
 void runInputSharingReuseAnalysis(func::FuncOp funcOp, llvm::raw_ostream &os) {
   MLIRContext *ctx = funcOp.getContext();
 

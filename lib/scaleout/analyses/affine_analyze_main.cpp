@@ -16,7 +16,7 @@ using namespace mlir;
 namespace tmd_affine_analysis {
 
 LogicalResult runSyntaxCheck(func::FuncOp funcOp);
-void runInputSharingReuseAnalysis(func::FuncOp funcOp, llvm::raw_ostream &os);
+void attachPrimitiveReuseVectors(func::FuncOp funcOp);
 
 } // namespace tmd_affine_analysis
 
@@ -50,10 +50,13 @@ int main(int argc, char **argv) {
       hadError = true;
       return;
     }
-    tmd_affine_analysis::runInputSharingReuseAnalysis(funcOp, llvm::outs());
+    tmd_affine_analysis::attachPrimitiveReuseVectors(funcOp);
   });
 
   if (hadError)
     return 2;
+  // Print the module so that attached attributes are visible in IR.
+  module->print(llvm::outs());
+  llvm::outs() << "\n";
   return 0;
 }
