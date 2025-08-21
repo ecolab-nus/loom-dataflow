@@ -15,12 +15,19 @@ mlir_tablegen(DataflowDialect.h.inc -gen-dialect-decls -dialect=df ${TBLGEN_INCL
 mlir_tablegen(DataflowDialect.cpp.inc -gen-dialect-defs -dialect=df ${TBLGEN_INCLUDES})
 add_public_tablegen_target(TMDDataflowDialectIncGen)
 
+# Types
+set(LLVM_TARGET_DEFINITIONS DataflowTypes.td)
+mlir_tablegen(DataflowTypes.h.inc -gen-typedef-decls -typedefs-dialect=df ${TBLGEN_INCLUDES})
+mlir_tablegen(DataflowTypes.cpp.inc -gen-typedef-defs -typedefs-dialect=df ${TBLGEN_INCLUDES})
+add_public_tablegen_target(TMDDataflowTypesIncGen)
+
 add_mlir_dialect_library(tmdDataflowDialect
   DataflowDialect.cpp
 
   DEPENDS
   TMDDataflowOpsIncGen
   TMDDataflowDialectIncGen
+  TMDDataflowTypesIncGen
 
   LINK_LIBS PUBLIC
   MLIRIR

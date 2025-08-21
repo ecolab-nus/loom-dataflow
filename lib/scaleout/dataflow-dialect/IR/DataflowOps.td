@@ -6,7 +6,7 @@ include "mlir/IR/OpBase.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-include "DataflowDialect.td"
+include "DataflowTypes.td"
 
 class DF_Op<string mnemonic, list<Trait> traits = []>
   : Op<Dataflow_Dialect, mnemonic, traits> {}
@@ -40,7 +40,7 @@ def ChainedLoadOp : DF_Op<"chained_load"> {
   let arguments = (ins AnyMemRef:$memref,
                         Variadic<Index>:$indices,
                         AffineMapAttr:$map,
-                        I64:$chain);
+                        ChainHandleType:$chain);
 
   let results = (outs AnyType:$result);
 

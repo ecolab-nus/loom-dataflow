@@ -7,8 +7,15 @@
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OpImplementation.h"
+#include "llvm/ADT/TypeSwitch.h"
 
 #include "DataflowDialect.h.inc"
+// Generated type declarations
+#define GET_TYPEDEF_CLASSES
+#include "DataflowTypes.h.inc"
+// Generated type definitions (TypeID, printers/parsers)
+#define GET_TYPEDEF_CLASSES
+#include "DataflowTypes.cpp.inc"
 
 using namespace mlir;
 using namespace tmd::df;
@@ -22,6 +29,10 @@ void DataflowDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
 #include "DataflowOps.cpp.inc"
+      >();
+  addTypes<
+#define GET_TYPEDEF_LIST
+#include "DataflowTypes.cpp.inc"
       >();
 }
 
@@ -64,7 +75,9 @@ ParseResult ChainedLoadOp::parse(OpAsmParser &parser, OperationState &result) {
   if (parser.resolveOperands(mapOperands, builder.getIndexType(),
                              result.operands))
     return failure();
-  if (parser.resolveOperand(chainInfo, builder.getI64Type(), result.operands))
+  if (parser.resolveOperand(chainInfo,
+                            ChainHandleType::get(builder.getContext()),
+                            result.operands))
     return failure();
 
   // Types and properties
@@ -89,3 +102,5 @@ void ChainedLoadOp::print(OpAsmPrinter &p) {
 
 #define GET_OP_CLASSES
 #include "DataflowOps.cpp.inc"
+
+// Default type printer/parser enabled in .td

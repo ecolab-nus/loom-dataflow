@@ -11,8 +11,8 @@ module {
     // Declare 8x8 mesh and chains
     %x = df.spatial_dim 8
     %y = df.spatial_dim 8
-    %horizontal_chains = "df.chains"(%x, %y) {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : (index, index) -> i64
-    %vertical_chains = "df.chains"(%x, %y) {map = affine_map<(d0, d1) -> (d0, d1 + 1)>} : (index, index) -> i64
+    %horizontal_chains = "df.chains"(%x, %y) {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : (index, index) -> !df.chain
+    %vertical_chains = "df.chains"(%x, %y) {map = affine_map<(d0, d1) -> (d0, d1 + 1)>} : (index, index) -> !df.chain
 
     // Hardware-agnostic: this "grid" is the output index space itself.
     // (Mapping to real hardware happens later in your compiler.)

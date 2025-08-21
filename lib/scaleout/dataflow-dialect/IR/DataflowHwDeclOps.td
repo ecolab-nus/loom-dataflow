@@ -53,7 +53,7 @@ def ChainsOp : DF_Op<"chains"> {
   }];
 
   let arguments = (ins Variadic<Index>:$indices, AffineMapAttr:$map);
-  let results = (outs I64:$handle);
+  let results = (outs ChainHandleType:$handle);
 
   // Use generic-like printing to avoid a custom parser implementation here.
   // Users will see/accept the generic form unless/ until a custom
