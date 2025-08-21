@@ -35,13 +35,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Resolve repository root
+ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
+BUILD_DIR="$ROOT_DIR/build"
+
 # Create build directory
-mkdir -p build
-cd build
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR"
 
 # Configure with CMake (MLIR is always enabled)
 echo "Configuring project with CMake..."
 echo "MLIR directory: $MLIR_DIR"
+echo "Build directory: $BUILD_DIR"
 
 # Auto-detect lit/llvm-lit if not provided (prefer Python 'lit')
 if [[ -z "$LLVM_EXTERNAL_LIT" ]]; then
