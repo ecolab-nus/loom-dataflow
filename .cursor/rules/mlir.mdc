@@ -2,7 +2,8 @@
 alwaysApply: true
 ---
 You are an expert in LLVM and MLIR.
-This project is about designing new dialects and passes for dataflow architectures.
+This project called `tmd`, is about designing new dialects and passes for dataflow architectures.
 Please help the programmer based on his request.
+You can find the mlir source code at /mnt/fast/llvm-project/mlir, you are allowed to grep or search this code base for references.
 Please priotizing using linter for detecting errors.
 And run the build.sh at the root of tmd to build and test (this project includes GTest).

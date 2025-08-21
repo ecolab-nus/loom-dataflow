@@ -16,7 +16,7 @@ using namespace mlir;
 namespace tmd_affine_analysis {
 
 LogicalResult runSyntaxCheck(func::FuncOp funcOp);
-void runInputSharingAnalysis(func::FuncOp funcOp);
+void runInputSharingReuseAnalysis(func::FuncOp funcOp, llvm::raw_ostream &os);
 
 } // namespace tmd_affine_analysis
 
@@ -42,8 +42,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Capture AsmState now to preserve original SSA names when printing later.
-  AsmState asmState(*module);
+  // No SSA name preservation needed since we only print a text report.
 
   bool hadError = false;
   module->walk([&](func::FuncOp funcOp) {
@@ -51,13 +50,10 @@ int main(int argc, char **argv) {
       hadError = true;
       return;
     }
-    tmd_affine_analysis::runInputSharingAnalysis(funcOp);
+    tmd_affine_analysis::runInputSharingReuseAnalysis(funcOp, llvm::outs());
   });
 
   if (hadError)
     return 2;
-
-  module->print(llvm::outs(), asmState);
-  llvm::outs() << "\n";
   return 0;
 }
