@@ -6,6 +6,7 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/OpImplementation.h"
 
 #include "DataflowDialect.h.inc"
 
@@ -50,14 +51,11 @@ ParseResult ChainedLoadOp::parse(OpAsmParser &parser, OperationState &result) {
   if (parser.parseType(memrefTy))
     return failure();
 
-  // Optionally require a comma before trailing clause, then: over iter(VI)
-  if (parser.parseComma() || parser.parseKeyword("over") ||
-      parser.parseKeyword("iter") || parser.parseLParen())
+  // Optionally require a comma before trailing clause, then: over %chain
+  if (parser.parseComma() || parser.parseKeyword("over"))
     return failure();
-  int64_t vi = 0;
-  if (parser.parseInteger(vi))
-    return failure();
-  if (parser.parseRParen())
+  OpAsmParser::UnresolvedOperand chainInfo;
+  if (parser.parseOperand(chainInfo))
     return failure();
 
   // Resolve operands
@@ -66,13 +64,13 @@ ParseResult ChainedLoadOp::parse(OpAsmParser &parser, OperationState &result) {
   if (parser.resolveOperands(mapOperands, builder.getIndexType(),
                              result.operands))
     return failure();
+  if (parser.resolveOperand(chainInfo, builder.getI64Type(), result.operands))
+    return failure();
 
   // Types and properties
   result.addTypes(memrefTy.getElementType());
   if (mapAttr)
     result.getOrAddProperties<ChainedLoadOp::Properties>().map = mapAttr;
-  result.getOrAddProperties<ChainedLoadOp::Properties>().iterator =
-      builder.getI64IntegerAttr(vi);
   return success();
 }
 
@@ -83,9 +81,10 @@ void ChainedLoadOp::print(OpAsmPrinter &p) {
     p.printAffineMapOfSSAIds(mapAttr, getIndices());
   p << ']';
   // Elide inherent attrs
-  p.printOptionalAttrDict((*this)->getAttrs(), /*elided=*/{"iterator", "map"});
-  // Print: ": memref-type, over iter(VI)"
-  p << " : " << getMemref().getType() << ", over iter(" << getIterator() << ")";
+  p.printOptionalAttrDict((*this)->getAttrs(), /*elided=*/{"map"});
+  // Print: ": memref-type, over %chain"
+  p << " : " << getMemref().getType() << ", over "
+    << (*this)->getOperand((*this)->getNumOperands() - 1);
 }
 
 #define GET_OP_CLASSES
