@@ -3,7 +3,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/IR/AsmState.h"
+#include "llvm/Support/FileSystem.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
@@ -19,7 +19,6 @@
 // df dialect
 #include "DataflowDialect.h.inc"
 // Dialect registry for robust pretty-printing
-#include "mlir/IR/DialectRegistry.h"
 
 using namespace mlir;
 
@@ -87,56 +86,7 @@ static affine::AffineParallelOp getOutermostParallel(func::FuncOp funcOp) {
   return nullptr;
 }
 
-// Compute ceilDiv(ub, C) using affine.apply with a constant divisor C.
-static Value buildCeilDivByConst(OpBuilder &b, Location loc, Value ub,
-                                 int64_t C) {
-  assert(C > 0 && "tiling size must be positive");
-  // Map: (s0) -> ((s0 + (C-1)) floordiv C)
-  auto ctx = b.getContext();
-  AffineExpr s0 = getAffineSymbolExpr(0, ctx);
-  AffineExpr expr = (s0 + getAffineConstantExpr(C - 1, ctx)).floorDiv(C);
-  AffineMap m = AffineMap::get(/*dims=*/0, /*syms=*/1, {expr}, ctx);
-  SmallVector<OpFoldResult, 1> ops;
-  ops.push_back(ub);
-  return affine::makeComposedAffineApply(b, loc, m, ops).getResult();
-}
-
-// Build nested outer/inner affine.parallel loops that tile the original
-// parallel op. The outer has one IV per original parallel IV. The inner has one
-// IV per spatial dimension assigned across all original IVs (in order). The
-// original loop body is moved into the inner loop.
-// Returns the created outer and inner parallel ops and fills outerIVs and
-// innerIVs vectors.
-// Build composed index value: outer * prod + sum(inner_j * stride_j)
-static Value buildComposedIndex(OpBuilder &b, Location loc, Value outerIv,
-                                ArrayRef<Value> innerIvs,
-                                ArrayRef<int64_t> sizes) {
-  MLIRContext *ctx = b.getContext();
-  const unsigned dims = 1 + innerIvs.size();
-  SmallVector<AffineExpr, 8> dimExprs;
-  for (unsigned i = 0; i < dims; ++i)
-    dimExprs.push_back(getAffineDimExpr(i, ctx));
-  int64_t prod = 1;
-  for (int64_t s : sizes)
-    prod *= s;
-  AffineExpr expr = (prod == 1)
-                        ? dimExprs[0]
-                        : dimExprs[0] * getAffineConstantExpr(prod, ctx);
-  int64_t stride = 1;
-  for (unsigned j = 0; j < innerIvs.size(); ++j) {
-    AffineExpr term =
-        (stride == 1) ? dimExprs[1 + j]
-                      : dimExprs[1 + j] * getAffineConstantExpr(stride, ctx);
-    expr = expr + term;
-    stride *= sizes[j];
-  }
-  AffineMap map = AffineMap::get(dims, 0, expr, ctx);
-  SmallVector<OpFoldResult, 8> ops;
-  ops.push_back(outerIv);
-  for (Value v : innerIvs)
-    ops.push_back(v);
-  return affine::makeComposedAffineApply(b, loc, map, ops).getResult();
-}
+//
 
 // Apply one tiling assignment: for each parallel IV i, use sizes in
 // perIvSizes[i] and order to build tile loops and rewrite accesses. This
@@ -155,7 +105,7 @@ applyOneTilingVariant(func::FuncOp clonedFunc,
 
   // Build flat lists of spatial dims: sizes (constants), owners (par iv index),
   // df ordinals
-  const unsigned numPar = parOp.getIVs().size();
+  (void)parOp; // silence unused warnings if invariants are not needed later
   SmallVector<int64_t, 8> flatSizes;
   SmallVector<int64_t, 8> flatOwners;
   SmallVector<int64_t, 8> flatOrdinals;
@@ -195,18 +145,9 @@ applyOneTilingVariant(func::FuncOp clonedFunc,
   OpBuilder wb(&body);
   wb.setInsertionPointToStart(&body.front());
   // Create the actual spatial affine.parallel inside wrapper
-  SmallVector<AffineExpr, 8> lbExprs(flatSizes.size(),
-                                     getAffineConstantExpr(0, ctx));
-  SmallVector<AffineExpr, 8> ubExprs;
-  for (int64_t s : flatSizes)
-    ubExprs.push_back(getAffineConstantExpr(s, ctx));
-  AffineMap lbMap = AffineMap::get(0, 0, lbExprs, ctx);
-  AffineMap ubMap = AffineMap::get(0, 0, ubExprs, ctx);
-  SmallVector<int64_t, 8> steps(flatSizes.size(), 1);
   SmallVector<arith::AtomicRMWKind, 0> reductions;
-  auto spatialPar = wb.create<affine::AffineParallelOp>(
-      loc, TypeRange{}, reductions, lbMap, ValueRange{}, ubMap, ValueRange{},
-      steps);
+  auto spatialPar = wb.create<affine::AffineParallelOp>(loc, TypeRange{},
+                                                        reductions, flatSizes);
   Block &spBody = spatialPar.getRegion().front();
   Operation *spTerm = spBody.getTerminator();
   parOp->moveBefore(spTerm);
@@ -245,36 +186,29 @@ makeVariantSuffix(ArrayRef<llvm::SmallVector<int64_t, 4>> perIvSizes) {
 } // end anonymous namespace
 
 int main(int argc, char **argv) {
-  // Initialize context with a registry to ensure all dialects are properly
-  // registered for custom printers/parsers.
-  DialectRegistry registry;
-  registry.insert<mlir::BuiltinDialect, mlir::func::FuncDialect,
-                  mlir::affine::AffineDialect, mlir::arith::ArithDialect,
-                  mlir::memref::MemRefDialect, tmd::df::DataflowDialect>();
-  MLIRContext context(registry);
-  // Explicitly load dialects to enable custom printers instead of generic form.
-  context.loadDialect<mlir::BuiltinDialect, mlir::func::FuncDialect,
-                      mlir::affine::AffineDialect, mlir::arith::ArithDialect,
-                      mlir::memref::MemRefDialect, tmd::df::DataflowDialect>();
-  // Avoid falling back to generic op form by disallowing unregistered dialects.
-  context.allowUnregisteredDialects(false);
-  // Ensure they are fully materialized in this context.
+  // Initialize context and load required dialects explicitly.
+  MLIRContext context;
   (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
-  (void)context.getOrLoadDialect<mlir::func::FuncDialect>();
-  (void)context.getOrLoadDialect<mlir::affine::AffineDialect>();
-  (void)context.getOrLoadDialect<mlir::arith::ArithDialect>();
-  (void)context.getOrLoadDialect<mlir::memref::MemRefDialect>();
-  (void)context.getOrLoadDialect<tmd::df::DataflowDialect>();
+  context.loadDialect<mlir::func::FuncDialect>();
+  context.loadDialect<mlir::memref::MemRefDialect>();
+  context.loadDialect<mlir::affine::AffineDialect>();
+  context.loadDialect<mlir::arith::ArithDialect>();
+  context.loadDialect<tmd::df::DataflowDialect>();
 
   llvm::SourceMgr sourceMgr;
-  // CLI: [--restrict-distribution] <file>
+  // CLI: [--restrict-distribution] [--outdir <dir>] <file>
   bool restrictDistribution = false;
   const char *filename = "-";
   std::string outFilePath;
+  std::string outDirPath;
   for (int i = 1; i < argc; ++i) {
     llvm::StringRef arg(argv[i]);
     if (arg == "--restrict-distribution") {
       restrictDistribution = true;
+    } else if (arg.consume_front("--outdir=")) {
+      outDirPath = arg.str();
+    } else if (arg == "--outdir" && i + 1 < argc) {
+      outDirPath = argv[++i];
     } else if (arg.consume_front("--out=")) {
       outFilePath = arg.str();
     } else if (arg == "--out" && i + 1 < argc) {
@@ -297,8 +231,15 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  // If writing per-variant files, ensure directory exists.
+  if (!outDirPath.empty())
+  {
+    auto created = llvm::sys::fs::create_directories(outDirPath);
+    (void)created;
+  }
+
   // For each function: collect spatial dims and outermost parallel, enumerate
-  // variants, clone and transform.
+  // variants, clone, transform, and optionally emit per-variant modules.
   module->walk([&](func::FuncOp funcOp) {
     auto dims = collectSpatialDims(funcOp);
     affine::AffineParallelOp parOp = getOutermostParallel(funcOp);
@@ -336,6 +277,22 @@ int main(int argc, char **argv) {
           std::string suffix = makeVariantSuffix(perIvSizes);
           func::FuncOp clone = cloneFunctionWithSuffix(*module, funcOp, suffix);
           (void)applyOneTilingVariant(clone, perIvSizes, perIvDimValues);
+          if (!outDirPath.empty()) {
+            ModuleOp outMod = ModuleOp::create(UnknownLoc::get(&context));
+            OpBuilder mb(&context);
+            mb.setInsertionPointToStart(outMod.getBody());
+            mb.clone(*clone.getOperation());
+            std::string filePath = outDirPath + "/" + clone.getName().str() + ".mlir";
+            if (auto out = mlir::openOutputFile(filePath)) {
+              outMod.print(out->os());
+              out->os() << "\n";
+              out->keep();
+            } else {
+              llvm::WithColor::error(llvm::errs())
+                  << "Failed to open output file: " << filePath << "\n";
+            }
+            outMod.erase();
+          }
         }
       }
     } else {
@@ -361,31 +318,44 @@ int main(int argc, char **argv) {
           std::string suffix = makeVariantSuffix(perIvSizes);
           func::FuncOp clone = cloneFunctionWithSuffix(*module, funcOp, suffix);
           (void)applyOneTilingVariant(clone, perIvSizes, perIvDimValues);
+          if (!outDirPath.empty()) {
+            ModuleOp outMod = ModuleOp::create(UnknownLoc::get(&context));
+            OpBuilder mb(&context);
+            mb.setInsertionPointToStart(outMod.getBody());
+            mb.clone(*clone.getOperation());
+            std::string filePath = outDirPath + "/" + clone.getName().str() + ".mlir";
+            if (auto out = mlir::openOutputFile(filePath)) {
+              outMod.print(out->os());
+              out->os() << "\n";
+              out->keep();
+            } else {
+              llvm::WithColor::error(llvm::errs())
+                  << "Failed to open output file: " << filePath << "\n";
+            }
+            outMod.erase();
+          }
         }
       }
     }
   });
 
-  // Print using simplified/custom assembly form for readability.
-  OpPrintingFlags printFlags;
-  // Prefer local scope names and avoid verbose generic form.
-  printFlags.useLocalScope();
-  // Elide huge elements attributes if present to keep output concise.
-  printFlags.elideLargeElementsAttrs();
-  if (!outFilePath.empty()) {
-    auto out = mlir::openOutputFile(outFilePath);
-    if (!out) {
-      llvm::WithColor::error(llvm::errs())
-          << "Failed to open output file: " << outFilePath << "\n";
-      return 1;
+  // If no outdir given, honor --out single file or print to stdout.
+  if (outDirPath.empty()) {
+    if (!outFilePath.empty()) {
+      auto out = mlir::openOutputFile(outFilePath);
+      if (!out) {
+        llvm::WithColor::error(llvm::errs())
+            << "Failed to open output file: " << outFilePath << "\n";
+        return 1;
+      }
+      llvm::raw_pwrite_stream &os = out->os();
+      module->print(os);
+      os << "\n";
+      out->keep();
+    } else {
+      module->print(llvm::outs());
+      llvm::outs() << "\n";
     }
-    llvm::raw_pwrite_stream &os = out->os();
-    module->print(os, printFlags);
-    os << "\n";
-    out->keep();
-  } else {
-    module->print(llvm::outs(), printFlags);
-    llvm::outs() << "\n";
   }
   return 0;
 }
