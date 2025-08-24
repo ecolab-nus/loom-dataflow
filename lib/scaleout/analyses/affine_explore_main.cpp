@@ -30,17 +30,41 @@ struct SpatialDimInfo {
   Value value;   // SSA result (index)
 };
 
-// Enumerate all compositions of S into P positive integers.
+// A plan assigns an ordered list of spatial dimension indices to each loop.
+// - Outer vector indexes loops in order: 0..P-1
+// - Inner vectors contain indices into the collected `dims` array, preserving
+//   left-to-right order per loop.
+using LoopPlan = llvm::SmallVector<int, 4>;
+using Plan = llvm::SmallVector<LoopPlan, 4>;
+
+// Enumerate all weak compositions of S into P non-negative parts.
+//
+// Definition: A weak composition of an integer S into P parts is a length-P
+// vector of non-negative integers that sums to S. Order matters, zeros are
+// allowed. The number of such compositions is binomial(S + P - 1, P - 1).
+//
+// Parameters:
+// - S: the remaining sum to distribute across the remaining P parts.
+// - P: the number of parts left to fill.
+// - out: accumulator receiving all completed length-P vectors.
+// - current: working prefix (length increases until it reaches P).
+//
+// Usage pattern: call with `current` empty; on return, `out` contains all
+// length-P vectors whose elements sum to the original S.
 static void
 enumerateWeakCompositions(int S, int P,
                           llvm::SmallVector<llvm::SmallVector<int, 4>, 8> &out,
                           llvm::SmallVector<int, 4> &current) {
+  // Base case: only one part left; the last part must take the entire
+  // remaining sum S (which can be zero), completing a length-P vector.
   if (P == 1) {
     current.push_back(S);
     out.push_back(current);
     current.pop_back();
     return;
   }
+  // Recursive step: choose the first part (0..S), then distribute the
+  // remaining S - first across the remaining P - 1 parts.
   for (int first = 0; first <= S; ++first) {
     current.push_back(first);
     enumerateWeakCompositions(S - first, P - 1, out, current);
@@ -49,6 +73,10 @@ enumerateWeakCompositions(int S, int P,
 }
 
 // Generate all permutations of indices 0..N-1.
+//
+// The permutations are produced in lexicographic order by iterating with
+// std::next_permutation starting from the sorted seed [0, 1, ..., N-1].
+// Complexity is O(N! * N) overall for generating and copying each vector.
 static void
 enumeratePermutations(int N,
                       llvm::SmallVector<llvm::SmallVector<int, 8>, 16> &perms) {
@@ -56,7 +84,7 @@ enumeratePermutations(int N,
   v.reserve(N);
   for (int i = 0; i < N; ++i)
     v.push_back(i);
-  // Simple Heap's algorithm iterative implementation via std::next_permutation
+  // Enumerate in lexicographic order using std::next_permutation.
   std::sort(v.begin(), v.end());
   do {
     perms.push_back(v);
@@ -88,13 +116,13 @@ static affine::AffineParallelOp getOutermostParallel(func::FuncOp funcOp) {
 
 //
 
-// Apply one tiling assignment: for each parallel IV i, use sizes in
-// perIvSizes[i] and order to build tile loops and rewrite accesses. This
-// function modifies the cloned function in-place.
-static LogicalResult
-applyOneTilingVariant(func::FuncOp clonedFunc,
-                      ArrayRef<llvm::SmallVector<int64_t, 4>> perIvSizes,
-                      ArrayRef<llvm::SmallVector<Value, 4>> perIvDimValues) {
+// Apply a plan assignment: for each parallel IV i, use the ordered list of
+// spatial dimensions in plan[i]. This function modifies the cloned function
+// in-place. For now, we materialize a single spatial affine.parallel whose IVs
+// are laid out by concatenating each loop's list in order (loop 0 list, then
+// loop 1 list, ...). The per-loop ordering is preserved in this flattening.
+static LogicalResult applyPlanVariant(func::FuncOp clonedFunc, const Plan &plan,
+                                      ArrayRef<SpatialDimInfo> dims) {
   affine::AffineParallelOp parOp = getOutermostParallel(clonedFunc);
   if (!parOp)
     return clonedFunc.emitError("expected outermost affine.parallel");
@@ -103,24 +131,11 @@ applyOneTilingVariant(func::FuncOp clonedFunc,
   OpBuilder b(parOp);
   (void)b.getContext();
 
-  // Build flat lists of spatial dims: sizes (constants), owners (par iv index),
-  // df ordinals
-  (void)parOp; // silence unused warnings if invariants are not needed later
+  // Build flat list of spatial dims in the per-loop order.
   SmallVector<int64_t, 8> flatSizes;
-  SmallVector<int64_t, 8> flatOwners;
-  SmallVector<int64_t, 8> flatOrdinals;
-  DenseMap<Value, int64_t> dimToOrd;
-  int64_t nextOrd = 0;
-  clonedFunc.walk([&](Operation *op) {
-    if (op->getName().getStringRef() == "df.spatial_dim")
-      dimToOrd[op->getResult(0)] = nextOrd++;
-  });
-  for (unsigned p = 0; p < perIvSizes.size(); ++p) {
-    for (unsigned j = 0; j < perIvSizes[p].size(); ++j) {
-      flatSizes.push_back(perIvSizes[p][j]);
-      flatOwners.push_back(static_cast<int64_t>(p));
-      auto it = dimToOrd.find(perIvDimValues[p][j]);
-      flatOrdinals.push_back(it == dimToOrd.end() ? -1 : it->second);
+  for (unsigned loopIndex = 0; loopIndex < plan.size(); ++loopIndex) {
+    for (int dimIdx : plan[loopIndex]) {
+      flatSizes.push_back(dims[static_cast<size_t>(dimIdx)].size);
     }
   }
   if (flatSizes.empty())
@@ -149,15 +164,16 @@ static func::FuncOp cloneFunctionWithSuffix(ModuleOp module, func::FuncOp func,
   return newFunc;
 }
 
-// Create human-readable suffix for a variant, e.g., __tile_p0[8,8]_p1[8]
-static std::string
-makeVariantSuffix(ArrayRef<llvm::SmallVector<int64_t, 4>> perIvSizes) {
-  std::string s = std::string("__tile");
-  for (size_t i = 0; i < perIvSizes.size(); ++i) {
-    s += std::string("_p") + std::to_string(i) + '[';
-    for (size_t j = 0; j < perIvSizes[i].size(); ++j) {
-      s += std::to_string(perIvSizes[i][j]);
-      if (j + 1 < perIvSizes[i].size())
+// Create human-readable suffix for a plan variant, e.g., __plan_p0[8,16]_p1[]
+static std::string makePlanSuffix(const Plan &plan,
+                                  ArrayRef<SpatialDimInfo> dims) {
+  std::string s = std::string("__plan");
+  for (size_t loopIdx = 0; loopIdx < plan.size(); ++loopIdx) {
+    s += std::string("_p") + std::to_string(loopIdx) + '[';
+    for (size_t j = 0; j < plan[loopIdx].size(); ++j) {
+      int dimIdx = plan[loopIdx][j];
+      s += std::to_string(dims[static_cast<size_t>(dimIdx)].size);
+      if (j + 1 < plan[loopIdx].size())
         s += ',';
     }
     s += ']';
@@ -228,37 +244,27 @@ int main(int argc, char **argv) {
     if (!parOp)
       return;
 
-    const int P = static_cast<int>(parOp.getIVs().size());
-    const int S = static_cast<int>(dims.size());
-    if (P <= 0 || S <= 0)
+    const int numParallelLoops = static_cast<int>(parOp.getIVs().size());
+    const int numSpatialDims = static_cast<int>(dims.size());
+    if (numParallelLoops <= 0 || numSpatialDims <= 0)
       return;
-    if (S < P)
-      return; // Not enough spatial dims to assign at least one per IV
+    if (numSpatialDims < numParallelLoops)
+      return; // Not enough spatial dims to assign at least one per loop
 
-    // Prepare size array and SSA values of spatial dims
-    llvm::SmallVector<int64_t, 8> sizes;
-    sizes.reserve(S);
-    for (auto &d : dims)
-      sizes.push_back(d.size);
-
-    // All permutations of dims
+    // Generate plans according to the requested policy.
+    // All permutations of spatial dimension indices.
     llvm::SmallVector<llvm::SmallVector<int, 8>, 16> perms;
-    enumeratePermutations(S, perms);
+    enumeratePermutations(numSpatialDims, perms);
 
     if (restrictDistribution) {
-      // Assign all spatial dims to exactly one parallel IV (others get none)
+      // Each plan assigns all spatial dims (in some order) to exactly one loop.
       for (const auto &perm : perms) {
-        for (int chosen = 0; chosen < P; ++chosen) {
-          llvm::SmallVector<llvm::SmallVector<int64_t, 4>, 4> perIvSizes(P);
-          llvm::SmallVector<llvm::SmallVector<Value, 4>, 4> perIvDimValues(P);
-          for (int j = 0; j < S; ++j) {
-            int dimIdx = perm[j];
-            perIvSizes[chosen].push_back(sizes[dimIdx]);
-            perIvDimValues[chosen].push_back(dims[dimIdx].value);
-          }
-          std::string suffix = makeVariantSuffix(perIvSizes);
+        for (int chosen = 0; chosen < numParallelLoops; ++chosen) {
+          Plan plan(static_cast<size_t>(numParallelLoops));
+          plan[static_cast<size_t>(chosen)].assign(perm.begin(), perm.end());
+          std::string suffix = makePlanSuffix(plan, dims);
           func::FuncOp clone = cloneFunctionWithSuffix(*module, funcOp, suffix);
-          (void)applyOneTilingVariant(clone, perIvSizes, perIvDimValues);
+          (void)applyPlanVariant(clone, plan, dims);
           if (!outDirPath.empty()) {
             ModuleOp outMod = ModuleOp::create(UnknownLoc::get(&context));
             OpBuilder mb(&context);
@@ -278,28 +284,27 @@ int main(int argc, char **argv) {
         }
       }
     } else {
-      // Full design space: distribute spatial dims across parallel IVs
-      // using weak compositions to allow multiple dims per IV and allow zeros.
+      // Full design space: split permutations into numParallelLoops ordered
+      // buckets via a weak composition of numSpatialDims into numParallelLoops
+      // parts (allowing zero-length buckets).
       llvm::SmallVector<llvm::SmallVector<int, 4>, 8> compositions;
       llvm::SmallVector<int, 4> curr;
-      enumerateWeakCompositions(S, P, compositions, curr);
+      enumerateWeakCompositions(numSpatialDims, numParallelLoops, compositions, curr);
       for (const auto &perm : perms) {
         for (const auto &comp : compositions) {
-          llvm::SmallVector<llvm::SmallVector<int64_t, 4>, 4> perIvSizes(P);
-          llvm::SmallVector<llvm::SmallVector<Value, 4>, 4> perIvDimValues(P);
+          Plan plan(static_cast<size_t>(numParallelLoops));
           int offset = 0;
-          for (int i = 0; i < P; ++i) {
-            int len = comp[i];
+          for (int i = 0; i < numParallelLoops; ++i) {
+            int len = comp[static_cast<size_t>(i)];
+            plan[static_cast<size_t>(i)].reserve(len);
             for (int j = 0; j < len; ++j) {
-              int dimIdx = perm[offset + j];
-              perIvSizes[i].push_back(sizes[dimIdx]);
-              perIvDimValues[i].push_back(dims[dimIdx].value);
+              plan[static_cast<size_t>(i)].push_back(perm[static_cast<size_t>(offset + j)]);
             }
             offset += len;
           }
-          std::string suffix = makeVariantSuffix(perIvSizes);
+          std::string suffix = makePlanSuffix(plan, dims);
           func::FuncOp clone = cloneFunctionWithSuffix(*module, funcOp, suffix);
-          (void)applyOneTilingVariant(clone, perIvSizes, perIvDimValues);
+          (void)applyPlanVariant(clone, plan, dims);
           if (!outDirPath.empty()) {
             ModuleOp outMod = ModuleOp::create(UnknownLoc::get(&context));
             OpBuilder mb(&context);
