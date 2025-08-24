@@ -102,5 +102,25 @@ void ChainedLoadOp::print(OpAsmPrinter &p) {
 
 #define GET_OP_CLASSES
 #include "DataflowOps.cpp.inc"
+// Custom assembly for df.spatial_wrap
+ParseResult SpatialWrapOp::parse(OpAsmParser &parser, OperationState &result) {
+  if (parser.parseOptionalAttrDict(result.attributes))
+    return failure();
+  if (!result.attributes.get("mapping"))
+    return parser.emitError(parser.getCurrentLocation(),
+                            "expected 'mapping' attribute");
+  Region *body = result.addRegion();
+  if (parser.parseRegion(*body, /*arguments=*/{}, /*argTypes=*/{}))
+    return failure();
+  return success();
+}
+
+void SpatialWrapOp::print(OpAsmPrinter &p) {
+  p << '(' << ')';
+  p.printOptionalAttrDict((*this)->getAttrs());
+  p << ' ';
+  p.printRegion(getBody(), /*printEntryBlockArgs=*/false,
+                /*printBlockTerminators=*/false);
+}
 
 // Default type printer/parser enabled in .td

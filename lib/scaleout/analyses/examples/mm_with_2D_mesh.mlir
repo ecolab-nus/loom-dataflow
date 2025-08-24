@@ -5,7 +5,7 @@ module {
       %C: memref<?x?xf32>,     // M x N
       %M: index, %N: index, %K: index) {
 
-    // Declare 8x8 mesh using interconnect
+    // Declare 8x8 mesh using chains
     %x = df.spatial_dim 8
     %y = df.spatial_dim 8
     %horizontal_chains = "df.interconnects"(%x, %y) {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : (index, index) -> !df.interconnect
@@ -15,8 +15,8 @@ module {
     // (Mapping to real hardware happens later in your compiler.)
     affine.parallel (%m, %n) = (0, 0) to (%M, %N) {
       affine.for %k = 0 to %K {
-        %a = df.chained_load %A[%m, %k] : memref<?x?xf32>, over %horizontal_chains
-        %b = df.chained_load %B[%k, %n] : memref<?x?xf32>, over %vertical_chains
+        %a = affine.load %A[%m, %k] : memref<?x?xf32>
+        %b = affine.load %B[%k, %n] : memref<?x?xf32>
         %c = affine.load %C[%m, %n] : memref<?x?xf32>
         affine.store %c, %C[%m, %n] : memref<?x?xf32>
       }

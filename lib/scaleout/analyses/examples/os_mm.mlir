@@ -1,7 +1,4 @@
 module {
-  // Analysis-only clone: data-movement pattern for C = A * B
-  // Each (m, n) iteration = one logical "core" producing C[m, n].
-  // No arithmetic: we just read A/B along k and store a dummy seed to C.
   func.func @mm_analysis_one_output_per_core(
       %A: memref<?x?xf32>,     // M x K
       %B: memref<?x?xf32>,     // K x N

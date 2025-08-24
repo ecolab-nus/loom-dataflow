@@ -49,5 +49,27 @@ def ChainedLoadOp : DF_Op<"chained_load"> {
   let hasCustomAssemblyFormat = 1;
 }
 
+// df.spatial_wrap: Wrapper op to carry spatial mapping metadata and contain
+// transformed code. Printed with a region whose entry block args and
+// terminators are elided for readability.
+def SpatialWrapOp : DF_Op<"spatial_wrap"> {
+  let summary = "Wrapper to annotate spatial mappings over contained region";
+  let description = [{
+    `df.spatial_wrap` wraps a region of IR (e.g., an affine.parallel) and
+    carries an attribute `mapping` which is an array of dictionaries. Each
+    dictionary describes one spatial dimension assignment with keys like
+    `df_ordinal`, `par_iv`, and `size` (all index-typed integers).
+
+    The custom printer elides entry block arguments and terminators for the
+    region body to keep output free of basic block labels and yields.
+  }];
+
+  let arguments = (ins ArrayAttr:$mapping);
+  let results = (outs);
+  let regions = (region AnyRegion:$body);
+
+  let hasCustomAssemblyFormat = 1;
+}
+
 
 
