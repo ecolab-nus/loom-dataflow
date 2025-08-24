@@ -101,7 +101,7 @@ applyOneTilingVariant(func::FuncOp clonedFunc,
 
   Location loc = parOp.getLoc();
   OpBuilder b(parOp);
-  MLIRContext *ctx = b.getContext();
+  (void)b.getContext();
 
   // Build flat lists of spatial dims: sizes (constants), owners (par iv index),
   // df ordinals
@@ -126,28 +126,10 @@ applyOneTilingVariant(func::FuncOp clonedFunc,
   if (flatSizes.empty())
     return success();
 
-  // Prepare mapping for wrapper
-  SmallVector<Attribute, 8> elems;
-  for (unsigned i = 0; i < flatSizes.size(); ++i) {
-    NamedAttrList d;
-    d.append("df_ordinal",
-             IntegerAttr::get(IndexType::get(ctx), flatOrdinals[i]));
-    d.append("par_iv", IntegerAttr::get(IndexType::get(ctx), flatOwners[i]));
-    d.append("size", IntegerAttr::get(IndexType::get(ctx), flatSizes[i]));
-    elems.push_back(DictionaryAttr::get(ctx, d));
-  }
-  OperationState wrapState(loc, "df.spatial_wrap");
-  wrapState.addAttribute("mapping", ArrayAttr::get(ctx, elems));
-  wrapState.addRegion();
-  Operation *wrap = b.create(wrapState);
-  Region &body = wrap->getRegion(0);
-  body.push_back(new Block());
-  OpBuilder wb(&body);
-  wb.setInsertionPointToStart(&body.front());
-  // Create the actual spatial affine.parallel inside wrapper
+  // Create the spatial affine.parallel and move original parallel inside it
   SmallVector<arith::AtomicRMWKind, 0> reductions;
-  auto spatialPar = wb.create<affine::AffineParallelOp>(loc, TypeRange{},
-                                                        reductions, flatSizes);
+  auto spatialPar = b.create<affine::AffineParallelOp>(loc, TypeRange{},
+                                                       reductions, flatSizes);
   Block &spBody = spatialPar.getRegion().front();
   Operation *spTerm = spBody.getTerminator();
   parOp->moveBefore(spTerm);
