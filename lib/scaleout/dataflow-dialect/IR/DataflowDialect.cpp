@@ -7,7 +7,6 @@
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OpImplementation.h"
-#include "mlir/Bytecode/BytecodeOpInterface.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 #include "DataflowDialect.h.inc"

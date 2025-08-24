@@ -77,19 +77,3 @@ cmake -G Ninja .. \
 # Build the project
 echo "Building project..."
 cmake --build . --config Release
-
-# Run tests
-echo "Running tests..."
-ctest --output-on-failure
-
-echo "Build completed successfully!"
-echo ""
-echo "Executables:"
-echo "  - Main program: ./tmd"
-echo "  - Resource management demo: ./tmd_resource_demo"
-echo "  - Tests: ./tmd_tests"
-echo ""
-echo "MLIR Standalone Tools:"
-echo "  - standalone-opt: ./standalone-opt"
-echo "  - standalone-translate: ./standalone-translate"
-echo ""

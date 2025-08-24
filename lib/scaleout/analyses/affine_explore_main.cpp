@@ -6,6 +6,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/AsmState.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/Parser/Parser.h"
@@ -272,7 +273,8 @@ int main(int argc, char **argv) {
             mb.clone(*clone.getOperation());
             std::string filePath = outDirPath + "/" + clone.getName().str() + ".mlir";
             if (auto out = mlir::openOutputFile(filePath)) {
-              outMod.print(out->os());
+              mlir::OpPrintingFlags flags; // default: pretty form
+              outMod.print(out->os(), flags);
               out->os() << "\n";
               out->keep();
             } else {
@@ -336,11 +338,13 @@ int main(int argc, char **argv) {
         return 1;
       }
       llvm::raw_pwrite_stream &os = out->os();
-      module->print(os);
+      mlir::OpPrintingFlags flags; // default: pretty form
+      module->print(os, flags);
       os << "\n";
       out->keep();
     } else {
-      module->print(llvm::outs());
+      mlir::OpPrintingFlags flags; // default: pretty form
+      module->print(llvm::outs(), flags);
       llvm::outs() << "\n";
     }
   }
