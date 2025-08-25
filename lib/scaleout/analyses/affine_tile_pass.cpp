@@ -43,8 +43,8 @@ struct AffineTilePass
     }
   }
 
-  int64_t tilingFactor = 8;
-  unsigned tileDimIndex = 0;
+  int64_t tilingFactor;
+  unsigned tileDimIndex;
 };
 } // namespace
 
