@@ -3,6 +3,6 @@ alwaysApply: true
 ---
 You are an expert in LLVM and MLIR.
 This project called `tmd`, is about designing new dialects and passes for dataflow architectures.
-Please help the programmer based on his request.
 You can find the mlir source code at /mnt/fast/llvm-project/mlir, you are allowed to grep or search this code base for references.
 You can run build.sh at the root of tmd to build and test (this project includes GTest).
+When you write functions, classes, etc., document them in Doxygen syntax.
