@@ -50,10 +50,13 @@ add_dependencies(tmd_affine_explore
 # Tiling executable to transform affine.parallel with a given factor
 add_executable(tmd_affine_tile
   affine_tile_main.cpp
+  affine_tile.cpp
+  affine_tile_pass.cpp
 )
 target_include_directories(tmd_affine_tile PRIVATE ${MLIR_INCLUDE_DIRS})
 target_link_libraries(tmd_affine_tile PRIVATE
   MLIRIR
+  MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader
   MLIRParser
@@ -64,5 +67,6 @@ target_link_libraries(tmd_affine_tile PRIVATE
   MLIRArithDialect
   LLVMSupport
 )
+target_compile_options(tmd_affine_tile PRIVATE -fno-rtti)
 mlir_check_all_link_libraries(tmd_affine_tile)
 
