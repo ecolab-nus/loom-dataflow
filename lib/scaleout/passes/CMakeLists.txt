@@ -1,6 +1,5 @@
 set(AFFINE_ANALYZE_SRC
   affine_analyze_main.cpp
-  syntax_check.cpp
   input_sharing_analysis.cpp
 )
 add_executable(tmd_affine_analyze ${AFFINE_ANALYZE_SRC})
