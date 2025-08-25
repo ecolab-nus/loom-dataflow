@@ -36,9 +36,34 @@ struct AffineTilePass
       if (!firstPar)
         firstPar = op;
     });
-    if (!firstPar)
-      return; // nothing to do
+    if (!firstPar) {
+      func.emitError()
+          << "tmd-affine-tile: no outermost affine.parallel op found to tile";
+      signalPassFailure();
+      return;
+    }
+
+    if (tilingFactor <= 0) {
+      func.emitError()
+          << "tmd-affine-tile: tiling-factor must be positive, got "
+          << tilingFactor;
+      signalPassFailure();
+      return;
+    }
+
+    unsigned numDims = firstPar.getNumDims();
+    if (tileDimIndex >= numDims) {
+      firstPar.emitOpError()
+          << "tmd-affine-tile: tile-dim index out of range: " << tileDimIndex
+          << " >= " << numDims;
+      signalPassFailure();
+      return;
+    }
+
     if (failed(tileAffineParallel(firstPar, tilingFactor, tileDimIndex))) {
+      firstPar.emitOpError() << "tmd-affine-tile: tiling failed with factor "
+                             << tilingFactor << " on dimension " << tileDimIndex
+                             << "; see previous diagnostics for details";
       signalPassFailure();
     }
   }
