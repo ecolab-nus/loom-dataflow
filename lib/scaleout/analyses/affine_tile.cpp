@@ -112,10 +112,16 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
   // Create the inner affine.parallel with constant range (0, tilingFactor).
   OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToStart(outerPar.getBody());
+  // Create inner with explicit affine lb/ub maps: (0) to (tilingFactor).
+  SmallVector<AffineMap> innerLbMaps = {builder.getConstantAffineMap(0)};
+  SmallVector<AffineMap> innerUbMaps = {
+      builder.getConstantAffineMap(static_cast<int64_t>(tilingFactor))};
+  SmallVector<int64_t> innerSteps = {1};
   (void)builder.create<affine::AffineParallelOp>(
       loc, /*resultTypes=*/TypeRange{},
-      /*reductions=*/ArrayRef<arith::AtomicRMWKind>{},
-      /*ranges=*/ArrayRef<int64_t>{tilingFactor});
+      /*reductions=*/ArrayRef<arith::AtomicRMWKind>{}, innerLbMaps,
+      /*lbArgs=*/ValueRange{}, innerUbMaps,
+      /*ubArgs=*/ValueRange{}, innerSteps);
   // Splice original body operations into the inner parallel, remapping IVs.
   // Skip the terminator if present.
   Block *origBody = op.getBody();
@@ -124,6 +130,9 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
   // point to its body start to clone the body into it.
   auto &firstOp = innerBody->front();
   auto innerParOp = dyn_cast<affine::AffineParallelOp>(&firstOp);
+  if (!innerParOp)
+    return op.emitError("internal error: expected inner AffineParallelOp"),
+           failure();
   Block *innerParBody = innerParOp.getBody();
   builder.setInsertionPointToStart(innerParBody);
   // Build the mapping now that we have the inner IV.

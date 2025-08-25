@@ -30,6 +30,9 @@ struct AffineTilePass
     func::FuncOp func = getOperation();
     affine::AffineParallelOp firstPar = nullptr;
     func.walk([&](affine::AffineParallelOp op) {
+      // Only consider outermost affine.parallel (no affine.parallel ancestor).
+      if (op->getParentOfType<affine::AffineParallelOp>())
+        return;
       if (!firstPar)
         firstPar = op;
     });
