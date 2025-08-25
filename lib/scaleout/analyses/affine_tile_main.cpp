@@ -22,27 +22,28 @@ using namespace mlir;
 namespace tmd_affine {
 
 /**
- * Tile a single affine.parallel operation along its first iterator by a given
+ * Tile a single affine.parallel operation along a chosen iterator by a given
  * tiling factor and rewrite it into a perfectly nested pair of
  * affine.parallel operations.
  *
  * Transformation (high level):
- *   affine.parallel (m, n, ...) = (0, 0, ...) to (M, N, ...) step (1, s1, ...)
- *     body(m, n, ...)
- * becomes
- *   affine.parallel (m, n, ...) = (0, 0, ...) to (M/TF, N, ...) step (1, s1,
- * ...) affine.parallel (m_inner) = (0) to (TF) body(m, n, ...)
+ *   affine.parallel (i0, i1, ..., ik, ...) = (0, 0, ..., 0, ...) to (D0, D1,
+ * ..., Dk, ...) step (s0, s1, ..., sk, ...) body(i0, i1, ..., ik, ...) becomes
+ *   affine.parallel (i0, i1, ..., ik, ...) = (0, 0, ..., 0, ...) to (D0, D1,
+ * ..., Dk/TF, ...) step (s0, s1, ..., sk, ...) affine.parallel (i_inner) = (0)
+ * to (TF) body(i0, i1, ..., ik, ...)
  *
  * Notes and assumptions:
- * - Only the first iterator is tiled. The remaining iterators are preserved.
- * - The first iterator must have step 1 and lower bound 0.
- * - If constant ranges are known (i.e., getConstantRanges()), the first range
+ * - Only one iterator (selected by tileDimIndex) is tiled. Others are
+ * preserved.
+ * - The tiled iterator must have step 1 and lower bound 0.
+ * - If constant ranges are known (i.e., getConstantRanges()), the chosen range
  *   must be divisible by tilingFactor; otherwise, this returns failure.
  * - Reductions are not supported (i.e., the affine.parallel must not produce
  *   results). This returns failure if reductions are present.
- * - For dynamic upper bounds, the outer bound is recomputed as UB0 / TF using
- *   integer division (arith.divui). The map is printed with symbol(...) as we
- *   build 0-dim, k-symbol upper bound maps.
+ * - For dynamic upper bounds, the outer bound is recomputed as UB(tileDim) / TF
+ * using integer division (arith.divui). The map is printed with symbol(...) as
+ * we build 0-dim, k-symbol upper bound maps.
  * - The inner loop upper bound is encoded as a constant affine bound (0..TF),
  *   no arith.constant is materialized for this.
  * - The body is cloned into the inner parallel, remapping original IVs to the
@@ -53,7 +54,7 @@ namespace tmd_affine {
  *          if preconditions are not met.
  */
 LogicalResult tileAffineParallel(affine::AffineParallelOp op,
-                                 int64_t tilingFactor) {
+                                 int64_t tilingFactor, unsigned tileDimIndex) {
   MLIRContext *ctx = op.getContext();
   if (tilingFactor <= 0)
     return op.emitError("tiling-factor must be positive"), failure();
@@ -63,31 +64,37 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
   unsigned numDims = op.getNumDims();
   if (numDims == 0)
     return success();
+  if (tileDimIndex >= numDims)
+    return op.emitError("tileDimIndex out of range"), failure();
 
-  // Only support unit steps for simplicity.
+  // Only support unit step on the chosen dimension for simplicity.
   SmallVector<int64_t> steps = llvm::to_vector(op.getSteps());
-  if (steps.empty() || steps[0] != 1)
-    return op.emitError("only step 1 supported for the first dimension"),
+  if (steps.empty() || steps[tileDimIndex] != 1)
+    return op.emitError("only step 1 supported on the chosen dimension"),
            failure();
 
-  // Require lower bound 0 on the first dimension for simplicity.
-  AffineMap lb0 = op.getLowerBoundMap(0);
-  if (lb0.getNumResults() != 1 || !lb0.isSingleConstant())
+  // Require lower bound 0 on the chosen dimension for simplicity.
+  AffineMap lbChosen = op.getLowerBoundMap(tileDimIndex);
+  if (lbChosen.getNumResults() != 1 || !lbChosen.isSingleConstant())
     return op.emitError(
-               "expected constant-zero lower bound on first dimension"),
+               "expected constant-zero lower bound on chosen dimension"),
            failure();
-  if (lb0.getSingleConstantResult() != 0)
-    return op.emitError("expected lower bound 0 on first dimension"), failure();
+  if (lbChosen.getSingleConstantResult() != 0)
+    return op.emitError("expected lower bound 0 on chosen dimension"),
+           failure();
 
   // If constant ranges known, verify divisibility; otherwise assume
   // divisible.
   if (auto maybeRanges = op.getConstantRanges()) {
     auto ranges = *maybeRanges;
     if (!ranges.empty()) {
-      int64_t extent0 = ranges[0];
-      if (extent0 % tilingFactor != 0)
+      if (tileDimIndex >= ranges.size())
+        return op.emitError("range metadata missing for chosen dimension"),
+               failure();
+      int64_t extentK = ranges[tileDimIndex];
+      if (extentK % tilingFactor != 0)
         return op.emitError(
-                   "first-dimension bound not divisible by tiling-factor"),
+                   "chosen-dimension bound not divisible by tiling-factor"),
                failure();
     }
   }
@@ -116,12 +123,12 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
   SmallVector<Value> origUbOperands(op.getUpperBoundsOperands().begin(),
                                     op.getUpperBoundsOperands().end());
 
-  // Compute new UB value for the first dimension: div(UB0, factor).
+  // Compute new UB value for the chosen dimension: div(UB_k, factor).
   Value ub0Value;
   {
     // If the ub map for dim 0 is constant, we'll materialize that constant
     // divided by the factor; otherwise, divide the corresponding UB operand.
-    AffineMap ub0 = op.getUpperBoundMap(0);
+    AffineMap ub0 = op.getUpperBoundMap(tileDimIndex);
     if (ub0.getNumResults() == 1 && ub0.isSingleConstant()) {
       int64_t c = ub0.getSingleConstantResult();
       // Division validity checked above when constant ranges are available.
@@ -131,19 +138,22 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
       // Assume identity on operand order: use the first UB operand.
       if (origUbOperands.empty())
         return op.emitError(
-                   "unsupported non-identity upper bound on first dim"),
+                   "unsupported non-identity upper bound on chosen dim"),
                failure();
-      Value ub0Orig = origUbOperands[0];
+      if (tileDimIndex >= origUbOperands.size())
+        return op.emitError("unsupported upper bound form on chosen dim"),
+               failure();
+      Value ub0Orig = origUbOperands[tileDimIndex];
       Value cstTile = builder.create<arith::ConstantIndexOp>(loc, tilingFactor);
       ub0Value = builder.create<arith::DivUIOp>(loc, ub0Orig, cstTile);
     }
   }
-  perDimUbValues.push_back(ub0Value);
-
-  // For the remaining dimensions, forward original UB operands assuming
-  // identity mapping to those operands.
-  for (unsigned i = 1; i < numDims; ++i) {
-    // Use the i-th UB operand if available; otherwise, try constant map.
+  // Build per-dim UB args in-order, using the divided UB for the chosen dim.
+  for (unsigned i = 0; i < numDims; ++i) {
+    if (i == tileDimIndex) {
+      perDimUbValues.push_back(ub0Value);
+      continue;
+    }
     if (i < origUbOperands.size()) {
       perDimUbValues.push_back(origUbOperands[i]);
     } else {
@@ -225,14 +235,15 @@ namespace {
  * tmd_affine::tileAffineParallel on each. The transformation is applied in a
  * stable, outer-to-inner order given by the walk collection.
  */
-static LogicalResult tileFunc(func::FuncOp func, int64_t tilingFactor) {
+static LogicalResult tileFunc(func::FuncOp func, int64_t tilingFactor,
+                              unsigned tileDimIndex) {
   if (tilingFactor <= 0)
     return func.emitError("tiling-factor must be positive"), failure();
 
   SmallVector<affine::AffineParallelOp, 4> toProcess;
   func.walk([&](affine::AffineParallelOp op) { toProcess.push_back(op); });
   for (affine::AffineParallelOp op : toProcess) {
-    if (failed(tmd_affine::tileAffineParallel(op, tilingFactor)))
+    if (failed(tmd_affine::tileAffineParallel(op, tilingFactor, tileDimIndex)))
       return failure();
   }
   return success();
@@ -269,8 +280,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Parse optional tiling factor from argv[2], default 8.
+  // Parse optional tiling factor (argv[2], default 8) and tile dim index
+  // (argv[3], default 0).
   int64_t tilingFactor = 8;
+  unsigned tileDimIndex = 0;
   if (argc > 2) {
     std::string s(argv[2]);
     try {
@@ -282,10 +295,35 @@ int main(int argc, char **argv) {
       // ignore, keep default
     }
   }
+  if (argc > 3) {
+    std::string s(argv[3]);
+    try {
+      size_t idx = 0;
+      long v = std::stol(s, &idx, 10);
+      if (idx == s.size() && v >= 0)
+        tileDimIndex = static_cast<unsigned>(v);
+    } catch (...) {
+      // ignore, keep default
+    }
+  }
 
-  // Walk and rewrite directly without pass manager.
-  for (auto func : module->getOps<func::FuncOp>()) {
-    if (failed(tileFunc(func, tilingFactor))) {
+  // Detect the first affine.parallel in the module and tile only that target.
+  affine::AffineParallelOp firstPar = nullptr;
+  module->walk([&](affine::AffineParallelOp op) {
+    if (!firstPar)
+      firstPar = op;
+  });
+
+  if (firstPar) {
+    // Optional: validate tileDimIndex against target.
+    if (tileDimIndex >= firstPar.getNumDims()) {
+      llvm::WithColor::error(llvm::errs())
+          << "tileDimIndex out of range for the first affine.parallel ("
+          << tileDimIndex << ">=" << firstPar.getNumDims() << ")\n";
+      return 3;
+    }
+    if (failed(tmd_affine::tileAffineParallel(firstPar, tilingFactor,
+                                              tileDimIndex))) {
       llvm::WithColor::error(llvm::errs()) << "Tiling failed\n";
       return 2;
     }
