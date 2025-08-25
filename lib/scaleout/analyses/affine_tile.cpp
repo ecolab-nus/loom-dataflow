@@ -2,11 +2,12 @@
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h" // IWYU pragma: keep
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/AsmState.h"
 #include "mlir/IR/Builders.h"
+// IWYU: keep builtin includes for context setup in test drivers
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
@@ -64,83 +65,29 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
 
   builder.setInsertionPoint(op);
 
-  // Build LB maps: all zeros (no operands, no symbols).
+  // Reuse original LB/UB maps and operands. Replace only the chosen UB map
+  // with ceilDiv(originalUB, tilingFactor) for composable tiling.
   SmallVector<AffineMap> outerLbMaps;
-  outerLbMaps.reserve(numDims);
-  for (unsigned i = 0; i < numDims; ++i)
-    outerLbMaps.push_back(builder.getConstantAffineMap(0));
-
-  // Build UB maps: each returns a dedicated symbol s_i out of k symbols.
   SmallVector<AffineMap> outerUbMaps;
+  outerLbMaps.reserve(numDims);
   outerUbMaps.reserve(numDims);
-  // Prepare ub args values for each dim.
-  SmallVector<Value> outerUbArgs;
-  outerUbArgs.reserve(numDims);
-
-  // We'll collect the per-dim UB values first, then build maps that refer
-  // to a uniform symbol list (s0..s{k-1}).
-  SmallVector<Value> perDimUbValues;
-  perDimUbValues.reserve(numDims);
-
-  // Original UB operands, assumed identity-per-dim order.
-  SmallVector<Value> origUbOperands(op.getUpperBoundsOperands().begin(),
-                                    op.getUpperBoundsOperands().end());
-
-  // Compute new UB value for the chosen dimension: div(UB_k, factor).
-  Value ub0Value;
-  {
-    // If the ub map for dim 0 is constant, we'll materialize that constant
-    // divided by the factor; otherwise, divide the corresponding UB operand.
-    AffineMap ub0 = op.getUpperBoundMap(tileDimIndex);
-    if (ub0.getNumResults() == 1 && ub0.isSingleConstant()) {
-      int64_t c = ub0.getSingleConstantResult();
-      // Division validity checked above when constant ranges are available.
-      int64_t cDiv = c / tilingFactor;
-      ub0Value = builder.create<arith::ConstantIndexOp>(loc, cDiv);
-    } else {
-      // Assume identity on operand order: use the first UB operand.
-      if (origUbOperands.empty())
-        return op.emitError(
-                   "unsupported non-identity upper bound on chosen dim"),
-               failure();
-      if (tileDimIndex >= origUbOperands.size())
-        return op.emitError("unsupported upper bound form on chosen dim"),
-               failure();
-      Value ub0Orig = origUbOperands[tileDimIndex];
-      Value cstTile = builder.create<arith::ConstantIndexOp>(loc, tilingFactor);
-      ub0Value = builder.create<arith::DivUIOp>(loc, ub0Orig, cstTile);
-    }
-  }
-  // Build per-dim UB args in-order, using the divided UB for the chosen dim.
   for (unsigned i = 0; i < numDims; ++i) {
+    outerLbMaps.push_back(op.getLowerBoundMap(i));
+    AffineMap ubI = op.getUpperBoundMap(i);
     if (i == tileDimIndex) {
-      perDimUbValues.push_back(ub0Value);
-      continue;
-    }
-    if (i < origUbOperands.size()) {
-      perDimUbValues.push_back(origUbOperands[i]);
+      // Transform the single-result UB map: ceilDiv(expr, tilingFactor).
+      if (ubI.getNumResults() != 1)
+        return op.emitError("expected single-result UB map"), failure();
+      AffineExpr e = ubI.getResult(0);
+      AffineExpr transformed = e.ceilDiv(tilingFactor);
+      outerUbMaps.push_back(
+          AffineMap::get(ubI.getNumDims(), ubI.getNumSymbols(), transformed));
     } else {
-      AffineMap ubi = op.getUpperBoundMap(i);
-      if (ubi.getNumResults() == 1 && ubi.isSingleConstant()) {
-        int64_t c = ubi.getSingleConstantResult();
-        perDimUbValues.push_back(
-            builder.create<arith::ConstantIndexOp>(loc, c));
-      } else {
-        (op.emitError("unsupported upper bound form on dimension ") << i);
-        return failure();
-      }
+      outerUbMaps.push_back(ubI);
     }
   }
-
-  // Now set up a uniform symbol space of size k = numDims.
-  unsigned k = numDims;
-  outerUbArgs = perDimUbValues; // s0..s{k-1}
-  for (unsigned i = 0; i < numDims; ++i) {
-    SmallVector<AffineExpr> exprs;
-    exprs.push_back(getAffineSymbolExpr(i, ctx));
-    outerUbMaps.push_back(
-        AffineMap::get(/*dims=*/0, /*symbols=*/k, exprs, ctx));
-  }
+  ValueRange outerLbArgs = op.getLowerBoundsOperands();
+  ValueRange outerUbArgs = op.getUpperBoundsOperands();
 
   // Steps remain the same for outer loop.
   SmallVector<int64_t> outerSteps = steps;
@@ -154,24 +101,21 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
   auto outerPar = builder.create<affine::AffineParallelOp>(
       loc, /*resultTypes=*/TypeRange{},
       /*reductions=*/ArrayRef<arith::AtomicRMWKind>{}, outerLbMaps,
-      /*lbArgs=*/ValueRange{}, outerUbMaps,
+      /*lbArgs=*/outerLbArgs, outerUbMaps,
       /*ubArgs=*/outerUbArgs, outerSteps);
 
-  // Map old IVs to new outer IVs; we'll ignore the inner IV in indexing to
-  // match the provided expected output.
+  // Prepare remapping for IVs. For the tiled dimension k, map old iv_k to
+  // affine.apply (d0, d1) -> (d0 * tile + d1), where d0 = outer iv_k and
+  // d1 = inner iv_0. Other dims map to their corresponding outer IVs.
   IRMapping ivMap;
-  for (unsigned i = 0; i < numDims; ++i)
-    ivMap.map(op.getBody()->getArgument(i), outerPar.getBody()->getArgument(i));
 
   // Create the inner affine.parallel with constant range (0, tilingFactor).
   OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToStart(outerPar.getBody());
-  auto innerPar = builder.create<affine::AffineParallelOp>(
+  (void)builder.create<affine::AffineParallelOp>(
       loc, /*resultTypes=*/TypeRange{},
       /*reductions=*/ArrayRef<arith::AtomicRMWKind>{},
       /*ranges=*/ArrayRef<int64_t>{tilingFactor});
-  (void)innerPar;
-
   // Splice original body operations into the inner parallel, remapping IVs.
   // Skip the terminator if present.
   Block *origBody = op.getBody();
@@ -182,6 +126,24 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
   auto innerParOp = dyn_cast<affine::AffineParallelOp>(&firstOp);
   Block *innerParBody = innerParOp.getBody();
   builder.setInsertionPointToStart(innerParBody);
+  // Build the mapping now that we have the inner IV.
+  Value innerIv = innerParOp.getBody()->getArgument(0);
+  for (unsigned i = 0; i < numDims; ++i) {
+    Value oldIv = op.getBody()->getArgument(i);
+    if (i == tileDimIndex) {
+      Value outerIv = outerPar.getBody()->getArgument(i);
+      AffineExpr d0 = getAffineDimExpr(0, ctx);
+      AffineExpr d1 = getAffineDimExpr(1, ctx);
+      AffineExpr cT = getAffineConstantExpr(tilingFactor, ctx);
+      AffineMap tileMap =
+          AffineMap::get(/*dims=*/2, /*symbols=*/0, d0 * cT + d1, ctx);
+      Value combined = builder.create<affine::AffineApplyOp>(
+          loc, tileMap, ValueRange{outerIv, innerIv});
+      ivMap.map(oldIv, combined);
+    } else {
+      ivMap.map(oldIv, outerPar.getBody()->getArgument(i));
+    }
+  }
   for (Operation &nested : llvm::make_early_inc_range(*origBody)) {
     if (nested.hasTrait<OpTrait::IsTerminator>())
       continue;
