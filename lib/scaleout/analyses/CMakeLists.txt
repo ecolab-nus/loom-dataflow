@@ -47,3 +47,22 @@ add_dependencies(tmd_affine_explore
   TMDDataflowTypesIncGen
 )
 
+# Tiling executable to transform affine.parallel with a given factor
+add_executable(tmd_affine_tile
+  affine_tile_main.cpp
+)
+target_include_directories(tmd_affine_tile PRIVATE ${MLIR_INCLUDE_DIRS})
+target_link_libraries(tmd_affine_tile PRIVATE
+  MLIRIR
+  MLIRAsmParser
+  MLIRBytecodeReader
+  MLIRParser
+  MLIRSupport
+  MLIRFuncDialect
+  MLIRAffineDialect
+  MLIRMemRefDialect
+  MLIRArithDialect
+  LLVMSupport
+)
+mlir_check_all_link_libraries(tmd_affine_tile)
+
