@@ -15,7 +15,7 @@ target_link_libraries(scaleout PUBLIC MLIRIR)
 mlir_check_all_link_libraries(scaleout)
 
 # Add MLIR components
-add_subdirectory(analyses)
+add_subdirectory(passes)
 
 # Dataflow dialect (df)
 add_subdirectory(dataflow-dialect)
