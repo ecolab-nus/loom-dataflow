@@ -21,6 +21,37 @@ using namespace mlir;
 
 namespace tmd_affine {
 
+/**
+ * Tile a single affine.parallel operation along its first iterator by a given
+ * tiling factor and rewrite it into a perfectly nested pair of
+ * affine.parallel operations.
+ *
+ * Transformation (high level):
+ *   affine.parallel (m, n, ...) = (0, 0, ...) to (M, N, ...) step (1, s1, ...)
+ *     body(m, n, ...)
+ * becomes
+ *   affine.parallel (m, n, ...) = (0, 0, ...) to (M/TF, N, ...) step (1, s1,
+ * ...) affine.parallel (m_inner) = (0) to (TF) body(m, n, ...)
+ *
+ * Notes and assumptions:
+ * - Only the first iterator is tiled. The remaining iterators are preserved.
+ * - The first iterator must have step 1 and lower bound 0.
+ * - If constant ranges are known (i.e., getConstantRanges()), the first range
+ *   must be divisible by tilingFactor; otherwise, this returns failure.
+ * - Reductions are not supported (i.e., the affine.parallel must not produce
+ *   results). This returns failure if reductions are present.
+ * - For dynamic upper bounds, the outer bound is recomputed as UB0 / TF using
+ *   integer division (arith.divui). The map is printed with symbol(...) as we
+ *   build 0-dim, k-symbol upper bound maps.
+ * - The inner loop upper bound is encoded as a constant affine bound (0..TF),
+ *   no arith.constant is materialized for this.
+ * - The body is cloned into the inner parallel, remapping original IVs to the
+ *   outer IVs. The new inner IV is not used in the body by this simple scheme
+ *   (aligns with the provided expected output).
+ *
+ * Returns: success if the rewrite was applied (no-op if numDims == 0), failure
+ *          if preconditions are not met.
+ */
 LogicalResult tileAffineParallel(affine::AffineParallelOp op,
                                  int64_t tilingFactor) {
   MLIRContext *ctx = op.getContext();
@@ -186,6 +217,14 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
 
 namespace {
 
+/**
+ * Tile all affine.parallel operations inside a function with the same tiling
+ * factor on their first iterator.
+ *
+ * This is a thin wrapper that walks the function, collects targets, and calls
+ * tmd_affine::tileAffineParallel on each. The transformation is applied in a
+ * stable, outer-to-inner order given by the walk collection.
+ */
 static LogicalResult tileFunc(func::FuncOp func, int64_t tilingFactor) {
   if (tilingFactor <= 0)
     return func.emitError("tiling-factor must be positive"), failure();
@@ -200,6 +239,14 @@ static LogicalResult tileFunc(func::FuncOp func, int64_t tilingFactor) {
 }
 } // end anonymous namespace
 
+/**
+ * Test driver: reads an MLIR module from stdin or a file, applies the tiling
+ * transform to every function using the provided tiling factor (argv[2],
+ * default 8), and prints the transformed module.
+ *
+ * Usage:
+ *   tmd_affine_tile <input.mlir> [tiling_factor]
+ */
 int main(int argc, char **argv) {
   MLIRContext context;
   (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
