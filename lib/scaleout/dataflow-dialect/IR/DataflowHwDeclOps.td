@@ -9,26 +9,26 @@ include "mlir/IR/CommonTypeConstraints.td"
 // NOTE: This file is intended to be included from `DataflowOps.td`, which
 // defines the helper `DF_Op` class and sets up codegen for the df dialect ops.
 
-// df.spatial_dim : declare a spatial dimension of a given static size
+// df.spatial_dim : declare a spatial dimension with a name and a given size
 // Example:
-//   %x = df.spatial_dim 8
+//   %x = df.spatial_dim "x", 8
 // The result is an index-typed SSA value that can participate in affine maps.
 def SpatialDimOp : DF_Op<"spatial_dim"> {
-  let summary = "Declare a spatial dimension with a fixed size";
+  let summary = "Declare a spatial dimension with a name and a fixed size";
   let description = [{
-    `df.spatial_dim` declares a hardware spatial dimension with a constant
-    size. The result is an index-typed SSA value intended to be referenced in
-    affine expressions (e.g., in `df.interconnects`).
+    `df.spatial_dim` declares a hardware spatial dimension with a user-facing
+    name and a constant size. The result is an index-typed SSA value intended
+    to be referenced in affine expressions (e.g., in `df.interconnects`).
 
     Example:
-      `%x = df.spatial_dim 8`
+      `%x = df.spatial_dim "x", 8`
   }];
 
-  let arguments = (ins I64Attr:$size);
+  let arguments = (ins StrAttr:$name, I64Attr:$size);
   let results = (outs Index:$dim);
 
-  // Simple custom-looking format without explicit types.
-  let assemblyFormat = "$size attr-dict";
+  // Simple custom-looking format without explicit types:  "name", size
+  let assemblyFormat = "$name `,` $size attr-dict";
 }
 
 // df.interconnects : declare chain interconnects using an affine expression over

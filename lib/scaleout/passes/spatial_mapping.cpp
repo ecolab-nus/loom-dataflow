@@ -23,10 +23,11 @@ LogicalResult collectSpatialDims(ModuleOp dfModule,
   dfModule.walk([&](Operation *op) {
     if (auto sd = dyn_cast<tmd::df::SpatialDimOp>(op)) {
       SpatialDimInfo info;
-      info.name =
-          "dim"; // placeholder; SSA result name is not directly accessible here
-      // The op carries an i64 size attribute; negative meaning not provided
-      // is treated as dynamic/unbounded.
+      // Read declared name and size from the op properties.
+      if (auto nameAttr = sd.getNameAttr())
+        info.name = nameAttr.getValue().str();
+      else
+        info.name = "dim";
       uint64_t sz = sd.getSize();
       if (sz > 0)
         info.size = static_cast<int64_t>(sz);
