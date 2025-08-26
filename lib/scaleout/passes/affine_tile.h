@@ -40,9 +40,33 @@ namespace tmd_affine {
  * @param tileDimIndex Zero-based index of the iterator to tile.
  * @return `mlir::success()` if tiling succeeded; `mlir::failure()` otherwise.
  */
+struct TiledParallels {
+  mlir::affine::AffineParallelOp outer;
+  mlir::affine::AffineParallelOp inner;
+};
+
+/**
+ * Tiles the given parallel loop and returns the newly created outer and inner
+ * `affine.parallel` operations via `result` on success. See the documentation
+ * above for transformation details and preconditions.
+ */
+mlir::LogicalResult tileAffineParallel(mlir::affine::AffineParallelOp op,
+                                       int64_t tilingFactor,
+                                       unsigned tileDimIndex,
+                                       TiledParallels &result);
+
+// Backward-compatible overload (result is ignored).
 mlir::LogicalResult tileAffineParallel(mlir::affine::AffineParallelOp op,
                                        int64_t tilingFactor,
                                        unsigned tileDimIndex);
+
+/**
+ * Tuple describing one tiling choice: which iterator to tile and the factor.
+ */
+struct TileChoice {
+  unsigned iteratorIndex;
+  int64_t factor;
+};
 
 /// Create a pass that tiles the first affine.parallel in each function.
 std::unique_ptr<mlir::Pass> createAffineTilePass(int64_t tilingFactor,

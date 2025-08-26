@@ -16,7 +16,11 @@ using namespace mlir;
 
 namespace tmd_affine_analysis {
 
-// (deprecated helper removed)
+/**
+ * Run a basic syntax check on the function. Currently acts as a stub that
+ * returns success. Extend here if you want validation before analyses.
+ */
+LogicalResult runSyntaxCheck(func::FuncOp /*funcOp*/) { return success(); }
 
 // Return the nearest enclosing affine.parallel op for the given op, or null.
 static affine::AffineParallelOp getNearestEnclosingParallelOp(Operation *op) {

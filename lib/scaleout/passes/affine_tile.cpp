@@ -8,8 +8,6 @@
 #include "mlir/IR/AsmState.h"
 #include "mlir/IR/Builders.h"
 // IWYU: keep builtin includes for context setup in test drivers
-#include "mlir/IR/BuiltinDialect.h"
-#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/MLIRContext.h"
 
@@ -18,7 +16,8 @@ using namespace mlir;
 namespace tmd_affine {
 
 LogicalResult tileAffineParallel(affine::AffineParallelOp op,
-                                 int64_t tilingFactor, unsigned tileDimIndex) {
+                                 int64_t tilingFactor, unsigned tileDimIndex,
+                                 TiledParallels &result) {
   MLIRContext *ctx = op.getContext();
   if (tilingFactor <= 0)
     return op.emitError("tiling-factor must be positive"), failure();
@@ -161,7 +160,17 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
 
   // Erase the original op.
   op.erase();
+  // Populate result handles.
+  result.outer = outerPar;
+  result.inner = innerParOp;
   return success();
+}
+
+// Backward-compatible shim used by existing pass code.
+LogicalResult tileAffineParallel(affine::AffineParallelOp op,
+                                 int64_t tilingFactor, unsigned tileDimIndex) {
+  TiledParallels tmp;
+  return tileAffineParallel(op, tilingFactor, tileDimIndex, tmp);
 }
 
 } // namespace tmd_affine
