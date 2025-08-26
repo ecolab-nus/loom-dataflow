@@ -95,11 +95,20 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Enumerate all mapping combinations and print the combined output module.
+  // Enumerate all mapping combinations for the Affine module.
   OwningOpRef<ModuleOp> out =
       tmd_affine::enumerateSpatialMappings(*affineModule, spatialDims);
-  AsmState asmState(*out);
-  out->print(llvm::outs(), asmState);
+
+  // Print the DF (hardware description) module first, then the generated Affine
+  // module. This yields two top-level modules in the output stream, e.g.:
+  //   module { ...hardware... }
+  //   module { ...generated clones... }
+  AsmState dfAsmState(*dfModule);
+  dfModule->print(llvm::outs(), dfAsmState);
+  llvm::outs() << "\n";
+
+  AsmState outAsmState(*out);
+  out->print(llvm::outs(), outAsmState);
   llvm::outs() << "\n";
   return 0;
 }

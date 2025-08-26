@@ -1,3 +1,12 @@
+#map = affine_map<(d0, d1) -> (d0 + 1, d1)>
+#map1 = affine_map<(d0, d1) -> (d0, d1 + 1)>
+module {
+  %0 = df.spatial_dim "x", 8
+  %1 = df.spatial_dim "y", 8
+  %2 = "df.interconnects"(%0, %1) <{map = #map}> : (index, index) -> !df.interconnect
+  %3 = "df.interconnects"(%0, %1) <{map = #map1}> : (index, index) -> !df.interconnect
+}
+
 #map = affine_map<(d0, d1) -> (d0 * 8 + d1)>
 module {
   func.func @mm_analysis_one_output_per_core__d0i0_d1i0(%arg0: memref<?x?xf32>, %arg1: memref<?x?xf32>, %arg2: memref<?x?xf32>, %arg3: index, %arg4: index, %arg5: index) {
