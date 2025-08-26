@@ -10,9 +10,14 @@
 namespace tmd_affine {
 
 /**
- * Information about a single spatial dimension declared in the DF module.
- * If the size is not statically known (dynamic), `size` is set to
- * `std::nullopt` to model an effectively unbounded dimension.
+ * \brief Hardware spatial dimension description parsed from the DF module.
+ *
+ * A spatial dimension is declared by `df.spatial_dim` in the dataflow (DF)
+ * module. This structure captures a display name for diagnostics and an
+ * optional static size.
+ *
+ * - When the dimension size is not statically known (dynamic), `size` is
+ *   set to `std::nullopt` to approximate an unbounded capacity.
  */
 struct SpatialDimInfo {
   std::string name;
@@ -20,47 +25,64 @@ struct SpatialDimInfo {
 };
 
 /**
- * Parse `df.spatial_dim` ops in `dfModule` and collect them in program order.
+ * \brief Collect spatial dimensions from a DF module.
  *
- * Returns failure if none were found.
+ * Scans `dfModule` for `df.spatial_dim` operations (in program order) and
+ * appends each discovered dimension as a `SpatialDimInfo` into `out`.
+ *
+ * \param dfModule DF module containing hardware declarations.
+ * \param out      Output vector to append discovered dimensions to.
+ * \return success if at least one dimension was found; failure otherwise.
  */
 mlir::LogicalResult
 collectSpatialDims(mlir::ModuleOp dfModule,
                    llvm::SmallVectorImpl<SpatialDimInfo> &out);
 
 /**
- * Greedily maps available spatial dimensions to affine.parallel loops in the
- * given module by repeatedly applying tiling to map one spatial dimension at a
- * time.
+ * \brief Greedily map spatial dimensions to `affine.parallel` loops by tiling.
  *
- * - One spatial dimension can map only one affine.parallel (global constraint).
- * - One affine.parallel may be mapped by multiple spatial dimensions, provided
- *   the loop extent is large enough (or dynamic, treated as infinite).
- * - The inner affine.parallel created by tiling is annotated with
- *   `tmd.mapped_to` = string attribute naming the spatial dimension.
+ * Applies repeated `tileAffineParallel` to the outermost `affine.parallel`
+ * operations in `affineModule`, consuming spatial dimensions in order. The
+ * inner loop created at each step is annotated with `tmd.mapped_to` to
+ * indicate the mapped dimension.
  *
- * The mapping proceeds in function order and considers outermost
- * `affine.parallel` first. At each step, it attempts to tile the selected
- * iterator dimension (`tileDimIndex`, default 0) with factor equal to the
- * spatial dimension size (or a default factor of 1 for dynamic sizes), and
- * marks the inner tiling loop. It continues until all spatial dimensions are
- * consumed or no further mapping is possible.
+ * Semantics and constraints:
+ * - One spatial dimension is used at most once globally (greedy consumption).
+ * - A single `affine.parallel` may be mapped by multiple dimensions if the
+ *   iterator extent allows (dynamic extents are treated as unbounded).
+ * - The tiling factor equals the dimension size when static, or 1 if dynamic.
+ *
+ * \param affineModule Module containing the Affine program to transform.
+ * \param dims         Spatial dimensions to map in order of preference.
+ * \param tileDimIndex Iterator index within each `affine.parallel` to tile.
+ * \return success if at least one mapping was applied; failure otherwise.
  */
 mlir::LogicalResult mapSpatialDimsToAffine(mlir::ModuleOp affineModule,
                                            llvm::ArrayRef<SpatialDimInfo> dims,
                                            unsigned tileDimIndex);
 
 /**
- * Enumerate all possible mappings of spatial dimensions to the iterators of
- * each outermost `affine.parallel`, cloning the original function for each
- * mapping and returning a new module containing all clones. Each clone is
- * named with a suffix encoding its mapping.
+ * \brief Enumerate all unique mappings and emit one function clone per mapping.
  *
- * - For each outermost affine.parallel with P iterators, and for a prefix of
- *   K spatial dims (K <= P), every assignment of those K dims to distinct
- *   iterators is considered, with tiling factors derived from dim sizes.
- * - Dynamic dim sizes still map, using factor 1. The inner loops are annotated
- *   with `tmd.mapped_to`.
+ * For each function, find its first outermost `affine.parallel` with `P`
+ * iterators and compute the set of all unique mappings from `D` spatial
+ * dimensions to those iterators using the two-step algorithm:
+ *
+ * 1) Generate all partitions of the `D` dims into `P` ordered buckets
+ *    (iterator groups). This removes redundancy from pure assignment order.
+ * 2) For each partition, iterate iterator buckets `0..P-1`; within each
+ *    bucket, apply `tileAffineParallel` once per dimension in the chosen
+ *    order (all permutations of that bucket) with factor equal to the static
+ *    size or 1 if dynamic.
+ *
+ * Each mapping yields a clone of the original function in a new output module;
+ * every created inner loop is annotated with `tmd.mapped_to`, and the function
+ * name is suffixed to encode the mapping.
+ *
+ * \param affineModule Source Affine module to enumerate mappings for.
+ * \param dims         Spatial dimensions defining the mapping space.
+ * \return A new module containing one clone per mapping (original functions
+ *         are preserved in the input module).
  */
 mlir::OwningOpRef<mlir::ModuleOp>
 enumerateSpatialMappings(mlir::ModuleOp affineModule,

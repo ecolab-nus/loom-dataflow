@@ -1,3 +1,14 @@
+// Driver for enumerating spatial mappings and printing a combined module.
+//
+// Usage:
+//   tmd_affine_explore --affine <affine.mlir> --df <df.mlir>
+//
+// The driver loads both modules, collects spatial dimensions from the DF
+// module, enumerates all unique mappings of these dimensions to the iterators
+// of each function's first outermost `affine.parallel`, and prints a new
+// module containing a clone of the function for each mapping. Each created
+// inner loop is annotated with `tmd.mapped_to` and function names are suffixed
+// to encode the mapping.
 #include "spatial_mapping.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"

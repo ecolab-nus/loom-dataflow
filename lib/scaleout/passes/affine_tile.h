@@ -16,7 +16,7 @@ namespace tmd_affine {
  *   `ceildiv(originalUB, tilingFactor)` using an `affine_map`; other bounds and
  *   steps are preserved.
  * - Create a 1-D inner `affine.parallel` with explicit constant bounds `(0,
- * tilingFactor)` and step `1`.
+ *   tilingFactor)` and step `1`.
  * - Remap the original IV at the tiled dimension `k` to an `affine.apply` of
  *   the form `(outer_k, inner_0) -> outer_k * tilingFactor + inner_0`. All
  *   other IVs are remapped to their corresponding outer IVs.
@@ -34,11 +34,6 @@ namespace tmd_affine {
  * - The transform is designed to be composable: repeatedly tiling the same
  *   dimension produces nested inner loops of size `tilingFactor`, and index
  *   expressions are formed via composition of `affine.apply` operations.
- *
- * @param op The `mlir::affine::AffineParallelOp` to tile.
- * @param tilingFactor Positive tiling factor used to split the chosen iterator.
- * @param tileDimIndex Zero-based index of the iterator to tile.
- * @return `mlir::success()` if tiling succeeded; `mlir::failure()` otherwise.
  */
 struct TiledParallels {
   mlir::affine::AffineParallelOp outer;
