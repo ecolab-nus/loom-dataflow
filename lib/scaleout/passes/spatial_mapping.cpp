@@ -159,16 +159,47 @@ OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
       continue;
     }
 
-    // Enumerate over all permutations of spatial dimensions (order matters).
-    SmallVector<unsigned> perm(D);
-    std::iota(perm.begin(), perm.end(), 0);
+    // Step 1: generate all partitions of D dims into P ordered buckets.
+    SmallVector<SmallVector<SmallVector<unsigned>>> bucketings;
+    SmallVector<SmallVector<unsigned>> buckets(P);
+    std::function<void(unsigned)> placeDim = [&](unsigned d) {
+      if (d == D) {
+        bucketings.push_back(buckets);
+        return;
+      }
+      for (unsigned it = 0; it < P; ++it) {
+        buckets[it].push_back(d);
+        placeDim(d + 1);
+        buckets[it].pop_back();
+      }
+    };
+    placeDim(0);
 
-    auto enumerateAssignmentsForPerm = [&](ArrayRef<unsigned> permOrder) {
-      // All assignments of dims to iterators, allowing reuse (P^D choices).
-      SmallVector<unsigned> assignment;
-      std::function<void()> rec = [&]() {
-        if (assignment.size() == D) {
-          // Clone and sequentially apply tiling per permuted dim.
+    // Step 2: for each partition, permute within each bucket and apply.
+    for (auto &bucketing : bucketings) {
+      SmallVector<SmallVector<SmallVector<unsigned>>> permsPerIter(P);
+      for (unsigned it = 0; it < P; ++it) {
+        SmallVector<unsigned> b = bucketing[it];
+        if (b.size() <= 1) {
+          permsPerIter[it].push_back(b);
+        } else {
+          std::sort(b.begin(), b.end());
+          do {
+            permsPerIter[it].push_back(b);
+          } while (std::next_permutation(b.begin(), b.end()));
+        }
+      }
+
+      SmallVector<unsigned> choiceIdx(P, 0);
+      std::function<void(unsigned)> choose = [&](unsigned it) {
+        if (it == P) {
+          // Build chosen order per iterator.
+          SmallVector<SmallVector<unsigned>> ordered(P);
+          for (unsigned j = 0; j < P; ++j)
+            ordered[j] = permsPerIter[j][choiceIdx[j]];
+
+          // Clone func and apply tiling: iterate iterators 0..P-1, and within
+          // each, tile per dim in that iterator's ordered list.
           IRMapping map;
           builder.setInsertionPointToEnd(out.getBody());
           auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
@@ -181,56 +212,35 @@ OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
           if (!currentOuter)
             return;
 
-          SmallVector<affine::AffineParallelOp> createdInners;
-          bool failedAny = false;
-          for (unsigned step = 0; step < D; ++step) {
-            const SpatialDimInfo &sd = dims[permOrder[step]];
-            int64_t factor = 1;
-            if (sd.size.has_value())
-              factor = std::max<int64_t>(1, *sd.size);
-            unsigned iterIdx = assignment[step];
-            TiledParallels tp{};
-            if (failed(tileAffineParallel(currentOuter, factor, iterIdx, tp))) {
-              failedAny = true;
-              break;
-            }
-            createdInners.push_back(tp.inner);
-            currentOuter = tp.outer;
-          }
-          if (failedAny)
-            return;
-
-          // Annotate per step with mapped dim name.
-          for (unsigned step = 0; step < createdInners.size(); ++step) {
-            StringRef name = dims[permOrder[step]].name;
-            createdInners[step]->setAttr(
-                "tmd.mapped_to",
-                StringAttr::get(ctx, name.empty() ? "dim" : name));
-          }
-
-          // Name suffix encodes (dimIndex->iterIdx) per step.
           std::string suffix;
-          for (unsigned step = 0; step < D; ++step) {
-            if (step)
-              suffix += "_";
-            suffix += "d" + std::to_string(permOrder[step]) + "i" +
-                      std::to_string(assignment[step]);
+          for (unsigned iter = 0; iter < P; ++iter) {
+            for (unsigned dIdx : ordered[iter]) {
+              const SpatialDimInfo &sd = dims[dIdx];
+              int64_t factor = 1;
+              if (sd.size.has_value())
+                factor = std::max<int64_t>(1, *sd.size);
+              TiledParallels tp{};
+              if (failed(tileAffineParallel(currentOuter, factor, iter, tp)))
+                return;
+              tp.inner->setAttr(
+                  "tmd.mapped_to",
+                  StringAttr::get(ctx, sd.name.empty() ? "dim" : sd.name));
+              if (!suffix.empty())
+                suffix += "_";
+              suffix += "d" + std::to_string(dIdx) + "i" + std::to_string(iter);
+              currentOuter = tp.outer;
+            }
           }
           clonedFunc.setName((func.getName() + "__" + suffix).str());
           return;
         }
-        for (unsigned it = 0; it < P; ++it) {
-          assignment.push_back(it);
-          rec();
-          assignment.pop_back();
+        for (unsigned k = 0; k < permsPerIter[it].size(); ++k) {
+          choiceIdx[it] = k;
+          choose(it + 1);
         }
       };
-      rec();
-    };
-
-    do {
-      enumerateAssignmentsForPerm(perm);
-    } while (std::next_permutation(perm.begin(), perm.end()));
+      choose(0);
+    }
   }
 
   return out;
