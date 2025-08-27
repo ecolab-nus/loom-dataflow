@@ -16,8 +16,10 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/AsmState.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Support/FileUtilities.h"
@@ -99,16 +101,18 @@ int main(int argc, char **argv) {
   OwningOpRef<ModuleOp> out =
       tmd_affine::enumerateSpatialMappings(*affineModule, spatialDims);
 
-  // Print the DF (hardware description) module first, then the generated Affine
-  // module. This yields two top-level modules in the output stream, e.g.:
-  //   module { ...hardware... }
-  //   module { ...generated clones... }
-  AsmState dfAsmState(*dfModule);
-  dfModule->print(llvm::outs(), dfAsmState);
-  llvm::outs() << "\n";
+  // Merge DF declarations and generated Affine clones into a single module to
+  // avoid duplicate alias ids and produce a single well-formed module.
+  OwningOpRef<ModuleOp> merged = ModuleOp::create(UnknownLoc::get(&context));
+  OpBuilder builder(merged->getBodyRegion());
+  IRMapping mapping;
+  for (Operation &op : *dfModule->getBody())
+    builder.clone(op, mapping);
+  for (Operation &op : *out->getBody())
+    builder.clone(op, mapping);
 
-  AsmState outAsmState(*out);
-  out->print(llvm::outs(), outAsmState);
+  AsmState mergedState(*merged);
+  merged->print(llvm::outs(), mergedState);
   llvm::outs() << "\n";
   return 0;
 }
