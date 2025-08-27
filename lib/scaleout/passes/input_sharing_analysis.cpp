@@ -509,4 +509,98 @@ void runInputSharingReuseAnalysis(func::FuncOp funcOp, llvm::raw_ostream &os) {
   });
 }
 
+/**
+ * \brief Annotate each affine.load with invariance w.r.t. spatial dimensions.
+ *
+ * This analysis inspects enclosing affine.parallel loops annotated with
+ * `tmd.mapped_to = "x" | "y"`. For each affine.load, it composes and
+ * canonicalizes the access map and determines whether the access is invariant
+ * with respect to variations of any IVs belonging to spatial dimension `x` or
+ * `y`.
+ *
+ * A load is considered invariant along dimension `d` iff none of the access
+ * expressions change when any single affine map dimension corresponding to an
+ * IV mapped to `d` is incremented by 1 (others held constant). This is a
+ * conservative and fast syntactic check that precisely detects independence for
+ * affine-linear expressions.
+ *
+ * Attributes attached on each affine.load:
+ * - `tmd.invariant.x` : i1
+ * - `tmd.invariant.y` : i1
+ */
+void annotateSpatialInvariance(func::FuncOp funcOp) {
+  MLIRContext *ctx = funcOp.getContext();
+
+  funcOp.walk([&](affine::AffineLoadOp loadOp) {
+    // Compose and canonicalize the access map and operands.
+    AffineMap map = loadOp.getAffineMap();
+    SmallVector<Value, 8> operands(loadOp.getMapOperands());
+    mlir::affine::fullyComposeAffineMapAndOperands(&map, &operands);
+    mlir::affine::canonicalizeMapAndOperands(&map, &operands);
+
+    const unsigned numDims = map.getNumDims();
+    const unsigned numSyms = map.getNumSymbols();
+
+    // Collect positions of map dims that correspond to spatial IVs mapped to
+    // x/y.
+    SmallVector<unsigned, 4> xDimPositions;
+    SmallVector<unsigned, 4> yDimPositions;
+
+    for (unsigned d = 0; d < numDims; ++d) {
+      Value dimVal = operands[d];
+      if (!dimVal)
+        continue;
+      if (auto par = mlir::affine::getAffineParallelInductionVarOwner(dimVal)) {
+        if (auto attr = par->getAttrOfType<StringAttr>("tmd.mapped_to")) {
+          StringRef tag = attr.getValue();
+          if (tag == "x")
+            xDimPositions.push_back(d);
+          else if (tag == "y")
+            yDimPositions.push_back(d);
+        }
+      }
+    }
+
+    auto exprIndependentOfDim = [&](AffineExpr expr, unsigned dimPos) -> bool {
+      AffineExpr orig = simplifyAffineExpr(expr, numDims, numSyms);
+      // Build identity replacements, but shift the target dim by +1.
+      SmallVector<AffineExpr, 8> dimRepls;
+      dimRepls.reserve(numDims);
+      for (unsigned d = 0; d < numDims; ++d) {
+        AffineExpr dExpr = getAffineDimExpr(d, ctx);
+        if (d == dimPos)
+          dimRepls.push_back(dExpr + getAffineConstantExpr(1, ctx));
+        else
+          dimRepls.push_back(dExpr);
+      }
+      SmallVector<AffineExpr, 8> symRepls;
+      symRepls.reserve(numSyms);
+      for (unsigned s = 0; s < numSyms; ++s)
+        symRepls.push_back(getAffineSymbolExpr(s, ctx));
+
+      AffineExpr shifted = simplifyAffineExpr(
+          expr.replaceDimsAndSymbols(dimRepls, symRepls), numDims, numSyms);
+      return shifted == orig;
+    };
+
+    auto allResultsIndependentOfDims = [&](ArrayRef<unsigned> dimPositions) {
+      // For each candidate dim position, require that every result is
+      // independent; if any result depends on a dim, not invariant.
+      for (unsigned dimPos : dimPositions) {
+        for (AffineExpr expr : map.getResults()) {
+          if (!exprIndependentOfDim(expr, dimPos))
+            return false;
+        }
+      }
+      return true;
+    };
+
+    bool invX = allResultsIndependentOfDims(xDimPositions);
+    bool invY = allResultsIndependentOfDims(yDimPositions);
+
+    loadOp->setAttr("tmd.invariant.x", BoolAttr::get(ctx, invX));
+    loadOp->setAttr("tmd.invariant.y", BoolAttr::get(ctx, invY));
+  });
+}
+
 } // namespace tmd_affine_analysis

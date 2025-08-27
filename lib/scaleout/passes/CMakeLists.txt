@@ -16,6 +16,7 @@ target_link_libraries(tmd_affine_analyze PRIVATE
   MLIRArithDialect
   MLIRSCFDialect
   MLIRPass
+  tmdDataflowDialect
 )
 
 mlir_check_all_link_libraries(tmd_affine_analyze)
