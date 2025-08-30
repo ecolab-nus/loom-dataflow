@@ -137,7 +137,7 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 # Find all test files
-file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp")
+file(GLOB_RECURSE TEST_SOURCES "test/*.cpp")
 
 if(TEST_SOURCES)
     # Create test executable
