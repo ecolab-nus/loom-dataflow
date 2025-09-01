@@ -1,6 +1,5 @@
 #pragma once
 
-#include "affine_tile.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
@@ -87,5 +86,41 @@ mlir::LogicalResult mapSpatialDimsToAffine(mlir::ModuleOp affineModule,
 mlir::OwningOpRef<mlir::ModuleOp>
 enumerateSpatialMappings(mlir::ModuleOp affineModule,
                          llvm::ArrayRef<SpatialDimInfo> dims);
+
+/**
+ * \brief Enumerate mappings from Triton-shared grid dims to hardware spatial
+ * dims.
+ *
+ * Given a module containing Triton-shared style kernels (with ABI providing
+ * grid sizes and program_id.{x,y,z}), enumerate all unique assignments of the
+ * grid dimensions \{x,y,z\} to the hardware spatial dimensions discovered in a
+ * DF module. For each mapping, clone the function into a new output module and
+ * annotate the clone with attributes encoding the mapping and tile factors.
+ *
+ * Notes:
+ * - This pass does not rewrite the kernel body; it only records mapping
+ *   metadata on the cloned functions for subsequent lowering passes that will
+ *   rewrite index math or introduce explicit loops.
+ * - The number of grid dimensions considered defaults to 3 (x,y,z). If fewer
+ *   are desired, set \p numGridDims accordingly (1..3).
+ * - Spatial dimension sizes, when static, are recorded as tile factors. When
+ *   dynamic, a value of -1 is recorded.
+ *
+ * Function attributes set on each clone:
+ * - `tmd.spatial_dim_names`: ArrayAttr<StringAttr> of spatial dim names.
+ * - `tmd.spatial_dim_sizes`: ArrayAttr<IntegerAttr i64> (size or -1 if
+ * dynamic).
+ * - `tmd.grid_to_spatial_buckets`: ArrayAttr of ArrayAttr<IntegerAttr> where
+ *    the outer index is the spatial dimension index, and the inner array lists
+ *    the grid dim indices (0:x, 1:y, 2:z) assigned to that spatial dimension
+ *    in order.
+ *
+ * Each clone's function name is suffixed to encode the mapping as
+ * `__g<g>d<s>_...` tokens.
+ */
+mlir::OwningOpRef<mlir::ModuleOp>
+enumerateTritonSharedSpatialMappings(mlir::ModuleOp module,
+                                     llvm::ArrayRef<SpatialDimInfo> dims,
+                                     unsigned numGridDims = 3);
 
 } // namespace tmd_affine

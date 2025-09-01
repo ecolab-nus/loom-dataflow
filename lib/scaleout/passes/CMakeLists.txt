@@ -77,3 +77,38 @@ target_link_libraries(tmd_affine_tile PRIVATE
 target_compile_options(tmd_affine_tile PRIVATE -fno-rtti)
 mlir_check_all_link_libraries(tmd_affine_tile)
 
+
+## Triton-shared exploration executable
+add_executable(tmd_triton_shared_explore
+  triton_shared_explore_main.cpp
+  spatial_mapping.cpp
+  affine_tile.cpp
+)
+
+target_include_directories(tmd_triton_shared_explore PRIVATE ${MLIR_INCLUDE_DIRS})
+target_link_libraries(tmd_triton_shared_explore PRIVATE
+  MLIRIR
+  MLIRParser
+  MLIRSupport
+  LLVMSupport
+  MLIRFuncDialect
+  MLIRMemRefDialect
+  MLIRArithDialect
+  MLIRTensorDialect
+  MLIRLinalgDialect
+  MLIRSCFDialect
+  MLIRBufferizationDialect
+  MLIRPass
+  MLIRAsmParser
+  MLIRBytecodeReader
+  tmdDataflowDialect
+)
+mlir_check_all_link_libraries(tmd_triton_shared_explore)
+
+add_dependencies(tmd_triton_shared_explore
+  TMDDataflowDialectIncGen
+  TMDDataflowOpsIncGen
+  TMDDataflowTypesIncGen
+)
+
+target_compile_options(tmd_triton_shared_explore PRIVATE -fno-rtti)

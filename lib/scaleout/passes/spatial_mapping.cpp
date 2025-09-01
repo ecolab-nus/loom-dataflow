@@ -1,4 +1,5 @@
 #include "spatial_mapping.h"
+#include "affine_tile.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -120,7 +121,6 @@ LogicalResult mapSpatialDimsToAffine(ModuleOp affineModule,
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/IRMapping.h"
 #include <algorithm>
-#include <numeric>
 
 namespace tmd_affine {
 
@@ -238,6 +238,176 @@ OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
         for (unsigned k = 0; k < permsPerIter[it].size(); ++k) {
           choiceIdx[it] = k;
           choose(it + 1);
+        }
+      };
+      choose(0);
+    }
+  }
+
+  return out;
+}
+
+} // namespace tmd_affine
+
+namespace tmd_affine {
+
+OwningOpRef<ModuleOp> enumerateTritonSharedSpatialMappings(
+    ModuleOp module, ArrayRef<SpatialDimInfo> dims, unsigned numGridDims) {
+  MLIRContext *ctx = module.getContext();
+  OpBuilder builder(ctx);
+  auto out = ModuleOp::create(module.getLoc());
+
+  // Precompute spatial dim metadata attrs (names, sizes) once.
+  SmallVector<Attribute> spatialNameAttrs;
+  SmallVector<Attribute> spatialSizeAttrs;
+  spatialNameAttrs.reserve(dims.size());
+  spatialSizeAttrs.reserve(dims.size());
+  for (const SpatialDimInfo &sd : dims) {
+    spatialNameAttrs.push_back(StringAttr::get(ctx, sd.name));
+    int64_t sz = sd.size.has_value() ? *sd.size : static_cast<int64_t>(-1);
+    spatialSizeAttrs.push_back(IntegerAttr::get(IntegerType::get(ctx, 64), sz));
+  }
+
+  const unsigned S = static_cast<unsigned>(dims.size());
+  (void)numGridDims; // Grid dims are fixed to x,y,z; analyze usage below.
+
+  for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+    // Analyze which program_id.{x,y,z} are used (ABI args 12,13,14).
+    bool gridUsed[3] = {false, false, false};
+    SmallVector<Attribute> gridUsedAttrs;
+    gridUsedAttrs.reserve(3);
+    unsigned totalArgs = func.getNumArguments();
+    if (totalArgs >= 15) {
+      for (unsigned i = 0; i < 3; ++i) {
+        BlockArgument pid = func.getArgument(12 + i);
+        gridUsed[i] = !pid.use_empty();
+      }
+    }
+    for (unsigned i = 0; i < 3; ++i)
+      gridUsedAttrs.push_back(
+          IntegerAttr::get(IntegerType::get(ctx, 1), gridUsed[i] ? 1 : 0));
+
+    // Build list of used grid indices in x(0), y(1), z(2) order.
+    SmallVector<unsigned> usedGridIdx;
+    for (unsigned i = 0; i < 3; ++i)
+      if (gridUsed[i])
+        usedGridIdx.push_back(i);
+
+    // If no spatial dims or no used grid dims, just clone and mark unused.
+    if (S == 0 || usedGridIdx.empty()) {
+      IRMapping map;
+      builder.setInsertionPointToEnd(out.getBody());
+      auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
+      clonedFunc->setAttr("tmd.spatial_dim_names",
+                          ArrayAttr::get(ctx, spatialNameAttrs));
+      clonedFunc->setAttr("tmd.spatial_dim_sizes",
+                          ArrayAttr::get(ctx, spatialSizeAttrs));
+      SmallVector<Attribute> threeEmpty{ArrayAttr::get(ctx, {}),
+                                        ArrayAttr::get(ctx, {}),
+                                        ArrayAttr::get(ctx, {})};
+      clonedFunc->setAttr("tmd.grid_to_spatial",
+                          ArrayAttr::get(ctx, threeEmpty));
+      clonedFunc->setAttr("tmd.grid_used", ArrayAttr::get(ctx, gridUsedAttrs));
+      // Build suffix tokens.
+      std::string suffix;
+      for (unsigned g = 0; g < 3; ++g) {
+        if (!suffix.empty())
+          suffix += "_";
+        suffix += std::string("g") + std::to_string(g) +
+                  (gridUsed[g] ? "none" : "unused");
+      }
+      clonedFunc.setName((func.getName() + "__" + suffix).str());
+      continue;
+    }
+
+    // Partition S spatial dims among K buckets, where K = number of used grids.
+    const unsigned K = static_cast<unsigned>(usedGridIdx.size());
+    SmallVector<SmallVector<SmallVector<unsigned>>> bucketings;
+    SmallVector<SmallVector<unsigned>> buckets(K);
+    std::function<void(unsigned)> placeSpatial = [&](unsigned d) {
+      if (d == S) {
+        bucketings.push_back(buckets);
+        return;
+      }
+      for (unsigned k = 0; k < K; ++k) {
+        buckets[k].push_back(d);
+        placeSpatial(d + 1);
+        buckets[k].pop_back();
+      }
+    };
+    placeSpatial(0);
+
+    for (auto &bucketing : bucketings) {
+      // Permute within each bucket and enumerate choices.
+      SmallVector<SmallVector<SmallVector<unsigned>>> permsPerGrid(K);
+      for (unsigned k = 0; k < K; ++k) {
+        SmallVector<unsigned> b = bucketing[k];
+        if (b.size() <= 1) {
+          permsPerGrid[k].push_back(b);
+        } else {
+          std::sort(b.begin(), b.end());
+          do {
+            permsPerGrid[k].push_back(b);
+          } while (std::next_permutation(b.begin(), b.end()));
+        }
+      }
+
+      SmallVector<unsigned> choiceIdx(K, 0);
+      std::function<void(unsigned)> choose = [&](unsigned k) {
+        if (k == K) {
+          // Build per-grid ordered lists for x,y,z (3 buckets total).
+          SmallVector<Attribute> gridToSpatial(3);
+          for (unsigned i = 0; i < 3; ++i)
+            gridToSpatial[i] = ArrayAttr::get(ctx, {});
+
+          for (unsigned pos = 0; pos < K; ++pos) {
+            unsigned gdim = usedGridIdx[pos];
+            SmallVector<Attribute> ints;
+            for (unsigned sidx : permsPerGrid[pos][choiceIdx[pos]]) {
+              ints.push_back(IntegerAttr::get(IntegerType::get(ctx, 64),
+                                              static_cast<int64_t>(sidx)));
+            }
+            gridToSpatial[gdim] = ArrayAttr::get(ctx, ints);
+          }
+
+          // Build suffix per grid dim.
+          std::string suffix;
+          for (unsigned g = 0; g < 3; ++g) {
+            if (!suffix.empty())
+              suffix += "_";
+            auto arr = cast<ArrayAttr>(gridToSpatial[g]);
+            if (!gridUsed[g]) {
+              suffix += std::string("g") + std::to_string(g) + "unused";
+            } else if (arr.empty()) {
+              suffix += std::string("g") + std::to_string(g) + "none";
+            } else {
+              suffix += std::string("g") + std::to_string(g) + "s";
+              for (Attribute a : arr) {
+                auto ia = cast<IntegerAttr>(a);
+                suffix += "d" + std::to_string(static_cast<int>(ia.getInt()));
+              }
+            }
+          }
+
+          // Clone function and attach attributes.
+          IRMapping map;
+          builder.setInsertionPointToEnd(out.getBody());
+          auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
+          clonedFunc->setAttr("tmd.spatial_dim_names",
+                              ArrayAttr::get(ctx, spatialNameAttrs));
+          clonedFunc->setAttr("tmd.spatial_dim_sizes",
+                              ArrayAttr::get(ctx, spatialSizeAttrs));
+          clonedFunc->setAttr("tmd.grid_to_spatial",
+                              ArrayAttr::get(ctx, gridToSpatial));
+          clonedFunc->setAttr("tmd.grid_used",
+                              ArrayAttr::get(ctx, gridUsedAttrs));
+          if (!suffix.empty())
+            clonedFunc.setName((func.getName() + "__" + suffix).str());
+          return;
+        }
+        for (unsigned p = 0; p < permsPerGrid[k].size(); ++p) {
+          choiceIdx[k] = p;
+          choose(k + 1);
         }
       };
       choose(0);
