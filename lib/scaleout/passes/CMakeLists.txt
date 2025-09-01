@@ -112,3 +112,38 @@ add_dependencies(tmd_triton_shared_explore
 )
 
 target_compile_options(tmd_triton_shared_explore PRIVATE -fno-rtti)
+
+
+# Triton-shared spatial reuse analysis executable
+add_executable(tmd_triton_shared_reuse
+  triton_shared_reuse_main.cpp
+  triton_shared_reuse_analysis.cpp
+)
+
+target_include_directories(tmd_triton_shared_reuse PRIVATE ${MLIR_INCLUDE_DIRS})
+target_link_libraries(tmd_triton_shared_reuse PRIVATE
+  MLIRIR
+  MLIRParser
+  MLIRSupport
+  LLVMSupport
+  MLIRFuncDialect
+  MLIRMemRefDialect
+  MLIRArithDialect
+  MLIRTensorDialect
+  MLIRLinalgDialect
+  MLIRSCFDialect
+  MLIRBufferizationDialect
+  MLIRPass
+  MLIRAsmParser
+  MLIRBytecodeReader
+  tmdDataflowDialect
+)
+mlir_check_all_link_libraries(tmd_triton_shared_reuse)
+
+add_dependencies(tmd_triton_shared_reuse
+  TMDDataflowDialectIncGen
+  TMDDataflowOpsIncGen
+  TMDDataflowTypesIncGen
+)
+
+target_compile_options(tmd_triton_shared_reuse PRIVATE -fno-rtti)
