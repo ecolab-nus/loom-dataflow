@@ -2,11 +2,13 @@
 #include "affine_tile.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/Operation.h"
+#include "llvm/ADT/BitVector.h"
 
 #include "DataflowDialect.h.inc"
 #define GET_TYPEDEF_CLASSES
@@ -401,6 +403,130 @@ OwningOpRef<ModuleOp> enumerateTritonSharedSpatialMappings(
                               ArrayAttr::get(ctx, gridToSpatial));
           clonedFunc->setAttr("tmd.grid_used",
                               ArrayAttr::get(ctx, gridUsedAttrs));
+
+          // Replace ABI grid args with computed values from spatial ids.
+          //
+          // Rewrite summary:
+          // - Original ABI args:
+          //     %arg9..%arg11  = grid_size.{x,y,z} (i32)
+          //     %arg12..%arg14 = program_id.{x,y,z} (i32)
+          // - We append S spatial-id args (i32), one per spatial dim.
+          // - Spatial sizes are compile-time constants (from DF), so:
+          //     grid_size[g] = Π_j size(spatial_dim_j)  → arith.constant
+          //     program_id[g] = Σ_j id_j * Π_{k>j} size(spatial_dim_k)
+          //   is implemented as affine.apply with constant coefficients.
+          if (clonedFunc.getNumArguments() >= 15) {
+            OpBuilder entryBuilder(clonedFunc.getBody());
+            entryBuilder.setInsertionPointToStart(
+                &clonedFunc.getBody().front());
+            Location loc = clonedFunc.getLoc();
+            Type i32Ty = entryBuilder.getI32Type();
+
+            // 1) Append only spatial id args (i32), one per spatial dimension,
+            //    at the end of the signature.
+            const unsigned oldNumArgs = clonedFunc.getNumArguments();
+            SmallVector<BlockArgument> spatialIdArgs;
+            spatialIdArgs.reserve(S);
+            for (unsigned sIdx = 0; sIdx < S; ++sIdx) {
+              unsigned idx = clonedFunc.getNumArguments();
+              (void)clonedFunc.insertArgument(idx, i32Ty, /*argAttrs=*/{}, loc);
+              spatialIdArgs.push_back(clonedFunc.getArgument(idx));
+            }
+
+            // 2) Use index-typed views of IDs to feed affine.apply.
+            SmallVector<Value> spatialIdIdx(S);
+            for (unsigned sIdx = 0; sIdx < S; ++sIdx)
+              spatialIdIdx[sIdx] = entryBuilder.create<arith::IndexCastOp>(
+                  loc, entryBuilder.getIndexType(), spatialIdArgs[sIdx]);
+
+            Value c0 = entryBuilder.create<arith::ConstantIntOp>(loc, 0, 32);
+
+            // 3) Build grid_size[g] as a single arith.constant product.
+            auto makeGridSize = [&](unsigned g) -> Value {
+              auto arr = cast<ArrayAttr>(gridToSpatial[g]);
+              int64_t prodStatic = 1;
+              for (Attribute a : arr) {
+                unsigned sIdx =
+                    static_cast<unsigned>(cast<IntegerAttr>(a).getInt());
+                (void)sIdx;
+                prodStatic *= *dims[sIdx].size;
+              }
+              return entryBuilder.create<arith::ConstantIntOp>(loc, prodStatic,
+                                                               32);
+            };
+
+            // 4) Build program_id[g] by linearizing assigned spatial IDs with
+            //    constant strides using affine.apply.
+            auto makeGridId = [&](unsigned g) -> Value {
+              auto arr = cast<ArrayAttr>(gridToSpatial[g]);
+              if (arr.empty())
+                return c0;
+              // Compute strides Π_{k>j} size(spatial_dim_k) in assigned order.
+              SmallVector<int64_t> strides(arr.size(), 1);
+              int64_t running = 1;
+              for (int i = static_cast<int>(arr.size()) - 1; i >= 0; --i) {
+                strides[i] = running;
+                unsigned sIdx =
+                    static_cast<unsigned>(cast<IntegerAttr>(arr[i]).getInt());
+                running *= *dims[sIdx].size;
+              }
+              // Construct affine map sum_j (d_j * stride_j) over id operands
+              // d_j.
+              SmallVector<AffineExpr> d;
+              d.reserve(arr.size());
+              for (unsigned i = 0; i < arr.size(); ++i)
+                d.push_back(getAffineDimExpr(i, ctx));
+              AffineExpr sum = getAffineConstantExpr(0, ctx);
+              for (unsigned i = 0; i < arr.size(); ++i) {
+                AffineExpr term = d[i];
+                if (strides[i] != 1)
+                  term = term * getAffineConstantExpr(strides[i], ctx);
+                sum = sum + term;
+              }
+              AffineMap map = AffineMap::get(arr.size(), 0, sum, ctx);
+              SmallVector<Value> args;
+              args.reserve(arr.size());
+              for (unsigned i = 0; i < arr.size(); ++i) {
+                unsigned sIdx =
+                    static_cast<unsigned>(cast<IntegerAttr>(arr[i]).getInt());
+                args.push_back(spatialIdIdx[sIdx]);
+              }
+              Value idxVal =
+                  entryBuilder.create<affine::AffineApplyOp>(loc, map, args);
+              return entryBuilder.create<arith::IndexCastOp>(loc, i32Ty,
+                                                             idxVal);
+            };
+
+            // 5) Materialize replacement values for all 3 grid dimensions.
+            SmallVector<Value, 3> newGridSizes(3);
+            SmallVector<Value, 3> newGridIds(3);
+            for (unsigned g = 0; g < 3; ++g) {
+              newGridSizes[g] = makeGridSize(g);
+              newGridIds[g] = makeGridId(g);
+            }
+
+            // 6) Replace old ABI uses with new values.
+            for (unsigned g = 0; g < 3; ++g) {
+              unsigned sizeIdx = 9 + g;
+              unsigned idIdx = 12 + g;
+              if (sizeIdx < oldNumArgs)
+                clonedFunc.getArgument(sizeIdx).replaceAllUsesWith(
+                    newGridSizes[g]);
+              if (idIdx < oldNumArgs)
+                clonedFunc.getArgument(idIdx).replaceAllUsesWith(newGridIds[g]);
+            }
+
+            // 7) Erase the 6 legacy ABI arguments.
+            llvm::BitVector bv(clonedFunc.getNumArguments());
+            bv.set(9);
+            bv.set(10);
+            bv.set(11);
+            bv.set(12);
+            bv.set(13);
+            bv.set(14);
+            (void)clonedFunc.eraseArguments(bv);
+          }
+
           if (!suffix.empty())
             clonedFunc.setName((func.getName() + "__" + suffix).str());
           return;
