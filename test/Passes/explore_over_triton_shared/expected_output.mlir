@@ -7,7 +7,7 @@ module {
   %1 = df.spatial_dim "y", 8
   %2 = "df.interconnects"(%0, %1) <{map = #map}> : (index, index) -> !df.interconnect
   %3 = "df.interconnects"(%0, %1) <{map = #map1}> : (index, index) -> !df.interconnect
-  func.func @matmul_kernel__g0sd0d1_g1unused_g2unused(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: i32 {tt.divisibility = 16 : i32}, %arg4: i32 {tt.divisibility = 16 : i32}, %arg5: i32 {tt.divisibility = 16 : i32}, %arg6: i32 {tt.divisibility = 16 : i32}, %arg7: i32 {tt.divisibility = 16 : i32}, %arg8: i32 {tt.divisibility = 16 : i32}, %arg9: i32, %arg10: i32) attributes {tmd.grid_to_spatial = [[0, 1], [], []], tmd.grid_used = [true, false, false], tmd.spatial_dim_names = ["x", "y"], tmd.spatial_dim_sizes = [8, 8]} {
+  func.func @matmul_kernel__g0sd0d1_g1unused_g2unused(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: i32 {tt.divisibility = 16 : i32}, %arg4: i32 {tt.divisibility = 16 : i32}, %arg5: i32 {tt.divisibility = 16 : i32}, %arg6: i32 {tt.divisibility = 16 : i32}, %arg7: i32 {tt.divisibility = 16 : i32}, %arg8: i32 {tt.divisibility = 16 : i32}, %arg9: i32 {tmd.spatial_dim_name = "x"}, %arg10: i32 {tmd.spatial_dim_name = "y"}) attributes {tmd.grid_to_spatial = [[0, 1], [], []], tmd.grid_used = [true, false, false], tmd.spatial_dim_names = ["x", "y"], tmd.spatial_dim_sizes = [8, 8]} {
     %4 = arith.index_cast %arg9 : i32 to index
     %5 = arith.index_cast %arg10 : i32 to index
     %c0_i32 = arith.constant 0 : i32
@@ -90,7 +90,7 @@ module {
     bufferization.materialize_in_destination %extracted_slice in writable %subview : (tensor<?x?xf32>, memref<?x?xf32, strided<[?, 1], offset: ?>>) -> ()
     return
   }
-  func.func @matmul_kernel__g0sd1d0_g1unused_g2unused(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: i32 {tt.divisibility = 16 : i32}, %arg4: i32 {tt.divisibility = 16 : i32}, %arg5: i32 {tt.divisibility = 16 : i32}, %arg6: i32 {tt.divisibility = 16 : i32}, %arg7: i32 {tt.divisibility = 16 : i32}, %arg8: i32 {tt.divisibility = 16 : i32}, %arg9: i32, %arg10: i32) attributes {tmd.grid_to_spatial = [[1, 0], [], []], tmd.grid_used = [true, false, false], tmd.spatial_dim_names = ["x", "y"], tmd.spatial_dim_sizes = [8, 8]} {
+  func.func @matmul_kernel__g0sd1d0_g1unused_g2unused(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: i32 {tt.divisibility = 16 : i32}, %arg4: i32 {tt.divisibility = 16 : i32}, %arg5: i32 {tt.divisibility = 16 : i32}, %arg6: i32 {tt.divisibility = 16 : i32}, %arg7: i32 {tt.divisibility = 16 : i32}, %arg8: i32 {tt.divisibility = 16 : i32}, %arg9: i32 {tmd.spatial_dim_name = "x"}, %arg10: i32 {tmd.spatial_dim_name = "y"}) attributes {tmd.grid_to_spatial = [[1, 0], [], []], tmd.grid_used = [true, false, false], tmd.spatial_dim_names = ["x", "y"], tmd.spatial_dim_sizes = [8, 8]} {
     %4 = arith.index_cast %arg9 : i32 to index
     %5 = arith.index_cast %arg10 : i32 to index
     %c0_i32 = arith.constant 0 : i32

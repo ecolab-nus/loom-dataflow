@@ -430,6 +430,9 @@ OwningOpRef<ModuleOp> enumerateTritonSharedSpatialMappings(
             for (unsigned sIdx = 0; sIdx < S; ++sIdx) {
               unsigned idx = clonedFunc.getNumArguments();
               (void)clonedFunc.insertArgument(idx, i32Ty, /*argAttrs=*/{}, loc);
+              // Tag the argument with the spatial dimension name for clarity.
+              clonedFunc.setArgAttr(idx, "tmd.spatial_dim_name",
+                                    StringAttr::get(ctx, dims[sIdx].name));
               spatialIdArgs.push_back(clonedFunc.getArgument(idx));
             }
 
