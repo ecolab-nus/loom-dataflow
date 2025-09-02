@@ -12,7 +12,9 @@
                 "TRITON_SHARED_DUMP_PATH": "/tmp/triton_ir",
                 "LLVM_BINARY_DIR": "/mnt/fast/llvm-build/bin",
                 "TRITON_SHARED_OPT_PATH": "/home/zhenyu/triton/build/cmake.linux-x86_64-cpython-3.12/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt",
-                "TRITON_PLUGIN_DIRS": "/home/zhenyu/triton_shared"
+                "TRITON_PLUGIN_DIRS": "/home/zhenyu/triton_shared",
+                "MLIR_ENABLE_DUMP": "1",
+                "MLIR_DUMP_PATH": "/tmp/triton_ir/mlir_dump.mlir"
             }
         },
         {

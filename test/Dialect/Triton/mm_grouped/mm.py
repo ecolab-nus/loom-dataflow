@@ -10,7 +10,8 @@ def matmul_kernel(A, B, C,
                   stride_am, stride_ak,
                   stride_bk, stride_bn,
                   stride_cm, stride_cn,
-                  BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr, BLOCK_K: tl.constexpr):
+                  BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr, BLOCK_K: tl.constexpr,
+                  GROUP_M: tl.constexpr):
     """! Blocked MatMul kernel using block pointers.
 
     Performs C[M, N] = A[M, K] @ B[K, N] with tiles of sizes
@@ -27,10 +28,17 @@ def matmul_kernel(A, B, C,
     @param BLOCK_M Tile size along M
     @param BLOCK_N Tile size along N
     @param BLOCK_K Tile size along K
+    @param GROUP_M Grouping factor along M to improve L2 locality
     """
 
-    pid_m = tl.program_id(0)
-    pid_n = tl.program_id(1)
+    pid = tl.program_id(0)
+    num_pid_m = tl.cdiv(M, BLOCK_M)
+    num_pid_n = tl.cdiv(N, BLOCK_N)
+
+    group_id  = pid // (GROUP_M * num_pid_n)
+    first_m   = group_id * GROUP_M
+    pid_m     = first_m + (pid % GROUP_M)
+    pid_n     = (pid // GROUP_M) % num_pid_n
 
     off_m0 = pid_m * BLOCK_M
     off_n0 = pid_n * BLOCK_N
@@ -83,7 +91,8 @@ def run_once(M=512, N=512, K=512):
     C = torch.empty((M, N), dtype=torch.float32)
 
     BLOCK_M, BLOCK_N, BLOCK_K = 64, 64, 32
-    grid = (triton.cdiv(M, BLOCK_M), triton.cdiv(N, BLOCK_N))
+    GROUP_M = 8
+    grid = (triton.cdiv(M, BLOCK_M) * triton.cdiv(N, BLOCK_N),)
 
     matmul_kernel[grid](
         A, B, C, M, N, K,
@@ -91,6 +100,7 @@ def run_once(M=512, N=512, K=512):
         B.stride(0), B.stride(1),
         C.stride(0), C.stride(1),
         BLOCK_M=BLOCK_M, BLOCK_N=BLOCK_N, BLOCK_K=BLOCK_K,
+        GROUP_M=GROUP_M,
         num_warps=4, num_stages=2,
     )
 
