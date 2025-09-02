@@ -5,14 +5,14 @@
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
-            "program": "/home/zhenyu/tmd/test/Dialect/Triton/mm_grouping_m/mm.py",
-            "python": "/home/zhenyu/triton/.venv/bin/python",
+            "program": "${workspaceFolder}/test/Dialect/Triton/mm_grouping_m/mm.py",
+            "python": "${env:HOME}/triton/.venv/bin/python",
             "console": "integratedTerminal",
             "env": {
                 "TRITON_SHARED_DUMP_PATH": "/tmp/triton_ir",
                 "LLVM_BINARY_DIR": "/mnt/fast/llvm-build/bin",
-                "TRITON_SHARED_OPT_PATH": "/home/zhenyu/triton/build/cmake.linux-x86_64-cpython-3.12/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt",
-                "TRITON_PLUGIN_DIRS": "/home/zhenyu/triton_shared",
+                "TRITON_SHARED_OPT_PATH": "${env:HOME}/triton/build/cmake.linux-x86_64-cpython-3.12/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt",
+                "TRITON_PLUGIN_DIRS": "${env:HOME}/triton_shared",
                 "MLIR_ENABLE_DUMP": "1",
                 "MLIR_DUMP_PATH": "/tmp/triton_ir/mlir_dump.mlir"
             }
