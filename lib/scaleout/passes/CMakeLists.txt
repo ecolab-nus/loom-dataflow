@@ -147,3 +147,39 @@ add_dependencies(tmd_triton_shared_reuse
 )
 
 target_compile_options(tmd_triton_shared_reuse PRIVATE -fno-rtti)
+
+
+# Triton-shared affinization executable
+add_executable(tmd_triton_shared_affinize
+  triton_shared_affinize_main.cpp
+  triton_shared_affinize.cpp
+)
+
+target_include_directories(tmd_triton_shared_affinize PRIVATE ${MLIR_INCLUDE_DIRS})
+target_link_libraries(tmd_triton_shared_affinize PRIVATE
+  MLIRIR
+  MLIRParser
+  MLIRSupport
+  LLVMSupport
+  MLIRFuncDialect
+  MLIRAffineDialect
+  MLIRMemRefDialect
+  MLIRArithDialect
+  MLIRTensorDialect
+  MLIRLinalgDialect
+  MLIRSCFDialect
+  MLIRBufferizationDialect
+  MLIRPass
+  MLIRAsmParser
+  MLIRBytecodeReader
+  tmdDataflowDialect
+)
+mlir_check_all_link_libraries(tmd_triton_shared_affinize)
+
+add_dependencies(tmd_triton_shared_affinize
+  TMDDataflowDialectIncGen
+  TMDDataflowOpsIncGen
+  TMDDataflowTypesIncGen
+)
+
+target_compile_options(tmd_triton_shared_affinize PRIVATE -fno-rtti)
