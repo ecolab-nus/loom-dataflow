@@ -26,6 +26,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
@@ -643,52 +644,53 @@ public:
 
       // Walk loads/stores and attempt conversion to affine ops.
       func.walk([&](Operation *op) {
-        // Ensure scf.for loop bounds/step types match the IV type to avoid
-        // verifier failures after we changed operand types above.
+        // Convert scf.for to index-typed IV when possible by rebuilding the
+        // loop with index-typed bounds/step. This eliminates i32 IV and the
+        // associated index_casts inside the loop body.
         if (auto loop = dyn_cast<scf::ForOp>(op)) {
-          Type ivTy = loop.getInductionVar().getType();
-          auto castTo = [&](Value v) -> Value {
-            if (v.getType() == ivTy)
+          auto toIndex = [&](Value v) -> Value {
+            if (v.getType().isIndex())
               return v;
             OpBuilder::InsertionGuard g(b);
             b.setInsertionPoint(loop);
-            if (ivTy.isIndex()) {
-              // Cast to index.
-              if (auto cInt = v.getDefiningOp<arith::ConstantIntOp>())
-                return b.create<arith::ConstantIndexOp>(cInt.getLoc(),
-                                                        cInt.value());
-              if (mlir::isa<IntegerType>(v.getType()))
-                return b.create<arith::IndexCastOp>(v.getLoc(), ivTy, v);
-              if (auto cIdx = v.getDefiningOp<arith::ConstantIndexOp>())
-                return cIdx.getResult();
-              return v;
-            }
-            // Cast to integer type (e.g. i32) matching the IV.
-            if (mlir::isa<IndexType>(v.getType()))
-              return b.create<arith::IndexCastOp>(v.getLoc(), ivTy, v);
-            if (auto cIdx = v.getDefiningOp<arith::ConstantIndexOp>())
-              return b.create<arith::ConstantIntOp>(cIdx.getLoc(), ivTy,
-                                                    cIdx.value());
-            if (auto intSrc = mlir::dyn_cast<IntegerType>(v.getType())) {
-              unsigned srcW = intSrc.getWidth();
-              unsigned dstW = mlir::cast<IntegerType>(ivTy).getWidth();
-              if (srcW == dstW)
-                return v;
-              if (srcW < dstW)
-                return b.create<arith::ExtSIOp>(v.getLoc(), ivTy, v);
-              return b.create<arith::TruncIOp>(v.getLoc(), ivTy, v);
-            }
-            return v;
+            if (auto cInt = v.getDefiningOp<arith::ConstantIntOp>())
+              return b.create<arith::ConstantIndexOp>(cInt.getLoc(),
+                                                      cInt.value());
+            return b.create<arith::IndexCastOp>(v.getLoc(), IndexType::get(ctx),
+                                                v);
           };
-          Value lb = castTo(loop.getLowerBound());
-          Value ub = castTo(loop.getUpperBound());
-          Value st = castTo(loop.getStep());
-          if (lb != loop.getLowerBound())
-            loop.getOperation()->setOperand(0, lb);
-          if (ub != loop.getUpperBound())
-            loop.getOperation()->setOperand(1, ub);
-          if (st != loop.getStep())
-            loop.getOperation()->setOperand(2, st);
+          bool needIndex = !loop.getInductionVar().getType().isIndex() ||
+                           !loop.getLowerBound().getType().isIndex() ||
+                           !loop.getUpperBound().getType().isIndex() ||
+                           !loop.getStep().getType().isIndex();
+          if (!needIndex)
+            return;
+          Value lbIdx = toIndex(loop.getLowerBound());
+          Value ubIdx = toIndex(loop.getUpperBound());
+          Value stIdx = toIndex(loop.getStep());
+          OpBuilder::InsertionGuard g(b);
+          b.setInsertionPoint(loop);
+          auto newLoop = b.create<scf::ForOp>(loop.getLoc(), lbIdx, ubIdx,
+                                              stIdx, loop.getInitArgs());
+          // Clone body with IV remapped to index-typed IV.
+          IRMapping mapper;
+          Block &oldBody = *loop.getBody();
+          Block &newBody = *newLoop.getBody();
+          mapper.map(oldBody.getArgument(0), newBody.getArgument(0));
+          for (auto it : llvm::enumerate(loop.getRegionIterArgs()))
+            mapper.map(oldBody.getArgument(it.index() + 1),
+                       newBody.getArgument(it.index() + 1));
+          OpBuilder nb(&newBody, newBody.begin());
+          for (Operation &inner : oldBody.without_terminator())
+            nb.clone(inner, mapper);
+          auto oldYield = cast<scf::YieldOp>(oldBody.getTerminator());
+          SmallVector<Value, 8> yieldVals;
+          yieldVals.reserve(oldYield.getNumOperands());
+          for (Value v : oldYield.getOperands())
+            yieldVals.push_back(mapper.lookupOrDefault(v));
+          nb.create<scf::YieldOp>(oldYield.getLoc(), yieldVals);
+          loop.getResults().replaceAllUsesWith(newLoop.getResults());
+          loop.erase();
           return;
         }
         // Rebuild reinterpret_cast with affine-applied offsets/sizes/strides
