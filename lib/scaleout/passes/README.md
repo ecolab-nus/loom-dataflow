@@ -137,3 +137,68 @@ After:
 - Symbol ordering is normalized per-map so that the same semantic expression yields stable operand ordering.
 
 
+## Triton Shared Grid→Parallel Pass
+
+This pass exposes the implicit grid parallelism as a 3-D `affine.parallel` and simplifies the kernel signature by removing the three grid index arguments.
+
+### Purpose
+
+- Triton-shared lowered kernels often carry six trailing arguments encoding execution grid information: three sizes and three indices over X/Y/Z.
+- These grid indices are semantically equivalent to loop induction variables across the grid dimensions. The pass makes this explicit, which enables subsequent affine analyses and transformations that expect loop-nesting structure.
+
+### Transformation
+
+- Input convention (last 6 args): `(sizeX, sizeY, sizeZ, idxX, idxY, idxZ)`.
+- The pass inserts a single 3-D `affine.parallel`:
+  - Lower bounds: `(0, 0, 0)`
+  - Upper bounds: `(sizeX, sizeY, sizeZ)` (dynamic)
+  - Steps: `(1, 1, 1)`
+- All uses of `(idxX, idxY, idxZ)` in the body are replaced by the parallel IVs.
+- The last three arguments are erased from the function signature.
+- The three size arguments are preserved as function parameters and serve as dynamic upper bounds.
+
+### Before/After (conceptual)
+
+Before:
+
+```mlir
+func.func @kernel(%A: memref<*xf32>, %B: memref<*xf32>,
+                  %sizeX: index, %sizeY: index, %sizeZ: index,
+                  %idxX: index, %idxY: index, %idxZ: index) {
+  // body using %idxX, %idxY, %idxZ
+  return
+}
+```
+
+After:
+
+```mlir
+func.func @kernel(%A: memref<*xf32>, %B: memref<*xf32>,
+                  %sizeX: index, %sizeY: index, %sizeZ: index) {
+  affine.parallel (%i, %j, %k) = (0, 0, 0) to (%sizeX, %sizeY, %sizeZ) {
+    // same body where %idxX→%i, %idxY→%j, %idxZ→%k
+  }
+  return
+}
+```
+
+### Dialects and dependencies
+
+Requires: `affine`, `func`, `arith` (and whatever the body uses; the pass itself does not rewrite non-affine ops beyond the structural wrap and SSA replacement).
+
+### Running the pass
+
+- Pass name: `tmd-triton-shared-grid-to-parallel`
+
+With the standalone driver provided here:
+
+```bash
+build/lib/scaleout/passes/tmd_triton_shared_grid_to_parallel input.mlir > output.mlir
+```
+
+### Notes
+
+- The pass is a no-op for functions with fewer than six arguments.
+- The pass assumes the trailing-6 convention; it does not inspect semantics beyond arity and position.
+- Upper bounds are consumed as-is; follow-up canonicalizations may normalize types to `index` if needed.
+

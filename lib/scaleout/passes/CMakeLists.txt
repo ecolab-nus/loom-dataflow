@@ -183,3 +183,32 @@ add_dependencies(tmd_triton_shared_affinize
 )
 
 target_compile_options(tmd_triton_shared_affinize PRIVATE -fno-rtti)
+
+
+# Triton-shared grid-to-parallel executable
+add_executable(tmd_triton_shared_grid_to_parallel
+  triton_shared_grid_to_parallel_main.cpp
+  triton_shared_grid_to_parallel.cpp
+)
+
+target_include_directories(tmd_triton_shared_grid_to_parallel PRIVATE ${MLIR_INCLUDE_DIRS})
+target_link_libraries(tmd_triton_shared_grid_to_parallel PRIVATE
+  MLIRIR
+  MLIRParser
+  MLIRSupport
+  LLVMSupport
+  MLIRFuncDialect
+  MLIRAffineDialect
+  MLIRArithDialect
+  MLIRTensorDialect
+  MLIRLinalgDialect
+  MLIRMemRefDialect
+  MLIRSCFDialect
+  MLIRBufferizationDialect
+  MLIRPass
+  MLIRAsmParser
+  MLIRBytecodeReader
+)
+mlir_check_all_link_libraries(tmd_triton_shared_grid_to_parallel)
+
+target_compile_options(tmd_triton_shared_grid_to_parallel PRIVATE -fno-rtti)
