@@ -33,8 +33,6 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
 
-#include <algorithm>
-
 #include "DataflowDialect.h.inc"
 #include "DataflowOps.h.inc"
 
@@ -57,8 +55,8 @@ int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
                                     "TMD Triton-shared spatial explorer\n");
 
-  unsigned numGridDims =
-      std::min<unsigned>(std::max(1u, clNumGridDims.getValue()), 3u);
+  // Legacy option retained for compatibility of CLI; ignored in the new format.
+  (void)clNumGridDims;
 
   MLIRContext context;
   (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
@@ -111,8 +109,11 @@ int main(int argc, char **argv) {
   }
 
   // Enumerate all grid-to-spatial assignments for the ttshared module.
-  OwningOpRef<ModuleOp> out = tmd_affine::enumerateTritonSharedSpatialMappings(
-      *tsModule, spatialDims, numGridDims);
+  // New format: enumerate mappings directly over the outermost affine.parallel
+  // in the Triton-shared-after-grid-to-parallel module. We ignore numGridDims
+  // and rely purely on the number of iterators in the parallel op.
+  OwningOpRef<ModuleOp> out =
+      tmd_affine::enumerateSpatialMappings(*tsModule, spatialDims);
 
   // Merge DF declarations and generated clones into a single module.
   OwningOpRef<ModuleOp> merged = ModuleOp::create(UnknownLoc::get(&context));
