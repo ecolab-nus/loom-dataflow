@@ -668,10 +668,14 @@ public:
           Value lbIdx = toIndex(loop.getLowerBound());
           Value ubIdx = toIndex(loop.getUpperBound());
           Value stIdx = toIndex(loop.getStep());
+          // Affinize bounds and step where possible.
+          Value lbAff = ensureAffine(lbIdx, loop.getLoc());
+          Value ubAff = ensureAffine(ubIdx, loop.getLoc());
+          Value stAff = ensureAffine(stIdx, loop.getLoc());
           OpBuilder::InsertionGuard g(b);
           b.setInsertionPoint(loop);
-          auto newLoop = b.create<scf::ForOp>(loop.getLoc(), lbIdx, ubIdx,
-                                              stIdx, loop.getInitArgs());
+          auto newLoop = b.create<scf::ForOp>(loop.getLoc(), lbAff, ubAff,
+                                              stAff, loop.getInitArgs());
           // Clone body with IV remapped to index-typed IV.
           IRMapping mapper;
           Block &oldBody = *loop.getBody();
