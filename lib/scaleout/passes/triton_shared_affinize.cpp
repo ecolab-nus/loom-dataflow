@@ -25,8 +25,10 @@
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 
@@ -339,6 +341,57 @@ remapSymbolsSequential(AffineExpr expr,
   return remap(expr);
 }
 
+/// Remap symbol ids in `expr` to a common ordering provided by `oldToNew`.
+/// The keys of `oldToNew` are positions in `allSymbolValues`. The values are
+/// the new compact positions [0..k-1].
+static AffineExpr
+remapSymbolsWithMapping(AffineExpr expr,
+                        const DenseMap<unsigned, unsigned> &oldToNew) {
+  if (!expr)
+    return expr;
+  MLIRContext *ctx = expr.getContext();
+  std::function<AffineExpr(AffineExpr)> remap =
+      [&](AffineExpr e) -> AffineExpr {
+    switch (e.getKind()) {
+    case AffineExprKind::SymbolId: {
+      auto sym = llvm::cast<AffineSymbolExpr>(e);
+      unsigned oldPos = sym.getPosition();
+      auto it = oldToNew.find(oldPos);
+      assert(it != oldToNew.end() && "symbol position not in mapping");
+      return getAffineSymbolExpr(it->second, ctx);
+    }
+    case AffineExprKind::DimId:
+    case AffineExprKind::Constant:
+      return e;
+    case AffineExprKind::Add: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return remap(bin.getLHS()) + remap(bin.getRHS());
+    }
+    case AffineExprKind::Mul: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return remap(bin.getLHS()) * remap(bin.getRHS());
+    }
+    case AffineExprKind::Mod: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return getAffineBinaryOpExpr(AffineExprKind::Mod, remap(bin.getLHS()),
+                                   remap(bin.getRHS()));
+    }
+    case AffineExprKind::FloorDiv: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return getAffineBinaryOpExpr(AffineExprKind::FloorDiv,
+                                   remap(bin.getLHS()), remap(bin.getRHS()));
+    }
+    case AffineExprKind::CeilDiv: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return getAffineBinaryOpExpr(AffineExprKind::CeilDiv, remap(bin.getLHS()),
+                                   remap(bin.getRHS()));
+    }
+    }
+    return e;
+  };
+  return remap(expr);
+}
+
 /// Pass that performs the affinization.
 class TritonSharedAffinizePass
     : public PassWrapper<TritonSharedAffinizePass, OperationPass<ModuleOp>> {
@@ -371,6 +424,111 @@ public:
 
       OpBuilder b(ctx);
       AffineExprBuilder aeb(ctx);
+
+      // Step 0: Convert all i32 function arguments to index type to eliminate
+      // index_cast in the body and enable direct use in affine.apply.
+      {
+        FunctionType fty = func.getFunctionType();
+        SmallVector<Type, 8> inputs(fty.getInputs().begin(),
+                                    fty.getInputs().end());
+        SmallVector<Type, 8> results(fty.getResults().begin(),
+                                     fty.getResults().end());
+        bool changed = false;
+        for (unsigned i = 0, e = inputs.size(); i < e; ++i) {
+          if (auto intTy = dyn_cast<IntegerType>(inputs[i])) {
+            if (intTy.getWidth() == 32) {
+              inputs[i] = IndexType::get(ctx);
+              changed = true;
+            }
+          }
+        }
+        if (changed) {
+          auto newTy = FunctionType::get(ctx, inputs, results);
+          func.setType(newTy);
+          // Update entry block argument types to match.
+          Block &entry = func.getBody().front();
+          for (unsigned i = 0, e = inputs.size(); i < e; ++i)
+            entry.getArgument(i).setType(inputs[i]);
+
+          // Canonicalize redundant index_cast (same src/dst type) after type
+          // change.
+          bool removed;
+          int castIterGuard = 64;
+          do {
+            removed = false;
+            SmallVector<Operation *, 32> casts;
+            func.walk([&](arith::IndexCastOp ic) {
+              if (ic.getIn().getType() == ic.getType())
+                casts.push_back(ic.getOperation());
+            });
+            for (Operation *opCast : casts) {
+              auto ic = cast<arith::IndexCastOp>(opCast);
+              ic.getResult().replaceAllUsesWith(ic.getIn());
+              ic.erase();
+              removed = true;
+            }
+          } while (removed && --castIterGuard > 0);
+
+          // Ensure integer arithmetic directly using grid args operates on
+          // index type (promote constants and operands to index, rebuild ops).
+          auto ensureIndex2 = [&](OpBuilder &rb, Operation *anchor,
+                                  Value v) -> Value {
+            if (v.getType().isIndex())
+              return v;
+            if (auto cint = v.getDefiningOp<arith::ConstantIntOp>()) {
+              rb.setInsertionPoint(anchor);
+              return rb.create<arith::ConstantIndexOp>(cint.getLoc(),
+                                                       cint.value());
+            }
+            rb.setInsertionPoint(anchor);
+            return rb.create<arith::IndexCastOp>(v.getLoc(),
+                                                 IndexType::get(ctx), v);
+          };
+
+          bool changedArith;
+          int arithIterGuard = 256;
+          do {
+            changedArith = false;
+            SmallVector<Operation *, 64> arithToFix;
+            func.walk([&](Operation *o) {
+              if (isa<arith::AddIOp, arith::SubIOp, arith::MulIOp,
+                      arith::DivSIOp, arith::MinSIOp, arith::MaxSIOp>(o)) {
+                Type t0 = o->getOperand(0).getType();
+                Type t1 = o->getOperand(1).getType();
+                Type tr = o->getResult(0).getType();
+                if (t0 != t1 || t0 != tr || t0.isIndex() || t1.isIndex() ||
+                    tr.isIndex())
+                  arithToFix.push_back(o);
+              }
+            });
+            for (Operation *o : arithToFix) {
+              OpBuilder rb(o);
+              Value a = o->getOperand(0);
+              Value b = o->getOperand(1);
+              Value ai = ensureIndex2(rb, o, a);
+              Value bi = ensureIndex2(rb, o, b);
+              Value newVal;
+              if (auto addi = dyn_cast<arith::AddIOp>(o))
+                newVal = rb.create<arith::AddIOp>(addi.getLoc(), ai, bi);
+              else if (auto subi = dyn_cast<arith::SubIOp>(o))
+                newVal = rb.create<arith::SubIOp>(subi.getLoc(), ai, bi);
+              else if (auto muli = dyn_cast<arith::MulIOp>(o))
+                newVal = rb.create<arith::MulIOp>(muli.getLoc(), ai, bi);
+              else if (auto divi = dyn_cast<arith::DivSIOp>(o))
+                newVal = rb.create<arith::DivSIOp>(divi.getLoc(), ai, bi);
+              else if (auto mini = dyn_cast<arith::MinSIOp>(o))
+                newVal = rb.create<arith::MinSIOp>(mini.getLoc(), ai, bi);
+              else if (auto maxi = dyn_cast<arith::MaxSIOp>(o))
+                newVal = rb.create<arith::MaxSIOp>(maxi.getLoc(), ai, bi);
+              if (!newVal)
+                continue;
+              o->getResult(0).replaceAllUsesWith(newVal);
+              o->erase();
+              changedArith = true;
+            }
+          } while (changedArith && --arithIterGuard > 0);
+        }
+      }
 
       // Helper to try replacing an index value with affine.apply
       auto ensureAffine = [&](Value idx, Location loc) -> Value {
@@ -485,6 +643,54 @@ public:
 
       // Walk loads/stores and attempt conversion to affine ops.
       func.walk([&](Operation *op) {
+        // Ensure scf.for loop bounds/step types match the IV type to avoid
+        // verifier failures after we changed operand types above.
+        if (auto loop = dyn_cast<scf::ForOp>(op)) {
+          Type ivTy = loop.getInductionVar().getType();
+          auto castTo = [&](Value v) -> Value {
+            if (v.getType() == ivTy)
+              return v;
+            OpBuilder::InsertionGuard g(b);
+            b.setInsertionPoint(loop);
+            if (ivTy.isIndex()) {
+              // Cast to index.
+              if (auto cInt = v.getDefiningOp<arith::ConstantIntOp>())
+                return b.create<arith::ConstantIndexOp>(cInt.getLoc(),
+                                                        cInt.value());
+              if (mlir::isa<IntegerType>(v.getType()))
+                return b.create<arith::IndexCastOp>(v.getLoc(), ivTy, v);
+              if (auto cIdx = v.getDefiningOp<arith::ConstantIndexOp>())
+                return cIdx.getResult();
+              return v;
+            }
+            // Cast to integer type (e.g. i32) matching the IV.
+            if (mlir::isa<IndexType>(v.getType()))
+              return b.create<arith::IndexCastOp>(v.getLoc(), ivTy, v);
+            if (auto cIdx = v.getDefiningOp<arith::ConstantIndexOp>())
+              return b.create<arith::ConstantIntOp>(cIdx.getLoc(), ivTy,
+                                                    cIdx.value());
+            if (auto intSrc = mlir::dyn_cast<IntegerType>(v.getType())) {
+              unsigned srcW = intSrc.getWidth();
+              unsigned dstW = mlir::cast<IntegerType>(ivTy).getWidth();
+              if (srcW == dstW)
+                return v;
+              if (srcW < dstW)
+                return b.create<arith::ExtSIOp>(v.getLoc(), ivTy, v);
+              return b.create<arith::TruncIOp>(v.getLoc(), ivTy, v);
+            }
+            return v;
+          };
+          Value lb = castTo(loop.getLowerBound());
+          Value ub = castTo(loop.getUpperBound());
+          Value st = castTo(loop.getStep());
+          if (lb != loop.getLowerBound())
+            loop.getOperation()->setOperand(0, lb);
+          if (ub != loop.getUpperBound())
+            loop.getOperation()->setOperand(1, ub);
+          if (st != loop.getStep())
+            loop.getOperation()->setOperand(2, st);
+          return;
+        }
         // Rebuild reinterpret_cast with affine-applied offsets/sizes/strides
         // where possible.
         if (auto rc = dyn_cast<memref::ReinterpretCastOp>(op)) {
@@ -591,30 +797,568 @@ public:
           store.erase();
           return;
         }
+
+        // Try to affinize sizes of extract_slice (tensor) and subview (memref).
+        if (auto slice = dyn_cast<tensor::ExtractSliceOp>(op)) {
+          // Compose dims: grid IDs (last 3 func args) + surrounding loop IVs.
+          SmallVector<Value, 8> dimsAll(spatialDims.begin(), spatialDims.end());
+          for (Operation *par = slice->getParentOp(); par;
+               par = par->getParentOp()) {
+            if (auto loop = dyn_cast<scf::ForOp>(par))
+              dimsAll.push_back(loop.getInductionVar());
+            if (isa<func::FuncOp>(par))
+              break;
+          }
+          LinearFormBuilder lfb(ctx, dimsAll);
+          auto castToIndexAt = [&](Value v) -> Value {
+            if (v.getType().isIndex())
+              return v;
+            OpBuilder::InsertionGuard g(b);
+            b.setInsertionPoint(slice);
+            return b
+                .create<arith::IndexCastOp>(slice.getLoc(), IndexType::get(ctx),
+                                            v)
+                .getResult();
+          };
+
+          SmallVector<Value, 4> newSizes;
+          newSizes.reserve(slice.getSizes().size());
+          auto convertValue = [&](Value val) -> Value {
+            auto unwrapIndexCast = [](Value v) -> Value {
+              if (auto ic =
+                      dyn_cast_or_null<arith::IndexCastOp>(v.getDefiningOp()))
+                return ic.getIn();
+              return v;
+            };
+            auto isConstIdx = [&](Value v, int64_t &cst) -> bool {
+              if (auto c = dyn_cast_or_null<arith::ConstantIndexOp>(
+                      v.getDefiningOp())) {
+                cst = c.value();
+                return true;
+              }
+              return false;
+            };
+            auto tryClampTilePattern = [&](Value v) -> Value {
+              // Match: min( [optional min(..., T)], sub(max(min(base+T, dim),
+              // base), base), T)
+              arith::MinSIOp minTop =
+                  dyn_cast_or_null<arith::MinSIOp>(v.getDefiningOp());
+              if (!minTop)
+                return Value();
+              Value lhs = minTop.getLhs();
+              Value rhs = minTop.getRhs();
+              int64_t tileC = -1;
+              Value tileVal;
+              if (isConstIdx(rhs, tileC)) {
+                tileVal = rhs;
+              } else if (isConstIdx(lhs, tileC)) {
+                tileVal = lhs;
+                lhs = rhs;
+              } else {
+                return Value();
+              }
+
+              // Collapse a redundant inner min(..., T)
+              if (auto innerMin =
+                      dyn_cast_or_null<arith::MinSIOp>(lhs.getDefiningOp())) {
+                int64_t tile2;
+                if (isConstIdx(innerMin.getLhs(), tile2) ||
+                    isConstIdx(innerMin.getRhs(), tile2)) {
+                  if (tile2 == tileC)
+                    lhs = (innerMin.getLhs() == tileVal) ? innerMin.getRhs()
+                                                         : innerMin.getLhs();
+                }
+              }
+
+              auto sub = dyn_cast_or_null<arith::SubIOp>(lhs.getDefiningOp());
+              if (!sub)
+                return Value();
+              Value y = sub.getLhs();
+              Value base = sub.getRhs();
+
+              auto max = dyn_cast_or_null<arith::MaxSIOp>(y.getDefiningOp());
+              if (!max)
+                return Value();
+              Value mb0 = max.getLhs();
+              Value mb1 = max.getRhs();
+              Value w;
+              if (mb0 == base)
+                w = mb1;
+              else if (mb1 == base)
+                w = mb0;
+              else
+                return Value();
+
+              auto min2 = dyn_cast_or_null<arith::MinSIOp>(w.getDefiningOp());
+              if (!min2)
+                return Value();
+              Value a = min2.getLhs();
+              Value rhsVal = min2.getRhs();
+              Value add;
+              Value dim;
+              // Identify add(base, T) vs dim (possibly with index_cast)
+              auto isAddBaseTile = [&](Value v) -> bool {
+                auto addi = dyn_cast_or_null<arith::AddIOp>(v.getDefiningOp());
+                if (!addi)
+                  return false;
+                // Accept either operand equal to base and the other constant T.
+                int64_t c;
+                if (addi.getLhs() == base && isConstIdx(addi.getRhs(), c) &&
+                    c == tileC)
+                  return true;
+                if (addi.getRhs() == base && isConstIdx(addi.getLhs(), c) &&
+                    c == tileC)
+                  return true;
+                return false;
+              };
+              if (isAddBaseTile(a)) {
+                add = a;
+                dim = unwrapIndexCast(rhsVal);
+              } else if (isAddBaseTile(rhsVal)) {
+                add = rhsVal;
+                dim = unwrapIndexCast(a);
+              } else {
+                return Value();
+              }
+
+              // We matched the clamp pattern. Build affine.min with {dim -
+              // base, T}.
+              AffineExpr eDim = lfb.build(dim);
+              AffineExpr eBase = lfb.build(base);
+              if (!eDim || !eBase)
+                return Value();
+              AffineExpr eDiff = eDim - eBase;
+              SmallVector<Value, 8> orderedSyms;
+              AffineExpr eRem =
+                  remapSymbolsSequential(eDiff, orderedSyms, lfb.getSymbols());
+              SmallVector<Value, 16> operands;
+              for (Value d : lfb.getDims())
+                operands.push_back(castToIndexAt(d));
+              for (Value s : orderedSyms)
+                operands.push_back(castToIndexAt(s));
+              AffineMap map = AffineMap::get(
+                  static_cast<unsigned>(lfb.getDims().size()),
+                  static_cast<unsigned>(orderedSyms.size()),
+                  ArrayRef<AffineExpr>{eRem, getAffineConstantExpr(tileC, ctx)},
+                  ctx);
+              OpBuilder::InsertionGuard g(b);
+              b.setInsertionPoint(slice);
+              return b
+                  .create<affine::AffineMinOp>(slice.getLoc(), map, operands)
+                  .getResult();
+            };
+
+            if (Value v = tryClampTilePattern(val))
+              return v;
+            // First try a pure affine.apply expression.
+            if (AffineExpr e = lfb.build(val)) {
+              SmallVector<Value, 8> orderedSyms;
+              AffineExpr remapped =
+                  remapSymbolsSequential(e, orderedSyms, lfb.getSymbols());
+              SmallVector<Value, 16> operands;
+              for (Value d : lfb.getDims())
+                operands.push_back(castToIndexAt(d));
+              for (Value s : orderedSyms)
+                operands.push_back(castToIndexAt(s));
+              AffineMap map = AffineMap::get(lfb.getDims().size(),
+                                             orderedSyms.size(), remapped);
+              OpBuilder::InsertionGuard g(b);
+              b.setInsertionPoint(slice);
+              return b.create<affine::AffineApplyOp>(slice.getLoc(), map,
+                                                     operands);
+            }
+            // Handle min/max of affine expressions via affine.min/max ops.
+            if (auto minsi =
+                    dyn_cast_or_null<arith::MinSIOp>(val.getDefiningOp())) {
+              AffineExpr el = lfb.build(minsi.getLhs());
+              AffineExpr er = lfb.build(minsi.getRhs());
+              if (el && er) {
+                SmallVector<unsigned, 8> useL, useR;
+                collectUsedSymbolPositions(el, useL);
+                collectUsedSymbolPositions(er, useR);
+                SmallVector<unsigned, 16> order;
+                order.append(useL.begin(), useL.end());
+                for (unsigned p : useR)
+                  if (llvm::find(order, p) == order.end())
+                    order.push_back(p);
+                DenseMap<unsigned, unsigned> oldToNew;
+                for (unsigned i = 0, e = order.size(); i < e; ++i)
+                  oldToNew.try_emplace(order[i], i);
+                AffineExpr elR = remapSymbolsWithMapping(el, oldToNew);
+                AffineExpr erR = remapSymbolsWithMapping(er, oldToNew);
+                SmallVector<Value, 16> operands;
+                for (Value d : lfb.getDims())
+                  operands.push_back(castToIndexAt(d));
+                SmallVector<Value, 8> orderedSyms;
+                orderedSyms.reserve(order.size());
+                for (unsigned pos : order)
+                  orderedSyms.push_back(castToIndexAt(lfb.getSymbols()[pos]));
+                operands.append(orderedSyms.begin(), orderedSyms.end());
+                AffineMap mCombined =
+                    AffineMap::get(static_cast<unsigned>(lfb.getDims().size()),
+                                   static_cast<unsigned>(orderedSyms.size()),
+                                   ArrayRef<AffineExpr>{elR, erR}, ctx);
+                OpBuilder::InsertionGuard g(b);
+                b.setInsertionPoint(slice);
+                return b
+                    .create<affine::AffineMinOp>(slice.getLoc(), mCombined,
+                                                 operands)
+                    .getResult();
+              }
+            }
+            if (auto maxsi =
+                    dyn_cast_or_null<arith::MaxSIOp>(val.getDefiningOp())) {
+              AffineExpr el = lfb.build(maxsi.getLhs());
+              AffineExpr er = lfb.build(maxsi.getRhs());
+              if (el && er) {
+                SmallVector<unsigned, 8> useL, useR;
+                collectUsedSymbolPositions(el, useL);
+                collectUsedSymbolPositions(er, useR);
+                SmallVector<unsigned, 16> order;
+                order.append(useL.begin(), useL.end());
+                for (unsigned p : useR)
+                  if (llvm::find(order, p) == order.end())
+                    order.push_back(p);
+                DenseMap<unsigned, unsigned> oldToNew;
+                for (unsigned i = 0, e = order.size(); i < e; ++i)
+                  oldToNew.try_emplace(order[i], i);
+                AffineExpr elR = remapSymbolsWithMapping(el, oldToNew);
+                AffineExpr erR = remapSymbolsWithMapping(er, oldToNew);
+                SmallVector<Value, 16> operands;
+                for (Value d : lfb.getDims())
+                  operands.push_back(castToIndexAt(d));
+                SmallVector<Value, 8> orderedSyms;
+                orderedSyms.reserve(order.size());
+                for (unsigned pos : order)
+                  orderedSyms.push_back(castToIndexAt(lfb.getSymbols()[pos]));
+                operands.append(orderedSyms.begin(), orderedSyms.end());
+                AffineMap mCombined =
+                    AffineMap::get(static_cast<unsigned>(lfb.getDims().size()),
+                                   static_cast<unsigned>(orderedSyms.size()),
+                                   ArrayRef<AffineExpr>{elR, erR}, ctx);
+                OpBuilder::InsertionGuard g(b);
+                b.setInsertionPoint(slice);
+                return b
+                    .create<affine::AffineMaxOp>(slice.getLoc(), mCombined,
+                                                 operands)
+                    .getResult();
+              }
+            }
+            return val;
+          };
+
+          for (Value sz : slice.getSizes())
+            newSizes.push_back(convertValue(sz));
+
+          // Rebuild the op only if any size changed to an affine op or apply.
+          bool changed =
+              llvm::any_of(llvm::zip(slice.getSizes(), newSizes), [](auto it) {
+                return std::get<0>(it) != std::get<1>(it);
+              });
+          if (!changed)
+            return;
+
+          OpBuilder::InsertionGuard g(b);
+          b.setInsertionPoint(slice);
+          auto rebuilt = b.create<tensor::ExtractSliceOp>(
+              slice.getLoc(), slice.getType(), slice.getSource(),
+              slice.getOffsets(), ValueRange(newSizes), slice.getStrides(),
+              slice.getStaticOffsets(), slice.getStaticSizes(),
+              slice.getStaticStrides());
+          slice.getResult().replaceAllUsesWith(rebuilt.getResult());
+          slice.erase();
+          return;
+        }
+        if (auto subv = dyn_cast<memref::SubViewOp>(op)) {
+          SmallVector<Value, 8> dimsAll(spatialDims.begin(), spatialDims.end());
+          for (Operation *par = subv->getParentOp(); par;
+               par = par->getParentOp()) {
+            if (auto loop = dyn_cast<scf::ForOp>(par))
+              dimsAll.push_back(loop.getInductionVar());
+            if (isa<func::FuncOp>(par))
+              break;
+          }
+          LinearFormBuilder lfb(ctx, dimsAll);
+          auto castToIndexAt = [&](Value v) -> Value {
+            if (v.getType().isIndex())
+              return v;
+            OpBuilder::InsertionGuard g(b);
+            b.setInsertionPoint(subv);
+            return b
+                .create<arith::IndexCastOp>(subv.getLoc(), IndexType::get(ctx),
+                                            v)
+                .getResult();
+          };
+
+          SmallVector<Value, 4> newSizes;
+          newSizes.reserve(subv.getSizes().size());
+          auto convertValue = [&](Value val) -> Value {
+            auto unwrapIndexCast = [](Value v) -> Value {
+              if (auto ic =
+                      dyn_cast_or_null<arith::IndexCastOp>(v.getDefiningOp()))
+                return ic.getIn();
+              return v;
+            };
+            auto isConstIdx = [&](Value v, int64_t &cst) -> bool {
+              if (auto c = dyn_cast_or_null<arith::ConstantIndexOp>(
+                      v.getDefiningOp())) {
+                cst = c.value();
+                return true;
+              }
+              return false;
+            };
+            auto tryClampTilePattern = [&](Value v) -> Value {
+              arith::MinSIOp minTop =
+                  dyn_cast_or_null<arith::MinSIOp>(v.getDefiningOp());
+              if (!minTop)
+                return Value();
+              Value lhs = minTop.getLhs();
+              Value rhs = minTop.getRhs();
+              int64_t tileC = -1;
+              Value tileVal;
+              if (isConstIdx(rhs, tileC)) {
+                tileVal = rhs;
+              } else if (isConstIdx(lhs, tileC)) {
+                tileVal = lhs;
+                lhs = rhs;
+              } else {
+                return Value();
+              }
+              if (auto innerMin =
+                      dyn_cast_or_null<arith::MinSIOp>(lhs.getDefiningOp())) {
+                int64_t tile2;
+                if (isConstIdx(innerMin.getLhs(), tile2) ||
+                    isConstIdx(innerMin.getRhs(), tile2)) {
+                  if (tile2 == tileC)
+                    lhs = (innerMin.getLhs() == tileVal) ? innerMin.getRhs()
+                                                         : innerMin.getLhs();
+                }
+              }
+              auto sub = dyn_cast_or_null<arith::SubIOp>(lhs.getDefiningOp());
+              if (!sub)
+                return Value();
+              Value y = sub.getLhs();
+              Value base = sub.getRhs();
+              auto max = dyn_cast_or_null<arith::MaxSIOp>(y.getDefiningOp());
+              if (!max)
+                return Value();
+              Value mb0 = max.getLhs();
+              Value mb1 = max.getRhs();
+              Value w;
+              if (mb0 == base)
+                w = mb1;
+              else if (mb1 == base)
+                w = mb0;
+              else
+                return Value();
+              auto min2 = dyn_cast_or_null<arith::MinSIOp>(w.getDefiningOp());
+              if (!min2)
+                return Value();
+              Value a = min2.getLhs();
+              Value rhsVal = min2.getRhs();
+              auto isAddBaseTile = [&](Value v) -> bool {
+                auto addi = dyn_cast_or_null<arith::AddIOp>(v.getDefiningOp());
+                if (!addi)
+                  return false;
+                int64_t c;
+                if (addi.getLhs() == base && isConstIdx(addi.getRhs(), c) &&
+                    c == tileC)
+                  return true;
+                if (addi.getRhs() == base && isConstIdx(addi.getLhs(), c) &&
+                    c == tileC)
+                  return true;
+                return false;
+              };
+              Value add;
+              Value dim;
+              if (isAddBaseTile(a)) {
+                add = a;
+                dim = unwrapIndexCast(rhsVal);
+              } else if (isAddBaseTile(rhsVal)) {
+                add = rhsVal;
+                dim = unwrapIndexCast(a);
+              } else {
+                return Value();
+              }
+              AffineExpr eDim = lfb.build(dim);
+              AffineExpr eBase = lfb.build(base);
+              if (!eDim || !eBase)
+                return Value();
+              AffineExpr eDiff = eDim - eBase;
+              SmallVector<Value, 8> orderedSyms;
+              AffineExpr eRem =
+                  remapSymbolsSequential(eDiff, orderedSyms, lfb.getSymbols());
+              SmallVector<Value, 16> operands;
+              for (Value d : lfb.getDims())
+                operands.push_back(castToIndexAt(d));
+              for (Value s : orderedSyms)
+                operands.push_back(castToIndexAt(s));
+              AffineMap map = AffineMap::get(
+                  static_cast<unsigned>(lfb.getDims().size()),
+                  static_cast<unsigned>(orderedSyms.size()),
+                  ArrayRef<AffineExpr>{eRem, getAffineConstantExpr(tileC, ctx)},
+                  ctx);
+              OpBuilder::InsertionGuard g(b);
+              b.setInsertionPoint(subv);
+              return b.create<affine::AffineMinOp>(subv.getLoc(), map, operands)
+                  .getResult();
+            };
+
+            if (Value v = tryClampTilePattern(val))
+              return v;
+            if (AffineExpr e = lfb.build(val)) {
+              SmallVector<Value, 8> orderedSyms;
+              AffineExpr remapped =
+                  remapSymbolsSequential(e, orderedSyms, lfb.getSymbols());
+              SmallVector<Value, 16> operands;
+              for (Value d : lfb.getDims())
+                operands.push_back(castToIndexAt(d));
+              for (Value s : orderedSyms)
+                operands.push_back(castToIndexAt(s));
+              AffineMap map = AffineMap::get(lfb.getDims().size(),
+                                             orderedSyms.size(), remapped);
+              OpBuilder::InsertionGuard g(b);
+              b.setInsertionPoint(subv);
+              return b.create<affine::AffineApplyOp>(subv.getLoc(), map,
+                                                     operands);
+            }
+            if (auto minsi =
+                    dyn_cast_or_null<arith::MinSIOp>(val.getDefiningOp())) {
+              AffineExpr el = lfb.build(minsi.getLhs());
+              AffineExpr er = lfb.build(minsi.getRhs());
+              if (el && er) {
+                SmallVector<unsigned, 8> useL, useR;
+                collectUsedSymbolPositions(el, useL);
+                collectUsedSymbolPositions(er, useR);
+                SmallVector<unsigned, 16> order;
+                order.append(useL.begin(), useL.end());
+                for (unsigned p : useR)
+                  if (llvm::find(order, p) == order.end())
+                    order.push_back(p);
+                DenseMap<unsigned, unsigned> oldToNew;
+                for (unsigned i = 0, e = order.size(); i < e; ++i)
+                  oldToNew.try_emplace(order[i], i);
+                AffineExpr elR = remapSymbolsWithMapping(el, oldToNew);
+                AffineExpr erR = remapSymbolsWithMapping(er, oldToNew);
+                SmallVector<Value, 16> operands;
+                for (Value d : lfb.getDims())
+                  operands.push_back(castToIndexAt(d));
+                SmallVector<Value, 8> orderedSyms;
+                orderedSyms.reserve(order.size());
+                for (unsigned pos : order)
+                  orderedSyms.push_back(castToIndexAt(lfb.getSymbols()[pos]));
+                operands.append(orderedSyms.begin(), orderedSyms.end());
+                AffineMap mCombined =
+                    AffineMap::get(static_cast<unsigned>(lfb.getDims().size()),
+                                   static_cast<unsigned>(orderedSyms.size()),
+                                   ArrayRef<AffineExpr>{elR, erR}, ctx);
+                OpBuilder::InsertionGuard g(b);
+                b.setInsertionPoint(subv);
+                return b
+                    .create<affine::AffineMinOp>(subv.getLoc(), mCombined,
+                                                 operands)
+                    .getResult();
+              }
+            }
+            if (auto maxsi =
+                    dyn_cast_or_null<arith::MaxSIOp>(val.getDefiningOp())) {
+              AffineExpr el = lfb.build(maxsi.getLhs());
+              AffineExpr er = lfb.build(maxsi.getRhs());
+              if (el && er) {
+                SmallVector<unsigned, 8> useL, useR;
+                collectUsedSymbolPositions(el, useL);
+                collectUsedSymbolPositions(er, useR);
+                SmallVector<unsigned, 16> order;
+                order.append(useL.begin(), useL.end());
+                for (unsigned p : useR)
+                  if (llvm::find(order, p) == order.end())
+                    order.push_back(p);
+                DenseMap<unsigned, unsigned> oldToNew;
+                for (unsigned i = 0, e = order.size(); i < e; ++i)
+                  oldToNew.try_emplace(order[i], i);
+                AffineExpr elR = remapSymbolsWithMapping(el, oldToNew);
+                AffineExpr erR = remapSymbolsWithMapping(er, oldToNew);
+                SmallVector<Value, 16> operands;
+                for (Value d : lfb.getDims())
+                  operands.push_back(castToIndexAt(d));
+                SmallVector<Value, 8> orderedSyms;
+                orderedSyms.reserve(order.size());
+                for (unsigned pos : order)
+                  orderedSyms.push_back(castToIndexAt(lfb.getSymbols()[pos]));
+                operands.append(orderedSyms.begin(), orderedSyms.end());
+                AffineMap mCombined =
+                    AffineMap::get(static_cast<unsigned>(lfb.getDims().size()),
+                                   static_cast<unsigned>(orderedSyms.size()),
+                                   ArrayRef<AffineExpr>{elR, erR}, ctx);
+                OpBuilder::InsertionGuard g(b);
+                b.setInsertionPoint(subv);
+                return b
+                    .create<affine::AffineMaxOp>(subv.getLoc(), mCombined,
+                                                 operands)
+                    .getResult();
+              }
+            }
+            return val;
+          };
+
+          for (Value sz : subv.getSizes())
+            newSizes.push_back(convertValue(sz));
+
+          bool changed =
+              llvm::any_of(llvm::zip(subv.getSizes(), newSizes), [](auto it) {
+                return std::get<0>(it) != std::get<1>(it);
+              });
+          if (!changed)
+            return;
+
+          OpBuilder::InsertionGuard g(b);
+          b.setInsertionPoint(subv);
+          auto rebuilt = b.create<memref::SubViewOp>(
+              subv.getLoc(), subv.getType(), subv.getSource(),
+              subv.getOffsets(), ValueRange(newSizes), subv.getStrides(),
+              subv.getStaticOffsets(), subv.getStaticSizes(),
+              subv.getStaticStrides());
+          subv.getResult().replaceAllUsesWith(rebuilt.getResult());
+          subv.erase();
+          return;
+        }
       });
 
-      // Simple dead-code elimination for arithmetic/cast ops that became unused
-      // after rewriting offsets to affine.apply.
+      // General dead-code elimination: remove any trivially-dead operations.
+      // Iterate to a fixed point because erasing may unlock more DCE.
       bool erased;
+      int dceIterGuard = 1024;
       do {
         erased = false;
-        SmallVector<Operation *, 32> toErase;
+        SmallVector<Operation *, 64> toErase;
         func.walk([&](Operation *o) {
-          // Side-effect free arithmetic and casts only.
-          if (isa<arith::AddIOp, arith::SubIOp, arith::MulIOp, arith::DivSIOp,
-                  arith::IndexCastOp, arith::ExtSIOp, arith::ExtUIOp,
-                  arith::TruncIOp, arith::ConstantOp, arith::ConstantIndexOp,
-                  arith::ConstantIntOp, arith::ConstantFloatOp,
-                  affine::AffineApplyOp>(o)) {
-            if (o->use_empty())
-              toErase.push_back(o);
-          }
+          if (isOpTriviallyDead(o))
+            toErase.push_back(o);
         });
-        for (Operation *o : toErase) {
-          o->erase();
+        if (!toErase.empty()) {
+          for (Operation *o : toErase)
+            o->erase();
           erased = true;
         }
-      } while (erased);
+      } while (erased && --dceIterGuard > 0);
+
+      // Remove redundant index_cast (same src/dst types) that may remain.
+      bool removedCasts;
+      int finalCastIterGuard = 64;
+      do {
+        removedCasts = false;
+        SmallVector<Operation *, 64> redCasts;
+        func.walk([&](arith::IndexCastOp ic) {
+          if (ic.getIn().getType() == ic.getType())
+            redCasts.push_back(ic.getOperation());
+        });
+        for (Operation *opCast : redCasts) {
+          auto ic = cast<arith::IndexCastOp>(opCast);
+          ic.getResult().replaceAllUsesWith(ic.getIn());
+          ic.erase();
+          removedCasts = true;
+        }
+      } while (removedCasts && --finalCastIterGuard > 0);
     });
   }
 };

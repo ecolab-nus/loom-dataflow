@@ -73,7 +73,7 @@ def matmul_kernel(A, B, C,
         block_shape=(BLOCK_M, BLOCK_N),
         order=(1, 0),
     )
-    tl.store(c_block, acc, boundary_check=(0, 1))
+    tl.store(c_block, acc)
 
 
 def run_once():
