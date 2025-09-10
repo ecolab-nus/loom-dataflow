@@ -2,8 +2,10 @@
 //
 // This pass converts arithmetic index expressions in Triton-shared lowered
 // kernels into affine.apply ops and replaces eligible memory ops with their
-// affine counterparts. The last six function arguments that encode the GPU
-// grid/thread sizes and IDs are modeled as symbols/dims in affine maps.
+// affine counterparts. Affine map dims are restricted to the last three
+// function arguments (grid/thread IDs) together with surrounding loop induction
+// variables. All other function arguments are modeled as symbols. Unused dims
+// and symbols are pruned from affine maps and their operand lists.
 //
 // The transformation is conservative: only expressions that can be proven to be
 // affine combinations of loop IVs, function arguments, and constants are
@@ -393,6 +395,152 @@ remapSymbolsWithMapping(AffineExpr expr,
   return remap(expr);
 }
 
+/// Collect dim indices used by an affine expression.
+static void collectUsedDimPositions(AffineExpr expr,
+                                    SmallVectorImpl<unsigned> &positions) {
+  if (!expr)
+    return;
+  AffineExprKind k = expr.getKind();
+  if (k == AffineExprKind::DimId) {
+    auto dim = llvm::cast<AffineDimExpr>(expr);
+    positions.push_back(dim.getPosition());
+    return;
+  }
+  if (k == AffineExprKind::SymbolId || k == AffineExprKind::Constant)
+    return;
+  if (k == AffineExprKind::Add || k == AffineExprKind::Mul ||
+      k == AffineExprKind::Mod || k == AffineExprKind::FloorDiv ||
+      k == AffineExprKind::CeilDiv) {
+    auto bin = llvm::cast<AffineBinaryOpExpr>(expr);
+    collectUsedDimPositions(bin.getLHS(), positions);
+    collectUsedDimPositions(bin.getRHS(), positions);
+    return;
+  }
+}
+
+/// Remap dim ids in `expr` to a common ordering provided by `oldToNew`.
+/// The keys of `oldToNew` are positions in the original dims. The values are
+/// the new compact positions [0..k-1].
+static AffineExpr
+remapDimsWithMapping(AffineExpr expr,
+                     const DenseMap<unsigned, unsigned> &oldToNew) {
+  if (!expr)
+    return expr;
+  MLIRContext *ctx = expr.getContext();
+  std::function<AffineExpr(AffineExpr)> remap =
+      [&](AffineExpr e) -> AffineExpr {
+    switch (e.getKind()) {
+    case AffineExprKind::DimId: {
+      auto dim = llvm::cast<AffineDimExpr>(e);
+      unsigned oldPos = dim.getPosition();
+      auto it = oldToNew.find(oldPos);
+      assert(it != oldToNew.end() && "dim position not in mapping");
+      return getAffineDimExpr(it->second, ctx);
+    }
+    case AffineExprKind::SymbolId:
+    case AffineExprKind::Constant:
+      return e;
+    case AffineExprKind::Add: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return remap(bin.getLHS()) + remap(bin.getRHS());
+    }
+    case AffineExprKind::Mul: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return remap(bin.getLHS()) * remap(bin.getRHS());
+    }
+    case AffineExprKind::Mod: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return getAffineBinaryOpExpr(AffineExprKind::Mod, remap(bin.getLHS()),
+                                   remap(bin.getRHS()));
+    }
+    case AffineExprKind::FloorDiv: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return getAffineBinaryOpExpr(AffineExprKind::FloorDiv,
+                                   remap(bin.getLHS()), remap(bin.getRHS()));
+    }
+    case AffineExprKind::CeilDiv: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return getAffineBinaryOpExpr(AffineExprKind::CeilDiv, remap(bin.getLHS()),
+                                   remap(bin.getRHS()));
+    }
+    }
+    return e;
+  };
+  return remap(expr);
+}
+
+/// Remap both dims and symbols to 0..k-1 sequential, returning the remapped
+/// expression and filling ordered dims/symbols in first-use order.
+static AffineExpr remapDimsAndSymbolsSequential(
+    AffineExpr expr, SmallVectorImpl<Value> &orderedDims,
+    ArrayRef<Value> allDims, SmallVectorImpl<Value> &orderedSymbols,
+    ArrayRef<Value> allSymbols) {
+  if (!expr)
+    return expr;
+  DenseMap<unsigned, unsigned> oldDimToNew;
+  DenseMap<unsigned, unsigned> oldSymToNew;
+  unsigned nextDim = 0, nextSym = 0;
+  MLIRContext *ctx = expr.getContext();
+  std::function<AffineExpr(AffineExpr)> remap =
+      [&](AffineExpr e) -> AffineExpr {
+    switch (e.getKind()) {
+    case AffineExprKind::DimId: {
+      auto d = llvm::cast<AffineDimExpr>(e);
+      unsigned oldPos = d.getPosition();
+      unsigned newPos;
+      if (auto it = oldDimToNew.find(oldPos); it != oldDimToNew.end())
+        newPos = it->second;
+      else {
+        newPos = nextDim++;
+        oldDimToNew.try_emplace(oldPos, newPos);
+        orderedDims.push_back(allDims[oldPos]);
+      }
+      return getAffineDimExpr(newPos, ctx);
+    }
+    case AffineExprKind::SymbolId: {
+      auto s = llvm::cast<AffineSymbolExpr>(e);
+      unsigned oldPos = s.getPosition();
+      unsigned newPos;
+      if (auto it = oldSymToNew.find(oldPos); it != oldSymToNew.end())
+        newPos = it->second;
+      else {
+        newPos = nextSym++;
+        oldSymToNew.try_emplace(oldPos, newPos);
+        orderedSymbols.push_back(allSymbols[oldPos]);
+      }
+      return getAffineSymbolExpr(newPos, ctx);
+    }
+    case AffineExprKind::Constant:
+      return e;
+    case AffineExprKind::Add: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return remap(bin.getLHS()) + remap(bin.getRHS());
+    }
+    case AffineExprKind::Mul: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return remap(bin.getLHS()) * remap(bin.getRHS());
+    }
+    case AffineExprKind::Mod: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return getAffineBinaryOpExpr(AffineExprKind::Mod, remap(bin.getLHS()),
+                                   remap(bin.getRHS()));
+    }
+    case AffineExprKind::FloorDiv: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return getAffineBinaryOpExpr(AffineExprKind::FloorDiv,
+                                   remap(bin.getLHS()), remap(bin.getRHS()));
+    }
+    case AffineExprKind::CeilDiv: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return getAffineBinaryOpExpr(AffineExprKind::CeilDiv, remap(bin.getLHS()),
+                                   remap(bin.getRHS()));
+    }
+    }
+    return e;
+  };
+  return remap(expr);
+}
+
 /// Pass that performs the affinization.
 class TritonSharedAffinizePass
     : public PassWrapper<TritonSharedAffinizePass, OperationPass<ModuleOp>> {
@@ -404,7 +552,9 @@ public:
   }
   StringRef getDescription() const override {
     return "Convert Triton-shared index arithmetic to affine.apply and affine "
-           "memops";
+           "memops."
+           " Dims are the last three function args and surrounding loop IVs;"
+           " other function args are symbols. Unused dims/symbols are pruned.";
   }
 
   void getDependentDialects(DialectRegistry &registry) const override {
@@ -531,88 +681,88 @@ public:
         }
       }
 
-      // Helper to try replacing an index value with affine.apply
-      auto ensureAffine = [&](Value idx, Location loc) -> Value {
+      // Use exactly the last three function arguments as dims.
+      SmallVector<Value, 3> spatialDims;
+      if (func.getNumArguments() >= 3) {
+        unsigned n = func.getNumArguments();
+        for (unsigned i = n - 3; i < n; ++i)
+          spatialDims.push_back(func.getArgument(i));
+      }
+
+      // Helper to try replacing an index value with affine.apply. Dims are the
+      // last three function args plus surrounding loop IVs in the given scope.
+      auto ensureAffine = [&](Value idx, Location loc,
+                              Operation *scope) -> Value {
         if (!idx.getType().isIndex())
           return idx;
         // Trivially affine values: block arguments and constant indices.
         if (isa<BlockArgument>(idx) ||
             idx.getDefiningOp<arith::ConstantIndexOp>())
           return idx;
-        SmallVector<Value, 8> dims, symbols;
-        AffineExpr expr = aeb.buildFromIndexValue(idx, dims, symbols);
+        // Compose dims: grid IDs (last 3 func args) + surrounding loop IVs.
+        SmallVector<Value, 8> dimsAll(spatialDims.begin(), spatialDims.end());
+        for (Operation *par = scope; par; par = par->getParentOp()) {
+          if (auto loop = dyn_cast<scf::ForOp>(par))
+            dimsAll.push_back(loop.getInductionVar());
+          if (isa<func::FuncOp>(par))
+            break;
+        }
+        LinearFormBuilder lfb(ctx, dimsAll);
+        AffineExpr expr = lfb.build(idx);
         if (!expr) {
           // Try partial conversion for add/sub when one side is affine.
           if (Operation *def = idx.getDefiningOp()) {
             if (auto addi = dyn_cast<arith::AddIOp>(def)) {
-              // Directly express as affine sum of two dims if both are
-              // index-typed.
-              if (addi.getLhs().getType().isIndex() &&
-                  addi.getRhs().getType().isIndex()) {
-                SmallVector<Value, 2> ds = {addi.getLhs(), addi.getRhs()};
-                AffineMap m = AffineMap::get(/*dims=*/2, /*symbols=*/0,
-                                             getAffineDimExpr(0, ctx) +
-                                                 getAffineDimExpr(1, ctx));
-                OpBuilder::InsertionGuard g(b);
-                b.setInsertionPointAfter(def);
-                return b.create<affine::AffineApplyOp>(loc, m, ds);
-              }
               // Try LHS
-              SmallVector<Value, 8> dimsL, symsL;
-              if (AffineExpr el =
-                      aeb.buildFromIndexValue(addi.getLhs(), dimsL, symsL)) {
-                AffineMap mapL = AffineMap::get(dimsL.size(), symsL.size(), el);
+              if (AffineExpr el = lfb.build(addi.getLhs())) {
+                SmallVector<Value, 8> od, os;
+                AffineExpr elR = remapDimsAndSymbolsSequential(
+                    el, od, lfb.getDims(), os, lfb.getSymbols());
+                AffineMap mapL = AffineMap::get(od.size(), os.size(), elR);
                 SmallVector<Value, 16> opsL;
-                opsL.append(dimsL.begin(), dimsL.end());
-                opsL.append(symsL.begin(), symsL.end());
+                opsL.append(od.begin(), od.end());
+                opsL.append(os.begin(), os.end());
                 OpBuilder::InsertionGuard g(b);
                 b.setInsertionPointAfter(def);
                 Value lhsAff = b.create<affine::AffineApplyOp>(loc, mapL, opsL);
                 return b.create<arith::AddIOp>(loc, lhsAff, addi.getRhs());
               }
               // Try RHS
-              SmallVector<Value, 8> dimsR, symsR;
-              if (AffineExpr er =
-                      aeb.buildFromIndexValue(addi.getRhs(), dimsR, symsR)) {
-                AffineMap mapR = AffineMap::get(dimsR.size(), symsR.size(), er);
+              if (AffineExpr er = lfb.build(addi.getRhs())) {
+                SmallVector<Value, 8> od, os;
+                AffineExpr erR = remapDimsAndSymbolsSequential(
+                    er, od, lfb.getDims(), os, lfb.getSymbols());
+                AffineMap mapR = AffineMap::get(od.size(), os.size(), erR);
                 SmallVector<Value, 16> opsR;
-                opsR.append(dimsR.begin(), dimsR.end());
-                opsR.append(symsR.begin(), symsR.end());
+                opsR.append(od.begin(), od.end());
+                opsR.append(os.begin(), os.end());
                 OpBuilder::InsertionGuard g(b);
                 b.setInsertionPointAfter(def);
                 Value rhsAff = b.create<affine::AffineApplyOp>(loc, mapR, opsR);
                 return b.create<arith::AddIOp>(loc, addi.getLhs(), rhsAff);
               }
             } else if (auto subi = dyn_cast<arith::SubIOp>(def)) {
-              if (subi.getLhs().getType().isIndex() &&
-                  subi.getRhs().getType().isIndex()) {
-                SmallVector<Value, 2> ds = {subi.getLhs(), subi.getRhs()};
-                AffineMap m = AffineMap::get(/*dims=*/2, /*symbols=*/0,
-                                             getAffineDimExpr(0, ctx) -
-                                                 getAffineDimExpr(1, ctx));
-                OpBuilder::InsertionGuard g(b);
-                b.setInsertionPointAfter(def);
-                return b.create<affine::AffineApplyOp>(loc, m, ds);
-              }
-              SmallVector<Value, 8> dimsL, symsL;
-              if (AffineExpr el =
-                      aeb.buildFromIndexValue(subi.getLhs(), dimsL, symsL)) {
-                AffineMap mapL = AffineMap::get(dimsL.size(), symsL.size(), el);
+              if (AffineExpr el = lfb.build(subi.getLhs())) {
+                SmallVector<Value, 8> od, os;
+                AffineExpr elR = remapDimsAndSymbolsSequential(
+                    el, od, lfb.getDims(), os, lfb.getSymbols());
+                AffineMap mapL = AffineMap::get(od.size(), os.size(), elR);
                 SmallVector<Value, 16> opsL;
-                opsL.append(dimsL.begin(), dimsL.end());
-                opsL.append(symsL.begin(), symsL.end());
+                opsL.append(od.begin(), od.end());
+                opsL.append(os.begin(), os.end());
                 OpBuilder::InsertionGuard g(b);
                 b.setInsertionPointAfter(def);
                 Value lhsAff = b.create<affine::AffineApplyOp>(loc, mapL, opsL);
                 return b.create<arith::SubIOp>(loc, lhsAff, subi.getRhs());
               }
-              SmallVector<Value, 8> dimsR, symsR;
-              if (AffineExpr er =
-                      aeb.buildFromIndexValue(subi.getRhs(), dimsR, symsR)) {
-                AffineMap mapR = AffineMap::get(dimsR.size(), symsR.size(), er);
+              if (AffineExpr er = lfb.build(subi.getRhs())) {
+                SmallVector<Value, 8> od, os;
+                AffineExpr erR = remapDimsAndSymbolsSequential(
+                    er, od, lfb.getDims(), os, lfb.getSymbols());
+                AffineMap mapR = AffineMap::get(od.size(), os.size(), erR);
                 SmallVector<Value, 16> opsR;
-                opsR.append(dimsR.begin(), dimsR.end());
-                opsR.append(symsR.begin(), symsR.end());
+                opsR.append(od.begin(), od.end());
+                opsR.append(os.begin(), os.end());
                 OpBuilder::InsertionGuard g(b);
                 b.setInsertionPointAfter(def);
                 Value rhsAff = b.create<affine::AffineApplyOp>(loc, mapR, opsR);
@@ -622,10 +772,14 @@ public:
           }
           return idx;
         }
-        AffineMap map = AffineMap::get(dims.size(), symbols.size(), expr);
+        SmallVector<Value, 8> orderedDims, orderedSyms;
+        AffineExpr remapped = remapDimsAndSymbolsSequential(
+            expr, orderedDims, lfb.getDims(), orderedSyms, lfb.getSymbols());
+        AffineMap map =
+            AffineMap::get(orderedDims.size(), orderedSyms.size(), remapped);
         SmallVector<Value, 16> operands;
-        operands.append(dims.begin(), dims.end());
-        operands.append(symbols.begin(), symbols.end());
+        operands.append(orderedDims.begin(), orderedDims.end());
+        operands.append(orderedSyms.begin(), orderedSyms.end());
         if (Operation *def = idx.getDefiningOp())
           b.setInsertionPointAfter(def);
         else
@@ -633,14 +787,6 @@ public:
         Value applied = b.create<affine::AffineApplyOp>(loc, map, operands);
         return applied;
       };
-
-      // Use exactly the last three function arguments as dims (%arg12-%arg14).
-      SmallVector<Value, 3> spatialDims;
-      if (func.getNumArguments() >= 3) {
-        unsigned n = func.getNumArguments();
-        for (unsigned i = n - 3; i < n; ++i)
-          spatialDims.push_back(func.getArgument(i));
-      }
 
       // Walk loads/stores and attempt conversion to affine ops.
       func.walk([&](Operation *op) {
@@ -669,9 +815,9 @@ public:
           Value ubIdx = toIndex(loop.getUpperBound());
           Value stIdx = toIndex(loop.getStep());
           // Affinize bounds and step where possible.
-          Value lbAff = ensureAffine(lbIdx, loop.getLoc());
-          Value ubAff = ensureAffine(ubIdx, loop.getLoc());
-          Value stAff = ensureAffine(stIdx, loop.getLoc());
+          Value lbAff = ensureAffine(lbIdx, loop.getLoc(), loop);
+          Value ubAff = ensureAffine(ubIdx, loop.getLoc(), loop);
+          Value stAff = ensureAffine(stIdx, loop.getLoc(), loop);
           OpBuilder::InsertionGuard g(b);
           b.setInsertionPoint(loop);
           auto newLoop = b.create<scf::ForOp>(loop.getLoc(), lbAff, ubAff,
@@ -724,15 +870,15 @@ public:
           for (Value off : rc.getOffsets()) {
             AffineExpr e = lfb.build(off);
             if (e) {
-              SmallVector<Value, 8> orderedSyms;
-              AffineExpr remapped =
-                  remapSymbolsSequential(e, orderedSyms, lfb.getSymbols());
+              SmallVector<Value, 8> orderedDims, orderedSyms;
+              AffineExpr remapped = remapDimsAndSymbolsSequential(
+                  e, orderedDims, lfb.getDims(), orderedSyms, lfb.getSymbols());
               SmallVector<Value, 16> operands;
-              for (Value d : lfb.getDims())
+              for (Value d : orderedDims)
                 operands.push_back(castToIndexAt(d));
               for (Value s : orderedSyms)
                 operands.push_back(castToIndexAt(s));
-              AffineMap m = AffineMap::get(lfb.getDims().size(),
+              AffineMap m = AffineMap::get(orderedDims.size(),
                                            orderedSyms.size(), remapped);
               OpBuilder::InsertionGuard g(b);
               b.setInsertionPoint(rc);
@@ -761,7 +907,7 @@ public:
           SmallVector<Value, 4> newIdx;
           bool allOk = true;
           for (Value idx : load.getIndices()) {
-            Value aff = ensureAffine(idx, load.getLoc());
+            Value aff = ensureAffine(idx, load.getLoc(), load);
             if (aff == idx) {
               // Not necessarily a failure; idx might already be loop IV or
               // const. Accept if it is BlockArgument or ConstantIndex.
@@ -785,7 +931,7 @@ public:
           SmallVector<Value, 4> newIdx;
           bool allOk = true;
           for (Value idx : store.getIndices()) {
-            Value aff = ensureAffine(idx, store.getLoc());
+            Value aff = ensureAffine(idx, store.getLoc(), store);
             if (aff == idx) {
               if (!isa<BlockArgument>(idx) &&
                   !idx.getDefiningOp<arith::ConstantIndexOp>())
@@ -956,17 +1102,17 @@ public:
 
             if (Value v = tryClampTilePattern(val))
               return v;
-            // First try a pure affine.apply expression.
+            // First try a pure affine.apply expression with compact dims/syms.
             if (AffineExpr e = lfb.build(val)) {
-              SmallVector<Value, 8> orderedSyms;
-              AffineExpr remapped =
-                  remapSymbolsSequential(e, orderedSyms, lfb.getSymbols());
+              SmallVector<Value, 8> orderedDims, orderedSyms;
+              AffineExpr remapped = remapDimsAndSymbolsSequential(
+                  e, orderedDims, lfb.getDims(), orderedSyms, lfb.getSymbols());
               SmallVector<Value, 16> operands;
-              for (Value d : lfb.getDims())
+              for (Value d : orderedDims)
                 operands.push_back(castToIndexAt(d));
               for (Value s : orderedSyms)
                 operands.push_back(castToIndexAt(s));
-              AffineMap map = AffineMap::get(lfb.getDims().size(),
+              AffineMap map = AffineMap::get(orderedDims.size(),
                                              orderedSyms.size(), remapped);
               OpBuilder::InsertionGuard g(b);
               b.setInsertionPoint(slice);
@@ -979,29 +1125,46 @@ public:
               AffineExpr el = lfb.build(minsi.getLhs());
               AffineExpr er = lfb.build(minsi.getRhs());
               if (el && er) {
-                SmallVector<unsigned, 8> useL, useR;
-                collectUsedSymbolPositions(el, useL);
-                collectUsedSymbolPositions(er, useR);
-                SmallVector<unsigned, 16> order;
-                order.append(useL.begin(), useL.end());
-                for (unsigned p : useR)
-                  if (llvm::find(order, p) == order.end())
-                    order.push_back(p);
-                DenseMap<unsigned, unsigned> oldToNew;
-                for (unsigned i = 0, e = order.size(); i < e; ++i)
-                  oldToNew.try_emplace(order[i], i);
-                AffineExpr elR = remapSymbolsWithMapping(el, oldToNew);
-                AffineExpr erR = remapSymbolsWithMapping(er, oldToNew);
+                // Unify dims and symbols across both expressions.
+                SmallVector<unsigned, 8> useSymL, useSymR, useDimL, useDimR;
+                collectUsedSymbolPositions(el, useSymL);
+                collectUsedSymbolPositions(er, useSymR);
+                collectUsedDimPositions(el, useDimL);
+                collectUsedDimPositions(er, useDimR);
+                SmallVector<unsigned, 16> dimOrder;
+                dimOrder.append(useDimL.begin(), useDimL.end());
+                for (unsigned p : useDimR)
+                  if (llvm::find(dimOrder, p) == dimOrder.end())
+                    dimOrder.push_back(p);
+                DenseMap<unsigned, unsigned> oldDimToNew;
+                for (unsigned i = 0, eN = dimOrder.size(); i < eN; ++i)
+                  oldDimToNew.try_emplace(dimOrder[i], i);
+                AffineExpr elDimR = remapDimsWithMapping(el, oldDimToNew);
+                AffineExpr erDimR = remapDimsWithMapping(er, oldDimToNew);
+                SmallVector<unsigned, 16> symOrder;
+                symOrder.append(useSymL.begin(), useSymL.end());
+                for (unsigned p : useSymR)
+                  if (llvm::find(symOrder, p) == symOrder.end())
+                    symOrder.push_back(p);
+                DenseMap<unsigned, unsigned> oldSymToNew;
+                for (unsigned i = 0, eN = symOrder.size(); i < eN; ++i)
+                  oldSymToNew.try_emplace(symOrder[i], i);
+                AffineExpr elR = remapSymbolsWithMapping(elDimR, oldSymToNew);
+                AffineExpr erR = remapSymbolsWithMapping(erDimR, oldSymToNew);
                 SmallVector<Value, 16> operands;
-                for (Value d : lfb.getDims())
-                  operands.push_back(castToIndexAt(d));
+                SmallVector<Value, 8> orderedDims;
+                orderedDims.reserve(dimOrder.size());
+                for (unsigned pos : dimOrder)
+                  orderedDims.push_back(castToIndexAt(lfb.getDims()[pos]));
+                for (Value d : orderedDims)
+                  operands.push_back(d);
                 SmallVector<Value, 8> orderedSyms;
-                orderedSyms.reserve(order.size());
-                for (unsigned pos : order)
+                orderedSyms.reserve(symOrder.size());
+                for (unsigned pos : symOrder)
                   orderedSyms.push_back(castToIndexAt(lfb.getSymbols()[pos]));
                 operands.append(orderedSyms.begin(), orderedSyms.end());
                 AffineMap mCombined =
-                    AffineMap::get(static_cast<unsigned>(lfb.getDims().size()),
+                    AffineMap::get(static_cast<unsigned>(orderedDims.size()),
                                    static_cast<unsigned>(orderedSyms.size()),
                                    ArrayRef<AffineExpr>{elR, erR}, ctx);
                 OpBuilder::InsertionGuard g(b);
@@ -1017,29 +1180,45 @@ public:
               AffineExpr el = lfb.build(maxsi.getLhs());
               AffineExpr er = lfb.build(maxsi.getRhs());
               if (el && er) {
-                SmallVector<unsigned, 8> useL, useR;
-                collectUsedSymbolPositions(el, useL);
-                collectUsedSymbolPositions(er, useR);
-                SmallVector<unsigned, 16> order;
-                order.append(useL.begin(), useL.end());
-                for (unsigned p : useR)
-                  if (llvm::find(order, p) == order.end())
-                    order.push_back(p);
-                DenseMap<unsigned, unsigned> oldToNew;
-                for (unsigned i = 0, e = order.size(); i < e; ++i)
-                  oldToNew.try_emplace(order[i], i);
-                AffineExpr elR = remapSymbolsWithMapping(el, oldToNew);
-                AffineExpr erR = remapSymbolsWithMapping(er, oldToNew);
+                SmallVector<unsigned, 8> useSymL, useSymR, useDimL, useDimR;
+                collectUsedSymbolPositions(el, useSymL);
+                collectUsedSymbolPositions(er, useSymR);
+                collectUsedDimPositions(el, useDimL);
+                collectUsedDimPositions(er, useDimR);
+                SmallVector<unsigned, 16> dimOrder;
+                dimOrder.append(useDimL.begin(), useDimL.end());
+                for (unsigned p : useDimR)
+                  if (llvm::find(dimOrder, p) == dimOrder.end())
+                    dimOrder.push_back(p);
+                DenseMap<unsigned, unsigned> oldDimToNew;
+                for (unsigned i = 0, eN = dimOrder.size(); i < eN; ++i)
+                  oldDimToNew.try_emplace(dimOrder[i], i);
+                AffineExpr elDimR = remapDimsWithMapping(el, oldDimToNew);
+                AffineExpr erDimR = remapDimsWithMapping(er, oldDimToNew);
+                SmallVector<unsigned, 16> symOrder;
+                symOrder.append(useSymL.begin(), useSymL.end());
+                for (unsigned p : useSymR)
+                  if (llvm::find(symOrder, p) == symOrder.end())
+                    symOrder.push_back(p);
+                DenseMap<unsigned, unsigned> oldSymToNew;
+                for (unsigned i = 0, eN = symOrder.size(); i < eN; ++i)
+                  oldSymToNew.try_emplace(symOrder[i], i);
+                AffineExpr elR = remapSymbolsWithMapping(elDimR, oldSymToNew);
+                AffineExpr erR = remapSymbolsWithMapping(erDimR, oldSymToNew);
                 SmallVector<Value, 16> operands;
-                for (Value d : lfb.getDims())
-                  operands.push_back(castToIndexAt(d));
+                SmallVector<Value, 8> orderedDims;
+                orderedDims.reserve(dimOrder.size());
+                for (unsigned pos : dimOrder)
+                  orderedDims.push_back(castToIndexAt(lfb.getDims()[pos]));
+                for (Value d : orderedDims)
+                  operands.push_back(d);
                 SmallVector<Value, 8> orderedSyms;
-                orderedSyms.reserve(order.size());
-                for (unsigned pos : order)
+                orderedSyms.reserve(symOrder.size());
+                for (unsigned pos : symOrder)
                   orderedSyms.push_back(castToIndexAt(lfb.getSymbols()[pos]));
                 operands.append(orderedSyms.begin(), orderedSyms.end());
                 AffineMap mCombined =
-                    AffineMap::get(static_cast<unsigned>(lfb.getDims().size()),
+                    AffineMap::get(static_cast<unsigned>(orderedDims.size()),
                                    static_cast<unsigned>(orderedSyms.size()),
                                    ArrayRef<AffineExpr>{elR, erR}, ctx);
                 OpBuilder::InsertionGuard g(b);
@@ -1213,15 +1392,15 @@ public:
             if (Value v = tryClampTilePattern(val))
               return v;
             if (AffineExpr e = lfb.build(val)) {
-              SmallVector<Value, 8> orderedSyms;
-              AffineExpr remapped =
-                  remapSymbolsSequential(e, orderedSyms, lfb.getSymbols());
+              SmallVector<Value, 8> orderedDims, orderedSyms;
+              AffineExpr remapped = remapDimsAndSymbolsSequential(
+                  e, orderedDims, lfb.getDims(), orderedSyms, lfb.getSymbols());
               SmallVector<Value, 16> operands;
-              for (Value d : lfb.getDims())
+              for (Value d : orderedDims)
                 operands.push_back(castToIndexAt(d));
               for (Value s : orderedSyms)
                 operands.push_back(castToIndexAt(s));
-              AffineMap map = AffineMap::get(lfb.getDims().size(),
+              AffineMap map = AffineMap::get(orderedDims.size(),
                                              orderedSyms.size(), remapped);
               OpBuilder::InsertionGuard g(b);
               b.setInsertionPoint(subv);
@@ -1233,29 +1412,45 @@ public:
               AffineExpr el = lfb.build(minsi.getLhs());
               AffineExpr er = lfb.build(minsi.getRhs());
               if (el && er) {
-                SmallVector<unsigned, 8> useL, useR;
-                collectUsedSymbolPositions(el, useL);
-                collectUsedSymbolPositions(er, useR);
-                SmallVector<unsigned, 16> order;
-                order.append(useL.begin(), useL.end());
-                for (unsigned p : useR)
-                  if (llvm::find(order, p) == order.end())
-                    order.push_back(p);
-                DenseMap<unsigned, unsigned> oldToNew;
-                for (unsigned i = 0, e = order.size(); i < e; ++i)
-                  oldToNew.try_emplace(order[i], i);
-                AffineExpr elR = remapSymbolsWithMapping(el, oldToNew);
-                AffineExpr erR = remapSymbolsWithMapping(er, oldToNew);
+                SmallVector<unsigned, 8> useSymL, useSymR, useDimL, useDimR;
+                collectUsedSymbolPositions(el, useSymL);
+                collectUsedSymbolPositions(er, useSymR);
+                collectUsedDimPositions(el, useDimL);
+                collectUsedDimPositions(er, useDimR);
+                SmallVector<unsigned, 16> dimOrder;
+                dimOrder.append(useDimL.begin(), useDimL.end());
+                for (unsigned p : useDimR)
+                  if (llvm::find(dimOrder, p) == dimOrder.end())
+                    dimOrder.push_back(p);
+                DenseMap<unsigned, unsigned> oldDimToNew;
+                for (unsigned i = 0, eN = dimOrder.size(); i < eN; ++i)
+                  oldDimToNew.try_emplace(dimOrder[i], i);
+                AffineExpr elDimR = remapDimsWithMapping(el, oldDimToNew);
+                AffineExpr erDimR = remapDimsWithMapping(er, oldDimToNew);
+                SmallVector<unsigned, 16> symOrder;
+                symOrder.append(useSymL.begin(), useSymL.end());
+                for (unsigned p : useSymR)
+                  if (llvm::find(symOrder, p) == symOrder.end())
+                    symOrder.push_back(p);
+                DenseMap<unsigned, unsigned> oldSymToNew;
+                for (unsigned i = 0, eN = symOrder.size(); i < eN; ++i)
+                  oldSymToNew.try_emplace(symOrder[i], i);
+                AffineExpr elR = remapSymbolsWithMapping(elDimR, oldSymToNew);
+                AffineExpr erR = remapSymbolsWithMapping(erDimR, oldSymToNew);
                 SmallVector<Value, 16> operands;
-                for (Value d : lfb.getDims())
-                  operands.push_back(castToIndexAt(d));
+                SmallVector<Value, 8> orderedDims;
+                orderedDims.reserve(dimOrder.size());
+                for (unsigned pos : dimOrder)
+                  orderedDims.push_back(castToIndexAt(lfb.getDims()[pos]));
+                for (Value d : orderedDims)
+                  operands.push_back(d);
                 SmallVector<Value, 8> orderedSyms;
-                orderedSyms.reserve(order.size());
-                for (unsigned pos : order)
+                orderedSyms.reserve(symOrder.size());
+                for (unsigned pos : symOrder)
                   orderedSyms.push_back(castToIndexAt(lfb.getSymbols()[pos]));
                 operands.append(orderedSyms.begin(), orderedSyms.end());
                 AffineMap mCombined =
-                    AffineMap::get(static_cast<unsigned>(lfb.getDims().size()),
+                    AffineMap::get(static_cast<unsigned>(orderedDims.size()),
                                    static_cast<unsigned>(orderedSyms.size()),
                                    ArrayRef<AffineExpr>{elR, erR}, ctx);
                 OpBuilder::InsertionGuard g(b);
