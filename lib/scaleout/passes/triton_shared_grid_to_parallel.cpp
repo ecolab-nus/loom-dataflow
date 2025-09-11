@@ -61,6 +61,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/Pass/Pass.h"
 
 using namespace mlir;
@@ -183,6 +184,63 @@ public:
       entry.eraseArgument(numArgs - 1);
       entry.eraseArgument(numArgs - 2);
       entry.eraseArgument(numArgs - 3);
+
+      // After introducing the 3-D parallel, prune unused IVs.
+      // Identify used IV indices among {0,1,2}.
+      SmallVector<unsigned, 3> usedIdx;
+      auto ivs = par.getIVs();
+      for (unsigned i = 0; i < ivs.size(); ++i)
+        if (!ivs[i].use_empty())
+          usedIdx.push_back(i);
+      if (usedIdx.size() < ivs.size()) {
+        if (usedIdx.empty())
+          usedIdx.push_back(0); // keep at least one dim
+
+        MLIRContext *ctx2 = func.getContext();
+        // Build new bounds: lb = 0 per used dim; ub selects corresponding size.
+        SmallVector<AffineMap, 4> newLbMaps;
+        SmallVector<AffineMap, 4> newUbMaps;
+        SmallVector<int64_t, 4> newSteps;
+        SmallVector<Value, 4> lbArgs2; // none for constant zero
+        SmallVector<Value, 4> ubArgs2;
+
+        // Original ub operands order: [sizeX, sizeY, sizeZ]
+        SmallVector<Value, 3> oldUbOps{sizeXi, sizeYi, sizeZi};
+
+        for (unsigned ignored : usedIdx)
+          (void)ignored,
+              newLbMaps.push_back(AffineMap::getConstantMap(0, ctx2));
+        unsigned nUsed = usedIdx.size();
+        for (unsigned i = 0; i < nUsed; ++i) {
+          newUbMaps.push_back(AffineMap::get(/*dimCount=*/nUsed, /*symCount=*/0,
+                                             getAffineDimExpr(i, ctx2)));
+          ubArgs2.push_back(oldUbOps[usedIdx[i]]);
+        }
+        for (unsigned pos : usedIdx)
+          newSteps.push_back(steps[pos]);
+
+        OpBuilder::InsertionGuard g2(b);
+        b.setInsertionPoint(par);
+        auto newPar = b.create<affine::AffineParallelOp>(
+            par.getLoc(), /*resultTypes=*/TypeRange{},
+            /*reductions=*/ArrayRef<arith::AtomicRMWKind>{}, newLbMaps,
+            /*lbArgs=*/ValueRange(lbArgs2), newUbMaps,
+            /*ubArgs=*/ValueRange(ubArgs2), newSteps);
+
+        // Remap IVs and clone old body.
+        IRMapping mapper;
+        Block &newBody = *newPar.getBody();
+        for (auto it : llvm::enumerate(usedIdx))
+          mapper.map(ivs[it.value()], newBody.getArgument(it.index()));
+
+        Block &oldBody = *par.getBody();
+        OpBuilder nb(&newBody, newBody.begin());
+        for (Operation &op :
+             llvm::make_early_inc_range(oldBody.without_terminator()))
+          nb.clone(op, mapper);
+
+        par.erase();
+      }
     });
   }
 };
