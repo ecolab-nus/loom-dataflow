@@ -19,7 +19,6 @@ static LogicalResult getIteratorBoundsAndStep(affine::AffineParallelOp par,
     return failure();
   lbMap = par.getLowerBoundMap(dim);
   ubMap = par.getUpperBoundMap(dim);
-  // These return all operands; we use the shared operand list of the op.
   auto allLbOperands = par.getLowerBoundsOperands();
   auto allUbOperands = par.getUpperBoundsOperands();
   lbOperands.assign(allLbOperands.begin(), allLbOperands.end());
@@ -53,8 +52,7 @@ LogicalResult convertOutermostParallelToNestedFors(affine::AffineParallelOp par,
   OpBuilder builder(par);
   Location loc = par.getLoc();
 
-  // Build nested AffineForOps in the requested order. We create them empty
-  // first, wiring bounds from the corresponding parallel iterator.
+  // Build nested AffineForOps in the requested order.
   SmallVector<affine::AffineForOp> newFors;
   newFors.reserve(P);
   affine::AffineForOp innermostFor = nullptr;

@@ -12,6 +12,7 @@
 
 #include "spatial_mapping.h"
 
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -58,16 +59,15 @@ int main(int argc, char **argv) {
   // Legacy option retained for compatibility of CLI; ignored in the new format.
   (void)clNumGridDims;
 
-  MLIRContext context;
-  (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
-  context.loadDialect<mlir::func::FuncDialect>();
-  context.loadDialect<mlir::memref::MemRefDialect>();
-  context.loadDialect<mlir::arith::ArithDialect>();
-  context.loadDialect<mlir::tensor::TensorDialect>();
-  context.loadDialect<mlir::linalg::LinalgDialect>();
-  context.loadDialect<mlir::scf::SCFDialect>();
-  context.loadDialect<mlir::bufferization::BufferizationDialect>();
-  context.loadDialect<tmd::df::DataflowDialect>();
+  mlir::DialectRegistry registry;
+  registry.insert<mlir::BuiltinDialect, mlir::func::FuncDialect,
+                  mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
+                  mlir::arith::ArithDialect, mlir::tensor::TensorDialect,
+                  mlir::linalg::LinalgDialect, mlir::scf::SCFDialect,
+                  mlir::bufferization::BufferizationDialect,
+                  tmd::df::DataflowDialect>();
+  MLIRContext context(registry);
+  context.loadAllAvailableDialects();
 
   // Parse DF module containing spatial dimensions.
   llvm::SourceMgr dfSm;
@@ -125,8 +125,10 @@ int main(int argc, char **argv) {
   for (Operation &op : *out->getBody())
     builder.clone(op, mapping);
 
-  AsmState mergedState(*merged);
-  merged->print(llvm::outs(), mergedState);
+  mlir::OpPrintingFlags flags;
+  flags.useLocalScope();
+  flags.assumeVerified(true);
+  merged->print(llvm::outs(), flags);
   llvm::outs() << "\n";
   return 0;
 }
