@@ -112,8 +112,9 @@ int main(int argc, char **argv) {
   // New format: enumerate mappings directly over the outermost affine.parallel
   // in the Triton-shared-after-grid-to-parallel module. We ignore numGridDims
   // and rely purely on the number of iterators in the parallel op.
+  // Enumerate mappings and also explore outer-for loop orderings.
   OwningOpRef<ModuleOp> out =
-      tmd_affine::enumerateSpatialMappings(*tsModule, spatialDims);
+      tmd_affine::enumerateSpatialMappingsWithOuterFors(*tsModule, spatialDims);
 
   // Merge DF declarations and generated clones into a single module.
   OwningOpRef<ModuleOp> merged = ModuleOp::create(UnknownLoc::get(&context));

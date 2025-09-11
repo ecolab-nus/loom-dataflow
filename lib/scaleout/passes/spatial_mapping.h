@@ -88,6 +88,21 @@ enumerateSpatialMappings(mlir::ModuleOp affineModule,
                          llvm::ArrayRef<SpatialDimInfo> dims);
 
 /**
+ * \brief Enumerate spatial mappings and also convert the remaining
+ * outermost `affine.parallel` into nested `affine.for` loops in all possible
+ * iterator orders.
+ *
+ * This is identical to `enumerateSpatialMappings`, but after mapping spatial
+ * dims (tiling), it replaces the surviving top-level `affine.parallel` with
+ * `affine.for` nests. If the surviving parallel has `P` iterators, the
+ * exploration clones the function `P!` times to cover all permutations of the
+ * iterator ordering.
+ */
+mlir::OwningOpRef<mlir::ModuleOp>
+enumerateSpatialMappingsWithOuterFors(mlir::ModuleOp affineModule,
+                                      llvm::ArrayRef<SpatialDimInfo> dims);
+
+/**
  * \brief Enumerate mappings from Triton-shared grid dims to hardware spatial
  * dims.
  *

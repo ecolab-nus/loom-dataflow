@@ -123,6 +123,7 @@ LogicalResult mapSpatialDimsToAffine(ModuleOp affineModule,
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/IRMapping.h"
 #include <algorithm>
+#include <numeric>
 
 namespace tmd_affine {
 
@@ -235,6 +236,169 @@ OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
             }
           }
           clonedFunc.setName((func.getName() + "__" + suffix).str());
+          return;
+        }
+        for (unsigned k = 0; k < permsPerIter[it].size(); ++k) {
+          choiceIdx[it] = k;
+          choose(it + 1);
+        }
+      };
+      choose(0);
+    }
+  }
+
+  return out;
+}
+
+} // namespace tmd_affine
+
+#include "affine_parallel_to_for.h"
+
+namespace tmd_affine {
+
+OwningOpRef<ModuleOp>
+enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
+                                      ArrayRef<SpatialDimInfo> dims) {
+  MLIRContext *ctx = affineModule.getContext();
+  OpBuilder builder(ctx);
+  auto out = ModuleOp::create(affineModule.getLoc());
+
+  for (func::FuncOp func : affineModule.getOps<func::FuncOp>()) {
+    SmallVector<affine::AffineParallelOp> roots;
+    func.walk([&](affine::AffineParallelOp par) {
+      if (!par->getParentOfType<affine::AffineParallelOp>())
+        roots.push_back(par);
+    });
+    if (roots.empty()) {
+      IRMapping map;
+      builder.setInsertionPointToEnd(out.getBody());
+      (void)builder.clone(*func, map);
+      continue;
+    }
+
+    affine::AffineParallelOp root = roots.front();
+    const unsigned P = root.getNumDims();
+
+    // Reuse the same enumeration over bucketings/permutations within iterators
+    // as in enumerateSpatialMappings, but additionally enumerate all
+    // permutations of the remaining outer parallel iterators as well.
+
+    const unsigned D = static_cast<unsigned>(dims.size());
+    if (D == 0) {
+      // No spatial dims to map: only convert the outer parallel to for-nests
+      // in all P! orders.
+      SmallVector<unsigned> order(P);
+      std::iota(order.begin(), order.end(), 0);
+      do {
+        IRMapping map;
+        builder.setInsertionPointToEnd(out.getBody());
+        auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
+        affine::AffineParallelOp currentOuter = nullptr;
+        clonedFunc.walk([&](affine::AffineParallelOp par) {
+          if (!par->getParentOfType<affine::AffineParallelOp>() &&
+              !currentOuter)
+            currentOuter = par;
+        });
+        if (!currentOuter)
+          continue;
+        (void)convertOutermostParallelToNestedFors(currentOuter, order);
+        // Name suffix encodes outer-for order as f<i> tokens.
+        std::string suffix;
+        for (unsigned i = 0; i < P; ++i) {
+          if (!suffix.empty())
+            suffix += "_";
+          suffix += std::string("f") + std::to_string(order[i]);
+        }
+        clonedFunc.setName((func.getName() + "__" + suffix).str());
+      } while (std::next_permutation(order.begin(), order.end()));
+      continue;
+    }
+
+    // Generate partitions of D dims into P buckets, then permutations within
+    // each bucket, as before.
+    SmallVector<SmallVector<SmallVector<unsigned>>> bucketings;
+    SmallVector<SmallVector<unsigned>> buckets(P);
+    std::function<void(unsigned)> placeDim = [&](unsigned d) {
+      if (d == D) {
+        bucketings.push_back(buckets);
+        return;
+      }
+      for (unsigned it = 0; it < P; ++it) {
+        buckets[it].push_back(d);
+        placeDim(d + 1);
+        buckets[it].pop_back();
+      }
+    };
+    placeDim(0);
+
+    for (auto &bucketing : bucketings) {
+      SmallVector<SmallVector<SmallVector<unsigned>>> permsPerIter(P);
+      for (unsigned it = 0; it < P; ++it) {
+        SmallVector<unsigned> b = bucketing[it];
+        if (b.size() <= 1) {
+          permsPerIter[it].push_back(b);
+        } else {
+          std::sort(b.begin(), b.end());
+          do {
+            permsPerIter[it].push_back(b);
+          } while (std::next_permutation(b.begin(), b.end()));
+        }
+      }
+
+      SmallVector<unsigned> choiceIdx(P, 0);
+      std::function<void(unsigned)> choose = [&](unsigned it) {
+        if (it == P) {
+          SmallVector<SmallVector<unsigned>> ordered(P);
+          for (unsigned j = 0; j < P; ++j)
+            ordered[j] = permsPerIter[j][choiceIdx[j]];
+
+          // For each mapping, also enumerate all P! outer-for orderings.
+          SmallVector<unsigned> forOrder(P);
+          std::iota(forOrder.begin(), forOrder.end(), 0);
+          do {
+            IRMapping map;
+            builder.setInsertionPointToEnd(out.getBody());
+            auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
+            affine::AffineParallelOp currentOuter = nullptr;
+            clonedFunc.walk([&](affine::AffineParallelOp par) {
+              if (!par->getParentOfType<affine::AffineParallelOp>() &&
+                  !currentOuter)
+                currentOuter = par;
+            });
+            if (!currentOuter)
+              continue;
+
+            std::string suffix;
+            for (unsigned iter = 0; iter < P; ++iter) {
+              for (unsigned dIdx : ordered[iter]) {
+                const SpatialDimInfo &sd = dims[dIdx];
+                int64_t factor = 1;
+                if (sd.size.has_value())
+                  factor = std::max<int64_t>(1, *sd.size);
+                TiledParallels tp{};
+                if (failed(tileAffineParallel(currentOuter, factor, iter, tp)))
+                  goto nextPermutation;
+                tp.inner->setAttr(
+                    "tmd.mapped_to",
+                    StringAttr::get(ctx, sd.name.empty() ? "dim" : sd.name));
+                if (!suffix.empty())
+                  suffix += "_";
+                suffix +=
+                    "d" + std::to_string(dIdx) + "i" + std::to_string(iter);
+                currentOuter = tp.outer;
+              }
+            }
+
+            // Convert the remaining outer parallel to nested fors with order.
+            (void)convertOutermostParallelToNestedFors(currentOuter, forOrder);
+            // Extend suffix with outer-for order tokens.
+            for (unsigned i = 0; i < P; ++i) {
+              suffix += std::string("_f") + std::to_string(forOrder[i]);
+            }
+            clonedFunc.setName((func.getName() + "__" + suffix).str());
+
+          nextPermutation:;
+          } while (std::next_permutation(forOrder.begin(), forOrder.end()));
           return;
         }
         for (unsigned k = 0; k < permsPerIter[it].size(); ++k) {

@@ -27,6 +27,7 @@ add_executable(tmd_affine_explore
   affine_explore_main.cpp
   spatial_mapping.cpp
   affine_tile.cpp
+  affine_parallel_to_for.cpp
 )
 target_include_directories(tmd_affine_explore PRIVATE ${MLIR_INCLUDE_DIRS})
 target_link_libraries(tmd_affine_explore PRIVATE
@@ -83,6 +84,7 @@ add_executable(tmd_triton_shared_explore
   triton_shared_explore_main.cpp
   spatial_mapping.cpp
   affine_tile.cpp
+  affine_parallel_to_for.cpp
 )
 
 target_include_directories(tmd_triton_shared_explore PRIVATE ${MLIR_INCLUDE_DIRS})
