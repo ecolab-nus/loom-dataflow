@@ -9,7 +9,7 @@ module {
         affine.parallel (%arg11) = (0) to (8) {
           %4 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg11)
           affine.parallel (%arg12) = (0) to (8) {
-            %5 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%4, %arg12)
+            %5 = affine.apply affine_map<(d0, d1, d2) -> (d0 + d1 * 64 + d2 * 8)>(%arg12, %arg9, %arg11)
             %cst = arith.constant 0.000000e+00 : f32
             %6 = tensor.empty() : tensor<64x64xf32>
             %7 = linalg.fill ins(%cst : f32) outs(%6 : tensor<64x64xf32>) -> tensor<64x64xf32>
@@ -17,7 +17,7 @@ module {
             %c0 = arith.constant 0 : index
             %c1 = arith.constant 1 : index
             %9 = scf.for %arg13 = %c0 to %8 step %c1 iter_args(%arg14 = %7) -> (tensor<64x64xf32>) {
-              %11 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 32)>(%arg13, %5)
+              %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32 + d1 * 32768 + d2 * 2097152 + d3 * 262144)>(%arg13, %arg12, %arg9, %arg11)
               %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [64, 32], strides: [512, 1] : memref<*xf32> to memref<64x32xf32, strided<[512, 1], offset: ?>>
               %alloc = memref.alloc() : memref<64x32xf32>
               memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[512, 1], offset: ?>> to memref<64x32xf32>
@@ -35,7 +35,7 @@ module {
               } -> tensor<64x64xf32>
               scf.yield %16 : tensor<64x64xf32>
             }
-            %10 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg10, %5)
+            %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 64 + d1 * 32768 + d2 * 2097152 + d3 * 262144)>(%arg10, %arg12, %arg9, %arg11)
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%10], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
             bufferization.materialize_in_destination %9 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           } {tmd.mapped_to = "x"}
@@ -50,7 +50,7 @@ module {
         affine.parallel (%arg11) = (0) to (8) {
           %4 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg10, %arg11)
           affine.parallel (%arg12) = (0) to (8) {
-            %5 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%4, %arg12)
+            %5 = affine.apply affine_map<(d0, d1, d2) -> (d0 + d1 * 64 + d2 * 8)>(%arg12, %arg10, %arg11)
             %cst = arith.constant 0.000000e+00 : f32
             %6 = tensor.empty() : tensor<64x64xf32>
             %7 = linalg.fill ins(%cst : f32) outs(%6 : tensor<64x64xf32>) -> tensor<64x64xf32>
@@ -58,7 +58,7 @@ module {
             %c0 = arith.constant 0 : index
             %c1 = arith.constant 1 : index
             %9 = scf.for %arg13 = %c0 to %8 step %c1 iter_args(%arg14 = %7) -> (tensor<64x64xf32>) {
-              %11 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 32)>(%arg13, %5)
+              %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32 + d1 * 32768 + d2 * 2097152 + d3 * 262144)>(%arg13, %arg12, %arg10, %arg11)
               %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [64, 32], strides: [512, 1] : memref<*xf32> to memref<64x32xf32, strided<[512, 1], offset: ?>>
               %alloc = memref.alloc() : memref<64x32xf32>
               memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[512, 1], offset: ?>> to memref<64x32xf32>
@@ -76,7 +76,7 @@ module {
               } -> tensor<64x64xf32>
               scf.yield %16 : tensor<64x64xf32>
             }
-            %10 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg9, %5)
+            %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 64 + d1 * 32768 + d2 * 2097152 + d3 * 262144)>(%arg9, %arg12, %arg10, %arg11)
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%10], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
             bufferization.materialize_in_destination %9 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           } {tmd.mapped_to = "x"}
@@ -91,7 +91,7 @@ module {
         affine.parallel (%arg11) = (0) to (8) {
           %4 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg11)
           affine.parallel (%arg12) = (0) to (8) {
-            %5 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%4, %arg12)
+            %5 = affine.apply affine_map<(d0, d1, d2) -> (d0 + d1 * 64 + d2 * 8)>(%arg12, %arg9, %arg11)
             %cst = arith.constant 0.000000e+00 : f32
             %6 = tensor.empty() : tensor<64x64xf32>
             %7 = linalg.fill ins(%cst : f32) outs(%6 : tensor<64x64xf32>) -> tensor<64x64xf32>
@@ -99,7 +99,7 @@ module {
             %c0 = arith.constant 0 : index
             %c1 = arith.constant 1 : index
             %9 = scf.for %arg13 = %c0 to %8 step %c1 iter_args(%arg14 = %7) -> (tensor<64x64xf32>) {
-              %11 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 32)>(%arg13, %5)
+              %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32 + d1 * 32768 + d2 * 2097152 + d3 * 262144)>(%arg13, %arg12, %arg9, %arg11)
               %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [64, 32], strides: [512, 1] : memref<*xf32> to memref<64x32xf32, strided<[512, 1], offset: ?>>
               %alloc = memref.alloc() : memref<64x32xf32>
               memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[512, 1], offset: ?>> to memref<64x32xf32>
@@ -117,7 +117,7 @@ module {
               } -> tensor<64x64xf32>
               scf.yield %16 : tensor<64x64xf32>
             }
-            %10 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg10, %5)
+            %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 64 + d1 * 32768 + d2 * 2097152 + d3 * 262144)>(%arg10, %arg12, %arg9, %arg11)
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%10], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
             bufferization.materialize_in_destination %9 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           } {tmd.mapped_to = "y"}
@@ -132,7 +132,7 @@ module {
         affine.parallel (%arg11) = (0) to (8) {
           %4 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg10, %arg11)
           affine.parallel (%arg12) = (0) to (8) {
-            %5 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%4, %arg12)
+            %5 = affine.apply affine_map<(d0, d1, d2) -> (d0 + d1 * 64 + d2 * 8)>(%arg12, %arg10, %arg11)
             %cst = arith.constant 0.000000e+00 : f32
             %6 = tensor.empty() : tensor<64x64xf32>
             %7 = linalg.fill ins(%cst : f32) outs(%6 : tensor<64x64xf32>) -> tensor<64x64xf32>
@@ -140,7 +140,7 @@ module {
             %c0 = arith.constant 0 : index
             %c1 = arith.constant 1 : index
             %9 = scf.for %arg13 = %c0 to %8 step %c1 iter_args(%arg14 = %7) -> (tensor<64x64xf32>) {
-              %11 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 32)>(%arg13, %5)
+              %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32 + d1 * 32768 + d2 * 2097152 + d3 * 262144)>(%arg13, %arg12, %arg10, %arg11)
               %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [64, 32], strides: [512, 1] : memref<*xf32> to memref<64x32xf32, strided<[512, 1], offset: ?>>
               %alloc = memref.alloc() : memref<64x32xf32>
               memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[512, 1], offset: ?>> to memref<64x32xf32>
@@ -158,7 +158,7 @@ module {
               } -> tensor<64x64xf32>
               scf.yield %16 : tensor<64x64xf32>
             }
-            %10 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg9, %5)
+            %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 64 + d1 * 32768 + d2 * 2097152 + d3 * 262144)>(%arg9, %arg12, %arg10, %arg11)
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%10], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
             bufferization.materialize_in_destination %9 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           } {tmd.mapped_to = "y"}
@@ -181,12 +181,12 @@ module {
             %c0 = arith.constant 0 : index
             %c1 = arith.constant 1 : index
             %9 = scf.for %arg13 = %c0 to %8 step %c1 iter_args(%arg14 = %7) -> (tensor<64x64xf32>) {
-              %11 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 32)>(%arg13, %5)
+              %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 262144 + d2 * 32768)>(%arg13, %arg9, %arg12)
               %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [64, 32], strides: [512, 1] : memref<*xf32> to memref<64x32xf32, strided<[512, 1], offset: ?>>
               %alloc = memref.alloc() : memref<64x32xf32>
               memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[512, 1], offset: ?>> to memref<64x32xf32>
               %12 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
-              %13 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 64)>(%4, %arg13)
+              %13 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 512 + d2 * 64)>(%arg13, %arg10, %arg11)
               %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%13], sizes: [32, 64], strides: [512, 1] : memref<*xf32> to memref<32x64xf32, strided<[512, 1], offset: ?>>
               %alloc_2 = memref.alloc() : memref<32x64xf32>
               memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[512, 1], offset: ?>> to memref<32x64xf32>
@@ -199,7 +199,7 @@ module {
               } -> tensor<64x64xf32>
               scf.yield %16 : tensor<64x64xf32>
             }
-            %10 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%4, %5)
+            %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 512 + d1 * 64 + d2 * 262144 + d3 * 32768)>(%arg10, %arg11, %arg9, %arg12)
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%10], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
             bufferization.materialize_in_destination %9 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           } {tmd.mapped_to = "x"}
@@ -222,12 +222,12 @@ module {
             %c0 = arith.constant 0 : index
             %c1 = arith.constant 1 : index
             %9 = scf.for %arg13 = %c0 to %8 step %c1 iter_args(%arg14 = %7) -> (tensor<64x64xf32>) {
-              %11 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 32)>(%arg13, %5)
+              %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 262144 + d2 * 32768)>(%arg13, %arg10, %arg12)
               %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [64, 32], strides: [512, 1] : memref<*xf32> to memref<64x32xf32, strided<[512, 1], offset: ?>>
               %alloc = memref.alloc() : memref<64x32xf32>
               memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[512, 1], offset: ?>> to memref<64x32xf32>
               %12 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
-              %13 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 64)>(%4, %arg13)
+              %13 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 512 + d2 * 64)>(%arg13, %arg9, %arg11)
               %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%13], sizes: [32, 64], strides: [512, 1] : memref<*xf32> to memref<32x64xf32, strided<[512, 1], offset: ?>>
               %alloc_2 = memref.alloc() : memref<32x64xf32>
               memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[512, 1], offset: ?>> to memref<32x64xf32>
@@ -240,7 +240,7 @@ module {
               } -> tensor<64x64xf32>
               scf.yield %16 : tensor<64x64xf32>
             }
-            %10 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%4, %5)
+            %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 512 + d1 * 64 + d2 * 262144 + d3 * 32768)>(%arg9, %arg11, %arg10, %arg12)
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%10], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
             bufferization.materialize_in_destination %9 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           } {tmd.mapped_to = "x"}
@@ -263,12 +263,12 @@ module {
             %c0 = arith.constant 0 : index
             %c1 = arith.constant 1 : index
             %9 = scf.for %arg13 = %c0 to %8 step %c1 iter_args(%arg14 = %7) -> (tensor<64x64xf32>) {
-              %11 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 32)>(%arg13, %5)
+              %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 262144 + d2 * 32768)>(%arg13, %arg9, %arg12)
               %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [64, 32], strides: [512, 1] : memref<*xf32> to memref<64x32xf32, strided<[512, 1], offset: ?>>
               %alloc = memref.alloc() : memref<64x32xf32>
               memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[512, 1], offset: ?>> to memref<64x32xf32>
               %12 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
-              %13 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 64)>(%4, %arg13)
+              %13 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 512 + d2 * 64)>(%arg13, %arg10, %arg11)
               %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%13], sizes: [32, 64], strides: [512, 1] : memref<*xf32> to memref<32x64xf32, strided<[512, 1], offset: ?>>
               %alloc_2 = memref.alloc() : memref<32x64xf32>
               memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[512, 1], offset: ?>> to memref<32x64xf32>
@@ -281,7 +281,7 @@ module {
               } -> tensor<64x64xf32>
               scf.yield %16 : tensor<64x64xf32>
             }
-            %10 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%4, %5)
+            %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 512 + d1 * 64 + d2 * 262144 + d3 * 32768)>(%arg10, %arg11, %arg9, %arg12)
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%10], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
             bufferization.materialize_in_destination %9 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           } {tmd.mapped_to = "y"}
@@ -304,12 +304,12 @@ module {
             %c0 = arith.constant 0 : index
             %c1 = arith.constant 1 : index
             %9 = scf.for %arg13 = %c0 to %8 step %c1 iter_args(%arg14 = %7) -> (tensor<64x64xf32>) {
-              %11 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 32)>(%arg13, %5)
+              %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 262144 + d2 * 32768)>(%arg13, %arg10, %arg12)
               %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [64, 32], strides: [512, 1] : memref<*xf32> to memref<64x32xf32, strided<[512, 1], offset: ?>>
               %alloc = memref.alloc() : memref<64x32xf32>
               memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[512, 1], offset: ?>> to memref<64x32xf32>
               %12 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
-              %13 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 64)>(%4, %arg13)
+              %13 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 512 + d2 * 64)>(%arg13, %arg9, %arg11)
               %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%13], sizes: [32, 64], strides: [512, 1] : memref<*xf32> to memref<32x64xf32, strided<[512, 1], offset: ?>>
               %alloc_2 = memref.alloc() : memref<32x64xf32>
               memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[512, 1], offset: ?>> to memref<32x64xf32>
@@ -322,7 +322,7 @@ module {
               } -> tensor<64x64xf32>
               scf.yield %16 : tensor<64x64xf32>
             }
-            %10 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%4, %5)
+            %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 512 + d1 * 64 + d2 * 262144 + d3 * 32768)>(%arg9, %arg11, %arg10, %arg12)
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%10], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
             bufferization.materialize_in_destination %9 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           } {tmd.mapped_to = "y"}
@@ -337,7 +337,7 @@ module {
         affine.parallel (%arg11) = (0) to (8) {
           %4 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg10, %arg11)
           affine.parallel (%arg12) = (0) to (8) {
-            %5 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%4, %arg12)
+            %5 = affine.apply affine_map<(d0, d1, d2) -> (d0 + d1 * 64 + d2 * 8)>(%arg12, %arg10, %arg11)
             %cst = arith.constant 0.000000e+00 : f32
             %6 = tensor.empty() : tensor<64x64xf32>
             %7 = linalg.fill ins(%cst : f32) outs(%6 : tensor<64x64xf32>) -> tensor<64x64xf32>
@@ -350,7 +350,7 @@ module {
               %alloc = memref.alloc() : memref<64x32xf32>
               memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[512, 1], offset: ?>> to memref<64x32xf32>
               %12 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
-              %13 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 64)>(%5, %arg13)
+              %13 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 16384 + d1 * 64 + d2 * 4096 + d3 * 512)>(%arg13, %arg12, %arg10, %arg11)
               %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%13], sizes: [32, 64], strides: [512, 1] : memref<*xf32> to memref<32x64xf32, strided<[512, 1], offset: ?>>
               %alloc_2 = memref.alloc() : memref<32x64xf32>
               memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[512, 1], offset: ?>> to memref<32x64xf32>
@@ -363,7 +363,7 @@ module {
               } -> tensor<64x64xf32>
               scf.yield %16 : tensor<64x64xf32>
             }
-            %10 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%5, %arg9)
+            %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32768 + d1 * 64 + d2 * 4096 + d3 * 512)>(%arg9, %arg12, %arg10, %arg11)
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%10], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
             bufferization.materialize_in_destination %9 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           } {tmd.mapped_to = "x"}
@@ -378,7 +378,7 @@ module {
         affine.parallel (%arg11) = (0) to (8) {
           %4 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg11)
           affine.parallel (%arg12) = (0) to (8) {
-            %5 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%4, %arg12)
+            %5 = affine.apply affine_map<(d0, d1, d2) -> (d0 + d1 * 64 + d2 * 8)>(%arg12, %arg9, %arg11)
             %cst = arith.constant 0.000000e+00 : f32
             %6 = tensor.empty() : tensor<64x64xf32>
             %7 = linalg.fill ins(%cst : f32) outs(%6 : tensor<64x64xf32>) -> tensor<64x64xf32>
@@ -391,7 +391,7 @@ module {
               %alloc = memref.alloc() : memref<64x32xf32>
               memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[512, 1], offset: ?>> to memref<64x32xf32>
               %12 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
-              %13 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 64)>(%5, %arg13)
+              %13 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 16384 + d1 * 64 + d2 * 4096 + d3 * 512)>(%arg13, %arg12, %arg9, %arg11)
               %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%13], sizes: [32, 64], strides: [512, 1] : memref<*xf32> to memref<32x64xf32, strided<[512, 1], offset: ?>>
               %alloc_2 = memref.alloc() : memref<32x64xf32>
               memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[512, 1], offset: ?>> to memref<32x64xf32>
@@ -404,7 +404,7 @@ module {
               } -> tensor<64x64xf32>
               scf.yield %16 : tensor<64x64xf32>
             }
-            %10 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%5, %arg10)
+            %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32768 + d1 * 64 + d2 * 4096 + d3 * 512)>(%arg10, %arg12, %arg9, %arg11)
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%10], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
             bufferization.materialize_in_destination %9 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           } {tmd.mapped_to = "x"}
@@ -419,7 +419,7 @@ module {
         affine.parallel (%arg11) = (0) to (8) {
           %4 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg10, %arg11)
           affine.parallel (%arg12) = (0) to (8) {
-            %5 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%4, %arg12)
+            %5 = affine.apply affine_map<(d0, d1, d2) -> (d0 + d1 * 64 + d2 * 8)>(%arg12, %arg10, %arg11)
             %cst = arith.constant 0.000000e+00 : f32
             %6 = tensor.empty() : tensor<64x64xf32>
             %7 = linalg.fill ins(%cst : f32) outs(%6 : tensor<64x64xf32>) -> tensor<64x64xf32>
@@ -432,7 +432,7 @@ module {
               %alloc = memref.alloc() : memref<64x32xf32>
               memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[512, 1], offset: ?>> to memref<64x32xf32>
               %12 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
-              %13 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 64)>(%5, %arg13)
+              %13 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 16384 + d1 * 64 + d2 * 4096 + d3 * 512)>(%arg13, %arg12, %arg10, %arg11)
               %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%13], sizes: [32, 64], strides: [512, 1] : memref<*xf32> to memref<32x64xf32, strided<[512, 1], offset: ?>>
               %alloc_2 = memref.alloc() : memref<32x64xf32>
               memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[512, 1], offset: ?>> to memref<32x64xf32>
@@ -445,7 +445,7 @@ module {
               } -> tensor<64x64xf32>
               scf.yield %16 : tensor<64x64xf32>
             }
-            %10 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%5, %arg9)
+            %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32768 + d1 * 64 + d2 * 4096 + d3 * 512)>(%arg9, %arg12, %arg10, %arg11)
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%10], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
             bufferization.materialize_in_destination %9 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           } {tmd.mapped_to = "y"}
@@ -460,7 +460,7 @@ module {
         affine.parallel (%arg11) = (0) to (8) {
           %4 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg11)
           affine.parallel (%arg12) = (0) to (8) {
-            %5 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%4, %arg12)
+            %5 = affine.apply affine_map<(d0, d1, d2) -> (d0 + d1 * 64 + d2 * 8)>(%arg12, %arg9, %arg11)
             %cst = arith.constant 0.000000e+00 : f32
             %6 = tensor.empty() : tensor<64x64xf32>
             %7 = linalg.fill ins(%cst : f32) outs(%6 : tensor<64x64xf32>) -> tensor<64x64xf32>
@@ -473,7 +473,7 @@ module {
               %alloc = memref.alloc() : memref<64x32xf32>
               memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[512, 1], offset: ?>> to memref<64x32xf32>
               %12 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
-              %13 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 64)>(%5, %arg13)
+              %13 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 16384 + d1 * 64 + d2 * 4096 + d3 * 512)>(%arg13, %arg12, %arg9, %arg11)
               %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%13], sizes: [32, 64], strides: [512, 1] : memref<*xf32> to memref<32x64xf32, strided<[512, 1], offset: ?>>
               %alloc_2 = memref.alloc() : memref<32x64xf32>
               memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[512, 1], offset: ?>> to memref<32x64xf32>
@@ -486,7 +486,7 @@ module {
               } -> tensor<64x64xf32>
               scf.yield %16 : tensor<64x64xf32>
             }
-            %10 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%5, %arg10)
+            %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32768 + d1 * 64 + d2 * 4096 + d3 * 512)>(%arg10, %arg12, %arg9, %arg11)
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%10], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
             bufferization.materialize_in_destination %9 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           } {tmd.mapped_to = "y"}

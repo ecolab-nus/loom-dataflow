@@ -127,6 +127,38 @@ LogicalResult mapSpatialDimsToAffine(ModuleOp affineModule,
 
 namespace tmd_affine {
 
+/**
+ * \brief Compose and canonicalize all affine.apply operations in a function.
+ *
+ * This fuses chains of affine.apply so that no affine.apply consumes the
+ * result of another affine.apply, eliminating temporaries like `%4` used only
+ * by a subsequent affine.apply. It also simplifies maps and operands.
+ */
+static void composeAndCanonicalizeAffineApplies(func::FuncOp func) {
+  SmallVector<affine::AffineApplyOp> applies;
+  func.walk([&](affine::AffineApplyOp op) { applies.push_back(op); });
+  // Process in program order to maximize folding as we go.
+  for (affine::AffineApplyOp op : applies) {
+    OpBuilder b(op);
+    AffineMap map = op.getAffineMap();
+    SmallVector<Value> operands(op.getOperands().begin(),
+                                op.getOperands().end());
+    // Compose nested affine.apply producers and simplify.
+    affine::fullyComposeAffineMapAndOperands(&map, &operands);
+    affine::canonicalizeMapAndOperands(&map, &operands);
+    // If nothing changed, continue.
+    bool sameMap = (map == op.getAffineMap());
+    bool sameOperands =
+        operands.size() == op.getNumOperands() &&
+        std::equal(operands.begin(), operands.end(), op.getOperands().begin());
+    if (sameMap && sameOperands)
+      continue;
+    auto newOp = b.create<affine::AffineApplyOp>(op.getLoc(), map, operands);
+    op.replaceAllUsesWith(newOp.getResult());
+    op.erase();
+  }
+}
+
 OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
                                                ArrayRef<SpatialDimInfo> dims) {
   MLIRContext *ctx = affineModule.getContext();
@@ -207,6 +239,8 @@ OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
           IRMapping map;
           builder.setInsertionPointToEnd(out.getBody());
           auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
+          // Post-process: compose nested affine.apply ops for cleaner IR.
+          composeAndCanonicalizeAffineApplies(clonedFunc);
           affine::AffineParallelOp currentOuter = nullptr;
           clonedFunc.walk([&](affine::AffineParallelOp par) {
             if (!par->getParentOfType<affine::AffineParallelOp>() &&
@@ -395,6 +429,8 @@ enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
             for (unsigned i = 0; i < P; ++i) {
               suffix += std::string("_f") + std::to_string(forOrder[i]);
             }
+            // Compose again in case new applies were introduced by transforms.
+            composeAndCanonicalizeAffineApplies(clonedFunc);
             clonedFunc.setName((func.getName() + "__" + suffix).str());
 
           nextPermutation:;
