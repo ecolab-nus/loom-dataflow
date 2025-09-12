@@ -73,13 +73,13 @@ LogicalResult convertOutermostParallelToNestedFors(affine::AffineParallelOp par,
       builder.setInsertionPointToStart(newFors.back().getBody());
 
     affine::AffineForOp forOp = affine::AffineForOp::create(
-        builder, loc, lbOperands, lbMap, ubOperands, ubMap, stepVal,
-        /*iterArgs=*/ValueRange(),
-        [&](OpBuilder &b, Location bl, Value iv, ValueRange /*iters*/) {
-          (void)b;
-          (void)bl;
-          (void)iv;
-        });
+        builder, loc, lbOperands, lbMap, ubOperands, ubMap, stepVal);
+    // Ensure a terminator exists in the newly created body.
+    if (forOp.getBody()->empty() ||
+        !isa<affine::AffineYieldOp>(forOp.getBody()->back())) {
+      OpBuilder termBuilder = OpBuilder::atBlockEnd(forOp.getBody());
+      termBuilder.create<affine::AffineYieldOp>(loc);
+    }
     newFors.push_back(forOp);
     innermostFor = forOp;
   }

@@ -127,7 +127,6 @@ int main(int argc, char **argv) {
 
   mlir::OpPrintingFlags flags;
   flags.useLocalScope();
-  flags.assumeVerified(true);
   merged->print(llvm::outs(), flags);
   llvm::outs() << "\n";
   return 0;
