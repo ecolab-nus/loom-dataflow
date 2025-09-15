@@ -62,106 +62,11 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Add subdirectories for static libraries
-add_subdirectory(lib/scaleout)
-add_subdirectory(lib/scalein)
+# Libraries
+add_subdirectory(lib)
 
 # Root-level tools
 add_subdirectory(tool)
-
-# Create main executable from bin/main.cpp
-if(EXISTS "${CMAKE_SOURCE_DIR}/bin/main.cpp")
-    add_executable(${PROJECT_NAME} bin/main.cpp)
-    target_link_libraries(${PROJECT_NAME} 
-        scaleout 
-        scalein
-    )
-    target_include_directories(${PROJECT_NAME} PRIVATE 
-        lib
-    )
-endif()
-
-# Create resource management demo executable
-if(EXISTS "${CMAKE_SOURCE_DIR}/bin/resource_demo.cpp")
-    add_executable(${PROJECT_NAME}_resource_demo bin/resource_demo.cpp)
-    target_link_libraries(${PROJECT_NAME}_resource_demo 
-        scaleout
-    )
-    target_include_directories(${PROJECT_NAME}_resource_demo PRIVATE 
-        lib
-    )
-endif()
-
-# Create module demo executable
-if(EXISTS "${CMAKE_SOURCE_DIR}/bin/module_demo.cpp")
-    add_executable(${PROJECT_NAME}_module_demo bin/module_demo.cpp)
-    target_link_libraries(${PROJECT_NAME}_module_demo 
-        scaleout
-    )
-    target_include_directories(${PROJECT_NAME}_module_demo PRIVATE 
-        lib
-    )
-endif()
-
-# Dataflow dialect parse/print tool
-if(EXISTS "${CMAKE_SOURCE_DIR}/bin/df_parse_print.cpp")
-    add_executable(${PROJECT_NAME}_df_parse_print bin/df_parse_print.cpp)
-    target_link_libraries(${PROJECT_NAME}_df_parse_print 
-        PRIVATE
-        tmdDataflowDialect
-        MLIRIR
-        MLIRParser
-        MLIRSupport
-        MLIRFuncDialect
-        MLIRAffineDialect
-        MLIRMemRefDialect
-        MLIRArithDialect
-    )
-    target_include_directories(${PROJECT_NAME}_df_parse_print PRIVATE 
-        lib
-        ${MLIR_INCLUDE_DIRS}
-    )
-endif()
-
-# GoogleTest setup
-include(FetchContent)
-FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG        v1.14.0
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
-
-# Enable testing
-enable_testing()
-
-# Find all test files
-file(GLOB_RECURSE TEST_SOURCES "test/*.cpp")
-
-if(TEST_SOURCES)
-    # Create test executable
-    add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES})
-    
-    # Link against GoogleTest and the static libraries
-    target_link_libraries(${PROJECT_NAME}_tests 
-        gtest_main
-        gmock_main
-        scaleout
-        scalein
-    )
-    
-    target_include_directories(${PROJECT_NAME}_tests PRIVATE 
-        lib
-    )
-    
-    # Add tests to CTest
-    include(GoogleTest)
-    gtest_discover_tests(${PROJECT_NAME}_tests)
-endif()
 
 # Print build information
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")

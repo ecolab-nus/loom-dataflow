@@ -1,5 +1,5 @@
-#include "scaleout/resources/memory.h"
-#include "scaleout/resources/resource_manager.h"
+#include "resources/memory.h"
+#include "resources/resource_manager.h"
 #include <exception>
 #include <iostream>
 #include <memory>
