@@ -122,6 +122,7 @@ LogicalResult mapSpatialDimsToAffine(ModuleOp affineModule,
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/IRMapping.h"
+#include "mlir/Interfaces/SideEffectInterfaces.h"
 #include <algorithm>
 #include <numeric>
 
@@ -157,6 +158,16 @@ static void composeAndCanonicalizeAffineApplies(func::FuncOp func) {
     op.replaceAllUsesWith(newOp.getResult());
     op.erase();
   }
+
+  // Clean up any trivially dead ops introduced by the rewrites (e.g.,
+  // affine.applys or arithmetic ops that became unused).
+  SmallVector<Operation *> toErase;
+  func.walk([&](Operation *op) {
+    if (mlir::isOpTriviallyDead(op))
+      toErase.push_back(op);
+  });
+  for (Operation *op : toErase)
+    op->erase();
 }
 
 OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
