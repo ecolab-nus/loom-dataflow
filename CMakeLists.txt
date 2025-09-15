@@ -66,6 +66,9 @@ endif()
 add_subdirectory(lib/scaleout)
 add_subdirectory(lib/scalein)
 
+# Root-level tools
+add_subdirectory(tool)
+
 # Create main executable from bin/main.cpp
 if(EXISTS "${CMAKE_SOURCE_DIR}/bin/main.cpp")
     add_executable(${PROJECT_NAME} bin/main.cpp)
