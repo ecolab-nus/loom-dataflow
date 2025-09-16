@@ -1,3 +1,18 @@
+# Passes (tmd/lib/passes)
+
+This directory contains all MLIR passes and helper algorithms used by the project. It is organized into three subdirectories by concern, plus this README:
+
+- `affine/`: Utilities and helpers for working with Affine loops and maps.
+  - `affine_tile.h/.cpp`: Implements tiling of `affine.parallel` into perfectly nested outer/inner loops.
+  - `affine_parallel_to_for.h/.cpp`: Converts an outermost `affine.parallel` into a nested chain of `affine.for` loops according to a chosen iterator order.
+- `triton-shared/`: Pass implementations targeting Triton-shared lowered kernels.
+  - `triton_shared_affinize.h/.cpp`: Affinizes index math and converts eligible memory ops to affine forms.
+  - `triton_shared_grid_to_parallel.h/.cpp`: Wraps function bodies with 3-D `affine.parallel` using the trailing size arguments and removes the trailing index arguments.
+- `common/`: Shared analysis/enumeration utilities used by both Affine and Triton-shared flows.
+  - `spatial_mapping.h/.cpp`: Spatial-dimension collection from the Dataflow (DF) module and enumeration of spatial mappings; also includes helpers to compose/canonicalize affine.apply.
+
+The actual pass drivers (standalone command-line tools) live under `tmd/tool/` and link these sources directly. See `tmd/tool/README.md` for usage.
+
 ## Triton Shared Affinize Pass
 
 This pass converts arithmetic index expressions produced by Triton-shared lowered kernels into affine form and replaces eligible memory and loop constructs with their affine counterparts. The goal is to maximize the use of `affine.apply`, `affine.min/max`, `affine.load/store`, and index-typed IR, while eliminating redundant casts and dead arithmetic.
@@ -39,166 +54,48 @@ This pass converts arithmetic index expressions produced by Triton-shared lowere
 
 ### Affine-eligibility and expression model
 
-The pass constructs affine expressions treating:
-
-- **Dims**: function block arguments and surrounding `scf.for` induction variables.
-- **Symbols**: other index values that appear in the expression when they cannot be proven as dims (including non-dim block arguments and non-affine sub-expressions promoted to symbols).
-
-An index expression is considered affine if it can be built using the following primitives:
-
-- `addi`, `subi`
-- `muli` with a compile-time constant factor
-- `divsi` by a non-zero compile-time constant (lowered as floorDiv)
-- constants and `arith.index_cast` passthrough
-
-If an expression contains non-affine pieces, the builder promotes that value to a symbol and continues, so it can still participate in an affine map as a symbol operand. For partial conversions of `addi/subi`, if only one side is affine, that side is first expressed via `affine.apply` and recombined with the non-affine side using `arith`.
-
-For `min/max`:
-
-- `affine.min/max` are emitted when both sides are affine (possibly with symbols). Multiple affine results are bundled in a single map and wired into a single `affine.min`/`affine.max`.
-
-### Preconditions for each rewrite
-
-- **Function arg retyping**: any function input of MLIR type `i32` is converted to MLIR type `index`.
-- **Arithmetic harmonization**: applies to `arith.addi/subi/muli/divsi/minsi/maxsi` when operand/result types differ or when any of them is `index`.
-- **Index → `affine.apply`**: the value must be of type `index` and its expression must satisfy the affine-eligibility rules above. Partial add/sub rewrites require at least one affine side.
-- **`reinterpret_cast` offsets**: each offset expression is independently tested for affine-eligibility using dims (grid IDs and surrounding loop IVs) plus promoted symbols.
-- **`extract_slice` / `subview` sizes**: each size is independently tested for affine-eligibility; clamp pattern is recognized and rewritten; min/max are emitted if both sides are affine.
-- **`memref.load/store` replacement**: all indices must be affine or trivially acceptable (loop IVs / block args / `arith.constant index`).
-- **`scf.for`**: loop is rebuilt if any of lb/ub/step/IV is not `index`, after converting them to `index` and affinizing their expressions.
-
-### Limitations and non-goals
-
-- General multiplication of two non-constant terms is not considered affine.
-- Non-linear operations other than `min/max` are not converted.
-- `memref.reinterpret_cast` sizes/strides are not rewritten (only offsets) to avoid introducing dominance/aliasing issues.
-- The pass is conservative; if an expression cannot be proven affine with the allowed primitives, it is left as-is (or partially converted when applicable).
+Dims: function block arguments and surrounding `scf.for` IVs. Symbols: other index values that cannot be proven as dims. The pass permits `addi/subi`, mul by constant, div by non-zero constant (`floorDiv`), constants, and `arith.index_cast` passthrough. Non-affine pieces are promoted to symbols.
 
 ### Dialects and dependencies
 
-The pass requires: `affine`, `arith`, `memref`, `func`, `scf`, `linalg`, `tensor`, `bufferization`.
+Requires: `affine`, `arith`, `memref`, `func`, `scf`, `linalg`, `tensor`, `bufferization`.
 
 ### Running the pass
 
 - Pass name: `tmd-triton-shared-affinize`
-- If integrated into `mlir-opt` or your pipeline runner, use:
+- As a standalone tool in this repo (built under `build/tool/`):
 
 ```bash
-mlir-opt -tmd-triton-shared-affinize input.mlir > output.mlir
+build/tool/triton_shared_affinize input.mlir > output.mlir
 ```
-
-- With the standalone driver (in this repo):
-
-```bash
-build/lib/scaleout/passes/tmd_triton_shared_affinize input.mlir > output.mlir
-```
-
-### Examples
-
-#### Loop normalization and affine upper bound
-
-Before:
-
-```mlir
-%c0_i32 = arith.constant 0 : i32
-%c1_i32 = arith.constant 1 : i32
-%t = arith.divsi %x, %c32_i32 : i32
-scf.for %iv = %c0_i32 to %t step %c1_i32 { ... }
-```
-
-After:
-
-```mlir
-%c0 = arith.constant 0 : index
-%c1 = arith.constant 1 : index
-%2  = affine.apply #map(%x)              // affine upper bound
-scf.for %iv = %c0 to %2 step %c1 { ... } // %iv is index
-```
-
-#### Clamp pattern in slice sizes
-
-Before:
-
-```mlir
-%sz = arith.minsi (arith.subi (arith.maxsi (arith.minsi (arith.addi %base, %T), %dim), %base), %T) : index
-%slice = tensor.extract_slice %t[0, 0] [%sz, %sz2] [1, 1] : tensor<...> to tensor<?x?x...>
-```
-
-After:
-
-```mlir
-%sz = affine.min #map(%dim, %base)[%T]   // map returns (dim - base, T)
-%slice = tensor.extract_slice %t[0, 0] [%sz, %sz2] [1, 1] : tensor<...> to tensor<?x?x...>
-```
-
-### Notes on robustness
-
-- Iteration guards are used in cleanup loops (cast folding, general DCE, and arithmetic harmonization) to ensure termination even when other canonicalizations unlock more work.
-- Symbol ordering is normalized per-map so that the same semantic expression yields stable operand ordering.
-
 
 ## Triton Shared Grid→Parallel Pass
 
-This pass exposes the implicit grid parallelism as a 3-D `affine.parallel` and simplifies the kernel signature by removing the three grid index arguments.
-
-### Purpose
-
-- Triton-shared lowered kernels often carry six trailing arguments encoding execution grid information: three sizes and three indices over X/Y/Z.
-- These grid indices are semantically equivalent to loop induction variables across the grid dimensions. The pass makes this explicit, which enables subsequent affine analyses and transformations that expect loop-nesting structure.
+Exposes the implicit grid parallelism as a 3-D `affine.parallel` and simplifies the kernel signature by removing the three grid index arguments.
 
 ### Transformation
 
 - Input convention (last 6 args): `(sizeX, sizeY, sizeZ, idxX, idxY, idxZ)`.
-- The pass inserts a single 3-D `affine.parallel`:
-  - Lower bounds: `(0, 0, 0)`
-  - Upper bounds: `(sizeX, sizeY, sizeZ)` (dynamic)
-  - Steps: `(1, 1, 1)`
-- All uses of `(idxX, idxY, idxZ)` in the body are replaced by the parallel IVs.
-- The last three arguments are erased from the function signature.
-- The three size arguments are preserved as function parameters and serve as dynamic upper bounds.
+- Inserts a single 3-D `affine.parallel` with lower bounds `(0,0,0)`, upper bounds `(sizeX,sizeY,sizeZ)`, and steps `(1,1,1)`.
+- Replaces uses of `(idxX, idxY, idxZ)` with the parallel IVs and erases the trailing 3 index arguments.
 
-### Before/After (conceptual)
-
-Before:
-
-```mlir
-func.func @kernel(%A: memref<*xf32>, %B: memref<*xf32>,
-                  %sizeX: index, %sizeY: index, %sizeZ: index,
-                  %idxX: index, %idxY: index, %idxZ: index) {
-  // body using %idxX, %idxY, %idxZ
-  return
-}
-```
-
-After:
-
-```mlir
-func.func @kernel(%A: memref<*xf32>, %B: memref<*xf32>,
-                  %sizeX: index, %sizeY: index, %sizeZ: index) {
-  affine.parallel (%i, %j, %k) = (0, 0, 0) to (%sizeX, %sizeY, %sizeZ) {
-    // same body where %idxX→%i, %idxY→%j, %idxZ→%k
-  }
-  return
-}
-```
-
-### Dialects and dependencies
-
-Requires: `affine`, `func`, `arith` (and whatever the body uses; the pass itself does not rewrite non-affine ops beyond the structural wrap and SSA replacement).
-
-### Running the pass
-
-- Pass name: `tmd-triton-shared-grid-to-parallel`
-
-With the standalone driver provided here:
+### Running the pass tool
 
 ```bash
-build/lib/scaleout/passes/tmd_triton_shared_grid_to_parallel input.mlir > output.mlir
+build/tool/triton_shared_grid_to_parallel input.mlir > output.mlir
 ```
 
-### Notes
+## Common: Spatial Mapping Utilities
 
-- The pass is a no-op for functions with fewer than six arguments.
-- The pass assumes the trailing-6 convention; it does not inspect semantics beyond arity and position.
-- Upper bounds are consumed as-is; follow-up canonicalizations may normalize types to `index` if needed.
+- Discover spatial dimensions from a DF module (`df.spatial_dim` ops).
+- Enumerate mappings of spatial dims to Affine programs or mappings from Triton-shared grid dims to hardware spatial dims.
+- Provide helpers to compose and canonicalize `affine.apply` and convert between `affine.parallel` and nested `affine.for`.
+
+## Related Tools (under tmd/tool)
+
+- `triton_shared_to_affine`: Runs the end-to-end pipeline: affinize → grid-to-parallel → mapping enumeration (and optional outer-for exploration). Output is a merged module with DF declarations.
+- `triton_shared_explore`: Enumerates spatial mappings over a Triton-shared-after-grid-to-parallel program and merges DF + generated clones.
+- `affine_explore`: Enumerates spatial mappings over an Affine program and merges DF + generated clones.
+
+Refer to `tmd/tool/README.md` for complete tool descriptions and CLI flags.
 
