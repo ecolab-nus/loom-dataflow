@@ -1,5 +1,18 @@
-# How to run this example:
-path_to_tmd/build/lib/scaleout/passes/tmd_triton_shared_explore --ttshared=path_to_tmd/test/Dialect/Triton/mm_normal/cpu_backend/ttshared.mlir --df=path_to_tmd/test/Dialect/DataflowDialect/2D_mesh.mlir
+# Triton-shared exploration example
 
-# Expected output:
-You should get the same output as the expected_output.mlir in this folder
+Reproduce the exploration pipeline using the sample inputs in this directory.
+
+## How to run
+```bash
+# From the repository root (after building with ./build.sh)
+build/tool/triton_shared_explore \
+  --ttshared test/Dialect/Triton/mm_normal/ttshared.mlir \
+  --df test/Dialect/DataflowDialect/2D_mesh.mlir \
+  > output.mlir
+```
+
+## Expected result
+The tool should emit the same IR as `expected_output.mlir`. You can diff the files to confirm:
+```bash
+diff -u test/Passes/explore_over_triton_shared/expected_output.mlir output.mlir
+```

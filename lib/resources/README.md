@@ -1,13 +1,17 @@
 # Resources
-Resources are the lowest-level primitives that constitute the hardware model.
-Each resource has a clear creation contract and a consumption/release model.
 
-## Primitive resources
+Resources are the primitive building blocks for the scale-out model. Each resource tracks its own availability and implements a clear acquire/release contract through the CRTP `Resource<T>` base class found in `resource_base.h`.
 
-### Memory (On-chip SRAM)
-- MemoryCapacity: models on-chip scratchpad/buffer capacity; created with a total byte size; consumed via `consume(size_t)` and freed via `release(size_t)`. Query with `getTotalSize()`, `getAvailableSize()`, `getUsedSize()`, `getUtilizationPercentage()`, and `canConsume(size_t)`.
-- MemoryPort: models on-chip SRAM access ports; created with a `PortType` and `port_width` (bits); acquired via `acquire()` and freed via `release()`. Query with `isAvailable()`, `getPortWidth()`, `getPortType()` and `getPortTypeString()`.
+## Memory-focused resources
+- `MemoryCapacity` – models on-chip SRAM capacity with byte-accurate accounting. Offers queries (`getTotalSize`, `getAvailableSize`, `getUtilizationPercentage`), guards via `canConsume`, and stateful `consume`/`release` helpers.
+- `MemoryPort` – represents a single read, write, or read-write port. Acquisition is exclusive and validated against the supported operation type.
+- `MemoryBank` – convenience wrapper that groups one capacity object with optional read/write ports, providing atomic `acquireForTransfer`/`releaseTransfer` semantics.
 
-### Dataflow
-- Ring: on-chip ring/torus interconnect among cores; created without parameters; can only be consumed as a whole via `consume()` and freed via `release()`.
-- Chain: on-chip daisy-chain interconnect among cores; created without parameters; can only be consumed as a whole via `consume()` and freed via `release()`.
+## Interconnect resources
+- `Ring` – models a ring/torus network. Consumption is all-or-nothing and mutually exclusive.
+- `Chain` – represents a daisy-chain interconnect with the same availability contract as `Ring`.
+
+## Resource management
+`ResourceManager` is a singleton that tracks all instantiated resources. It supports registration, lookup by id, bulk inspection (`getResourceStatistics`), and cleanup—useful for demos and tooling that need visibility into the runtime model.
+
+Each module in `lib/modules/` consumes or checks these resources to mirror how hardware would accept work.

@@ -1,60 +1,56 @@
 # TMD
 
-An MLIR-based C++ project for exploring dataflow architectures, custom dialects, and compiler passes. It includes:
-- A custom MLIR dialect `df` for hardware-aware data movement
-- Static libraries for scale-out and scale-in concepts
-- A small resource management framework and demos
-- GoogleTest-based tests and IDE-friendly setup
+TMD is an MLIR-backed sandbox for exploring hardware scale-out models, a custom `df` (dataflow) dialect, and compiler passes that bridge Triton-style GPU kernels with affine IR. The repository combines C++ libraries that model hardware resources, MLIR dialect definitions, analysis/transform passes, and command-line tools for experimenting with mappings.
 
-## Repository layout
+## Highlights
+- Custom MLIR dialect `df` to describe spatial dimensions and interconnect topologies.
+- C++ runtime for modeling hardware resources (rings, chains, SRAM banks) and higher-level modules (meshes, tori).
+- MLIR passes that affinize Triton-shared kernels, tile affine loops, and enumerate spatial mappings.
+- Standalone tooling for running the passes and composing dataflow descriptions with transformed kernels.
+- Example MLIR programs and exploratory tests under `test/`.
 
-- `bin/` – entry points and tools
-  - `main.cpp` → builds `tmd`
-  - `resource_demo.cpp` → builds `tmd_resource_demo`
-  - `module_demo.cpp` → builds `tmd_module_demo` (if present)
-  - `df_parse_print.cpp` → builds `tmd_df_parse_print` (loads/prints MLIR with `df` dialect)
-- `lib/scaleout/` – scale-out library and MLIR components
-  - `dataflow-dialect/IR/` – `df` dialect TableGen and C++ (ops, types, dialect)
-  - `analyses/`, `modules/`, `resources/` – helper libraries for modeling hardware
-- `lib/scalein/` – scale-in library
-- `tests/` – GoogleTest sources
-- `build.sh` – Release build + test runner
-- `setup_ide.sh` – Debug build and `compile_commands.json` generator
+## Repository Map
+- `lib/` – C++ libraries and dialect code.
+  - `resources/` – primitive hardware resources and manager.
+  - `modules/` – compositions such as meshes and tori built from resources.
+  - `dataflow-dialect/` – TableGen + C++ for the `df` MLIR dialect.
+  - `passes/` – affine and Triton-shared transformations plus shared analyses.
+- `tool/` – command-line drivers that wire the passes into runnable pipelines and demos.
+- `test/` – GoogleTest unit tests and MLIR inputs covering dialects and passes.
+- `build.sh` – release build helper that configures MLIR paths and invokes Ninja.
+- `setup_ide.sh` – debug build + `compile_commands.json` generator for IDEs.
+- `Testing/` – generated CTest metadata (appears after running CMake).
 
-## Dependencies
+Detailed documentation for each subsystem lives alongside the code (see the READMEs under `lib/`, `tool/`, and `test/Passes/…`).
 
-Install toolchain and MLIR:
+## Requirements
+- CMake ≥ 3.20, Ninja, a C++17 compiler, and `lld` (or another linker if you override `LLVM_USE_LINKER`).
+- An installed LLVM/MLIR build that exports CMake packages. The scripts default to `MLIR_DIR=/opt/llvm-mlir/lib/cmake/mlir`.
+- `lit` or `llvm-lit` on `PATH` for CTest-driven MLIR tests (`pipx install lit` is the recommended route).
 
-### Linux (Ubuntu/Debian)
+Quick install commands:
+
+Linux (Debian/Ubuntu)
 ```bash
 sudo apt update
 sudo apt install cmake build-essential ninja-build lld
 ```
 
-### Arch Linux
+Arch Linux
 ```bash
 sudo pacman -S cmake gcc make ninja lld
 ```
 
-### macOS
+macOS
 ```bash
 brew install cmake ninja
 ```
 
-### Windows
-- Visual Studio 2019+ with C++
-- CMake from `https://cmake.org/download/`
+Windows
+- Visual Studio 2019 or newer with the C++ workload.
+- CMake from https://cmake.org/download/.
 
-### MLIR (required)
-- Provide an installed MLIR with CMake config files. Default expected path:
-  - `MLIR_DIR=/opt/llvm-mlir/lib/cmake/mlir`
-- Lit runner on PATH (prefer `lit`; `llvm-lit` also works)
-  - `pipx install lit` then `pipx ensurepath` and open a new shell, or
-  - `python3 -m venv ~/.venvs/lit && ~/.venvs/lit/bin/pip install lit`
-
-You can override paths via `./build.sh --mlir-dir=… --llvm-lit=…` or CMake cache vars `-DMLIR_DIR=… -DLLVM_EXTERNAL_LIT=…`.
-
-#### Quick reference: Build and install LLVM/MLIR
+### Building LLVM/MLIR (quick reference)
 ```bash
 git clone https://github.com/llvm/llvm-project.git $HOME/llvm-project
 cd $HOME/llvm-project && mkdir build && cd build
@@ -72,20 +68,16 @@ cmake --build . --target check-mlir
 ninja install
 ```
 
-## Build
+## Build & Configure
 
-### One-liner (recommended)
+### Quick build
 ```bash
 ./build.sh
 ```
 
-Options:
-```bash
-./build.sh --mlir-dir=/custom/path/to/mlir --llvm-lit=/path/to/lit
-./build.sh --help
-```
+Flags such as `--mlir-dir=/path/to/mlir` and `--llvm-lit=/path/to/lit` override defaults. Run `./build.sh --help` for the full list.
 
-### Manual build
+### Manual CMake invocation
 ```bash
 mkdir -p build && cd build
 cmake -G Ninja .. \
@@ -94,54 +86,38 @@ cmake -G Ninja .. \
   -DLLVM_EXTERNAL_LIT=$(command -v lit || command -v llvm-lit) \
   -DLLVM_USE_LINKER=lld
 cmake --build . --config Release
+```
+
+### IDE/Debug setup
+`./setup_ide.sh` performs a clean Debug build and emits `build/compile_commands.json` for IntelliSense.
+
+## Running Tools & Passes
+All binaries live under `build/tool/` after a build. Useful entry points include:
+- `triton_shared_affinize` – normalize a Triton-shared kernel to affine-friendly form.
+- `triton_shared_grid_to_parallel` – wrap kernels in 3-D `affine.parallel` loops and drop explicit grid indices.
+- `triton_shared_to_affine` – full pipeline that merges the transformed kernel with a DF module.
+- `triton_shared_explore` – enumerate spatial mappings for Triton-shared kernels.
+- `affine_explore`, `affine_tile`, `affine_analyze` – affine-only exploration, tiling, and reuse analysis utilities.
+
+Example:
+```bash
+build/tool/triton_shared_to_affine \
+  --ttshared test/Dialect/Triton/mm_normal/ttshared.mlir \
+  --df test/Dialect/DataflowDialect/2D_mesh.mlir > merged.mlir
+```
+
+## Tests & Examples
+```bash
+cd build
 ctest --output-on-failure
 ```
 
-### IDE setup (Debug + compile_commands.json)
-```bash
-./setup_ide.sh
-```
-
-## Run
-
-- App: `./build/tmd`
-- Resource demo: `./build/tmd_resource_demo`
-- Module demo: `./build/tmd_module_demo` (if built)
-- MLIR df tool: `./build/tmd_df_parse_print file.mlir`
-- Tests: `./build/tmd_tests` or `cd build && ctest`
-
-## The Dataflow (df) dialect
-
-The `df` dialect models hardware-aware data movement and interconnects.
-Key pieces live in `lib/scaleout/dataflow-dialect/IR/` and build the library `tmdDataflowDialect`.
-
-- Example interconnect and load:
-```mlir
-// Declare 8x8 spatial grid and two affine interconnects
-%x = df.spatial_dim 8
-%y = df.spatial_dim 8
-%horizontal_chains = "df.interconnects"(%x, %y) {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : (index, index) -> !df.interconnect
-%vertical_chains   = "df.interconnects"(%x, %y) {map = affine_map<(d0, d1) -> (d0, d1 + 1)>} : (index, index) -> !df.interconnect
-
-// Chained load over a vertical chain, using affine indices
-%v = df.chained_load %mem[%i + 3, %j + 7] : memref<100x100xf32>, over %vertical_chains
-```
-
-See `lib/scaleout/dataflow-dialect/README.md` for more details.
-
-## Testing
-
-Tests are discovered via CTest. After any build:
-```bash
-cd build && ctest --output-on-failure
-```
+The `test/` folder contains MLIR snippets that showcase dialect usage (e.g., `test/Dialect/DataflowDialect/2D_mesh.mlir`) and Triton MM variations. `test/Passes/explore_over_triton_shared` documents how to reproduce the exploration pipeline end-to-end.
 
 ## Troubleshooting
-
-- Lit not found: install `lit` as shown above or pass `--llvm-lit=/path/to/lit`.
-- MLIR not found: set `MLIR_DIR` to your install, e.g. `-DMLIR_DIR=/opt/llvm-mlir/lib/cmake/mlir`.
-- IntelliSense issues: run `./setup_ide.sh` and restart your IDE; ensure `build/compile_commands.json` exists.
+- `lit` not found: install via `pipx install lit` (preferred) or provide `--llvm-lit=/path/to/lit`.
+- `MLIRConfig.cmake` missing: export `MLIR_DIR` to point at your LLVM/MLIR installation.
+- IntelliSense gaps: rerun `./setup_ide.sh` so that `compile_commands.json` stays in sync with headers generated by TableGen.
 
 ## License
-
 See `LICENSE`.
