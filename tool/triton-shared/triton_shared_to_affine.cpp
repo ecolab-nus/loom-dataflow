@@ -1,5 +1,16 @@
-// Combined driver: Triton-shared -> Affine pipeline
-// Runs: affinize -> grid_to_parallel -> explore (with DF) and prints module.
+// Combined driver: Triton-shared -> Affine pipeline.
+//
+// The driver expects a Triton `tt.shared` kernel together with a hardware
+// description written in the (early) `df` dialect. It applies the two core
+// passes—affinize, then grid-to-parallel—to expose the GPU launch grid as a
+// single 3-D `affine.parallel`. Exploration then matches those induction
+// variables against the declared hardware spatial dimensions, cloning the
+// kernel for every viable binding. Each clone tracks which hardware dimension
+// drives which loop through a `tmd.mapped_to` attribute, inserts `affine.for`
+// nests when multiple "waves" are needed to time-multiplex the workload, and
+// leaves the inner `scf.for` loops untouched to model per-core tile sequencing.
+// The resulting module mirrors the structure of
+// `test/Dialect/Triton/mm_fixed_strides/after_exploration.mlir`.
 //
 // Usage:
 //   tmd_triton_shared_to_affine --ttshared <ttshared.mlir> --df <df.mlir>

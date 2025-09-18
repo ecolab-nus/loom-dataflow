@@ -7,6 +7,12 @@
 // variables. All other function arguments are modeled as symbols. Unused dims
 // and symbols are pruned from affine maps and their operand lists.
 //
+// Affinization is the entry point of the Triton → dataflow pipeline: it
+// exposes the GPU-style indexing present in `tt.shared` kernels as canonical
+// affine expressions so that later passes can wrap the program in
+// `affine.parallel` loops, match hardware meshes described in the `df`
+// dialect, and eventually enumerate legal mappings for spatial architectures.
+//
 // The transformation is conservative: only expressions that can be proven to be
 // affine combinations of loop IVs, function arguments, and constants are
 // converted.

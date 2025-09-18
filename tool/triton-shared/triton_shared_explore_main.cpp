@@ -8,7 +8,10 @@
 // The driver loads both modules, collects spatial dimensions from the DF
 // module, enumerates all unique assignments of grid dimensions {x,y,z} to the
 // hardware spatial dimensions, and prints a new module containing one clone of
-// each function per mapping with attributes encoding the mapping.
+// each function per mapping with attributes encoding the binding. When the
+// hardware mesh cannot cover the full grid in one shot, the explorer also
+// inserts outer `affine.for` loops to model sequential "waves" while leaving
+// the inner `scf.for` loops to represent per-core tile sequencing.
 
 #include "spatial_mapping.h"
 

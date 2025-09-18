@@ -6,8 +6,7 @@ The `lib` directory hosts the C++ side of TMD: hardware resource models, higher-
 - `resources/` – primitive building blocks such as SRAM capacities/ports, ring and chain interconnects, and a global `ResourceManager` for lifecycle tracking.
 - `modules/` – compositions of resources that capture hardware topologies (1-D chains, 2-D meshes, and torus networks). Modules maintain affine placement information through `mlir::AffineMap` objects.
 - `dataflow-dialect/` – TableGen specifications and the C++ dialect library for the `df` dialect that describes spatial dimensions and interconnect declarations.
-- `passes/` – MLIR transformations/analyses targeting affine IR and Triton-shared kernels. Shared utilities (e.g., spatial mapping enumeration) live here as well.
-- `input_sharing_analysis.cpp` – reusable affine reuse analysis that is linked into multiple tools.
+- `passes/` – MLIR transformations/analyses targeting affine IR and Triton-shared kernels. Shared utilities (e.g., spatial mapping enumeration and `common/input_sharing_analysis.cpp`) live here as well.
 
 ## How the pieces fit together
 1. **Resources** provide the atomic concepts (capacity, ports, interconnect availability).

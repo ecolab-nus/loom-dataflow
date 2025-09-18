@@ -18,6 +18,10 @@
 //   across all grid coordinates. This transformation makes that explicit by
 //   introducing a single 3-D `affine.parallel` that enumerates all coordinates
 //   in lexicographic order and uses its induction variables as the indices.
+//   Subsequent spatial exploration interprets those induction variables as the
+//   handles that can be matched to hardware spatial dimensions declared in the
+//   `df` dialect; when a dimension is assigned, the inner loop is annotated
+//   with `tmd.mapped_to` to record the binding.
 // - Signature change: The three index arguments are no longer needed and are
 //   erased from the function type and entry block. The three size arguments are
 //   preserved as function parameters and used as dynamic upper bounds of the
@@ -49,6 +53,8 @@
 //   func @kernel(..., %szX: index, %szY: index, %szZ: index) {
 //     affine.parallel (%iX, %iY, %iZ) = (0, 0, 0) to (%szX, %szY, %szZ) {
 //       // same body with %iX/%iY/%iZ replacing the old args
+//       // Later passes may wrap this in additional affine.for "waves" if the
+//       // hardware mesh cannot cover all (%iX,%iY,%iZ) coordinates at once.
 //     }
 //     return
 //   }

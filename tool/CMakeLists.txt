@@ -66,7 +66,7 @@ target_compile_options(affine_tile PRIVATE -fno-rtti)
 add_executable(affine_analyze
   ${CMAKE_CURRENT_LIST_DIR}/affine/affine_analyze_main.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/spatial_mapping.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/input_sharing_analysis.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/input_sharing_analysis.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/affine_tile.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/affine_parallel_to_for.cpp
 )

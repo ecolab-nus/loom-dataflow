@@ -8,7 +8,10 @@
 //
 // The pass targets code patterns produced by the Triton-shared lowering, where
 // index arithmetic is typically expressed in the arith dialect before
-// bufferization and Linalg operations.
+// bufferization and Linalg operations. Making these expressions affine-friendly
+// is what allows the subsequent grid-to-parallel and spatial mapping passes to
+// reason about GPU launch grids and match them against hardware meshes defined
+// in the `df` dialect.
 
 #pragma once
 

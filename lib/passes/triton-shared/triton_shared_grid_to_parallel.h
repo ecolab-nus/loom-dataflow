@@ -9,7 +9,11 @@
 // signature.
 //
 // Note: The three size arguments are preserved as dynamic upper bounds for the
-// loops. If they are not of index type, they are cast to index as needed.
+// loops. If they are not of index type, they are cast to index as needed. The
+// resulting `affine.parallel` serves as the anchor point for spatial mappings:
+// later exploration passes match its induction variables with hardware
+// dimensions declared in the `df` dialect and may wrap the parallel loop in
+// additional `affine.for` nests to model sequential waves across the mesh.
 
 #pragma once
 
