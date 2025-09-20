@@ -91,6 +91,7 @@ mlir_check_all_link_libraries(affine_analyze)
 add_executable(triton_shared_explore
   ${CMAKE_CURRENT_LIST_DIR}/triton-shared/triton_shared_explore_main.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/spatial_mapping.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/reinterpret_cast_reuse.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/affine_tile.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/affine_parallel_to_for.cpp
 )
@@ -181,6 +182,7 @@ add_executable(triton_shared_to_affine
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared/triton_shared_affinize.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared/triton_shared_grid_to_parallel.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/spatial_mapping.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/reinterpret_cast_reuse.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/affine_parallel_to_for.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/affine_tile.cpp
 )
@@ -208,6 +210,38 @@ target_link_libraries(triton_shared_to_affine PRIVATE
 mlir_check_all_link_libraries(triton_shared_to_affine)
 
 target_compile_options(triton_shared_to_affine PRIVATE -fno-rtti)
+
+add_executable(triton_shared_annotate_reuse
+  ${CMAKE_CURRENT_LIST_DIR}/triton-shared/triton_shared_annotate_reuse.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/reinterpret_cast_reuse.cpp
+)
+
+target_include_directories(triton_shared_annotate_reuse PRIVATE
+  ${MLIR_INCLUDE_DIRS}
+  ${TMD_PASSES_INC}
+)
+
+target_link_libraries(triton_shared_annotate_reuse PRIVATE
+  MLIRIR
+  MLIRParser
+  MLIRSupport
+  LLVMSupport
+  MLIRFuncDialect
+  MLIRAffineDialect
+  MLIRMemRefDialect
+  MLIRArithDialect
+  MLIRTensorDialect
+  MLIRLinalgDialect
+  MLIRSCFDialect
+  MLIRBufferizationDialect
+  MLIRPass
+  MLIRAsmParser
+  MLIRBytecodeReader
+  tmdDataflowDialect
+)
+mlir_check_all_link_libraries(triton_shared_annotate_reuse)
+
+target_compile_options(triton_shared_annotate_reuse PRIVATE -fno-rtti)
 
 # Dataflow-dialect tool(s)
 add_executable(df_parse_print

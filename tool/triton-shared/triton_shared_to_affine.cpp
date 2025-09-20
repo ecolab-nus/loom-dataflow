@@ -15,6 +15,7 @@
 // Usage:
 //   tmd_triton_shared_to_affine --ttshared <ttshared.mlir> --df <df.mlir>
 //
+#include "reinterpret_cast_reuse.h"
 #include "spatial_mapping.h"
 #include "triton_shared_affinize.h"
 #include "triton_shared_grid_to_parallel.h"
@@ -128,6 +129,16 @@ int main(int argc, char **argv) {
     builder.clone(op, mapping);
   for (Operation &op : *explored->getBody())
     builder.clone(op, mapping);
+
+  // Annotate reinterpret_cast ops with reuse information relative to the
+  // surrounding spatial/temporal iterators.
+  PassManager annotatePM(&context);
+  annotatePM.addPass(tmd::passes::createAnnotateReinterpretCastReusePass());
+  if (failed(annotatePM.run(*merged))) {
+    llvm::WithColor::error(llvm::errs())
+        << "Reuse annotation pass failed\n";
+    return 3;
+  }
 
   mlir::OpPrintingFlags flags;
   flags.useLocalScope();

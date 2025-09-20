@@ -13,6 +13,7 @@
 // inserts outer `affine.for` loops to model sequential "waves" while leaving
 // the inner `scf.for` loops to represent per-core tile sequencing.
 
+#include "reinterpret_cast_reuse.h"
 #include "spatial_mapping.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -30,6 +31,7 @@
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Parser/Parser.h"
+#include "mlir/Pass/PassManager.h"
 #include "mlir/Support/FileUtilities.h"
 
 #include "llvm/ADT/SmallVector.h"
@@ -127,6 +129,14 @@ int main(int argc, char **argv) {
     builder.clone(op, mapping);
   for (Operation &op : *out->getBody())
     builder.clone(op, mapping);
+
+  PassManager annotatePM(&context);
+  annotatePM.addPass(tmd::passes::createAnnotateReinterpretCastReusePass());
+  if (failed(annotatePM.run(*merged))) {
+    llvm::WithColor::error(llvm::errs())
+        << "Reuse annotation pass failed\n";
+    return 1;
+  }
 
   mlir::OpPrintingFlags flags;
   flags.useLocalScope();

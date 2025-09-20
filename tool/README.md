@@ -26,6 +26,8 @@ Executables built from this directory wrap the passes in `lib/passes/` and expos
 
 The pipeline expects a Triton `tt.shared` kernel (see `test/Dialect/Triton/mm_fixed_strides/ttshared.mlir`) together with a hardware description written in the nascent `df` dialect (e.g. `test/Dialect/DataflowDialect/2D_mesh.mlir`). After affinization, the GPU launch grid becomes a single 3-D `affine.parallel`. Exploration then pairs those iterators with the declared hardware dimensions, cloning the kernel per mapping, tagging parallel loops with `tmd.mapped_to`, and inserting outer `affine.for` loops whenever additional “waves” are required to cover the full grid. Nested `scf.for` loops stay within a core to model sequential tile processing.
 
+Both `triton_shared_explore` and `triton_shared_to_affine` also run the reuse annotator. Look for a `tmd.reuse` dictionary attached to each `memref.reinterpret_cast`. Entries are grouped by iterator kind: `spatial` for `affine.parallel` loops that map work across hardware cores, `temporal` for `affine.for` loops that schedule successive waves across the fabric, and `sequential` for per-core `scf.for` loops that step through tiles locally. Each entry lists the induction-variable SSA name (e.g. `%arg13`), the nesting `depth`, a `reuse_type` (`no_reuse` or `total_reuse` for now), and the reused `volume` in bytes (0 for `no_reuse`, the full block size for `total_reuse`, or -1 when the size is not statically known). Partial reuse classification will arrive in a later iteration; spatial entries also keep `mapped_to` to surface the hardware dimension.
+
 ## Affine utilities
 - `affine_explore` – enumerate mappings between DF spatial dims and the outermost `affine.parallel` loops in an affine module.
   ```bash
