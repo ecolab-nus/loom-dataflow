@@ -261,6 +261,19 @@ OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
           if (!currentOuter)
             return;
 
+          // Encode the mapping in the cloned function name. The suffix is a
+          // sequence of tokens `d<dimIndex>i<iterIndex>` joined with `_`.
+          //   - `dimIndex` is the zero-based index into the collected spatial
+          //     dimensions (`dims` argument).
+          //   - `iterIndex` is the zero-based index of the iterator within the
+          //     outermost `affine.parallel` (0 → first IV, 1 → second, ...).
+          // The order of the tokens reflects the order in which mapping and
+          // tiling were applied. For example, a suffix `d0i0_d1i0_f0_f1`
+          // (produced later when outer loops are linearized into `affine.for`)
+          // means the first spatial dimension mapped to iterator 0, the second
+          // dimension also mapped to iterator 0 (after an additional tiling
+          // step), and the remaining `_f*` tokens record iterator permutation
+          // decisions.
           std::string suffix;
           for (unsigned iter = 0; iter < P; ++iter) {
             for (unsigned dIdx : ordered[iter]) {

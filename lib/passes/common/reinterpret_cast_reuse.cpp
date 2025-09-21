@@ -86,8 +86,12 @@ public:
     //   - `sequential` : surrounding `scf.for` loops (per-core tiles).
     // Each entry <dict> contains:
     //   * `iterator`   – SSA name of the induction variable (e.g. `%arg13`).
-    //   * `depth`      – integer depth (0 = outermost iterator touching the
-    //                    op).
+    //   * `depth`      – integer depth (0 = the outermost enclosing loop,
+    //                    increasing by one as we move inward toward the
+    //                    `memref.reinterpret_cast`). This is computed by
+    //                    climbing the parent chain from the cast outwards,
+    //                    reversing the stack, and numbering the loops so the
+    //                    entry reflects how far the iterator sits in the nest.
     //   * `reuse_type` – `no_reuse` if the offset changes with that iterator,
     //                    `total_reuse` if it stays constant (partial reuse is
     //                    reserved for future refinements).
