@@ -34,25 +34,30 @@ def SpatialDimOp : DF_Op<"spatial_dim"> {
   let assemblyFormat = "$name `,` $size attr-dict";
 }
 
-// df.interconnects : declare chain interconnects using an affine expression over
-// declared spatial dimensions. This produces an opaque handle (i64 for now)
+// df.interconnects : declare chain interconnects between handles using an affine
+// expression over declared spatial dimensions. This produces an opaque handle
 // representing the chain configuration.
-// Example (conceptual syntax per README):
-//   %horiz = df.interconnects[%x, %x + 1]
+// Example (matches current custom assembly):
+//   %cores_to_cores = df.interconnects %cores : !df.compute, %cores: !df.compute, %x, %y
+//       {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : !df.interconnect
+//   %mems_to_mems = df.interconnects %memories : !df.memory, %memories: !df.memory, %x
+//       {map = affine_map<(d0) -> (d0 + 1)>} : !df.interconnect
 def InterconnectsOp : DF_Op<"interconnects"> {
   let summary = "Declare interconnects via an affine expression";
   let description = [{
     `df.interconnects` declares chain-like interconnects among the spatial
     dimensions using an affine expression over SSA ids (typically produced by
-    `df.spatial_dim`). The operation now requires explicit compute or memory
+    `df.spatial_dim`). The operation requires explicit compute or memory
     handles describing the entities that participate in the interconnect. The
-    affine list reuses the `affine.load` syntax and is stored in the `map`
-    attribute alongside the SSA operands used to materialize the expression.
+    affine expression is provided via the `map` attribute (same textual form as
+    other affine maps) alongside the SSA operands used to materialize the
+    expression.
 
-    Example:
-      `%horizontal = df.interconnects %cores to %cores (%x, %y)
-          {map = affine_map<(d0, d1) -> (d0 + 1, d1)>}
-          : (!df.compute, !df.compute, index, index) -> !df.interconnect`
+    Examples (compute-to-compute and memory-to-memory):
+      `%cores_to_cores = df.interconnects %cores : !df.compute, %cores: !df.compute, %x, %y
+          {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : !df.interconnect`
+      `%mems_to_mems = df.interconnects %memories : !df.memory, %memories: !df.memory, %x
+          {map = affine_map<(d0) -> (d0 + 1)>} : !df.interconnect`
   }];
 
   let arguments = (ins HandleLike:$source,
@@ -65,10 +70,9 @@ def InterconnectsOp : DF_Op<"interconnects"> {
 }
 
 // df.compute : declare compute resources derived from spatial dimensions.
-// Example:
-//   %cores = "df.compute"(%x, %y)
+// Example (matches current custom assembly):
+//   %cores = df.compute "cluster_cores", %x, %y
 //       {map = affine_map<(d0, d1) -> (d0, d1)>}
-//       : (index, index) -> !df.compute
 def ComputeOp : DF_Op<"compute"> {
   let summary = "Declare compute resources via an affine map";
   let description = [{
@@ -78,6 +82,10 @@ def ComputeOp : DF_Op<"compute"> {
 
     The result is an opaque `!df.compute` handle that can be consumed by other
     operations such as `df.mux` when describing connectivity.
+
+    Example:
+      `%cores = df.compute "cluster_cores", %x, %y
+          {map = affine_map<(d0, d1) -> (d0, d1)>}`
   }];
 
   let arguments = (ins StrAttr:$label,
@@ -85,20 +93,23 @@ def ComputeOp : DF_Op<"compute"> {
                        AffineMapAttr:$map);
   let results = (outs ComputeHandleType:$handle);
 
-  let assemblyFormat = "$label `,` $indices attr-dict `:` type($handle)";
+  let assemblyFormat = "$label `,` $indices attr-dict";
 }
 
 // df.memory : declare memory resources derived from spatial dimensions.
-// Example:
-//   %mems = "df.memory"(%x)
+// Example (matches current custom assembly):
+//   %memories = df.memory "cluster_mem", %x
 //       {map = affine_map<(d0) -> (d0)>}
-//       : (index) -> !df.memory
 def MemoryOp : DF_Op<"memory"> {
   let summary = "Declare memory resources via an affine map";
   let description = [{
     `df.memory` declares memory tiles associated with spatial dimensions and
     records their layout via an affine map. The resulting `!df.memory` handle
     is an opaque reference to those resources.
+
+    Example:
+      `%memories = df.memory "cluster_mem", %x
+          {map = affine_map<(d0) -> (d0)>}`
   }];
 
   let arguments = (ins StrAttr:$label,
@@ -106,15 +117,14 @@ def MemoryOp : DF_Op<"memory"> {
                        AffineMapAttr:$map);
   let results = (outs MemoryHandleType:$handle);
 
-  let assemblyFormat = "$label `,` $indices attr-dict `:` type($handle)";
+  let assemblyFormat = "$label `,` $indices attr-dict";
 }
 
 // df.mux : declare multiplexing between computes and memories (or other
 // resources) using an affine expression over compute indices.
-// Example:
-//   %core_to_mem = "df.mux"(%cores, %mems, %x, %y)
+// Example (matches current custom assembly):
+//   %core_to_mem = df.mux %cores: !df.compute, %memories: !df.memory, %x, %y
 //       {map = affine_map<(d0, d1) -> (d0)>}
-//       : (!df.compute, !df.memory, index, index) -> !df.mux
 def MuxOp : DF_Op<"mux"> {
   let summary = "Declare multiplexing between compute and memory resources";
   let description = [{
@@ -124,6 +134,10 @@ def MuxOp : DF_Op<"mux"> {
     target dimensions imply sharing (multiplexing) across the omitted axes.
 
     The operation returns an opaque `!df.mux` handle for downstream analyses.
+
+    Example:
+      `%core_to_mem = df.mux %cores: !df.compute, %memories: !df.memory, %x, %y
+          {map = affine_map<(d0, d1) -> (d0)>}`
   }];
 
   let arguments = (ins HandleLike:$source,
@@ -132,7 +146,7 @@ def MuxOp : DF_Op<"mux"> {
                        AffineMapAttr:$map);
   let results = (outs MuxHandleType:$handle);
 
-  let assemblyFormat = "$source `:` type($source) `,` $target `:` type($target) `,` $indices attr-dict `:` type($handle)";
+  let assemblyFormat = "$source `:` type($source) `,` $target `:` type($target) `,` $indices attr-dict";
 }
 
 
