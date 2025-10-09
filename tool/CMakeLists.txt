@@ -244,16 +244,16 @@ mlir_check_all_link_libraries(triton_shared_annotate_reuse)
 target_compile_options(triton_shared_annotate_reuse PRIVATE -fno-rtti)
 
 # Dataflow-dialect tool(s)
-add_executable(df_parse_print
-  ${CMAKE_CURRENT_LIST_DIR}/dataflow-dialect/df_parse_print.cpp
+add_executable(df_example_parse
+  ${CMAKE_CURRENT_LIST_DIR}/dataflow-dialect/df_example_parse.cpp
 )
 
-target_include_directories(df_parse_print PRIVATE
+target_include_directories(df_example_parse PRIVATE
   ${MLIR_INCLUDE_DIRS}
   ${TMD_PASSES_INC}
 )
 
-target_link_libraries(df_parse_print PRIVATE
+target_link_libraries(df_example_parse PRIVATE
   tmdDataflowDialect
   MLIRIR
   MLIRParser
@@ -263,8 +263,7 @@ target_link_libraries(df_parse_print PRIVATE
   MLIRMemRefDialect
   MLIRArithDialect
 )
-mlir_check_all_link_libraries(df_parse_print)
-
+mlir_check_all_link_libraries(df_example_parse)
 # Resource-system demos
 add_executable(resource_module_demo
   ${CMAKE_CURRENT_LIST_DIR}/resource-system/module_demo.cpp

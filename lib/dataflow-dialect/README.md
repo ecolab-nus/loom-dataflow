@@ -5,19 +5,40 @@ The custom `df` dialect captures hardware scale-out descriptions that can be pai
 ## Declaring spatial scale-out
 - `df.spatial_dim` creates a named spatial dimension with a static extent.
   ```mlir
-  %x = df.spatial_dim 8
-  %y = df.spatial_dim 8
+  %x = df.spatial_dim "x", 8
+  %y = df.spatial_dim "y", 8
   ```
   The result value can be used in affine maps and interconnect declarations.
 
-## Describing interconnects
-- `df.interconnects` associates an affine map with one or more dimensions to express connectivity. Missing dimensions in the map are implicitly iterated.
+## Declaring compute and memory fabrics
+- `df.compute` derives a compute fabric from spatial dimensions. The affine map captures how indices tile the hardware.
   ```mlir
-  %horizontal = "df.interconnects"(%x, %y)
-      {map = affine_map<(d0, d1) -> (d0 + 1, d1)>}
-      : (index, index) -> !df.interconnect
+  %cores = "df.compute"(%x, %y)
+      {label = "compute", map = affine_map<(d0, d1) -> (d0, d1)>}
+      : (index, index) -> !df.compute
   ```
-  In this example each `(x, y)` core has a link to `(x + 1, y)`.
+- `df.memory` describes memory resources in a similar fashion.
+  ```mlir
+  %mems = "df.memory"(%x)
+      {label = "memory", map = affine_map<(d0) -> (d0)>}
+      : (index) -> !df.memory
+  ```
+
+## Routing across the fabric
+- `df.interconnects` connects two compute or memory handle sets. The operands identify the source and destination resources while the affine map describes how indices are transformed between them.
+  ```mlir
+  %horizontal = "df.interconnects"(%cores, %cores, %x, %y)
+      {map = affine_map<(d0, d1) -> (d0 + 1, d1)>}
+      : (!df.compute, !df.compute, index, index) -> !df.interconnect
+  ```
+  Here each compute tile `(x, y)` links to its neighbor `(x + 1, y)`.
+- `df.mux` relates compute and memory handles, defining how compute tiles share resources.
+  ```mlir
+  %core_to_mem = "df.mux"(%cores, %mems, %x, %y)
+      {map = affine_map<(d0, d1) -> (d0)>}
+      : (!df.compute, !df.memory, index, index) -> !df.mux
+  ```
+  Omitting result dimensions implies sharing; here all cores with the same `x` coordinate use the same memory tile.
 
 ## Memory operations aware of topology
 - `df.chained_load` models a memory load that traverses a chain-like interconnect.
