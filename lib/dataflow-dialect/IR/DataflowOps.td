@@ -46,5 +46,5 @@ def ChainedLoadOp : DF_Op<"chained_load"> {
 
   // Custom parser/printer implements the syntax shown above, including the
   // trailing ", over %chain" clause.
-  let hasCustomAssemblyFormat = 1;
+  // let hasCustomAssemblyFormat = 1;
 }
