@@ -83,7 +83,7 @@ def run_once():
     B = torch.randn((K, N), dtype=torch.float32)
     C = torch.empty((M, N), dtype=torch.float32)
 
-    BLOCK_M, BLOCK_N, BLOCK_K = 64, 64, 32
+    BLOCK_M, BLOCK_N, BLOCK_K = 32, 32, 32
     grid = (triton.cdiv(M, BLOCK_M), triton.cdiv(N, BLOCK_N))
 
     matmul_kernel[grid](
