@@ -60,8 +60,7 @@ int main(int argc, char **argv) {
   PassManager pm(&context);
   pm.addPass(tmd::passes::createAnnotateReinterpretCastReusePass());
   if (failed(pm.run(*module))) {
-    llvm::WithColor::error(llvm::errs())
-        << "Reuse annotation pass failed\n";
+    llvm::WithColor::error(llvm::errs()) << "Reuse annotation pass failed\n";
     return 2;
   }
 
@@ -70,4 +69,3 @@ int main(int argc, char **argv) {
   llvm::outs() << "\n";
   return 0;
 }
-
