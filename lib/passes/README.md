@@ -13,10 +13,15 @@ This directory contains all MLIR-based transformations and helper analyses shipp
 - Driver mains in `tool/affine/` expose tiling (`affine_tile`), exploration (`affine_explore`), and reuse analysis (`affine_analyze`) flows that stitch these utilities together.
 
 ## Triton-shared passes (`triton-shared/`)
-- **Input model.** Triton emits `tt.shared` kernels that expect to run on a GPU grid; the last six function arguments encode the launch grid extents and the current program IDs (`program_id.{x,y,z}`). The files under `test/Dialect/Triton/mm_fixed_strides/` (notably `ttshared.mlir`) capture the IR directly from Triton.
-- `triton_shared_affinize.{h,cpp}` – normalize Triton-shared kernels by retyping arguments to `index`, rebuilding affine-friendly arithmetic, replacing eligible `memref` ops with affine variants, and stripping redundant casts. The goal is to expose the same indexing logic as affine expressions so later passes can reason about iteration spaces.
-- `triton_shared_grid_to_parallel.{h,cpp}` – wrap kernels in a 3-D `affine.parallel`, wire grid dimensions into loop bounds, and erase explicit grid index arguments. After this stage, the outermost `affine.parallel` enumerates all GPU grid coordinates.
-- `triton_shared_to_affine.cpp` (in `tool/`) composes these passes with spatial exploration to produce DF-annotated kernels. A hardware description written in the evolving `df` dialect (example: `test/Dialect/DataflowDialect/2D_mesh.mlir`) declares named spatial dimensions. The exploration clones each kernel for every viable mapping between hardware dimensions and the grid loops, annotating mapped `affine.parallel` iterators with `tmd.mapped_to` and emitting additional `affine.for` loops when execution must be time-multiplexed (“waves”) across the mesh. Original `scf.for` loops remain to represent per-core sequencing of tiles.
+#### Input 
+Triton emits `tt.shared` kernels that expect to run on a GPU grid; the last six function arguments encode the launch grid extents and the current program IDs (`program_id.{x,y,z}`). Example of such input can be found in `test/Dialect/Triton/mm_fixed_strides/ttshared.mlir`.
+#### Passes 
+the pass pipeline `build/tool/ttshared-opt` convert this `ttshared.mlir` through 5 stages: 
+- **affinization**: try to convert the arith operations in the ttshared into affine formulas
+- **grid_to_parallel**: convert the grid representation in the orginal ttshared into `afffine.parallel` representations, where the used grid dimensions become the parallel for loop
+- **explore_mapping**: tile and reorder the `affine.parallel` loops
+- **annotate_reuse**: calculate the data reuse among spatial cores and annotate the reuse volume
+    
 
 ## Common utilities (`common/`)
 - `spatial_mapping.{h,cpp}` – parse DF modules (`df.spatial_dim`), enumerate spatial mappings for affine loops or Triton kernels, and stitch results back together (including helpers for affine canonicalization). Cloned functions are suffixed with tokens `d<dimIndex>i<iterIndex>` (mapping dimension `dimIndex` to iterator `iterIndex`) and, when iterator orders are permuted, additional `_f<pos>` tokens to record the chosen order. This mirrors the notation visible in examples such as `@matmul_kernel__d0i0_d1i0_f0_f1`.
