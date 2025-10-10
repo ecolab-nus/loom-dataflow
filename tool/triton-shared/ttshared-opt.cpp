@@ -135,8 +135,7 @@ int main(int argc, char **argv) {
   PassManager annotatePM(&context);
   annotatePM.addPass(tmd::passes::createAnnotateReinterpretCastReusePass());
   if (failed(annotatePM.run(*merged))) {
-    llvm::WithColor::error(llvm::errs())
-        << "Reuse annotation pass failed\n";
+    llvm::WithColor::error(llvm::errs()) << "Reuse annotation pass failed\n";
     return 3;
   }
 
