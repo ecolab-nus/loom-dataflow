@@ -3,8 +3,8 @@
 # explore_mapping
 add_executable(explore_mapping
   ${CMAKE_CURRENT_LIST_DIR}/explore_mapping.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/common/spatial_mapping.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/common/reinterpret_cast_reuse.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/spatial_mapping.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/reinterpret_cast_reuse.cpp
   ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_tile.cpp
   ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_parallel_to_for.cpp
 )
@@ -103,7 +103,7 @@ set_target_properties(grid_to_parallel PROPERTIES
 
 add_executable(annotate_reuse
   ${CMAKE_CURRENT_LIST_DIR}/annotate_reuse.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/common/reinterpret_cast_reuse.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/reinterpret_cast_reuse.cpp
 )
 
 target_include_directories(annotate_reuse PRIVATE
@@ -141,8 +141,8 @@ set_target_properties(annotate_reuse PROPERTIES
 # explore_alloc_copy_mapping: Annotate reuse and explore alloc/copy mappings
 add_executable(explore_alloc_copy_mapping
   ${CMAKE_CURRENT_LIST_DIR}/explore_alloc_copy_mapping.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/common/reinterpret_cast_reuse.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/common/explore_alloc_copy_mapping.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/reinterpret_cast_reuse.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/explore_alloc_copy_mapping.cpp
 )
 
 target_include_directories(explore_alloc_copy_mapping PRIVATE

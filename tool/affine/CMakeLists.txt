@@ -2,7 +2,7 @@
 
 add_executable(affine_explore
   ${CMAKE_CURRENT_LIST_DIR}/affine_explore_main.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/common/spatial_mapping.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/spatial_mapping.cpp
   ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_tile.cpp
   ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_parallel_to_for.cpp
 )
@@ -63,8 +63,8 @@ set_target_properties(affine_tile PROPERTIES
 
 add_executable(affine_analyze
   ${CMAKE_CURRENT_LIST_DIR}/affine_analyze_main.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/common/spatial_mapping.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/common/input_sharing_analysis.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/spatial_mapping.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/input_sharing_analysis.cpp
   ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_tile.cpp
   ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_parallel_to_for.cpp
 )

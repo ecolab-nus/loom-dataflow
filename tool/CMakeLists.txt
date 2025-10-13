@@ -4,7 +4,6 @@
 set(TMD_PASSES_INC
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine
-  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared
   ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
 )
@@ -20,9 +19,9 @@ add_executable(ttshared-opt
   ${CMAKE_CURRENT_LIST_DIR}/triton-shared/ttshared-opt.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared/triton_shared_affinize.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared/triton_shared_grid_to_parallel.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/spatial_mapping.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/reinterpret_cast_reuse.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/explore_alloc_copy_mapping.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared/spatial_mapping.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared/reinterpret_cast_reuse.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared/explore_alloc_copy_mapping.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/affine_parallel_to_for.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/affine_tile.cpp
 )

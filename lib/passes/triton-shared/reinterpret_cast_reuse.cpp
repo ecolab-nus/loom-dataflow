@@ -11,9 +11,9 @@
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Pass/Pass.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -60,8 +60,7 @@ class AnnotateReinterpretCastReusePass
     : public PassWrapper<AnnotateReinterpretCastReusePass,
                          OperationPass<ModuleOp>> {
 public:
-  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(
-      AnnotateReinterpretCastReusePass)
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(AnnotateReinterpretCastReusePass)
 
   StringRef getArgument() const override {
     return "tmd-annotate-reinterpret-cast-reuse";
@@ -144,9 +143,8 @@ public:
 
       auto annotateIterator = [&](Value iv, SmallVectorImpl<Attribute> &bucket,
                                   StringAttr mappedTo, unsigned depth) {
-        bool variant = llvm::any_of(dynamicOffsets, [&](Value v) {
-          return dependsOn(v, iv);
-        });
+        bool variant = llvm::any_of(dynamicOffsets,
+                                    [&](Value v) { return dependsOn(v, iv); });
         StringRef reuseType = variant ? "no_reuse" : "total_reuse";
         int64_t reuseVolume = 0;
         if (!variant) {
@@ -174,8 +172,7 @@ public:
 
       for (auto [depth, loop] : llvm::enumerate(loopStack)) {
         if (auto par = dyn_cast<affine::AffineParallelOp>(loop)) {
-          StringAttr mapped =
-              loop->getAttrOfType<StringAttr>("tmd.mapped_to");
+          StringAttr mapped = loop->getAttrOfType<StringAttr>("tmd.mapped_to");
           for (Value iv : par.getIVs())
             annotateIterator(iv, spatialEntries, mapped, depth);
         } else if (auto affFor = dyn_cast<affine::AffineForOp>(loop)) {
@@ -193,8 +190,7 @@ public:
       if (!temporalEntries.empty())
         reuseAttrs.append("temporal", ArrayAttr::get(ctx, temporalEntries));
       if (!sequentialEntries.empty())
-        reuseAttrs.append("sequential",
-                          ArrayAttr::get(ctx, sequentialEntries));
+        reuseAttrs.append("sequential", ArrayAttr::get(ctx, sequentialEntries));
 
       if (!reuseAttrs.empty())
         op->setAttr("tmd.reuse", DictionaryAttr::get(ctx, reuseAttrs));

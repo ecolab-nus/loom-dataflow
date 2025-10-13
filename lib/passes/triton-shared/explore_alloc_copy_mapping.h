@@ -29,7 +29,7 @@ namespace passes {
  *   function per combination, and attach `tmd.copy.choice` on each copy.
  *
  * @param analysisOnly When true, annotate candidates only (no clones).
- * @param maxVariants Maximum clones per function (\<0 means unlimited).
+ * @param maxVariants Maximum clones per function (<0 means unlimited).
  */
 std::unique_ptr<mlir::Pass>
 createExploreAllocCopyMappingPass(bool analysisOnly = false);
