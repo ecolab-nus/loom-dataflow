@@ -2,10 +2,10 @@ module {
   %0 = df.spatial_dim "x", 8
   %1 = df.spatial_dim "y", 8
   %2 = df.compute "cluster_cores", %0, %1 {map = affine_map<(d0, d1) -> (d0, d1)>}
-  %3 = df.memory "cluster_mem", %0 {map = affine_map<(d0) -> (d0)>}
-  %4 = df.mux %2 : !df.compute, %3 : !df.memory, %0, %1 {map = affine_map<(d0, d1) -> (d0)>}
+  %3 = df.memory "cluster_mem", %0, %1 {map = affine_map<(d0, d1) -> (d0, d1)>}
+  %4 = df.mux %2 : !df.compute, %3 : !df.memory, %0, %1 {map = affine_map<(d0, d1) -> (d0, d1)>}
   %5 = df.interconnects %2 : !df.compute, %2 : !df.compute, %0, %1 {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : !df.interconnect
-  %6 = df.interconnects %3 : !df.memory, %3 : !df.memory, %0 {map = affine_map<(d0) -> (d0 + 1)>} : !df.interconnect
+  %6 = df.interconnects %2 : !df.compute, %2 : !df.compute, %0, %1 {map = affine_map<(d0, d1) -> (d0, d1 + 1)>} : !df.interconnect
   func.func @matmul_kernel__d0i0_d1i0_f0_f1(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index {tt.divisibility = 16 : i32}, %arg4: index {tt.divisibility = 16 : i32}, %arg5: index {tt.divisibility = 16 : i32}, %arg6: index, %arg7: index, %arg8: index) {
     affine.for %arg9 = 0 to affine_map<(d0, d1) -> ((d0 ceildiv 8) ceildiv 8)>(%arg6, %arg7) {
       affine.for %arg10 = 0 to affine_map<(d0, d1) -> (d1)>(%arg6, %arg7) {
