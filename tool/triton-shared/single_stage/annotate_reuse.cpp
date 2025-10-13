@@ -23,13 +23,41 @@
 #include "mlir/Support/FileUtilities.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include "DataflowDialect.h.inc"
 #include "DataflowOps.h.inc"
 
 using namespace mlir;
 
+/// Print usage information for this tool.
+///
+/// \param os        The output stream to write usage text to.
+/// \param progName  The program name as invoked (argv[0]).
+static void printUsage(llvm::raw_ostream &os, const char *progName) {
+  os << "Usage:\n";
+  os << "  " << progName << " [<input.mlir>]\n\n";
+  os << "Options:\n";
+  os << "  -h, --help    Show this help message and exit\n\n";
+  os << "Notes:\n";
+  os << "  If no input is provided, or '-' is used, reads from stdin.\n";
+}
+
 int main(int argc, char **argv) {
+  // Handle help and basic argument validation before doing any work.
+  if (argc > 2) {
+    llvm::WithColor::error(llvm::errs()) << "Unexpected arguments.\n";
+    printUsage(llvm::errs(), argv[0]);
+    return 1;
+  }
+  if (argc == 2) {
+    llvm::StringRef arg1(argv[1]);
+    if (arg1 == "-h" || arg1 == "--help" || arg1 == "-help" || arg1 == "-?") {
+      printUsage(llvm::outs(), argv[0]);
+      return 0;
+    }
+  }
+
   MLIRContext context;
   context.loadDialect<mlir::BuiltinDialect>();
   context.loadDialect<mlir::func::FuncDialect>();
