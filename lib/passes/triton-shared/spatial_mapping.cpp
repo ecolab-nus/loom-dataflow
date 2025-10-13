@@ -1,3 +1,29 @@
+/**
+ * @file spatial_mapping.cpp
+ * @brief Implementation for spatial mapping discovery and enumeration.
+ * @details
+ * Provided functionality
+ * - `collectSpatialDims`: parse `df.spatial_dim` declarations from the DF
+ *   module into simple name/size pairs.
+ * - `mapSpatialDimsToAffine`: greedily tile outermost `affine.parallel` loops
+ *   with factors derived from spatial dimension sizes and mark inner loops with
+ *   `tmd.mapped_to`.
+ * - `enumerateSpatialMappings`: produce clones for all unique bucketings and
+ *   per-iterator permutations of spatial dims over the first outermost
+ *   `affine.parallel` in each function.
+ * - `enumerateSpatialMappingsWithOuterFors`: additionally convert remaining
+ *   parallel iterators to `affine.for` nests in every permutation order.
+ * - `enumerateTritonSharedSpatialMappings`: Triton-specific enumeration that
+ *   associates used program grid indices {x,y,z} with hardware spatial dims and
+ *   records the mapping as function attributes; also rewrites the legacy grid
+ *   ABI to a compact form based on spatial IDs.
+ *
+ * Limitations
+ * - Currently enumerates only the first outermost `affine.parallel` per
+ *   function. Extending to multiple regions requires nested enumeration.
+ * - Dynamic spatial sizes are treated as factor=1 during tiling.
+ */
+
 #include "spatial_mapping.h"
 #include "affine_tile.h"
 

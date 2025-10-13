@@ -1,3 +1,21 @@
+/**
+ * @file reinterpret_cast_reuse.cpp
+ * @brief Implementation: annotate `memref.reinterpret_cast` with `tmd.reuse`.
+ * @details
+ * Strategy
+ * - For each `memref.reinterpret_cast`, collect its dynamic offsets.
+ * - Walk outward to gather enclosing loops in lexical order, distinguishing
+ *   `affine.parallel` (spatial), `affine.for` (temporal), and `scf.for`
+ *   (sequential).
+ * - For each IV, check whether any dynamic offset depends on the IV via a
+ *   dependency walk. If yes, mark `reuse_type = no_reuse`; otherwise
+ *   `total_reuse` and estimate `volume` by the result memref block size in
+ *   bytes (or -1 when unknown).
+ * - Emit `tmd.reuse` as a nested dictionary with three arrays: `spatial`,
+ *   `temporal`, `sequential`. Each element carries `iterator`, `depth`,
+ *   `reuse_type`, `volume`, and optional `mapped_to`.
+ */
+
 #include "reinterpret_cast_reuse.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -5,14 +23,12 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/AsmState.h"
 #include "mlir/IR/Attributes.h"
-#include "mlir/IR/Block.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"

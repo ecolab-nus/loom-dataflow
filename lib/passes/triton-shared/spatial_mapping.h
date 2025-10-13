@@ -1,3 +1,21 @@
+/**
+ * @file spatial_mapping.h
+ * @brief Query and enumerate mappings between hardware spatial dims and IR.
+ * @details
+ * This utility layer provides:
+ * - Discovery of hardware spatial dimensions from the DF module.
+ * - Greedy mapping of discovered dims to `affine.parallel` loops by tiling.
+ * - Exhaustive enumeration of unique mappings, cloning functions per mapping
+ *   and annotating loops with `tmd.mapped_to`.
+ * - A Triton-shared specific enumerator that maps program grid dims {x,y,z} to
+ *   hardware spatial dims and records the association as function attributes.
+ *
+ * Intended usage
+ * - After `tmd-triton-shared-grid-to-parallel` introduced an outer
+ *   `affine.parallel`, use these APIs to explore valid hardware placements and
+ *   downstream loop-linearization options.
+ */
+
 #pragma once
 
 #include "mlir/IR/BuiltinOps.h"

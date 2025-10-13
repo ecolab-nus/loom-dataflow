@@ -19,6 +19,44 @@
 //
 //===----------------------------------------------------------------------===//
 
+/**
+ * @file triton_shared_affinize.cpp
+ * @brief Affinize index computations and memory ops for Triton-shared kernels.
+ * @details
+ * Implementation outline
+ * - Function argument normalization: promote 32-bit integer ABI args that
+ *   participate in index arithmetic to `index` type, and rebuild nearby arith
+ *   ops to operate on `index` to minimize casts.
+ * - Dimension/symbol modeling: the last three function arguments and enclosing
+ *   loop IVs are modeled as affine dims; other function arguments are modeled
+ *   as affine symbols. Non-affine subgraphs are promoted to symbols.
+ * - Affineization helpers:
+ *   - LinearFormBuilder builds affine expressions with fixed dims while
+ *     promoting unknowns to symbols.
+ *   - Rewriters reconstruct `affine.apply`, `affine.min/max` around
+ *     recognized arith patterns.
+ * - Operation coverage:
+ *   - `memref.load/store` → `affine.load/store` when all indices are affine.
+ *   - `memref.reinterpret_cast`, `tensor.extract_slice`, `memref.subview`:
+ *     rebuild selected operands (primarily offsets/sizes) with affine ops.
+ *   - `scf.for`: rebuild with index-typed IV/bounds and affine-applied bounds.
+ * - Cleanups: iterative DCE and redundant `arith.index_cast` removal.
+ *
+ * Constraints and limitations
+ * - Only affine-preserving patterns are accepted: add/sub, mul/div by constant
+ *   (floorDiv), min/max over affine expressions. Anything else is treated as a
+ *   symbol or left as-is.
+ * - For `reinterpret_cast`, only offsets are aggressively affine-ized to avoid
+ *   altering dominance-sensitive size/stride flows.
+ * - Heuristics are conservative; failure to prove affinity leaves original IR
+ *   unchanged (soundness over completeness).
+ *
+ * Usage
+ * - Register the pass via `tmd::passes::registerTritonSharedAffinizePass()`
+ * - Invoke with `--tmd-triton-shared-affinize` early in the pipeline before
+ *   grid-to-parallel and spatial mapping passes.
+ */
+
 #include "triton_shared_affinize.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"

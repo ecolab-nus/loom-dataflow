@@ -1,6 +1,18 @@
 /**
  * @file explore_alloc_copy_mapping.h
- * @brief Pass to enumerate mapping choices for memref.alloc and memref.copy.
+ * @brief Explore mapping choices for memref.alloc and memref.copy.
+ * @details
+ * Annotates `memref.alloc` with local memory placement and explores how
+ * `memref.copy` operations are realized on the dataflow fabric: local
+ * memory copies versus broadcasts along available interconnects. Uses
+ * `tmd.reuse` metadata from `memref.reinterpret_cast` to determine broadcast
+ * eligibility along spatial dimensions.
+ *
+ * Modes
+ * - Analysis-only: attach `tmd.copy.candidates` arrays in place.
+ * - Enumeration: clone per cross-product of copy-site candidates, setting a
+ *   single `tmd.copy.choice` per site and suffixing function names to reflect
+ *   choices.
  */
 
 #pragma once
@@ -29,7 +41,6 @@ namespace passes {
  *   function per combination, and attach `tmd.copy.choice` on each copy.
  *
  * @param analysisOnly When true, annotate candidates only (no clones).
- * @param maxVariants Maximum clones per function (<0 means unlimited).
  */
 std::unique_ptr<mlir::Pass>
 createExploreAllocCopyMappingPass(bool analysisOnly = false);

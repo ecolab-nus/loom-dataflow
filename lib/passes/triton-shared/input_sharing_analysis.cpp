@@ -1,3 +1,24 @@
+/**
+ * @file input_sharing_analysis.cpp
+ * @brief Analyses for input reuse and invariance across iterator movements.
+ * @details
+ * Provides two analyses used in spatial mapping and memory placement:
+ * - `attachPrimitiveReuseVectors`: for each `affine.load`, compute a basis of
+ *   primitive integer reuse vectors (nullspace of access deltas) to indicate
+ *   directions in iterator space along which the access is invariant.
+ * - `runInputSharingReuseAnalysis`: textual report of reuse for all movement
+ *   directions formed by +1 along any subset of enclosing iterators (excluding
+ *   all-zero), grouped per nearest enclosing `affine.parallel` region.
+ * - `annotateSpatialInvariance`: attach fast boolean invariance summaries
+ *   (`tmd.invariant.{x,y}`) based on `tmd.mapped_to` loop annotations.
+ *
+ * Limitations
+ * - The reuse basis uses syntactic affine deltas; non-affine or symbol-coupled
+ *   dependencies may be conservatively treated as non-reuse.
+ * - The textual analysis is exponential in the number of iterators and is
+ *   capped for very large nests.
+ */
+
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Affine/Utils.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"

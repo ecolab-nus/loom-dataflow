@@ -61,6 +61,25 @@
 //
 //===----------------------------------------------------------------------===//
 
+/**
+ * @file triton_shared_grid_to_parallel.cpp
+ * @brief Implementation of grid-to-parallel conversion for Triton-shared ABI.
+ * @details
+ * Algorithm
+ * - Identify the last six function arguments and interpret them as
+ *   `(sizeX, sizeY, sizeZ, idxX, idxY, idxZ)`.
+ * - Insert a 3-D `affine.parallel` at the beginning of the entry block with
+ *   lower bounds 0 and upper bounds `(sizeX, sizeY, sizeZ)` and steps (1,1,1).
+ * - Move the original body into the parallel region and replace all uses of
+ *   `(idxX, idxY, idxZ)` with the parallel IVs.
+ * - Remove the three index arguments from the function type and entry block.
+ * - Optionally, shrink the parallel to only used IVs while preserving bounds.
+ *
+ * Limitations
+ * - Assumes sizes are already (or castable to) index type.
+ * - Does not introduce reductions or yield results from the parallel region.
+ */
+
 #include "triton_shared_grid_to_parallel.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"

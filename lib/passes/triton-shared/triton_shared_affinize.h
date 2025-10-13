@@ -1,17 +1,39 @@
-// Affinization pass for Triton-shared lowered kernels.
-//
-// This pass rewrites arithmetic index computations into affine.apply
-// operations and converts eligible memory operations to affine form, exposing
-// affine relationships among indexing variables. The last six function
-// arguments that encode GPU grid/thread sizes and IDs are modeled as symbols
-// and dimensions within affine maps where applicable.
-//
-// The pass targets code patterns produced by the Triton-shared lowering, where
-// index arithmetic is typically expressed in the arith dialect before
-// bufferization and Linalg operations. Making these expressions affine-friendly
-// is what allows the subsequent grid-to-parallel and spatial mapping passes to
-// reason about GPU launch grids and match them against hardware meshes defined
-// in the `df` dialect.
+/**
+ * @file triton_shared_affinize.h
+ * @brief Affinization pass for Triton-shared lowered kernels.
+ * @details
+ * Converts arithmetic index expressions (arith dialect) into `affine.apply`
+ * and replaces eligible `memref.load/store` with `affine.load/store` to expose
+ * affine relationships. This is the entry point of the Triton → dataflow
+ * pipeline and is a prerequisite for subsequent grid-to-parallel and spatial
+ * mapping passes.
+ *
+ * Usage
+ * - Register: `tmd::passes::registerTritonSharedAffinizePass()`
+ * - CLI pipeline: `--tmd-triton-shared-affinize`
+ * - Intended to run before `tmd-triton-shared-grid-to-parallel`.
+ *
+ * Preconditions
+ * - Functions follow the Triton-shared ABI where the last 6 block arguments
+ *   carry grid sizes and indices: `(sizeX, sizeY, sizeZ, idxX, idxY, idxZ)`.
+ * - Index math is expressed in the `arith` dialect or via loop IVs.
+ *
+ * Semantics and Scope
+ * - Treats the last six function arguments (grid sizes and indices) and loop
+ *   IVs as affine dims, all other function arguments as affine symbols.
+ * - Rewrites index-typed values to `affine.apply` where provably affine; keeps
+ *   original values when non-affine.
+ * - Converts loads/stores to affine.memrefs when all indices are affine.
+ * - Rebuilds selected `memref.reinterpret_cast`, `tensor.extract_slice` and
+ *   `memref.subview` operands to use affine ops when possible.
+ *
+ * Limitations
+ * - Only linear/affine-preserving operations are recognized (add/sub, mul/div
+ *   by constants, min/max with affine arguments). Non-affine subgraphs are
+ *   promoted to symbols or left unchanged.
+ * - Affinization of sizes/strides for `reinterpret_cast` is conservative
+ *   (focuses primarily on offsets).
+ */
 
 #pragma once
 

@@ -1,3 +1,26 @@
+/**
+ * @file explore_alloc_copy_mapping.cpp
+ * @brief Implementation for alloc/copy mapping exploration.
+ * @details
+ * Dataflow assumptions
+ * - Exactly one `df.memory` declares the local memory pool (`memory_name`).
+ * - Optional `df.interconnects` define broadcast-capable links between tiles.
+ *   We classify simple maps as horizontal (x) or vertical (y) heuristically.
+ * - Prior reuse analysis must have attached `tmd.reuse` on relevant
+ *   `memref.reinterpret_cast` ops to expose spatial total-reuse.
+ *
+ * Behavior
+ * - Always annotate `memref.alloc` with `tmd.alloc = { local=true,
+ *   memory_name=... }`.
+ * - For each `memref.copy`, build a candidate set:
+ *   - `kind=mem`: local memory copy into the single `df.memory`.
+ *   - `kind=broadcast`, `dim=x|y`, `interconnect_name=...` for each eligible
+ *     interconnect along a dimension with total-reuse.
+ * - Analysis-only mode attaches `tmd.copy.candidates` per site.
+ * - Enumeration mode clones per cross-product of site candidates and attaches
+ *   `tmd.copy.choice` in each clone; function names are suffixed accordingly.
+ */
+
 #include "explore_alloc_copy_mapping.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"

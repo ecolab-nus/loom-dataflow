@@ -1,19 +1,26 @@
-// Transform Triton-shared kernels by replacing grid index arguments with
-// top-level affine.parallel loops.
-//
-// This pass assumes the last six arguments of each `func.func` represent the
-// grid: three sizes followed by three indices. It creates a 3-D
-// `affine.parallel` whose upper bounds are the three size arguments and whose
-// induction variables replace the three index arguments within the function
-// body. Finally, it erases the three index arguments from the function
-// signature.
-//
-// Note: The three size arguments are preserved as dynamic upper bounds for the
-// loops. If they are not of index type, they are cast to index as needed. The
-// resulting `affine.parallel` serves as the anchor point for spatial mappings:
-// later exploration passes match its induction variables with hardware
-// dimensions declared in the `df` dialect and may wrap the parallel loop in
-// additional `affine.for` nests to model sequential waves across the mesh.
+/**
+ * @file triton_shared_grid_to_parallel.h
+ * @brief Replace grid index ABI with a 3-D `affine.parallel` loop nest.
+ * @details
+ * Converts the Triton-shared grid calling convention
+ * `(sizeX, sizeY, sizeZ, idxX, idxY, idxZ)` into a single 3-D
+ * `affine.parallel` whose IVs replace the index arguments, and erases the
+ * index arguments from the function signature.
+ *
+ * Usage
+ * - Register: `tmd::passes::registerTritonSharedGridToParallelPass()`
+ * - CLI: `--tmd-triton-shared-grid-to-parallel`
+ * - Run after `--tmd-triton-shared-affinize`.
+ *
+ * Constraints
+ * - Function must have at least 6 arguments; the last six are interpreted as
+ *   `(sizeX, sizeY, sizeZ, idxX, idxY, idxZ)`.
+ * - Sizes are used as dynamic upper bounds; indices are fully replaced.
+ *
+ * Notes
+ * - The resulting parallel region becomes the anchor for spatial mapping and
+ *   may be further tiled/annotated by subsequent passes.
+ */
 
 #pragma once
 
