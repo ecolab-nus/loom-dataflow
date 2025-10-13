@@ -130,14 +130,6 @@ int main(int argc, char **argv) {
   for (Operation &op : *out->getBody())
     builder.clone(op, mapping);
 
-  PassManager annotatePM(&context);
-  annotatePM.addPass(tmd::passes::createAnnotateReinterpretCastReusePass());
-  if (failed(annotatePM.run(*merged))) {
-    llvm::WithColor::error(llvm::errs())
-        << "Reuse annotation pass failed\n";
-    return 1;
-  }
-
   mlir::OpPrintingFlags flags;
   flags.useLocalScope();
   merged->print(llvm::outs(), flags);
