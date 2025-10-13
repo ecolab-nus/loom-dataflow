@@ -93,18 +93,89 @@ cmake --build . --config Release
 
 ## Running Tools & Passes
 All binaries live under `build/tool/` after a build. Useful entry points include:
-- `triton_shared_affinize` – normalize a Triton-shared kernel to affine-friendly form.
-- `triton_shared_grid_to_parallel` – wrap kernels in 3-D `affine.parallel` loops and drop explicit grid indices.
-- `triton_shared_to_affine` – full pipeline that merges the transformed kernel with a DF module.
-- `triton_shared_explore` – enumerate spatial mappings for Triton-shared kernels.
+- `triton-shared/single_stage/affinize` – run the Triton-shared affinization pass.
+- `triton-shared/single_stage/grid_to_parallel` – replace grid indices with a 3-D `affine.parallel`.
+- `triton-shared/single_stage/explore_mapping` – enumerate spatial mappings and merge a DF module.
+- `triton-shared/single_stage/annotate_reuse` – attach `tmd.reuse` on `memref.reinterpret_cast`.
+- `triton-shared/single_stage/explore_alloc_copy_mapping` – enumerate `memref.alloc`/`memref.copy` mapping choices.
+- `ttshared-opt` – end-to-end Triton-shared → Affine/Dataflow pipeline driver.
 - `affine_explore`, `affine_tile`, `affine_analyze` – affine-only exploration, tiling, and reuse analysis utilities.
 
-Example:
+### Triton-shared → Dataflow pipeline (step-by-step)
+The repository includes a runnable pipeline that lowers a Triton-shared kernel (already bufferized) into a custom Affine/Dataflow form. The examples under `test/Passes/mm_2Dmesh/` can be reproduced with the following commands executed from the repo root after a build.
+
+1) Affinize Triton-shared indices
 ```bash
-build/tool/triton_shared_to_affine \
-  --ttshared test/Dialect/Triton/mm_normal/ttshared.mlir \
-  --df test/Dialect/DataflowDialect/2D_mesh.mlir > merged.mlir
+build/tool/triton-shared/single_stage/affinize \
+  test/Dialect/Triton/mm_fixed_strides/ttshared.bufferized.mlir \
+  > test/Passes/mm_2Dmesh/after_affinization.mlir
 ```
+
+2) Replace grid indices with a 3-D `affine.parallel`
+```bash
+build/tool/triton-shared/single_stage/grid_to_parallel \
+  test/Passes/mm_2Dmesh/after_affinization.mlir \
+  > test/Passes/mm_2Dmesh/after_grid_to_parallel.mlir
+```
+
+3) Enumerate spatial mappings and merge DF declarations
+```bash
+build/tool/triton-shared/single_stage/explore_mapping \
+  --ttshared test/Passes/mm_2Dmesh/after_grid_to_parallel.mlir \
+  --df test/Dialect/DataflowDialect/2D_mesh.mlir \
+  > test/Passes/mm_2Dmesh/after_exploration.mlir
+```
+
+4) Annotate reuse on `memref.reinterpret_cast`
+```bash
+build/tool/triton-shared/single_stage/annotate_reuse \
+  test/Passes/mm_2Dmesh/after_exploration.mlir \
+  > test/Passes/mm_2Dmesh/reuse_annotated.mlir
+```
+
+5) Explore alloc/copy mapping choices
+```bash
+# Option A: continue step-by-step on the annotated module
+build/tool/triton-shared/single_stage/explore_alloc_copy_mapping \
+  --input test/Passes/mm_2Dmesh/reuse_annotated.mlir \
+  > test/Passes/mm_2Dmesh/alloc_copy_mapped.mlir
+
+# Option B: end-to-end in one command (affinize → grid_to_parallel → explore → annotate → alloc/copy)
+build/tool/ttshared-opt \
+  --ttshared test/Dialect/Triton/mm_fixed_strides/ttshared.bufferized.mlir \
+  --df test/Dialect/DataflowDialect/2D_mesh.mlir \
+  > test/Passes/mm_2Dmesh/alloc_copy_mapped.mlir
+```
+
+Notes:
+- The end-to-end driver accepts `--map-analysis-only` to attach `tmd.copy.candidates` without cloning functions.
+- The single-stage alloc/copy explorer accepts `--analysis-only` with the same effect.
+
+### Pass reference (purpose, limitations, implementation)
+- Affinize Triton-shared indices (`tmd-triton-shared-affinize`)
+  - Purpose: Rewrite arithmetic index expressions into `affine.apply`, convert eligible loads/stores to affine form, and express `memref.reinterpret_cast` offsets via affine maps. Treats trailing grid/thread arguments as dims/symbols to expose GPU-style indexing to affine.
+  - Limitations: Conservative—only provably affine expressions are converted. Assumes the last 6 function arguments encode grid sizes/indices; nonconforming kernels are left unchanged. Some `memref` ops remain non-affine if indices are not proven affine.
+  - Implementation: See `lib/passes/triton-shared/triton_shared_affinize.{h,cpp}`; pass argument is `tmd-triton-shared-affinize`.
+
+- Grid-to-parallel (`tmd-triton-shared-grid-to-parallel`)
+  - Purpose: Replace the last three grid index arguments with a 3-D `affine.parallel` with dynamic uppers `(sizeX,sizeY,sizeZ)`; erase index args from the signature and replace their uses by the parallel IVs.
+  - Limitations: Requires ≥ 6 function args following `(sizeX,sizeY,sizeZ, idxX,idxY,idxZ)`; otherwise no-op. Expects sizes to be of `index` (affinization establishes this in typical flows).
+  - Implementation: See `lib/passes/triton-shared/triton_shared_grid_to_parallel.{h,cpp}`.
+
+- Spatial mapping exploration
+  - Purpose: Enumerate mappings from hardware `df.spatial_dim` declarations to the outermost `affine.parallel` iterators; clone per mapping, annotate inner loops with `tmd.mapped_to`, and insert outer `affine.for` “waves” when the mesh cannot cover the grid in one shot.
+  - Limitations: Combinatorial growth in clones due to partitioning/permutation of dims and outer-for orderings. Exploration is structural (not resource-capacity aware) in this prototype.
+  - Implementation: `lib/passes/triton-shared/spatial_mapping.{h,cpp}` (`enumerateSpatialMappingsWithOuterFors`). CLI: `build/tool/triton-shared/single_stage/explore_mapping`.
+
+- Reuse annotation on reinterpret-cast (`tmd-annotate-reinterpret-cast-reuse`)
+  - Purpose: Attach a `tmd.reuse` dictionary to each `memref.reinterpret_cast` describing how its offset varies with surrounding iterators, grouped by `spatial` (`affine.parallel`), `temporal` (`affine.for`), and `sequential` (`scf.for`). Each entry records `iterator` (SSA name), `depth`, `reuse_type` (`no_reuse`/`total_reuse`), `volume` (bytes; 0, full block, or -1 unknown), and `mapped_to` for spatial entries.
+  - Limitations: Binary reuse classification only (no partial reuse yet). Volumes require known block sizes.
+  - Implementation: `lib/passes/triton-shared/reinterpret_cast_reuse.{h,cpp}`. CLI: `build/tool/triton-shared/single_stage/annotate_reuse`.
+
+- Alloc/Copy mapping exploration (`tmd-explore-alloc-copy-mapping`)
+  - Purpose: Annotate `memref.alloc` with `{tmd.alloc={local=true, memory_name=…}}` and enumerate per-`memref.copy` mapping choices: local memory copies and broadcasts along dimensions with spatial total-reuse. Merge the DF module to discover one `df.memory` and classify `df.interconnects` as x/y based on affine maps.
+  - Limitations: Assumes a single `df.memory`; interconnect classification is heuristic (e.g., `(d0+1,d1)`→x, `(d0,d1+1)`→y). Enumerating the cross-product of candidates can explode; use analysis-only when needed.
+  - Implementation: `lib/passes/triton-shared/explore_alloc_copy_mapping.{h,cpp}` and notes in `lib/passes/triton-shared/README.alloc_copy_mapping.md`. CLI: `build/tool/triton-shared/single_stage/explore_alloc_copy_mapping` (or end-to-end via `build/tool/ttshared-opt`).
 
 ## Tests & Examples
 ```bash
