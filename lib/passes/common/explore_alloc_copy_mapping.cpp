@@ -139,8 +139,7 @@ struct ExploreAllocCopyMappingPass
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ExploreAllocCopyMappingPass)
 
   ExploreAllocCopyMappingPass() = default;
-  ExploreAllocCopyMappingPass(bool analysisOnly, long long maxVariants)
-      : analysisOnly(analysisOnly), maxVariants(maxVariants) {}
+  ExploreAllocCopyMappingPass(bool analysisOnly) : analysisOnly(analysisOnly) {}
 
   StringRef getArgument() const override {
     return "tmd-explore-alloc-copy-mapping";
@@ -218,10 +217,7 @@ struct ExploreAllocCopyMappingPass
       return;
     }
 
-    // Enumeration mode: clone per combination of choices.
-    long long limit = maxVariants;
-    if (limit < 0)
-      limit = std::numeric_limits<long long>::max();
+    // Enumeration mode: clone per combination of choices (no limit).
 
     OpBuilder moduleBuilder(module.getBodyRegion());
     OwningOpRef<ModuleOp> out = ModuleOp::create(module.getLoc());
@@ -291,8 +287,6 @@ struct ExploreAllocCopyMappingPass
 
       long long produced = 0;
       do {
-        if (produced >= limit)
-          break;
         // Clone function.
         IRMapping map;
         func::FuncOp clone = cast<func::FuncOp>(outBuilder.clone(*f, map));
@@ -361,16 +355,13 @@ struct ExploreAllocCopyMappingPass
   }
 
   bool analysisOnly = false;
-  long long maxVariants = -1;
 };
 
 } // namespace
 
 std::unique_ptr<mlir::Pass>
-tmd::passes::createExploreAllocCopyMappingPass(bool analysisOnly,
-                                               long long maxVariants) {
-  return std::make_unique<ExploreAllocCopyMappingPass>(analysisOnly,
-                                                       maxVariants);
+tmd::passes::createExploreAllocCopyMappingPass(bool analysisOnly) {
+  return std::make_unique<ExploreAllocCopyMappingPass>(analysisOnly);
 }
 
 void tmd::passes::registerExploreAllocCopyMappingPass() {

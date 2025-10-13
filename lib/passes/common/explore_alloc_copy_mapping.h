@@ -32,8 +32,7 @@ namespace passes {
  * @param maxVariants Maximum clones per function (\<0 means unlimited).
  */
 std::unique_ptr<mlir::Pass>
-createExploreAllocCopyMappingPass(bool analysisOnly = false,
-                                  long long maxVariants = -1);
+createExploreAllocCopyMappingPass(bool analysisOnly = false);
 
 /** Register the pass with MLIR. */
 void registerExploreAllocCopyMappingPass();

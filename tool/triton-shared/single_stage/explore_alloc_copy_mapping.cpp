@@ -36,10 +36,7 @@ static llvm::cl::opt<bool> clAnalysisOnly(
     llvm::cl::desc("Only attach tmd.copy.candidates; do not clone"),
     llvm::cl::init(false));
 
-static llvm::cl::opt<long long>
-    clMaxVariants("max-variants",
-                  llvm::cl::desc("Max clones per function (-1 = unlimited)"),
-                  llvm::cl::init(-1));
+// No max-variants: we always enumerate all combinations.
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(
@@ -81,8 +78,7 @@ int main(int argc, char **argv) {
 
   // 2) Explore alloc/copy mappings.
   PassManager pm2(&context);
-  pm2.addPass(tmd::passes::createExploreAllocCopyMappingPass(clAnalysisOnly,
-                                                             clMaxVariants));
+  pm2.addPass(tmd::passes::createExploreAllocCopyMappingPass(clAnalysisOnly));
   if (failed(pm2.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Mapping exploration failed\n";
     return 3;
