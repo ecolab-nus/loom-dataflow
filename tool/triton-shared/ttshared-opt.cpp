@@ -15,6 +15,7 @@
 // Usage:
 //   tmd_triton_shared_to_affine --ttshared <ttshared.mlir> --df <df.mlir>
 //
+#include "explore_alloc_copy_mapping.h"
 #include "reinterpret_cast_reuse.h"
 #include "spatial_mapping.h"
 #include "triton_shared_affinize.h"
@@ -53,6 +54,16 @@ static llvm::cl::opt<std::string>
     clDfInput("df",
               llvm::cl::desc("Path to DF MLIR file (spatial description)"),
               llvm::cl::value_desc("filename"), llvm::cl::Required);
+
+static llvm::cl::opt<bool> clMapAnalysisOnly(
+    "map-analysis-only",
+    llvm::cl::desc("Only attach tmd.copy.candidates; do not clone functions"),
+    llvm::cl::init(false));
+
+static llvm::cl::opt<long long>
+    clMapMaxVariants("map-max-variants",
+                     llvm::cl::desc("Max clones per function (-1 = unlimited)"),
+                     llvm::cl::init(-1));
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
@@ -137,6 +148,16 @@ int main(int argc, char **argv) {
   if (failed(annotatePM.run(*merged))) {
     llvm::WithColor::error(llvm::errs()) << "Reuse annotation pass failed\n";
     return 3;
+  }
+
+  // Explore alloc/copy mapping choices (default: enumerate and clone).
+  PassManager mappingPM(&context);
+  mappingPM.addPass(tmd::passes::createExploreAllocCopyMappingPass(
+      /*analysisOnly=*/clMapAnalysisOnly, /*maxVariants=*/clMapMaxVariants));
+  if (failed(mappingPM.run(*merged))) {
+    llvm::WithColor::error(llvm::errs())
+        << "Alloc/Copy mapping exploration failed\n";
+    return 4;
   }
 
   mlir::OpPrintingFlags flags;

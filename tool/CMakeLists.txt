@@ -22,6 +22,7 @@ add_executable(ttshared-opt
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared/triton_shared_grid_to_parallel.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/spatial_mapping.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/reinterpret_cast_reuse.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/explore_alloc_copy_mapping.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/affine_parallel_to_for.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/affine_tile.cpp
 )

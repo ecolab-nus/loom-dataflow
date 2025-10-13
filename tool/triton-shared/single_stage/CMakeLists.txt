@@ -138,3 +138,42 @@ set_target_properties(annotate_reuse PROPERTIES
 )
 
 
+# explore_alloc_copy_mapping: Annotate reuse and explore alloc/copy mappings
+add_executable(explore_alloc_copy_mapping
+  ${CMAKE_CURRENT_LIST_DIR}/explore_alloc_copy_mapping.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/common/reinterpret_cast_reuse.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/common/explore_alloc_copy_mapping.cpp
+)
+
+target_include_directories(explore_alloc_copy_mapping PRIVATE
+  ${MLIR_INCLUDE_DIRS}
+  ${TMD_PASSES_INC}
+)
+
+target_link_libraries(explore_alloc_copy_mapping PRIVATE
+  MLIRIR
+  MLIRParser
+  MLIRSupport
+  LLVMSupport
+  MLIRFuncDialect
+  MLIRAffineDialect
+  MLIRMemRefDialect
+  MLIRArithDialect
+  MLIRTensorDialect
+  MLIRLinalgDialect
+  MLIRSCFDialect
+  MLIRBufferizationDialect
+  MLIRPass
+  MLIRAsmParser
+  MLIRBytecodeReader
+  tmdDataflowDialect
+)
+mlir_check_all_link_libraries(explore_alloc_copy_mapping)
+
+target_compile_options(explore_alloc_copy_mapping PRIVATE -fno-rtti)
+
+set_target_properties(explore_alloc_copy_mapping PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+
