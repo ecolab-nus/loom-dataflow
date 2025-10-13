@@ -25,11 +25,10 @@ The custom `df` dialect captures hardware scale-out descriptions that can be pai
   ```
 
 ## Routing across the fabric
-- `df.interconnects` connects two compute or memory handle sets. The operands identify the source and destination resources while the affine map describes how indices are transformed between them.
+- `df.interconnects` connects two compute or memory handle sets. The operands identify the source and destination resources while the affine map describes how indices are transformed between them. A user-facing string label appears first in the custom assembly.
   ```mlir
-  %horizontal = "df.interconnects"(%cores, %cores, %x, %y)
-      {map = affine_map<(d0, d1) -> (d0 + 1, d1)>}
-      : (!df.compute, !df.compute, index, index) -> !df.interconnect
+  %horizontal = df.interconnects "horizontal_links" %cores : !df.compute, %cores : !df.compute, %x, %y
+      {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : !df.interconnect
   ```
   Here each compute tile `(x, y)` links to its neighbor `(x + 1, y)`.
 - `df.mux` relates compute and memory handles, defining how compute tiles share resources.

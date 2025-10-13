@@ -119,8 +119,12 @@ static bool collectDFContext(ModuleOp module, DFContext &out) {
     if (!cls)
       return;
     std::string name = "ic";
-    if (auto sym = ic->getAttrOfType<StringAttr>("sym_name"))
+    if (auto label = ic.getLabelAttr()) {
+      name = label.getValue().str();
+    } else if (auto sym = ic->getAttrOfType<StringAttr>("sym_name")) {
+      // Backward-compat: fall back to symbol name if present.
       name = sym.getValue().str();
+    }
     if (cls == 'x')
       out.xICs.emplace_back(ic.getResult(), name);
     else if (cls == 'y')

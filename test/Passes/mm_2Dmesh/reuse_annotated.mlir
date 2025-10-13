@@ -17,11 +17,11 @@
 module {
   %0 = df.spatial_dim "x", 8
   %1 = df.spatial_dim "y", 8
-  %2 = df.compute "cluster_cores", %0, %1 {map = #map}
-  %3 = df.memory "cluster_mem", %0, %1 {map = #map}
+  %2 = df.compute "cores", %0, %1 {map = #map}
+  %3 = df.memory "L1", %0, %1 {map = #map}
   %4 = df.mux %2 : !df.compute, %3 : !df.memory, %0, %1 {map = #map}
-  %5 = df.interconnects %3 : !df.memory, %3 : !df.memory, %0, %1 {map = #map1} : !df.interconnect
-  %6 = df.interconnects %3 : !df.memory, %3 : !df.memory, %0, %1 {map = #map2} : !df.interconnect
+  %5 = df.interconnects "horizontal_links" %3 : !df.memory, %3 : !df.memory, %0, %1 {map = #map1} : !df.interconnect
+  %6 = df.interconnects "vertical_links" %3 : !df.memory, %3 : !df.memory, %0, %1 {map = #map2} : !df.interconnect
   func.func @matmul_kernel__d0i0_d1i0_f0_f1(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index {tt.divisibility = 16 : i32}, %arg4: index {tt.divisibility = 16 : i32}, %arg5: index {tt.divisibility = 16 : i32}, %arg6: index, %arg7: index, %arg8: index) {
     affine.for %arg9 = 0 to #map3(%arg6, %arg7) {
       affine.for %arg10 = 0 to #map4(%arg6, %arg7) {

@@ -38,9 +38,9 @@ def SpatialDimOp : DF_Op<"spatial_dim"> {
 // expression over declared spatial dimensions. This produces an opaque handle
 // representing the chain configuration.
 // Example (matches current custom assembly):
-//   %cores_to_cores = df.interconnects %cores : !df.compute, %cores: !df.compute, %x, %y
+//   %cores_to_cores = df.interconnects "horizontal_links" %cores : !df.compute, %cores: !df.compute, %x, %y
 //       {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : !df.interconnect
-//   %mems_to_mems = df.interconnects %memories : !df.memory, %memories: !df.memory, %x
+//   %mems_to_mems = df.interconnects "ring" %memories : !df.memory, %memories: !df.memory, %x
 //       {map = affine_map<(d0) -> (d0 + 1)>} : !df.interconnect
 def InterconnectsOp : DF_Op<"interconnects"> {
   let summary = "Declare interconnects via an affine expression";
@@ -53,20 +53,24 @@ def InterconnectsOp : DF_Op<"interconnects"> {
     other affine maps) alongside the SSA operands used to materialize the
     expression.
 
+    The operation also carries an optional user-facing string label that is
+    printed first in the custom assembly (e.g., `"horizontal_links"`).
+
     Examples (compute-to-compute and memory-to-memory):
-      `%cores_to_cores = df.interconnects %cores : !df.compute, %cores: !df.compute, %x, %y
+      `%cores_to_cores = df.interconnects "horizontal_links" %cores : !df.compute, %cores: !df.compute, %x, %y
           {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : !df.interconnect`
-      `%mems_to_mems = df.interconnects %memories : !df.memory, %memories: !df.memory, %x
+      `%mems_to_mems = df.interconnects "ring" %memories : !df.memory, %memories: !df.memory, %x
           {map = affine_map<(d0) -> (d0 + 1)>} : !df.interconnect`
   }];
 
-  let arguments = (ins HandleLike:$source,
+  let arguments = (ins StrAttr:$label,
+                       HandleLike:$source,
                        HandleLike:$target,
                        Variadic<Index>:$indices,
                        AffineMapAttr:$map);
   let results = (outs InterconnectHandleType:$handle);
 
-  let assemblyFormat = "$source `:` type($source) `,` $target `:` type($target) `,` $indices attr-dict `:` type($handle)";
+  let assemblyFormat = "$label $source `:` type($source) `,` $target `:` type($target) `,` $indices attr-dict `:` type($handle)";
 }
 
 // df.compute : declare compute resources derived from spatial dimensions.
