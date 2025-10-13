@@ -1,6 +1,5 @@
 #include "explore_alloc_copy_mapping.h"
 
-#include "mlir/Dialect/Affine/IR/AffineOps.h" // used for type references in dyn_cast
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/AffineExpr.h"
@@ -21,7 +20,6 @@
 #define GET_OP_CLASSES
 #include "DataflowOps.h.inc"
 
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/WithColor.h"
@@ -285,7 +283,6 @@ struct ExploreAllocCopyMappingPass
         return false;
       };
 
-      long long produced = 0;
       do {
         // Clone function.
         IRMapping map;
@@ -332,7 +329,6 @@ struct ExploreAllocCopyMappingPass
         }
         if (!suffix.empty())
           clone.setName((f.getSymName().str() + "__" + suffix).c_str());
-        produced++;
       } while (bump());
     }
 
