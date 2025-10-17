@@ -44,8 +44,10 @@
 #include "DataflowOps.h.inc"
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/WithColor.h"
+#include <optional>
 
 using namespace mlir;
 
@@ -53,9 +55,10 @@ namespace {
 
 struct DFContext {
   std::string singleMemoryName;
-  // Map dimension name (e.g., "x") to list of interconnect value + name.
-  llvm::SmallVector<std::pair<Value, std::string>, 4> xICs;
-  llvm::SmallVector<std::pair<Value, std::string>, 4> yICs;
+  // Map from dimension name (inferred from df.spatial_dim operands) to the
+  // list of (interconnect handle value, interconnect label).
+  llvm::StringMap<llvm::SmallVector<std::pair<Value, std::string>, 4>>
+      icByDimName;
   llvm::SmallVector<std::string, 4> spatialDimNames;
 };
 
@@ -87,36 +90,40 @@ static bool collectDFContext(ModuleOp module, DFContext &out) {
     if (!llvm::isa<tmd::df::MemoryHandleType>(ic.getSource().getType()) ||
         !llvm::isa<tmd::df::MemoryHandleType>(ic.getTarget().getType()))
       return;
-    // Heuristic: if map is (d0+1,d1) treat as x; if (d0,d1+1) treat as y.
+    // Heuristic: strictly accept +1 on exactly one axis.
     AffineMap map = ic.getMap();
     if (!map || map.getNumResults() < 1)
       return;
     auto results = map.getResults();
-    auto classifyDim = [&](AffineExpr e0, AffineExpr e1) -> char {
-      // d0 + c, d1
-      if (auto sum = llvm::dyn_cast<AffineBinaryOpExpr>(e0)) {
-        if (sum.getKind() == AffineExprKind::Add) {
-          if (llvm::isa<AffineDimExpr>(sum.getLHS()) &&
-              llvm::isa<AffineConstantExpr>(sum.getRHS()) &&
-              llvm::isa<AffineDimExpr>(e1))
-            return 'x';
-        }
-      }
-      // d0, d1 + c
-      if (auto sum = llvm::dyn_cast<AffineBinaryOpExpr>(e1)) {
-        if (sum.getKind() == AffineExprKind::Add) {
-          if (llvm::isa<AffineDimExpr>(sum.getLHS()) &&
-              llvm::isa<AffineConstantExpr>(sum.getRHS()) &&
-              llvm::isa<AffineDimExpr>(e0))
-            return 'y';
-        }
-      }
-      return 0;
+    auto isDim = [](AffineExpr e, unsigned p) -> bool {
+      if (auto d = llvm::dyn_cast<AffineDimExpr>(e))
+        return d.getPosition() == p;
+      return false;
     };
-    char cls = 0;
-    if (results.size() >= 2)
-      cls = classifyDim(results[0], results[1]);
-    if (!cls)
+    auto isDimPlusOne = [](AffineExpr e, unsigned p) -> bool {
+      if (auto s = llvm::dyn_cast<AffineBinaryOpExpr>(e)) {
+        if (s.getKind() == AffineExprKind::Add) {
+          auto lhsD = llvm::dyn_cast<AffineDimExpr>(s.getLHS());
+          auto rhsC = llvm::dyn_cast<AffineConstantExpr>(s.getRHS());
+          return lhsD && lhsD.getPosition() == p && rhsC &&
+                 rhsC.getValue() == 1;
+        }
+      }
+      return false;
+    };
+
+    // Determine axis that advances by exactly +1.
+    std::optional<unsigned> axis;
+    if (map.getNumDims() == 1 && results.size() >= 1) {
+      if (isDimPlusOne(results[0], 0))
+        axis = 0u;
+    } else if (map.getNumDims() >= 2 && results.size() >= 2) {
+      if (isDimPlusOne(results[0], 0) && isDim(results[1], 1))
+        axis = 0u;
+      else if (isDim(results[0], 0) && isDimPlusOne(results[1], 1))
+        axis = 1u;
+    }
+    if (!axis)
       return;
     std::string name = "ic";
     if (auto label = ic.getLabelAttr()) {
@@ -125,10 +132,17 @@ static bool collectDFContext(ModuleOp module, DFContext &out) {
       // Backward-compat: fall back to symbol name if present.
       name = sym.getValue().str();
     }
-    if (cls == 'x')
-      out.xICs.emplace_back(ic.getResult(), name);
-    else if (cls == 'y')
-      out.yICs.emplace_back(ic.getResult(), name);
+    // Infer dimension name from operands of the interconnect op.
+    ValueRange idxs = ic.getIndices();
+    std::string dimName = ("d" + std::to_string(*axis));
+    if (idxs.size() > *axis) {
+      if (Operation *def = idxs[*axis].getDefiningOp()) {
+        if (auto sd = llvm::dyn_cast<tmd::df::SpatialDimOp>(def)) {
+          dimName = getStringOr(sd.getNameAttr(), dimName);
+        }
+      }
+    }
+    out.icByDimName[dimName].emplace_back(ic.getResult(), name);
   });
 
   return true;
@@ -217,21 +231,17 @@ struct ExploreAllocCopyMappingPass
             if (auto rc = dyn_cast<memref::ReinterpretCastOp>(srcDef))
               reuse = rc->getAttrOfType<DictionaryAttr>("tmd.reuse");
           }
-          // Broadcast candidates for x/y when reuse is total.
-          if (hasSpatialTotalReuse(reuse, "x")) {
-            for (auto &p : df.xICs) {
+          // Broadcast candidates for each inferred dimension name when reuse is
+          // total.
+          for (const auto &kv : df.icByDimName) {
+            StringRef dimNameRef = kv.getKey();
+            const auto &ics = kv.getValue();
+            if (!hasSpatialTotalReuse(reuse, dimNameRef))
+              continue;
+            for (const auto &p : ics) {
               NamedAttrList b;
               b.append("kind", StringAttr::get(ctx, "broadcast"));
-              b.append("dim", StringAttr::get(ctx, "x"));
-              b.append("interconnect_name", StringAttr::get(ctx, p.second));
-              candidates.push_back(DictionaryAttr::get(ctx, b));
-            }
-          }
-          if (hasSpatialTotalReuse(reuse, "y")) {
-            for (auto &p : df.yICs) {
-              NamedAttrList b;
-              b.append("kind", StringAttr::get(ctx, "broadcast"));
-              b.append("dim", StringAttr::get(ctx, "y"));
+              b.append("dim", StringAttr::get(ctx, dimNameRef));
               b.append("interconnect_name", StringAttr::get(ctx, p.second));
               candidates.push_back(DictionaryAttr::get(ctx, b));
             }
@@ -271,20 +281,15 @@ struct ExploreAllocCopyMappingPass
           if (auto rc = dyn_cast<memref::ReinterpretCastOp>(srcDef))
             reuse = rc->getAttrOfType<DictionaryAttr>("tmd.reuse");
         }
-        if (hasSpatialTotalReuse(reuse, "x")) {
-          for (auto &p : df.xICs) {
+        for (const auto &kv : df.icByDimName) {
+          StringRef dimNameRef = kv.getKey();
+          const auto &ics = kv.getValue();
+          if (!hasSpatialTotalReuse(reuse, dimNameRef))
+            continue;
+          for (const auto &p : ics) {
             NamedAttrList b;
             b.append("kind", StringAttr::get(ctx, "broadcast"));
-            b.append("dim", StringAttr::get(ctx, "x"));
-            b.append("interconnect_name", StringAttr::get(ctx, p.second));
-            cand.push_back(DictionaryAttr::get(ctx, b));
-          }
-        }
-        if (hasSpatialTotalReuse(reuse, "y")) {
-          for (auto &p : df.yICs) {
-            NamedAttrList b;
-            b.append("kind", StringAttr::get(ctx, "broadcast"));
-            b.append("dim", StringAttr::get(ctx, "y"));
+            b.append("dim", StringAttr::get(ctx, dimNameRef));
             b.append("interconnect_name", StringAttr::get(ctx, p.second));
             cand.push_back(DictionaryAttr::get(ctx, b));
           }
