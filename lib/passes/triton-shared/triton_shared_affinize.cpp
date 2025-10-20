@@ -43,9 +43,10 @@
  * - Cleanups: iterative DCE and redundant `arith.index_cast` removal.
  *
  * Constraints and limitations
- * - Only affine-preserving patterns are accepted: add/sub, mul/div by constant
- *   (floorDiv), min/max over affine expressions. Anything else is treated as a
- *   symbol or left as-is.
+ * - Only affine-preserving patterns are accepted: add/sub, mul by constant,
+ *   min/max over affine expressions. Signed division is not converted to
+ *   affine (to avoid trunc-vs-floor mismatch) and is promoted to a symbol.
+ *   Anything else is treated as a symbol or left as-is.
  * - For `reinterpret_cast`, only offsets are aggressively affine-ized to avoid
  *   altering dominance-sensitive size/stride flows.
  * - Heuristics are conservative; failure to prove affinity leaves original IR
@@ -86,112 +87,101 @@ namespace passes {
 
 namespace {
 
-/// Affine expression builder over an arith expression graph.
-class AffineExprBuilder {
-public:
-  AffineExprBuilder(MLIRContext *ctx) : ctx(ctx) {}
-
-  /// Try to build an AffineExpr for the given value, collecting its
-  /// dims/symbols. Returns null AffineExpr on failure.
-  AffineExpr buildFromIndexValue(Value v, SmallVectorImpl<Value> &dims,
-                                 SmallVectorImpl<Value> &symbols) {
-    return build(v, dims, symbols);
+/// Return true if the given affine expression is provably non-negative under
+/// our conservative assumptions:
+/// - Dim expressions are assumed non-negative (loop IVs, grid IDs).
+/// - Constants are non-negative if their value >= 0.
+/// - Symbols are assumed non-negative per pass policy.
+/// - Add: non-negative if both sides are non-negative.
+/// - Mul: only when multiplied by a non-negative constant and the other side is
+///   non-negative. Multiplication by zero yields non-negative.
+/// - Div/Mod/CeilDiv/FloorDiv inside the expression are treated as unknown.
+///
+/// \param expr Affine expression to analyze.
+/// \return True iff the expression can be proven to evaluate to a value
+///         greater than or equal to zero for all admissible dim/symbol values
+///         under the assumptions above; false otherwise.
+/// \note This predicate is intentionally conservative; when in doubt it
+///       returns false to preserve correctness.
+static bool isAffineExprProvenNonNegative(AffineExpr expr) {
+  if (!expr)
+    return false;
+  switch (expr.getKind()) {
+  case AffineExprKind::Constant: {
+    auto c = llvm::cast<AffineConstantExpr>(expr);
+    return c.getValue() >= 0;
   }
-
-private:
-  AffineExpr build(Value v, SmallVectorImpl<Value> &dims,
-                   SmallVectorImpl<Value> &symbols) {
-    if (!v.getType().isIndex())
-      return AffineExpr();
-
-    // Direct mapping: loop IVs and function block arguments as dims.
-    if (auto barg = dyn_cast<BlockArgument>(v)) {
-      Operation *owner = barg.getOwner()->getParentOp();
-      if (isa_and_nonnull<scf::ForOp>(owner) ||
-          isa_and_nonnull<func::FuncOp>(owner)) {
-        return getOrAddDim(barg, dims);
-      }
-    }
-
-    Operation *def = v.getDefiningOp();
-    if (!def)
-      return AffineExpr();
-
-    // Propagate through index casts.
-    if (auto ic = dyn_cast<arith::IndexCastOp>(def))
-      return build(ic.getIn(), dims, symbols);
-
-    OpBuilder b(ctx);
-    if (auto cidx = dyn_cast<arith::ConstantIndexOp>(def))
-      return getAffineConstantExpr(cidx.value(), ctx);
-
-    // i32 constants frequently appear then cast to index; support those too.
-    if (auto csi = dyn_cast<arith::ConstantIntOp>(def))
-      return getAffineConstantExpr(csi.value(), ctx);
-
-    // Handle simple affine-preserving arith ops.
-    if (auto addi = dyn_cast<arith::AddIOp>(def)) {
-      AffineExpr a = build(addi.getLhs(), dims, symbols);
-      AffineExpr b = build(addi.getRhs(), dims, symbols);
-      if (a && b)
-        return a + b;
-      return AffineExpr();
-    }
-    if (auto subi = dyn_cast<arith::SubIOp>(def)) {
-      AffineExpr a = build(subi.getLhs(), dims, symbols);
-      AffineExpr b = build(subi.getRhs(), dims, symbols);
-      if (a && b)
-        return a - b;
-      return AffineExpr();
-    }
-    if (auto muli = dyn_cast<arith::MulIOp>(def)) {
-      // Only allow multiply by constant.
-      AffineExpr a = build(muli.getLhs(), dims, symbols);
-      AffineExpr b = build(muli.getRhs(), dims, symbols);
-      if (a && b) {
-        // One of a/b must be a constant.
-        if (auto ca = dyn_cast<AffineConstantExpr>(a))
-          return b * ca.getValue();
-        if (auto cb = dyn_cast<AffineConstantExpr>(b))
-          return a * cb.getValue();
-      }
-      return AffineExpr();
-    }
-    if (auto divi = dyn_cast<arith::DivSIOp>(def)) {
-      AffineExpr a = build(divi.getLhs(), dims, symbols);
-      AffineExpr b = build(divi.getRhs(), dims, symbols);
-      if (a && b)
-        if (auto cb = dyn_cast<AffineConstantExpr>(b))
-          if (cb.getValue() != 0)
-            return a.floorDiv(cb.getValue());
-      return AffineExpr();
-    }
-
-    // Default: unsupported op in affine context.
-    return AffineExpr();
+  case AffineExprKind::DimId:
+    return true;
+  case AffineExprKind::SymbolId:
+    return true; // assume symbols are non-negative
+  case AffineExprKind::Add: {
+    auto bin = llvm::cast<AffineBinaryOpExpr>(expr);
+    return isAffineExprProvenNonNegative(bin.getLHS()) &&
+           isAffineExprProvenNonNegative(bin.getRHS());
   }
-
-  AffineExpr getOrAddDim(Value v, SmallVectorImpl<Value> &dims) {
-    for (unsigned i = 0, e = dims.size(); i < e; ++i)
-      if (dims[i] == v)
-        return getAffineDimExpr(i, ctx);
-    dims.push_back(v);
-    return getAffineDimExpr(dims.size() - 1, ctx);
+  case AffineExprKind::Mul: {
+    auto bin = llvm::cast<AffineBinaryOpExpr>(expr);
+    // One side must be a constant.
+    if (auto lc = llvm::dyn_cast<AffineConstantExpr>(bin.getLHS()))
+      return (lc.getValue() >= 0) &&
+             (lc.getValue() == 0 ||
+              isAffineExprProvenNonNegative(bin.getRHS()));
+    if (auto rc = llvm::dyn_cast<AffineConstantExpr>(bin.getRHS()))
+      return (rc.getValue() >= 0) &&
+             (rc.getValue() == 0 ||
+              isAffineExprProvenNonNegative(bin.getLHS()));
+    return false;
   }
+  case AffineExprKind::Mod:
+  case AffineExprKind::CeilDiv:
+  case AffineExprKind::FloorDiv:
+    return false;
+  }
+  return false;
+}
 
-  MLIRContext *ctx;
-};
-
-/// Builder that constructs an affine expression using fixed dims (the six
+/// Builder that constructs an affine expression using fixed dims (the three
 /// spatial arguments) and promotes any non-affine sub-expressions to symbols.
+/**
+ * @brief Builds affine expressions from SSA values with fixed dim operands.
+ *
+ * @details Converts arithmetic index computations rooted at an SSA `Value`
+ * into an `AffineExpr` using a fixed set of dim operands (grid IDs and
+ * surrounding loop IVs). Sub-expressions that cannot be proven affine under
+ * the pass' restrictions are promoted to symbols. The builder memoizes visited
+ * nodes to form a DAG and optionally records error conditions for unsupported
+ * constructs (e.g., signed division by non-constant).
+ */
 class LinearFormBuilder {
 public:
-  LinearFormBuilder(MLIRContext *ctx, ArrayRef<Value> fixedDims) : ctx(ctx) {
+  /// Construct a builder that treats `fixedDims` as affine dims and promotes
+  /// other leaf values to symbols. If `errorFlag` is provided, it will be set
+  /// to true when encountering expressions that violate the builder's affine
+  /// restrictions (e.g., div by non-positive constant).
+  LinearFormBuilder(MLIRContext *ctx, ArrayRef<Value> fixedDims,
+                    bool *errorFlag = nullptr)
+      : ctx(ctx), errorFlag(errorFlag) {
     dims.assign(fixedDims.begin(), fixedDims.end());
     for (unsigned i = 0; i < dims.size(); ++i)
       dimIndex.try_emplace(dims[i], i);
   }
 
+  /// Build an affine expression from `v`.
+  ///
+  /// - Direct dim values map to `dim#i`.
+  /// - Constants become `AffineConstantExpr`.
+  /// - add/sub compose recursively; unknown sides become symbols.
+  /// - mul is allowed only when one side is a constant; otherwise a symbol.
+  /// - signed div lowers to floorDiv by positive constant if the numerator is
+  ///   provably non-negative; otherwise a symbol and error is reported.
+  /// - Any other node turns into a fresh symbol (with an inserted index cast
+  ///   when needed).
+  ///
+  /// @param v Root SSA value of the arithmetic expression.
+  /// @return Affine expression modeling `v` using current dims/symbols, or an
+  ///         empty expression when the builder chooses to defer to callers for
+  ///         partial handling.
   AffineExpr build(Value v) {
     if (auto it = cache.find(v); it != cache.end())
       return it->second;
@@ -243,13 +233,29 @@ public:
       return cache[v] = getOrAddSymbol(v);
     }
 
-    // Division by constant allowed (floorDiv), else promote to symbol.
+    // Signed division: if denominator is a positive constant and the numerator
+    // is provably non-negative, lower to affine floorDiv. Otherwise, emit an
+    // error and treat as a symbol.
     if (auto divi = dyn_cast_or_null<arith::DivSIOp>(v.getDefiningOp())) {
       AffineExpr a = build(divi.getLhs());
       AffineExpr b = build(divi.getRhs());
-      if (auto cb = dyn_cast<AffineConstantExpr>(b))
-        if (a && cb.getValue() != 0)
-          return cache[v] = a.floorDiv(cb.getValue());
+      if (auto cb = dyn_cast<AffineConstantExpr>(b)) {
+        int64_t denom = cb.getValue();
+        if (denom > 0 && a && isAffineExprProvenNonNegative(a))
+          return cache[v] = a.floorDiv(denom);
+        // Error cases: zero/non-positive denom or numerator not proven >= 0.
+        if (Operation *op = divi.getOperation())
+          op->emitError("signed division not supported: denominator must be a "
+                        "positive constant and numerator must be non-negative");
+        if (errorFlag)
+          *errorFlag = true;
+      } else {
+        if (Operation *op = divi.getOperation())
+          op->emitError("signed division by non-constant is not supported in "
+                        "affine lowering");
+        if (errorFlag)
+          *errorFlag = true;
+      }
       return cache[v] = getOrAddSymbol(v);
     }
 
@@ -261,10 +267,15 @@ public:
     return cache[v] = getOrAddSymbol(v);
   }
 
+  /// Return the fixed dim operands used by this builder.
   ArrayRef<Value> getDims() const { return dims; }
+  /// Return the symbol operands discovered while building expressions.
   ArrayRef<Value> getSymbols() const { return symbols; }
 
 private:
+  /// Obtain a symbol expression for `v`, inserting an `arith.index_cast` to
+  /// index type when necessary and recording `v` in the symbol list if it is
+  /// new.
   AffineExpr getOrAddSymbol(Value v) {
     auto it = symIndex.find(v);
     if (it != symIndex.end())
@@ -303,9 +314,15 @@ private:
   DenseMap<Value, unsigned> dimIndex;
   DenseMap<Value, unsigned> symIndex;
   DenseMap<Value, AffineExpr> cache;
+  bool *errorFlag = nullptr;
 };
 
 /// Collect symbol indices used by an affine expression.
+/// Collect the set of symbol positions referenced by an affine expression.
+///
+/// @param expr Affine expression to inspect.
+/// @param positions Output container appended with all `symbol#i` positions in
+///        first-seen order.
 static void collectUsedSymbolPositions(AffineExpr expr,
                                        SmallVectorImpl<unsigned> &positions) {
   if (!expr)
@@ -331,6 +348,13 @@ static void collectUsedSymbolPositions(AffineExpr expr,
 /// Remap symbol ids in `expr` to a compact 0..k-1 set in first-use order,
 /// returning the remapped expression and filling `orderedSymbolValues` with the
 /// corresponding Values from `allSymbolValues`.
+/// Remap symbol ids in `expr` to a compact 0..k-1 domain in first-use order.
+///
+/// @param expr Expression whose symbols will be remapped.
+/// @param orderedSymbolValues Output list of `Value`s corresponding to the new
+///        symbol ordering.
+/// @param allSymbolValues Original symbol `Value`s indexed by old positions.
+/// @return Expression with symbols rewritten to the new compact ordering.
 static AffineExpr
 remapSymbolsSequential(AffineExpr expr,
                        SmallVectorImpl<Value> &orderedSymbolValues,
@@ -391,6 +415,11 @@ remapSymbolsSequential(AffineExpr expr,
 /// Remap symbol ids in `expr` to a common ordering provided by `oldToNew`.
 /// The keys of `oldToNew` are positions in `allSymbolValues`. The values are
 /// the new compact positions [0..k-1].
+/// Remap symbol ids in `expr` using an explicit old->new mapping.
+///
+/// @param expr Expression whose symbols will be remapped.
+/// @param oldToNew Mapping from old symbol positions to new positions.
+/// @return Expression with symbol positions rewritten.
 static AffineExpr
 remapSymbolsWithMapping(AffineExpr expr,
                         const DenseMap<unsigned, unsigned> &oldToNew) {
@@ -440,6 +469,11 @@ remapSymbolsWithMapping(AffineExpr expr,
 }
 
 /// Collect dim indices used by an affine expression.
+/// Collect the set of dim positions referenced by an affine expression.
+///
+/// @param expr Affine expression to inspect.
+/// @param positions Output container appended with all `dim#i` positions in
+///        first-seen order.
 static void collectUsedDimPositions(AffineExpr expr,
                                     SmallVectorImpl<unsigned> &positions) {
   if (!expr)
@@ -465,6 +499,11 @@ static void collectUsedDimPositions(AffineExpr expr,
 /// Remap dim ids in `expr` to a common ordering provided by `oldToNew`.
 /// The keys of `oldToNew` are positions in the original dims. The values are
 /// the new compact positions [0..k-1].
+/// Remap dim ids in `expr` using an explicit old->new mapping.
+///
+/// @param expr Expression whose dims will be remapped.
+/// @param oldToNew Mapping from old dim positions to new positions.
+/// @return Expression with dim positions rewritten.
 static AffineExpr
 remapDimsWithMapping(AffineExpr expr,
                      const DenseMap<unsigned, unsigned> &oldToNew) {
@@ -515,6 +554,14 @@ remapDimsWithMapping(AffineExpr expr,
 
 /// Remap both dims and symbols to 0..k-1 sequential, returning the remapped
 /// expression and filling ordered dims/symbols in first-use order.
+/// Remap both dims and symbols to compact 0..k-1 domains in first-use order.
+///
+/// @param expr Expression whose dims and symbols will be remapped.
+/// @param orderedDims Output list of dim `Value`s in remapped order.
+/// @param allDims Original dim `Value`s indexed by old positions.
+/// @param orderedSymbols Output list of symbol `Value`s in remapped order.
+/// @param allSymbols Original symbol `Value`s indexed by old positions.
+/// @return Expression with dim and symbol positions rewritten.
 static AffineExpr remapDimsAndSymbolsSequential(
     AffineExpr expr, SmallVectorImpl<Value> &orderedDims,
     ArrayRef<Value> allDims, SmallVectorImpl<Value> &orderedSymbols,
@@ -585,15 +632,36 @@ static AffineExpr remapDimsAndSymbolsSequential(
   return remap(expr);
 }
 
-/// Pass that performs the affinization.
+/**
+ * @brief Pass that converts Triton-shared index arithmetic to affine IR.
+ *
+ * @details Operates on each `func::FuncOp` within a `ModuleOp` and:
+ *   - Promotes 32-bit integer ABI arguments to `index` type.
+ *   - Canonicalizes arithmetic to operate on `index`.
+ *   - Treats the last three function arguments and surrounding loop IVs as
+ *     affine dims; other function arguments and non-affine values become
+ *     symbols.
+ *   - Attempts to rebuild index expressions as `affine.apply`, and converts
+ *     `memref.load/store` to their affine counterparts when all indices are
+ *     affine.
+ *   - Rewrites selected operands of `memref.reinterpret_cast`,
+ *     `tensor.extract_slice`, and `memref.subview` using affine ops.
+ *   - Rebuilds `scf.for` with index-typed IV/bounds and affine-applied bounds.
+ *   - Performs iterative DCE and redundant cast removal.
+ *
+ * Errors in affineization (e.g., unsupported signed division) are recorded and
+ * reported; the pass signals failure if any were encountered.
+ */
 class TritonSharedAffinizePass
     : public PassWrapper<TritonSharedAffinizePass, OperationPass<ModuleOp>> {
 public:
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(TritonSharedAffinizePass)
 
+  /// Return the command-line argument to invoke this pass.
   StringRef getArgument() const override {
     return "tmd-triton-shared-affinize";
   }
+  /// Return a human-readable description of the pass.
   StringRef getDescription() const override {
     return "Convert Triton-shared index arithmetic to affine.apply and affine "
            "memops."
@@ -601,6 +669,7 @@ public:
            " other function args are symbols. Unused dims/symbols are pruned.";
   }
 
+  /// Declare dependent dialects required by this pass.
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<affine::AffineDialect, arith::ArithDialect,
                     memref::MemRefDialect, func::FuncDialect, scf::SCFDialect,
@@ -608,17 +677,34 @@ public:
                     bufferization::BufferizationDialect>();
   }
 
+  /**
+   * @brief Execute the pass on the target `ModuleOp`.
+   *
+   * @details For each `func::FuncOp`:
+   *   1) Promote i32 arguments to `index` and canonicalize arithmetic to index.
+   *   2) Identify dims (last three function args + surrounding loop IVs).
+   *   3) Attempt to rebuild index expressions with `affine.apply` using a
+   *      `LinearFormBuilder`, promoting unknowns to symbols.
+   *   4) Convert eligible loads/stores to `affine::AffineLoadOp`/`StoreOp`.
+   *   5) Affinize selected operands of `memref.reinterpret_cast`,
+   *      `tensor.extract_slice`, and `memref.subview`.
+   *   6) Rebuild `scf::ForOp` with index-typed loop IV/bounds/step.
+   *   7) Apply iterative DCE and remove redundant `arith.index_cast` ops.
+   *
+   * The pass signals failure if any unsupported signed division patterns were
+   * encountered during expression building.
+   */
   void runOnOperation() override {
     ModuleOp module = getOperation();
     MLIRContext *ctx = module.getContext();
 
+    bool hadError = false;
     module.walk([&](func::FuncOp func) {
       // Optionally, tag the last six args as symbols/dims when building maps.
       // We simply allow them as dims via the builder since they are function
       // block arguments.
 
       OpBuilder b(ctx);
-      AffineExprBuilder aeb(ctx);
 
       // Step 0: Convert all i32 function arguments to index type to eliminate
       // index_cast in the body and enable direct use in affine.apply.
@@ -681,7 +767,6 @@ public:
           };
 
           bool changedArith;
-          int arithIterGuard = 256;
           do {
             changedArith = false;
             SmallVector<Operation *, 64> arithToFix;
@@ -691,8 +776,8 @@ public:
                 Type t0 = o->getOperand(0).getType();
                 Type t1 = o->getOperand(1).getType();
                 Type tr = o->getResult(0).getType();
-                if (t0 != t1 || t0 != tr || t0.isIndex() || t1.isIndex() ||
-                    tr.isIndex())
+                if (t0 != t1 || t0 != tr || !t0.isIndex() || !t1.isIndex() ||
+                    !tr.isIndex())
                   arithToFix.push_back(o);
               }
             });
@@ -721,7 +806,7 @@ public:
               o->erase();
               changedArith = true;
             }
-          } while (changedArith && --arithIterGuard > 0);
+          } while (changedArith);
         }
       }
 
@@ -751,7 +836,7 @@ public:
           if (isa<func::FuncOp>(par))
             break;
         }
-        LinearFormBuilder lfb(ctx, dimsAll);
+        LinearFormBuilder lfb(ctx, dimsAll, &hadError);
         AffineExpr expr = lfb.build(idx);
         if (!expr) {
           // Try partial conversion for add/sub when one side is affine.
@@ -899,7 +984,7 @@ public:
             if (isa<func::FuncOp>(par))
               break;
           }
-          LinearFormBuilder lfb(ctx, dimsAll);
+          LinearFormBuilder lfb(ctx, dimsAll, &hadError);
           auto castToIndexAt = [&](Value v) -> Value {
             if (v.getType().isIndex())
               return v;
@@ -1005,7 +1090,7 @@ public:
             if (isa<func::FuncOp>(par))
               break;
           }
-          LinearFormBuilder lfb(ctx, dimsAll);
+          LinearFormBuilder lfb(ctx, dimsAll, &hadError);
           auto castToIndexAt = [&](Value v) -> Value {
             if (v.getType().isIndex())
               return v;
@@ -1307,7 +1392,7 @@ public:
             if (isa<func::FuncOp>(par))
               break;
           }
-          LinearFormBuilder lfb(ctx, dimsAll);
+          LinearFormBuilder lfb(ctx, dimsAll, &hadError);
           auto castToIndexAt = [&](Value v) -> Value {
             if (v.getType().isIndex())
               return v;
@@ -1605,15 +1690,29 @@ public:
         }
       } while (removedCasts && --finalCastIterGuard > 0);
     });
+    if (hadError)
+      signalPassFailure();
   }
 };
 
 } // namespace
 
+/**
+ * @brief Create an instance of the Triton-shared affinization pass.
+ *
+ * @return New pass instance that converts Triton-shared index arithmetic to
+ *         affine IR and canonicalizes loads/stores and related ops.
+ */
 std::unique_ptr<mlir::Pass> createTritonSharedAffinizePass() {
   return std::make_unique<TritonSharedAffinizePass>();
 }
 
+/**
+ * @brief Register the Triton-shared affinization pass with MLIR.
+ *
+ * @details After registration, the pass can be invoked by name
+ * `--tmd-triton-shared-affinize` in pass pipelines.
+ */
 void registerTritonSharedAffinizePass() {
   PassRegistration<TritonSharedAffinizePass>();
 }
