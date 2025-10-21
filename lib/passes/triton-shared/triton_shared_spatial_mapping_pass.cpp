@@ -49,7 +49,7 @@ struct TritonSharedExploreSpatialMappingsPass
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
-    MLIRContext *ctx = module.getContext();
+    (void)module.getContext();
 
     // Collect spatial dimensions from DF ops in this module.
     llvm::SmallVector<tmd_affine::SpatialDimInfo, 8> spatialDims;
@@ -63,6 +63,16 @@ struct TritonSharedExploreSpatialMappingsPass
                                                                 spatialDims)
             : tmd_affine::enumerateSpatialMappings(module, spatialDims);
 
+    // If enumeration produced no functions, keep the original functions.
+    bool producedAnyFunc = false;
+    for (Operation &op : *enumerated->getBody())
+      if (isa<func::FuncOp>(&op)) {
+        producedAnyFunc = true;
+        break;
+      }
+    if (!producedAnyFunc)
+      return; // leave module unchanged
+
     // Erase all non-DF top-level ops from the original module; keep DF.
     SmallVector<Operation *, 16> toErase;
     for (Operation &op : *module.getBody()) {
@@ -74,9 +84,19 @@ struct TritonSharedExploreSpatialMappingsPass
     for (auto it = toErase.rbegin(); it != toErase.rend(); ++it)
       (*it)->erase();
 
-    // Clone all enumerated ops into the original module after DF ops so DF
-    // declarations appear first in the module.
+    // Insert enumerated clones after the last DF op to keep DF at the top.
     OpBuilder builder(module.getBodyRegion());
+    Operation *after = nullptr;
+    for (Operation &op : *module.getBody()) {
+      Dialect *dialect = op.getDialect();
+      if (dialect && dialect->getNamespace() == StringRef("df"))
+        after = &op;
+    }
+    if (after)
+      builder.setInsertionPointAfter(after);
+    else
+      builder.setInsertionPointToStart(module.getBody());
+
     IRMapping mapping;
     for (Operation &op : *enumerated->getBody()) {
       Dialect *dialect = op.getDialect();

@@ -13,7 +13,6 @@
 // inserts outer `affine.for` loops to model sequential "waves" while leaving
 // the inner `scf.for` loops to represent per-core tile sequencing.
 
-#include "reinterpret_cast_reuse.h"
 #include "spatial_mapping.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"

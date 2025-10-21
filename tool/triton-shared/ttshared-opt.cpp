@@ -144,6 +144,33 @@ int main(int argc, char **argv) {
     return 3;
   }
 
+  // Fallback: if no functions are present (unexpected), enumerate directly.
+  bool hasFuncs = false;
+  for (Operation &op : *tsModule->getBody())
+    if (isa<func::FuncOp>(&op)) {
+      hasFuncs = true;
+      break;
+    }
+  if (!hasFuncs) {
+    OwningOpRef<ModuleOp> explored =
+        tmd_affine::enumerateSpatialMappingsWithOuterFors(*tsModule,
+                                                          spatialDims);
+    // Replace non-DF ops with explored clones.
+    SmallVector<Operation *, 16> toErase;
+    for (Operation &op : *tsModule->getBody()) {
+      Dialect *dialect = op.getDialect();
+      if (dialect && dialect->getNamespace() == StringRef("df"))
+        continue;
+      toErase.push_back(&op);
+    }
+    for (auto it = toErase.rbegin(); it != toErase.rend(); ++it)
+      (*it)->erase();
+    OpBuilder rb(tsModule->getBodyRegion());
+    IRMapping m;
+    for (Operation &op : *explored->getBody())
+      rb.clone(op, m);
+  }
+
   // Annotate reinterpret_cast ops with reuse information.
   PassManager annotatePM(&context);
   annotatePM.addPass(tmd::passes::createAnnotateReinterpretCastReusePass());
@@ -166,26 +193,19 @@ int main(int argc, char **argv) {
 
   mlir::OpPrintingFlags flags;
   flags.useLocalScope();
-  // Build a print-only module with DF ops first.
-  OwningOpRef<ModuleOp> printModule = ModuleOp::create(tsModule->getLoc());
+  // Reorder DF ops to the front (stable order) and print.
   {
-    OpBuilder pb(printModule->getBodyRegion());
-    IRMapping map;
-    // First clone DF ops.
-    for (Operation &op : *tsModule->getBody()) {
+    Block &body = *tsModule->getBody();
+    SmallVector<Operation *, 16> dfOps;
+    for (Operation &op : body) {
       Dialect *dialect = op.getDialect();
       if (dialect && dialect->getNamespace() == StringRef("df"))
-        pb.clone(op, map);
+        dfOps.push_back(&op);
     }
-    // Then clone non-DF ops.
-    for (Operation &op : *tsModule->getBody()) {
-      Dialect *dialect = op.getDialect();
-      if (!(dialect && dialect->getNamespace() == StringRef("df")))
-        pb.clone(op, map);
-    }
+    for (Operation *op : llvm::reverse(dfOps))
+      op->moveBefore(&body.front());
   }
-
-  printModule->print(llvm::outs(), flags);
+  tsModule->print(llvm::outs(), flags);
   llvm::outs() << "\n";
   return 0;
 }

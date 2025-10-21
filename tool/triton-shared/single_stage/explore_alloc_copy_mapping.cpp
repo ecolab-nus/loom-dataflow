@@ -87,6 +87,27 @@ int main(int argc, char **argv) {
   // Print result.
   mlir::OpPrintingFlags flags;
   flags.useLocalScope();
+  // Move DF ops to the beginning of the module (stable order) for printing.
+  {
+    Block &body = *module->getBody();
+    if (!body.empty()) {
+      llvm::SmallVector<Operation *, 16> dfOps;
+      for (Operation &op : body) {
+        Dialect *dialect = op.getDialect();
+        if (dialect && dialect->getNamespace() == StringRef("df"))
+          dfOps.push_back(&op);
+      }
+      if (!dfOps.empty()) {
+        Operation *front = &body.front();
+        for (auto it = dfOps.rbegin(); it != dfOps.rend(); ++it) {
+          Operation *op = *it;
+          if (op != front)
+            op->moveBefore(front);
+          front = &body.front();
+        }
+      }
+    }
+  }
   module->print(llvm::outs(), flags);
   llvm::outs() << "\n";
   return 0;
