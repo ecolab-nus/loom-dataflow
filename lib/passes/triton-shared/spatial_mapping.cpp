@@ -71,12 +71,28 @@ LogicalResult collectSpatialDims(ModuleOp dfModule,
 
 static LogicalResult markInnerMapped(affine::AffineParallelOp inner,
                                      StringRef dimName) {
+  /**
+   * @brief Tag the inner loop with its mapped spatial dimension.
+   *
+   * @param inner   The inner `affine.parallel` produced by tiling.
+   * @param dimName Hardware spatial dimension name to record.
+   * @return success always.
+   */
   inner->setAttr("tmd.mapped_to", StringAttr::get(inner.getContext(), dimName));
   return success();
 }
 
 static bool hasSufficientExtent(affine::AffineParallelOp par, unsigned dim,
                                 std::optional<int64_t> needed) {
+  /**
+   * @brief Check if a parallel iterator has enough static extent for tiling.
+   *
+   * @param par    The target `affine.parallel` operation.
+   * @param dim    Iterator index within `par` to check.
+   * @param needed Required static factor; `std::nullopt` means dynamic and is
+   *               conservatively considered sufficient.
+   * @return True if static range is >= needed or if unknown (conservative).
+   */
   if (!needed.has_value())
     return true; // dynamic spatial size considered infinite
   if (auto maybeRanges = par.getConstantRanges()) {
@@ -89,6 +105,9 @@ static bool hasSufficientExtent(affine::AffineParallelOp par, unsigned dim,
   return true;
 }
 
+/**
+ * @copydoc tmd_affine::mapSpatialDimsToAffine
+ */
 LogicalResult mapSpatialDimsToAffine(ModuleOp affineModule,
                                      llvm::ArrayRef<SpatialDimInfo> dims,
                                      unsigned tileDimIndex) {
@@ -196,6 +215,9 @@ static void composeAndCanonicalizeAffineApplies(func::FuncOp func) {
     op->erase();
 }
 
+/**
+ * @copydoc tmd_affine::enumerateSpatialMappings
+ */
 OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
                                                ArrayRef<SpatialDimInfo> dims) {
   MLIRContext *ctx = affineModule.getContext();
@@ -340,6 +362,9 @@ OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
 
 namespace tmd_affine {
 
+/**
+ * @copydoc tmd_affine::enumerateSpatialMappingsWithOuterFors
+ */
 OwningOpRef<ModuleOp>
 enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
                                       ArrayRef<SpatialDimInfo> dims) {
@@ -503,6 +528,9 @@ enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
 
 namespace tmd_affine {
 
+/**
+ * @copydoc tmd_affine::enumerateTritonSharedSpatialMappings
+ */
 OwningOpRef<ModuleOp> enumerateTritonSharedSpatialMappings(
     ModuleOp module, ArrayRef<SpatialDimInfo> dims, unsigned numGridDims) {
   MLIRContext *ctx = module.getContext();

@@ -41,9 +41,22 @@ namespace tmd_affine_analysis {
  * Run a basic syntax check on the function. Currently acts as a stub that
  * returns success. Extend here if you want validation before analyses.
  */
+/**
+ * @brief Optional syntax validation hook for analyses.
+ *
+ * @param funcOp Function to validate.
+ * @return success when the function passes validation; currently always
+ *         success. Extend with actual checks as needed.
+ */
 LogicalResult runSyntaxCheck(func::FuncOp /*funcOp*/) { return success(); }
 
 // Return the nearest enclosing affine.parallel op for the given op, or null.
+/**
+ * @brief Find the nearest enclosing `affine.parallel` of an operation.
+ *
+ * @param op Operation to start from.
+ * @return The innermost enclosing `affine.parallel` or null.
+ */
 static affine::AffineParallelOp getNearestEnclosingParallelOp(Operation *op) {
   Operation *parent = op->getParentOp();
   while (parent) {
@@ -63,6 +76,13 @@ static affine::AffineParallelOp getNearestEnclosingParallelOp(Operation *op) {
 // stream in a simple, stable text format.
 // Collect enclosing affine.for IVs in lexical order from outermost to innermost
 // starting above 'start' and stopping before reaching 'stopAt' (exclusive).
+/**
+ * @brief Collect enclosing `affine.for` induction variables outward from start.
+ *
+ * @param start  Start operation inside nested regions.
+ * @param stopAt Stop at this ancestor (exclusive).
+ * @return IVs in lexical order from outermost to innermost.
+ */
 static SmallVector<Value, 4> collectEnclosingForIVs(Operation *start,
                                                     Operation *stopAt) {
   SmallVector<Value, 4> ivsReversed;
@@ -79,6 +99,13 @@ static SmallVector<Value, 4> collectEnclosingForIVs(Operation *start,
 
 // Collect all enclosing induction variables (affine.parallel IVs in order and
 // affine.for IVs) from outermost to innermost.
+/**
+ * @brief Collect all enclosing IVs (`affine.parallel` IVs and `affine.for`
+ * IVs).
+ *
+ * @param start Start operation.
+ * @return IVs from outermost to innermost, preserving per-op IV order.
+ */
 static SmallVector<Value, 8> collectAllEnclosingIVs(Operation *start) {
   SmallVector<Operation *, 8> parents;
   for (Operation *p = start->getParentOp(); p; p = p->getParentOp())
@@ -99,11 +126,15 @@ static SmallVector<Value, 8> collectAllEnclosingIVs(Operation *start) {
 }
 
 // Simple integer rational number to perform exact RREF.
+/**
+ * @brief Simple exact rational number type for RREF computations.
+ */
 struct IntRational {
   int64_t num;
   int64_t den;
 };
 
+/// Greatest common divisor for 64-bit integers.
 static int64_t gcdll(int64_t a, int64_t b) {
   if (a < 0)
     a = -a;
@@ -117,6 +148,7 @@ static int64_t gcdll(int64_t a, int64_t b) {
   return a == 0 ? 1 : a;
 }
 
+/// Normalize a rational number to canonical form.
 static IntRational makeRat(int64_t n, int64_t d) {
   if (d < 0) {
     n = -n;
@@ -128,17 +160,26 @@ static IntRational makeRat(int64_t n, int64_t d) {
   return {n / g, d / g};
 }
 
+/// Subtract rationals: a - b.
 static IntRational subRat(const IntRational &a, const IntRational &b) {
   return makeRat(a.num * b.den - b.num * a.den, a.den * b.den);
 }
+/// Multiply rationals: a * b.
 static IntRational mulRat(const IntRational &a, const IntRational &b) {
   return makeRat(a.num * b.num, a.den * b.den);
 }
+/// Divide rationals: a / b.
 static IntRational divRat(const IntRational &a, const IntRational &b) {
   return makeRat(a.num * b.den, a.den * b.num);
 }
 
 // Compute RREF over rationals; returns pivot column per pivot row.
+/**
+ * @brief Reduced row echelon form over rationals; returns pivot columns.
+ *
+ * @param M Matrix of rationals modified in-place to RREF.
+ * @return Indices of pivot columns in increasing order.
+ */
 static SmallVector<int, 8>
 rref(SmallVector<SmallVector<IntRational, 8>, 8> &M) {
   const int m = static_cast<int>(M.size());
@@ -179,6 +220,13 @@ rref(SmallVector<SmallVector<IntRational, 8>, 8> &M) {
 
 // Compute primitive integer nullspace basis vectors of integer matrix A
 // (m x n). Returns a list of integer vectors (size n).
+/**
+ * @brief Compute a primitive integer basis of the nullspace of integer matrix
+ * A.
+ *
+ * @param A Integer matrix (m x n) represented as rows of columns.
+ * @return Set of primitive integer vectors spanning the nullspace.
+ */
 static SmallVector<SmallVector<int64_t, 8>, 4> computePrimitiveIntegerNullspace(
     const SmallVector<SmallVector<int64_t, 8>, 8> &A) {
   const int m = static_cast<int>(A.size());
@@ -247,6 +295,12 @@ static SmallVector<SmallVector<int64_t, 8>, 4> computePrimitiveIntegerNullspace(
 }
 
 // Attach primitive reuse vectors attribute to each affine.load.
+/**
+ * @brief Attach primitive reuse vectors attribute to each `affine.load`.
+ *
+ * @param funcOp Function to analyze; annotates loads with
+ *        `tmd.reuse.primitive_vectors` as an array<array<index>>.
+ */
 void attachPrimitiveReuseVectors(func::FuncOp funcOp) {
   MLIRContext *ctx = funcOp.getContext();
   funcOp.walk([&](affine::AffineLoadOp loadOp) {
@@ -348,6 +402,12 @@ void attachPrimitiveReuseVectors(func::FuncOp funcOp) {
   });
 }
 
+/**
+ * @brief Print reuse report per `affine.parallel` over movement directions.
+ *
+ * @param funcOp Function to analyze.
+ * @param os     Output stream to write the textual report to.
+ */
 void runInputSharingReuseAnalysis(func::FuncOp funcOp, llvm::raw_ostream &os) {
   MLIRContext *ctx = funcOp.getContext();
 
@@ -548,6 +608,11 @@ void runInputSharingReuseAnalysis(func::FuncOp funcOp, llvm::raw_ostream &os) {
  * Attributes attached on each affine.load:
  * - `tmd.invariant.x` : i1
  * - `tmd.invariant.y` : i1
+ */
+/**
+ * @brief Annotate each `affine.load` with boolean invariance along x/y.
+ *
+ * @param funcOp Function to analyze; attaches `tmd.invariant.{x,y}`.
  */
 void annotateSpatialInvariance(func::FuncOp funcOp) {
   MLIRContext *ctx = funcOp.getContext();

@@ -100,21 +100,43 @@ class TritonSharedGridToParallelPass
     : public PassWrapper<TritonSharedGridToParallelPass,
                          OperationPass<ModuleOp>> {
 public:
+  /**
+   * @brief Replace grid ABI tail arguments with a 3-D affine.parallel loop.
+   *
+   * @details Expects the last six function arguments to be
+   * `(sizeX, sizeY, sizeZ, idxX, idxY, idxZ)`. Creates a single 3-D
+   * `affine.parallel` enumerating `[0..sizeX) x [0..sizeY) x [0..sizeZ)` and
+   * replaces all uses of `(idxX, idxY, idxZ)` by the induction variables.
+   * The three index arguments are then removed from the function signature.
+   */
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(TritonSharedGridToParallelPass)
 
+  /// Command-line flag name.
   StringRef getArgument() const override {
     return "tmd-triton-shared-grid-to-parallel";
   }
+  /// Short pass description.
   StringRef getDescription() const override {
     return "Wrap function body with 3-D affine.parallel and remove grid index"
            " arguments (last 3)";
   }
 
+  /// Declare dialect dependencies used by this pass implementation.
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<affine::AffineDialect, arith::ArithDialect,
                     func::FuncDialect>();
   }
 
+  /**
+   * @brief Transform all functions following the Triton-shared ABI.
+   *
+   * @details For each function with at least six arguments, interpret the last
+   * six as `(sizeX, sizeY, sizeZ, idxX, idxY, idxZ)`, build a 3-D
+   * `affine.parallel` using sizes as upper bounds, move the original body into
+   * the parallel region, replace all uses of index arguments with the IVs, and
+   * remove the index arguments from the signature. Finally, prune unused IVs by
+   * shrinking the parallel to only the used dimensions.
+   */
   void runOnOperation() override {
     ModuleOp module = getOperation();
     MLIRContext *ctx = module.getContext();
@@ -273,10 +295,16 @@ public:
 } // namespace
 
 std::unique_ptr<mlir::Pass> createTritonSharedGridToParallelPass() {
+  /**
+   * @brief Create the grid-to-parallel conversion pass.
+   */
   return std::make_unique<TritonSharedGridToParallelPass>();
 }
 
 void registerTritonSharedGridToParallelPass() {
+  /**
+   * @brief Register the grid-to-parallel pass for textual pipelines.
+   */
   PassRegistration<TritonSharedGridToParallelPass>();
 }
 

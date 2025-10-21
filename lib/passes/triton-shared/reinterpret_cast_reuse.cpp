@@ -40,6 +40,17 @@ using namespace mlir;
 namespace {
 
 static bool dependsOn(Value value, Value target) {
+  /**
+   * @brief Check whether `value` depends (transitively) on `target`.
+   *
+   * @details Walks the SSA def-use graph backward from `value` to determine if
+   * `target` appears among its transitive operands. Block arguments stop the
+   * walk (treated as leaves).
+   *
+   * @param value  The value to test for dependency.
+   * @param target The candidate dependency to look for.
+   * @return True if `value` depends on `target`, false otherwise.
+   */
   if (!value)
     return false;
   if (value == target)
@@ -76,15 +87,34 @@ class AnnotateReinterpretCastReusePass
     : public PassWrapper<AnnotateReinterpretCastReusePass,
                          OperationPass<ModuleOp>> {
 public:
+  /**
+   * @brief Annotate `memref.reinterpret_cast` with iterator reuse metadata.
+   *
+   * @details For each cast, the pass identifies surrounding iterator variables
+   * (spatial `affine.parallel`, temporal `affine.for`, sequential `scf.for`),
+   * determines whether the cast's dynamic offsets vary with each iterator, and
+   * attaches the summary as a `tmd.reuse` dictionary grouped by iterator
+   * classes.
+   */
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(AnnotateReinterpretCastReusePass)
 
+  /// Command-line flag name.
   StringRef getArgument() const override {
     return "tmd-annotate-reinterpret-cast-reuse";
   }
+  /// Short pass description for diagnostics and help.
   StringRef getDescription() const override {
     return "Annotate memref.reinterpret_cast ops with iterator reuse info";
   }
 
+  /**
+   * @brief Execute the annotation pass over the module.
+   *
+   * @details Walk all `memref.reinterpret_cast` ops, collect dynamic offsets,
+   * derive enclosing iterators, classify reuse (`no_reuse` vs `total_reuse`),
+   * estimate reuse volume (bytes or -1), and attach a `tmd.reuse` dictionary
+   * with arrays for `spatial`, `temporal`, and `sequential` iterators.
+   */
   void runOnOperation() override {
     ModuleOp module = getOperation();
     MLIRContext *ctx = module.getContext();
@@ -218,9 +248,15 @@ public:
 
 std::unique_ptr<mlir::Pass>
 tmd::passes::createAnnotateReinterpretCastReusePass() {
+  /**
+   * @brief Create the reinterpret_cast reuse annotation pass.
+   */
   return std::make_unique<AnnotateReinterpretCastReusePass>();
 }
 
 void tmd::passes::registerAnnotateReinterpretCastReusePass() {
+  /**
+   * @brief Register the reinterpret_cast reuse annotation pass.
+   */
   PassRegistration<AnnotateReinterpretCastReusePass>();
 }
