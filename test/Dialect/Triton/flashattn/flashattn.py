@@ -103,9 +103,9 @@ def flashattn_fwd(
 def main():
     # Fixed shapes / strides
     SEQ_LEN = 512
-    HEAD_DIM = 64
-    BLOCK_Q = 64
-    BLOCK_KV = 64
+    HEAD_DIM = 32
+    BLOCK_Q = 32
+    BLOCK_KV = 32
 
     torch.manual_seed(0)
     # Row-major 2D tensors for simplicity

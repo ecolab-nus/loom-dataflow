@@ -938,7 +938,15 @@ public:
                            !loop.getLowerBound().getType().isIndex() ||
                            !loop.getUpperBound().getType().isIndex() ||
                            !loop.getStep().getType().isIndex();
-          if (!needIndex)
+          bool needIterArgIndex = false;
+          for (Value iterArg : loop.getRegionIterArgs()) {
+            Type t = iterArg.getType();
+            if (!t.isIndex() && llvm::isa<IntegerType>(t)) {
+              needIterArgIndex = true;
+              break;
+            }
+          }
+          if (!needIndex && !needIterArgIndex)
             return;
           Value lbIdx = toIndex(loop.getLowerBound());
           Value ubIdx = toIndex(loop.getUpperBound());
@@ -949,8 +957,17 @@ public:
           Value stAff = ensureAffine(stIdx, loop.getLoc(), loop);
           OpBuilder::InsertionGuard g(b);
           b.setInsertionPoint(loop);
+          SmallVector<Value, 8> newInitArgs;
+          newInitArgs.reserve(loop.getInitArgs().size());
+          for (Value initV : loop.getInitArgs()) {
+            Type t = initV.getType();
+            if (!t.isIndex() && llvm::isa<IntegerType>(t))
+              newInitArgs.push_back(toIndex(initV));
+            else
+              newInitArgs.push_back(initV);
+          }
           auto newLoop = b.create<scf::ForOp>(loop.getLoc(), lbAff, ubAff,
-                                              stAff, loop.getInitArgs());
+                                              stAff, newInitArgs);
           // Clone body with IV remapped to index-typed IV.
           IRMapping mapper;
           Block &oldBody = *loop.getBody();
@@ -987,7 +1004,23 @@ public:
             }
           }
           nb.create<scf::YieldOp>(oldYield.getLoc(), yieldVals);
-          loop.getResults().replaceAllUsesWith(newLoop.getResults());
+          // Replace uses of the old loop results with the new ones, inserting
+          // casts when the result types changed (e.g., i64 -> index).
+          for (auto en : llvm::enumerate(loop.getResults())) {
+            unsigned i = en.index();
+            Value oldRes = en.value();
+            Value newRes = newLoop.getResult(i);
+            if (oldRes.getType() == newRes.getType()) {
+              oldRes.replaceAllUsesWith(newRes);
+              continue;
+            }
+            OpBuilder::InsertionGuard g2(b);
+            b.setInsertionPointAfter(newLoop);
+            // Only integer/index differences are expected here.
+            Value casted = b.create<arith::IndexCastOp>(
+                newLoop.getLoc(), oldRes.getType(), newRes);
+            oldRes.replaceAllUsesWith(casted);
+          }
           loop.erase();
           return;
         }
