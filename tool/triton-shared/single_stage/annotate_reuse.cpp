@@ -92,8 +92,9 @@ int main(int argc, char **argv) {
     return 2;
   }
 
-  AsmState state(*module);
-  module->print(llvm::outs(), state);
+  mlir::OpPrintingFlags flags;
+  flags.useLocalScope();
+  module->print(llvm::outs(), flags);
   llvm::outs() << "\n";
   return 0;
 }

@@ -20,6 +20,7 @@
 #include "spatial_mapping.h"
 #include "triton_shared_affinize.h"
 #include "triton_shared_grid_to_parallel.h"
+#include "triton_shared_spatial_mapping_pass.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -125,41 +126,66 @@ int main(int argc, char **argv) {
     return 2;
   }
 
-  // Now explore spatial mappings over the outermost affine.parallel with DF.
-  OwningOpRef<ModuleOp> explored =
-      tmd_affine::enumerateSpatialMappingsWithOuterFors(*tsModule, spatialDims);
+  // Merge DF decls into the transformed tsModule so passes can see DF.
+  {
+    OpBuilder mb(tsModule->getBodyRegion());
+    IRMapping map;
+    for (Operation &op : *dfModule->getBody())
+      mb.clone(op, map);
+  }
 
-  // Merge DF declarations and generated clones into a single module.
-  OwningOpRef<ModuleOp> merged = ModuleOp::create(UnknownLoc::get(&context));
-  OpBuilder builder(merged->getBodyRegion());
-  IRMapping mapping;
-  for (Operation &op : *dfModule->getBody())
-    builder.clone(op, mapping);
-  for (Operation &op : *explored->getBody())
-    builder.clone(op, mapping);
+  // Run spatial mapping as a pass (with outer-for permutations).
+  PassManager spatialPM(&context);
+  spatialPM.addPass(tmd::passes::createTritonSharedExploreSpatialMappingsPass(
+      /*withOuterFors=*/true));
+  if (failed(spatialPM.run(*tsModule))) {
+    llvm::WithColor::error(llvm::errs())
+        << "Spatial mapping exploration pass failed\n";
+    return 3;
+  }
 
-  // Annotate reinterpret_cast ops with reuse information relative to the
-  // surrounding spatial/temporal iterators.
+  // Annotate reinterpret_cast ops with reuse information.
   PassManager annotatePM(&context);
   annotatePM.addPass(tmd::passes::createAnnotateReinterpretCastReusePass());
-  if (failed(annotatePM.run(*merged))) {
+  if (failed(annotatePM.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs()) << "Reuse annotation pass failed\n";
     return 3;
   }
 
-  // Explore alloc/copy mapping choices (default: enumerate and clone).
+  // Explore alloc/copy mapping choices.
   PassManager mappingPM(&context);
   mappingPM.addPass(tmd::passes::createExploreAllocCopyMappingPass(
       /*analysisOnly=*/clMapAnalysisOnly));
-  if (failed(mappingPM.run(*merged))) {
+  if (failed(mappingPM.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs())
         << "Alloc/Copy mapping exploration failed\n";
     return 4;
   }
 
+  // (Old merged-based path removed)
+
   mlir::OpPrintingFlags flags;
   flags.useLocalScope();
-  merged->print(llvm::outs(), flags);
+  // Build a print-only module with DF ops first.
+  OwningOpRef<ModuleOp> printModule = ModuleOp::create(tsModule->getLoc());
+  {
+    OpBuilder pb(printModule->getBodyRegion());
+    IRMapping map;
+    // First clone DF ops.
+    for (Operation &op : *tsModule->getBody()) {
+      Dialect *dialect = op.getDialect();
+      if (dialect && dialect->getNamespace() == StringRef("df"))
+        pb.clone(op, map);
+    }
+    // Then clone non-DF ops.
+    for (Operation &op : *tsModule->getBody()) {
+      Dialect *dialect = op.getDialect();
+      if (!(dialect && dialect->getNamespace() == StringRef("df")))
+        pb.clone(op, map);
+    }
+  }
+
+  printModule->print(llvm::outs(), flags);
   llvm::outs() << "\n";
   return 0;
 }
