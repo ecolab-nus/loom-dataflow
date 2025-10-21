@@ -1,3 +1,27 @@
+/**
+ * @file
+ * @brief Tiling utilities for `mlir::affine::AffineParallelOp`.
+ *
+ * @details Implements tiling of an `affine.parallel` by a constant factor on a
+ * chosen dimension. The transformation replaces the original loop with:
+ * - an outer `affine.parallel` whose upper bound on the tiled dimension is
+ *   `ceilDiv(originalUB, tilingFactor)`, and
+ * - an inner `affine.parallel` that iterates `[0, tilingFactor)` with unit
+ * step.
+ *
+ * The original induction variable on the tiled dimension is remapped to
+ * `outerIv * tilingFactor + innerIv`. Non-tiled dimensions reuse the outer
+ * induction variables. The original body is cloned into the inner loop, and the
+ * original operation is erased.
+ *
+ * Constraints enforced by the implementation:
+ * - tiling factor must be positive
+ * - only unit step on the tiled dimension is supported
+ * - lower bound on the tiled dimension must be constant zero
+ * - reductions (i.e., ops with results) are not supported
+ * - if static ranges are known, the chosen dimension's extent must be divisible
+ *   by the tiling factor
+ */
 #include "affine_tile.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -14,7 +38,38 @@
 using namespace mlir;
 
 namespace tmd_affine {
+/// Affine utilities and transformations specific to TMD.
 
+/**
+ * @brief Tile an `affine.parallel` along one dimension, producing outer/inner
+ * loops.
+ *
+ * @param op The `affine.parallel` to tile.
+ * @param tilingFactor Tile size to apply on the chosen dimension. Must be > 0.
+ * @param tileDimIndex Zero-based index of the dimension to tile.
+ * @param[out] result If provided, receives the created outer and inner
+ *                    `AffineParallelOp` handles.
+ * @return `success()` on a successful rewrite; `failure()` with an emitted
+ *         diagnostic if preconditions are not met or an internal invariant is
+ *         violated.
+ *
+ * @details Semantics:
+ * - Preconditions enforced at runtime:
+ *   - positive `tilingFactor`
+ *   - the chosen dimension has unit step and constant-zero lower bound
+ *   - no reductions (op has no results)
+ *   - when available, static extent of the chosen dimension is divisible by
+ *     `tilingFactor`
+ * - Rewrite:
+ *   - Create an outer `affine.parallel` reusing the original bounds on all
+ *     dimensions except the chosen one, for which the upper bound becomes
+ *     `ceilDiv(originalUB, tilingFactor)`.
+ *   - Create an inner `affine.parallel` with range `[0, tilingFactor)`.
+ *   - Remap induction variables: on the chosen dimension,
+ *     `oldIv -> outerIv * tilingFactor + innerIv`; other dimensions map to the
+ *     corresponding outer IVs.
+ *   - Clone the original body into the inner loop and erase the original op.
+ */
 LogicalResult tileAffineParallel(affine::AffineParallelOp op,
                                  int64_t tilingFactor, unsigned tileDimIndex,
                                  TiledParallels &result) {
@@ -30,13 +85,13 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
   if (tileDimIndex >= numDims)
     return op.emitError("tileDimIndex out of range"), failure();
 
-  // Only support unit step on the chosen dimension for simplicity.
+  // The tiled dimension must have unit step for this implementation.
   SmallVector<int64_t> steps = llvm::to_vector(op.getSteps());
   if (steps.empty() || steps[tileDimIndex] != 1)
     return op.emitError("only step 1 supported on the chosen dimension"),
            failure();
 
-  // Require lower bound 0 on the chosen dimension for simplicity.
+  // The tiled dimension must start from a constant-zero lower bound.
   AffineMap lbChosen = op.getLowerBoundMap(tileDimIndex);
   if (lbChosen.getNumResults() != 1 || !lbChosen.isSingleConstant())
     return op.emitError(
@@ -46,8 +101,7 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
     return op.emitError("expected lower bound 0 on chosen dimension"),
            failure();
 
-  // If constant ranges known, verify divisibility; otherwise assume
-  // divisible.
+  // If a static range is known, verify divisibility by the tiling factor.
   if (auto maybeRanges = op.getConstantRanges()) {
     auto ranges = *maybeRanges;
     if (!ranges.empty()) {
@@ -64,8 +118,8 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
 
   builder.setInsertionPoint(op);
 
-  // Reuse original LB/UB maps and operands. Replace only the chosen UB map
-  // with ceilDiv(originalUB, tilingFactor) for composable tiling.
+  // Reuse original LB/UB maps and operands. Replace only the chosen dimension's
+  // UB with ceilDiv(originalUB, tilingFactor) to form the outer loop space.
   SmallVector<AffineMap> outerLbMaps;
   SmallVector<AffineMap> outerUbMaps;
   outerLbMaps.reserve(numDims);
@@ -74,7 +128,7 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
     outerLbMaps.push_back(op.getLowerBoundMap(i));
     AffineMap ubI = op.getUpperBoundMap(i);
     if (i == tileDimIndex) {
-      // Transform the single-result UB map: ceilDiv(expr, tilingFactor).
+      // Transform the single-result UB map to ceilDiv(expr, tilingFactor).
       if (ubI.getNumResults() != 1)
         return op.emitError("expected single-result UB map"), failure();
       AffineExpr e = ubI.getResult(0);
@@ -88,10 +142,10 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
   ValueRange outerLbArgs = op.getLowerBoundsOperands();
   ValueRange outerUbArgs = op.getUpperBoundsOperands();
 
-  // Steps remain the same for outer loop.
+  // Steps remain unchanged on all outer-loop dimensions.
   SmallVector<int64_t> outerSteps = steps;
 
-  // Only support non-reduction parallel loops for now.
+  // Reductions (parallel ops with results) are not supported.
   if (!op->getResults().empty())
     return op.emitError("reduction results not supported by this tiling pass"),
            failure();
@@ -103,12 +157,13 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
       /*lbArgs=*/outerLbArgs, outerUbMaps,
       /*ubArgs=*/outerUbArgs, outerSteps);
 
-  // Prepare remapping for IVs. For the tiled dimension k, map old iv_k to
-  // affine.apply (d0, d1) -> (d0 * tile + d1), where d0 = outer iv_k and
-  // d1 = inner iv_0. Other dims map to their corresponding outer IVs.
+  // Prepare IV remapping. For the tiled dimension k, map
+  //   old_iv_k -> affine.apply (d0, d1) -> (d0 * tile + d1),
+  // where d0 = outer iv_k and d1 = inner iv_0. Other dimensions map to their
+  // corresponding outer IVs.
   IRMapping ivMap;
 
-  // Create the inner affine.parallel with constant range (0, tilingFactor).
+  // Create the inner affine.parallel with constant range [0, tilingFactor).
   OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToStart(outerPar.getBody());
   // Create inner with explicit affine lb/ub maps: (0) to (tilingFactor).
@@ -121,8 +176,8 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
       /*reductions=*/ArrayRef<arith::AtomicRMWKind>{}, innerLbMaps,
       /*lbArgs=*/ValueRange{}, innerUbMaps,
       /*ubArgs=*/ValueRange{}, innerSteps);
-  // Splice original body operations into the inner parallel, remapping IVs.
-  // Skip the terminator if present.
+  // Clone original body ops into the inner parallel, remapping IVs. Skip the
+  // terminator if present.
   Block *origBody = op.getBody();
   Block *innerBody = outerPar.getBody();
   // The newly created innerPar is the first op in the body; set insertion
@@ -134,7 +189,7 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
            failure();
   Block *innerParBody = innerParOp.getBody();
   builder.setInsertionPointToStart(innerParBody);
-  // Build the mapping now that we have the inner IV.
+  // Build the IV mapping now that the inner IV exists.
   Value innerIv = innerParOp.getBody()->getArgument(0);
   for (unsigned i = 0; i < numDims; ++i) {
     Value oldIv = op.getBody()->getArgument(i);
@@ -158,7 +213,7 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
     (void)builder.clone(nested, ivMap);
   }
 
-  // Erase the original op.
+  // Erase the original op; the rewrite is complete.
   op.erase();
   // Populate result handles.
   result.outer = outerPar;
@@ -166,7 +221,17 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
   return success();
 }
 
-// Backward-compatible shim used by existing pass code.
+/**
+ * @brief Convenience overload that discards the created loop handles.
+ *
+ * @param op The `affine.parallel` to tile.
+ * @param tilingFactor Tile size to apply on the chosen dimension.
+ * @param tileDimIndex Zero-based index of the dimension to tile.
+ * @return `success()` on success; `failure()` with diagnostic otherwise.
+ *
+ * @see tileAffineParallel(affine::AffineParallelOp, int64_t, unsigned,
+ *      TiledParallels &)
+ */
 LogicalResult tileAffineParallel(affine::AffineParallelOp op,
                                  int64_t tilingFactor, unsigned tileDimIndex) {
   TiledParallels tmp;
