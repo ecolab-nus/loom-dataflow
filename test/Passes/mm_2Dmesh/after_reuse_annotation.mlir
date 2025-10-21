@@ -26,13 +26,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -46,7 +46,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%7, %arg13, %arg14)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%7, %arg13, %arg14)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -81,13 +81,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -101,7 +101,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%7, %arg14, %arg13)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%7, %arg14, %arg13)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -136,13 +136,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -156,7 +156,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%7, %arg12, %arg14)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%7, %arg12, %arg14)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -191,13 +191,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -211,7 +211,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%7, %arg12, %arg13)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%7, %arg12, %arg13)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -246,13 +246,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -266,7 +266,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%7, %arg14, %arg12)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%7, %arg14, %arg12)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -301,13 +301,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -321,7 +321,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%7, %arg13, %arg12)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%7, %arg13, %arg12)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -356,13 +356,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -376,7 +376,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%7, %arg13, %arg14)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%7, %arg13, %arg14)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -411,13 +411,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -431,7 +431,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%7, %arg14, %arg13)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%7, %arg14, %arg13)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -466,13 +466,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -486,7 +486,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%7, %arg12, %arg14)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%7, %arg12, %arg14)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -521,13 +521,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -541,7 +541,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%7, %arg12, %arg13)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%7, %arg12, %arg13)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -576,13 +576,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -596,7 +596,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%7, %arg14, %arg12)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%7, %arg14, %arg12)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -631,13 +631,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -651,7 +651,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%7, %arg13, %arg12)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%7, %arg13, %arg12)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -687,13 +687,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg15)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -707,7 +707,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg15)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %7, %arg14)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %7, %arg14)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -743,13 +743,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg15)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -763,7 +763,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg15)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %7, %arg13)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %7, %arg13)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -799,13 +799,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg15)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -819,7 +819,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg15)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %7, %arg14)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %7, %arg14)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -855,13 +855,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg15)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -875,7 +875,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg15)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %7, %arg13)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %7, %arg13)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -911,13 +911,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg15)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -931,7 +931,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg15)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %7, %arg12)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %7, %arg12)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -967,13 +967,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg15)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -987,7 +987,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg15)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %7, %arg12)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %7, %arg12)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1023,13 +1023,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1043,7 +1043,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %arg13, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %arg13, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1079,13 +1079,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1099,7 +1099,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %arg14, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %arg14, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1135,13 +1135,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1155,7 +1155,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %arg12, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %arg12, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1191,13 +1191,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1211,7 +1211,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %arg12, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %arg12, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1247,13 +1247,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1267,7 +1267,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %arg14, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %arg14, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1303,13 +1303,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1323,7 +1323,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %arg13, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %arg13, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1359,13 +1359,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg15)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1379,7 +1379,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg15)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %7, %arg14)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %7, %arg14)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1415,13 +1415,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg15)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1435,7 +1435,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg15)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %7, %arg13)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %7, %arg13)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1471,13 +1471,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg15)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1491,7 +1491,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg15)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %7, %arg14)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %7, %arg14)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1527,13 +1527,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg15)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1547,7 +1547,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg15)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %7, %arg13)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %7, %arg13)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1583,13 +1583,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg15)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1603,7 +1603,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg15)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %7, %arg12)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %7, %arg12)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1639,13 +1639,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg15)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1659,7 +1659,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg15)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %7, %arg12)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %7, %arg12)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1694,13 +1694,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg13, %arg15)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1714,7 +1714,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg13, %arg15)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg12, %7, %arg14)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg12, %7, %arg14)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1749,13 +1749,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg14, %arg15)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1769,7 +1769,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg14, %arg15)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg12, %7, %arg13)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg12, %7, %arg13)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1804,13 +1804,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg12, %arg15)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1824,7 +1824,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg12, %arg15)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg13, %7, %arg14)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg13, %7, %arg14)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1859,13 +1859,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg12, %arg15)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1879,7 +1879,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg12, %arg15)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg14, %7, %arg13)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg14, %7, %arg13)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1914,13 +1914,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg14, %arg15)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1934,7 +1934,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg14, %arg15)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg13, %7, %arg12)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg13, %7, %arg12)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -1969,13 +1969,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg13, %arg15)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -1989,7 +1989,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg13, %arg15)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg14, %7, %arg12)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg14, %7, %arg12)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2024,13 +2024,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg13, %arg15)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2044,7 +2044,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg13, %arg15)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg12, %7, %arg14)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg12, %7, %arg14)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2079,13 +2079,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg14, %arg15)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2099,7 +2099,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg14, %arg15)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg12, %7, %arg13)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg12, %7, %arg13)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2134,13 +2134,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg12, %arg15)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2154,7 +2154,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg12, %arg15)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg13, %7, %arg14)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg13, %7, %arg14)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2189,13 +2189,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg12, %arg15)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2209,7 +2209,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg12, %arg15)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg14, %7, %arg13)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg14, %7, %arg13)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2244,13 +2244,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg14, %arg15)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2264,7 +2264,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg14, %arg15)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg13, %7, %arg12)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg13, %7, %arg12)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2299,13 +2299,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg13, %arg15)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2319,7 +2319,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0, d1, d2)[s0] -> (d0 * 64 + d1 * 4096 + d2 * 512 + s0)>(%arg16, %arg13, %arg15)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg14, %7, %arg12)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg14, %7, %arg12)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2355,13 +2355,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg16)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2375,7 +2375,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg16)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg12, %8, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg12, %8, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2411,13 +2411,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg16)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2431,7 +2431,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg16)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg12, %8, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg12, %8, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2467,13 +2467,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg16)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2487,7 +2487,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg16)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg13, %8, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg13, %8, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2523,13 +2523,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg16)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2543,7 +2543,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg16)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg14, %8, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg14, %8, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2579,13 +2579,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg16)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2599,7 +2599,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg16)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg13, %8, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg13, %8, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2635,13 +2635,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg16)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2655,7 +2655,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg16)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg14, %8, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg14, %8, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2691,13 +2691,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2711,7 +2711,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %arg13, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %arg13, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2747,13 +2747,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2767,7 +2767,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %arg14, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %arg14, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2803,13 +2803,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2823,7 +2823,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %arg12, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %arg12, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2859,13 +2859,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2879,7 +2879,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %arg12, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %arg12, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2915,13 +2915,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2935,7 +2935,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %arg14, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %arg14, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -2971,13 +2971,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -2991,7 +2991,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%8, %arg13, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%8, %arg13, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3027,13 +3027,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg16)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3047,7 +3047,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg16)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg12, %8, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg12, %8, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3083,13 +3083,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg16)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3103,7 +3103,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg16)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg12, %8, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg12, %8, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3139,13 +3139,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg16)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3159,7 +3159,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg16)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg13, %8, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg13, %8, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3195,13 +3195,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg16)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3215,7 +3215,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg12, %arg16)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg14, %8, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg14, %8, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3251,13 +3251,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg16)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3271,7 +3271,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg14, %arg16)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg13, %8, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg13, %8, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3307,13 +3307,13 @@ module {
                 %20 = arith.muli %arg17, %c32 : index
                 %21 = arith.muli %11, %arg6 : index
                 %22 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%21]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %23 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %24 = arith.muli %20, %arg7 : index
                 %25 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg16)[%24]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%25], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %26 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3327,7 +3327,7 @@ module {
               }
               %14 = arith.muli %11, %arg8 : index
               %15 = affine.apply affine_map<(d0, d1)[s0] -> (d0 * 512 + d1 * 64 + s0)>(%arg13, %arg16)[%14]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg14, %8, %7)[%arg3]
               %17 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg14, %8, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %13[0, 0] [%16, %17] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3362,13 +3362,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3382,7 +3382,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg12, %arg13, %7)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg12, %arg13, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3417,13 +3417,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3437,7 +3437,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg12, %arg14, %7)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg12, %arg14, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3472,13 +3472,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3492,7 +3492,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg13, %arg12, %7)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg13, %arg12, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3527,13 +3527,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3547,7 +3547,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg14, %arg12, %7)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg14, %arg12, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3582,13 +3582,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3602,7 +3602,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg13, %arg14, %7)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg13, %arg14, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3637,13 +3637,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3657,7 +3657,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg14, %arg13, %7)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg14, %arg13, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3692,13 +3692,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3712,7 +3712,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg12, %arg13, %7)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg12, %arg13, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3747,13 +3747,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3767,7 +3767,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg12, %arg14, %7)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg12, %arg14, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3802,13 +3802,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3822,7 +3822,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 16384 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg13, %arg12, %7)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg13, %arg12, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3857,13 +3857,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3877,7 +3877,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg12)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg14, %arg12, %7)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg14, %arg12, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3912,13 +3912,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3932,7 +3932,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg14)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg13, %arg14, %7)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg13, %arg14, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
@@ -3967,13 +3967,13 @@ module {
                 %19 = arith.muli %arg17, %c32 : index
                 %20 = arith.muli %10, %arg6 : index
                 %21 = affine.apply affine_map<(d0)[s0] -> (d0 * 32 + s0)>(%arg17)[%20]
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%21], sizes: [64, 32], strides: [%arg6, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x32xf32, strided<[?, 1], offset: ?>>
                 %alloc = memref.alloc() : memref<64x32xf32>
                 memref.copy %reinterpret_cast_0, %alloc : memref<64x32xf32, strided<[?, 1], offset: ?>> to memref<64x32xf32>
                 %22 = bufferization.to_tensor %alloc restrict writable : memref<64x32xf32> to tensor<64x32xf32>
                 %23 = arith.muli %19, %arg7 : index
                 %24 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%23]
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%24], sizes: [32, 64], strides: [%arg7, 1] {tmd.reuse = {sequential = [{depth = 5 : i64, iterator = "%arg17", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 8192 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 8192 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "total_reuse", volume = 8192 : i64}]}} : memref<*xf32> to memref<32x64xf32, strided<[?, 1], offset: ?>>
                 %alloc_2 = memref.alloc() : memref<32x64xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 : memref<32x64xf32, strided<[?, 1], offset: ?>> to memref<32x64xf32>
                 %25 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x64xf32> to tensor<32x64xf32>
@@ -3987,7 +3987,7 @@ module {
               }
               %13 = arith.muli %10, %arg8 : index
               %14 = affine.apply affine_map<(d0)[s0] -> (d0 * 64 + s0)>(%arg13)[%13]
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%14], sizes: [64, 64], strides: [%arg8, 1] {tmd.reuse = {spatial = [{depth = 3 : i64, iterator = "%arg15", mapped_to = "x", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 4 : i64, iterator = "%arg16", mapped_to = "y", reuse_type = "total_reuse", volume = 16384 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg12", reuse_type = "total_reuse", volume = 16384 : i64}, {depth = 1 : i64, iterator = "%arg13", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 2 : i64, iterator = "%arg14", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
               %15 = affine.min affine_map<(d0, d1, d2)[s0] -> (d0 * -64 + s0, 64)>(%arg14, %arg13, %7)[%arg3]
               %16 = affine.min affine_map<(d0, d1, d2)[s0] -> (d1 * -64 + s0, 64)>(%arg14, %arg13, %7)[%arg4]
               %extracted_slice = tensor.extract_slice %12[0, 0] [%15, %16] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>

@@ -38,8 +38,12 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/FileUtilities.h"
 
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/WithColor.h"
 
 #include "DataflowDialect.h.inc"
@@ -61,7 +65,51 @@ static llvm::cl::opt<bool> clMapAnalysisOnly(
     llvm::cl::desc("Only attach tmd.copy.candidates; do not clone functions"),
     llvm::cl::init(false));
 
+static llvm::cl::opt<bool>
+    clDumpIntermediate("dump-intermediate",
+                       llvm::cl::desc("Dump MLIR after each pass to stderr"),
+                       llvm::cl::init(false));
+
+static llvm::cl::opt<std::string> clDumpDir(
+    "dump-dir",
+    llvm::cl::desc("Directory to dump intermediate MLIR files (optional)"),
+    llvm::cl::value_desc("dir"), llvm::cl::init(""));
+
 // No max-variants flag; we enumerate all combinations.
+
+/// Dump the given module to a file within 'dirPath' with the specified
+/// 'fileName'. Creates the directory if it doesn't exist.
+static LogicalResult dumpModuleToFile(ModuleOp module, StringRef dirPath,
+                                      StringRef fileName) {
+  if (dirPath.empty())
+    return success();
+
+  // Ensure the directory exists.
+  if (std::error_code ec = llvm::sys::fs::create_directories(dirPath)) {
+    llvm::WithColor::error(llvm::errs())
+        << "Failed to create dump directory '" << dirPath
+        << "': " << ec.message() << "\n";
+    return failure();
+  }
+
+  llvm::SmallString<256> fullPath(dirPath);
+  llvm::sys::path::append(fullPath, fileName);
+
+  std::string errMsg;
+  auto out = mlir::openOutputFile(fullPath, &errMsg);
+  if (!out) {
+    llvm::WithColor::error(llvm::errs())
+        << "Failed to open dump file '" << fullPath << "': " << errMsg << "\n";
+    return failure();
+  }
+
+  mlir::OpPrintingFlags flags;
+  flags.useLocalScope();
+  module->print(out->os(), flags);
+  out->os() << "\n";
+  out->keep();
+  return success();
+}
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
@@ -75,7 +123,9 @@ int main(int argc, char **argv) {
                   mlir::linalg::LinalgDialect, mlir::scf::SCFDialect,
                   mlir::bufferization::BufferizationDialect,
                   tmd::df::DataflowDialect>();
-  MLIRContext context(registry);
+  MLIRContext context(registry, clDumpIntermediate
+                                    ? MLIRContext::Threading::DISABLED
+                                    : MLIRContext::Threading::ENABLED);
   context.loadAllAvailableDialects();
 
   // Parse DF module for spatial dimensions.
@@ -116,15 +166,44 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Build and run the pipeline: affinize -> grid_to_parallel.
-  PassManager pm(&context);
-  pm.addPass(tmd::passes::createTritonSharedAffinizePass());
-  pm.addPass(tmd::passes::createTritonSharedGridToParallelPass());
-  if (failed(pm.run(*tsModule))) {
-    llvm::WithColor::error(llvm::errs())
-        << "Pipeline (affinize -> grid_to_parallel) failed\n";
+  // Run affinization, then dump if requested.
+  PassManager pmAff(&context);
+  if (clDumpIntermediate) {
+    pmAff.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
+  pmAff.addPass(tmd::passes::createTritonSharedAffinizePass());
+  if (failed(pmAff.run(*tsModule))) {
+    llvm::WithColor::error(llvm::errs()) << "Affinization pass failed\n";
     return 2;
   }
+  if (!clDumpDir.empty() &&
+      failed(dumpModuleToFile(*tsModule, clDumpDir, "after_affinization.mlir")))
+    return 5;
+
+  // Run grid-to-parallel, then dump if requested.
+  PassManager pmGrid(&context);
+  if (clDumpIntermediate) {
+    pmGrid.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
+  pmGrid.addPass(tmd::passes::createTritonSharedGridToParallelPass());
+  if (failed(pmGrid.run(*tsModule))) {
+    llvm::WithColor::error(llvm::errs()) << "Grid-to-parallel pass failed\n";
+    return 2;
+  }
+  if (!clDumpDir.empty() &&
+      failed(dumpModuleToFile(*tsModule, clDumpDir,
+                              "after_grid_to_parallel.mlir")))
+    return 5;
 
   // Merge DF decls into the transformed tsModule so passes can see DF.
   {
@@ -136,6 +215,14 @@ int main(int argc, char **argv) {
 
   // Run spatial mapping as a pass (with outer-for permutations).
   PassManager spatialPM(&context);
+  if (clDumpIntermediate) {
+    spatialPM.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
   spatialPM.addPass(tmd::passes::createTritonSharedExploreSpatialMappingsPass(
       /*withOuterFors=*/true));
   if (failed(spatialPM.run(*tsModule))) {
@@ -170,17 +257,40 @@ int main(int argc, char **argv) {
     for (Operation &op : *explored->getBody())
       rb.clone(op, m);
   }
+  if (!clDumpDir.empty() &&
+      failed(dumpModuleToFile(*tsModule, clDumpDir, "after_exploration.mlir")))
+    return 5;
 
   // Annotate reinterpret_cast ops with reuse information.
   PassManager annotatePM(&context);
+  if (clDumpIntermediate) {
+    annotatePM.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
   annotatePM.addPass(tmd::passes::createAnnotateReinterpretCastReusePass());
   if (failed(annotatePM.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs()) << "Reuse annotation pass failed\n";
     return 3;
   }
+  if (!clDumpDir.empty() &&
+      failed(dumpModuleToFile(*tsModule, clDumpDir,
+                              "after_reuse_annotation.mlir")))
+    return 5;
 
   // Explore alloc/copy mapping choices.
   PassManager mappingPM(&context);
+  if (clDumpIntermediate) {
+    mappingPM.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
   mappingPM.addPass(tmd::passes::createExploreAllocCopyMappingPass(
       /*analysisOnly=*/clMapAnalysisOnly));
   if (failed(mappingPM.run(*tsModule))) {
@@ -188,6 +298,10 @@ int main(int argc, char **argv) {
         << "Alloc/Copy mapping exploration failed\n";
     return 4;
   }
+  if (!clDumpDir.empty() &&
+      failed(
+          dumpModuleToFile(*tsModule, clDumpDir, "after_memref_mapping.mlir")))
+    return 5;
 
   // (Old merged-based path removed)
 
