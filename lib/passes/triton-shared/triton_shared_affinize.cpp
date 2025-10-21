@@ -967,6 +967,25 @@ public:
           yieldVals.reserve(oldYield.getNumOperands());
           for (Value v : oldYield.getOperands())
             yieldVals.push_back(mapper.lookupOrDefault(v));
+          // Ensure yielded values match the new loop's iter_arg types. Our
+          // earlier canonicalization may have turned integer math results into
+          // index-typed values; cast them back to the expected types here.
+          for (auto en : llvm::enumerate(yieldVals)) {
+            unsigned i = en.index();
+            Value yv = en.value();
+            Type expectedTy = newLoop.getRegionIterArgs()[i].getType();
+            Type actualTy = yv.getType();
+            if (expectedTy == actualTy)
+              continue;
+            bool expectedIsIdx = expectedTy.isIndex();
+            bool actualIsIdx = actualTy.isIndex();
+            if ((expectedIsIdx && llvm::isa<IntegerType>(actualTy)) ||
+                (actualIsIdx && llvm::isa<IntegerType>(expectedTy))) {
+              yv = nb.create<arith::IndexCastOp>(oldYield.getLoc(), expectedTy,
+                                                 yv);
+              yieldVals[i] = yv;
+            }
+          }
           nb.create<scf::YieldOp>(oldYield.getLoc(), yieldVals);
           loop.getResults().replaceAllUsesWith(newLoop.getResults());
           loop.erase();
