@@ -6,7 +6,7 @@ module {
   %4 = df.mux %2 : !df.compute, %3 : !df.memory, %0, %1 {map = affine_map<(d0, d1) -> (d0, d1)>}
   %5 = df.interconnects "horizontal_links" %3 : !df.memory, %3 : !df.memory, %0, %1 {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : !df.interconnect
   %6 = df.interconnects "vertical_links" %3 : !df.memory, %3 : !df.memory, %0, %1 {map = affine_map<(d0, d1) -> (d0, d1 + 1)>} : !df.interconnect
-  func.func @flashattn_fwd__d0i0_d1i0_f0(%arg0: memref<*xf16> {tt.divisibility = 16 : i32}, %arg1: memref<*xf16> {tt.divisibility = 16 : i32}, %arg2: memref<*xf16> {tt.divisibility = 16 : i32}, %arg3: memref<*xf16> {tt.divisibility = 16 : i32}, %arg4: index, %arg5: index, %arg6: index) {
+  func.func @flashattn_fwd__d0i0_d1i0(%arg0: memref<*xf16> {tt.divisibility = 16 : i32}, %arg1: memref<*xf16> {tt.divisibility = 16 : i32}, %arg2: memref<*xf16> {tt.divisibility = 16 : i32}, %arg3: memref<*xf16> {tt.divisibility = 16 : i32}, %arg4: index, %arg5: index, %arg6: index) {
     affine.for %arg7 = 0 to affine_map<(d0) -> ((d0 ceildiv 8) ceildiv 8)>(%arg4) {
       affine.parallel (%arg8) = (0) to (8) {
         affine.parallel (%arg9) = (0) to (8) {
@@ -152,7 +152,7 @@ module {
     }
     return
   }
-  func.func @flashattn_fwd__d1i0_d0i0_f0(%arg0: memref<*xf16> {tt.divisibility = 16 : i32}, %arg1: memref<*xf16> {tt.divisibility = 16 : i32}, %arg2: memref<*xf16> {tt.divisibility = 16 : i32}, %arg3: memref<*xf16> {tt.divisibility = 16 : i32}, %arg4: index, %arg5: index, %arg6: index) {
+  func.func @flashattn_fwd__d1i0_d0i0(%arg0: memref<*xf16> {tt.divisibility = 16 : i32}, %arg1: memref<*xf16> {tt.divisibility = 16 : i32}, %arg2: memref<*xf16> {tt.divisibility = 16 : i32}, %arg3: memref<*xf16> {tt.divisibility = 16 : i32}, %arg4: index, %arg5: index, %arg6: index) {
     affine.for %arg7 = 0 to affine_map<(d0) -> ((d0 ceildiv 8) ceildiv 8)>(%arg4) {
       affine.parallel (%arg8) = (0) to (8) {
         affine.parallel (%arg9) = (0) to (8) {

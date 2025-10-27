@@ -11,8 +11,9 @@
  * - `enumerateSpatialMappings`: produce clones for all unique bucketings and
  *   per-iterator permutations of spatial dims over the first outermost
  *   `affine.parallel` in each function.
- * - `enumerateSpatialMappingsWithOuterFors`: additionally convert remaining
- *   parallel iterators to `affine.for` nests in every permutation order.
+ * - `enumerateSpatialMappingsWithOuterFors`: additionally convert the
+ *   remaining parallel iterators to a canonical `affine.for` nest (identity
+ *   iterator order; no enumeration over permutations).
  * - `enumerateTritonSharedSpatialMappings`: Triton-specific enumeration that
  *   associates used program grid indices {x,y,z} with hardware spatial dims and
  *   records the mapping as function attributes; also rewrites the legacy grid
@@ -316,12 +317,8 @@ OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
           //   - `iterIndex` is the zero-based index of the iterator within the
           //     outermost `affine.parallel` (0 → first IV, 1 → second, ...).
           // The order of the tokens reflects the order in which mapping and
-          // tiling were applied. For example, a suffix `d0i0_d1i0_f0_f1`
-          // (produced later when outer loops are linearized into `affine.for`)
-          // means the first spatial dimension mapped to iterator 0, the second
-          // dimension also mapped to iterator 0 (after an additional tiling
-          // step), and the remaining `_f*` tokens record iterator permutation
-          // decisions.
+          // tiling were applied. The outer-for loop order is canonicalized
+          // later and is no longer encoded in the name.
           std::string suffix;
           for (unsigned iter = 0; iter < P; ++iter) {
             for (unsigned dIdx : ordered[iter]) {
@@ -394,32 +391,23 @@ enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
 
     const unsigned D = static_cast<unsigned>(dims.size());
     if (D == 0) {
-      // No spatial dims to map: only convert the outer parallel to for-nests
-      // in all P! orders.
+      // No spatial dims to map: convert the outer parallel to a canonical
+      // nested-for in identity order [0..P-1] and emit a single clone.
       SmallVector<unsigned> order(P);
       std::iota(order.begin(), order.end(), 0);
-      do {
-        IRMapping map;
-        builder.setInsertionPointToEnd(out.getBody());
-        auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
-        affine::AffineParallelOp currentOuter = nullptr;
-        clonedFunc.walk([&](affine::AffineParallelOp par) {
-          if (!par->getParentOfType<affine::AffineParallelOp>() &&
-              !currentOuter)
-            currentOuter = par;
-        });
-        if (!currentOuter)
-          continue;
-        (void)convertOutermostParallelToNestedFors(currentOuter, order);
-        // Name suffix encodes outer-for order as f<i> tokens.
-        std::string suffix;
-        for (unsigned i = 0; i < P; ++i) {
-          if (!suffix.empty())
-            suffix += "_";
-          suffix += std::string("f") + std::to_string(order[i]);
-        }
-        clonedFunc.setName((func.getName() + "__" + suffix).str());
-      } while (std::next_permutation(order.begin(), order.end()));
+      IRMapping map;
+      builder.setInsertionPointToEnd(out.getBody());
+      auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
+      affine::AffineParallelOp currentOuter = nullptr;
+      clonedFunc.walk([&](affine::AffineParallelOp par) {
+        if (!par->getParentOfType<affine::AffineParallelOp>() && !currentOuter)
+          currentOuter = par;
+      });
+      if (!currentOuter)
+        continue;
+      (void)convertOutermostParallelToNestedFors(currentOuter, order);
+      // Canonical case: append "__for" to indicate outer-for materialization.
+      clonedFunc.setName((func.getName() + "__for").str());
       continue;
     }
 
@@ -461,55 +449,47 @@ enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
           for (unsigned j = 0; j < P; ++j)
             ordered[j] = permsPerIter[j][choiceIdx[j]];
 
-          // For each mapping, also enumerate all P! outer-for orderings.
+          // For each mapping, convert the remaining outer parallel to a
+          // canonical nested-for in identity order and emit a single clone.
           SmallVector<unsigned> forOrder(P);
           std::iota(forOrder.begin(), forOrder.end(), 0);
-          do {
-            IRMapping map;
-            builder.setInsertionPointToEnd(out.getBody());
-            auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
-            affine::AffineParallelOp currentOuter = nullptr;
-            clonedFunc.walk([&](affine::AffineParallelOp par) {
-              if (!par->getParentOfType<affine::AffineParallelOp>() &&
-                  !currentOuter)
-                currentOuter = par;
-            });
-            if (!currentOuter)
-              continue;
 
-            std::string suffix;
-            for (unsigned iter = 0; iter < P; ++iter) {
-              for (unsigned dIdx : ordered[iter]) {
-                const SpatialDimInfo &sd = dims[dIdx];
-                int64_t factor = 1;
-                if (sd.size.has_value())
-                  factor = std::max<int64_t>(1, *sd.size);
-                TiledParallels tp{};
-                if (failed(tileAffineParallel(currentOuter, factor, iter, tp)))
-                  goto nextPermutation;
-                tp.inner->setAttr(
-                    "tmd.mapped_to",
-                    StringAttr::get(ctx, sd.name.empty() ? "dim" : sd.name));
-                if (!suffix.empty())
-                  suffix += "_";
-                suffix +=
-                    "d" + std::to_string(dIdx) + "i" + std::to_string(iter);
-                currentOuter = tp.outer;
-              }
+          IRMapping map;
+          builder.setInsertionPointToEnd(out.getBody());
+          auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
+          affine::AffineParallelOp currentOuter = nullptr;
+          clonedFunc.walk([&](affine::AffineParallelOp par) {
+            if (!par->getParentOfType<affine::AffineParallelOp>() &&
+                !currentOuter)
+              currentOuter = par;
+          });
+          if (!currentOuter)
+            return;
+
+          std::string suffix;
+          for (unsigned iter = 0; iter < P; ++iter) {
+            for (unsigned dIdx : ordered[iter]) {
+              const SpatialDimInfo &sd = dims[dIdx];
+              int64_t factor = 1;
+              if (sd.size.has_value())
+                factor = std::max<int64_t>(1, *sd.size);
+              TiledParallels tp{};
+              if (failed(tileAffineParallel(currentOuter, factor, iter, tp)))
+                return;
+              tp.inner->setAttr(
+                  "tmd.mapped_to",
+                  StringAttr::get(ctx, sd.name.empty() ? "dim" : sd.name));
+              if (!suffix.empty())
+                suffix += "_";
+              suffix += "d" + std::to_string(dIdx) + "i" + std::to_string(iter);
+              currentOuter = tp.outer;
             }
+          }
 
-            // Convert the remaining outer parallel to nested fors with order.
-            (void)convertOutermostParallelToNestedFors(currentOuter, forOrder);
-            // Extend suffix with outer-for order tokens.
-            for (unsigned i = 0; i < P; ++i) {
-              suffix += std::string("_f") + std::to_string(forOrder[i]);
-            }
-            // Compose again in case new applies were introduced by transforms.
-            composeAndCanonicalizeAffineApplies(clonedFunc);
-            clonedFunc.setName((func.getName() + "__" + suffix).str());
-
-          nextPermutation:;
-          } while (std::next_permutation(forOrder.begin(), forOrder.end()));
+          (void)convertOutermostParallelToNestedFors(currentOuter, forOrder);
+          // Compose again in case new applies were introduced by transforms.
+          composeAndCanonicalizeAffineApplies(clonedFunc);
+          clonedFunc.setName((func.getName() + "__" + suffix).str());
           return;
         }
         for (unsigned k = 0; k < permsPerIter[it].size(); ++k) {
