@@ -108,17 +108,21 @@ def MemoryOp : DF_Op<"memory"> {
   let summary = "Declare memory resources via an affine map";
   let description = [{
     `df.memory` declares memory tiles associated with spatial dimensions and
-    records their layout via an affine map. The resulting `!df.memory` handle
-    is an opaque reference to those resources.
+    records their layout via an affine map. In addition, each memory tile
+    carries a required `size` (in bytes) and `bandwidth` (in bits, i.e. port
+    width). The resulting `!df.memory` handle is an opaque reference to those
+    resources.
 
     Example:
       `%memories = df.memory "cluster_mem", %x
-          {map = affine_map<(d0) -> (d0)>}`
+          {map = affine_map<(d0) -> (d0)>, size = 65536 : i64, bandwidth = 64 : i64}`
   }];
 
   let arguments = (ins StrAttr:$label,
                        Variadic<Index>:$indices,
-                       AffineMapAttr:$map);
+                       AffineMapAttr:$map,
+                       I64Attr:$size,
+                       I64Attr:$bandwidth);
   let results = (outs MemoryHandleType:$handle);
 
   let assemblyFormat = "$label `,` $indices attr-dict";
