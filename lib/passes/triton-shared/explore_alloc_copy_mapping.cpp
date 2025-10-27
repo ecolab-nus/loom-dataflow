@@ -376,9 +376,23 @@ struct ExploreAllocCopyMappingPass
       (*it)->erase();
 
     // Materialize all clones into the original module after DF ops.
-    for (Operation &op : *out->getBody()) {
-      IRMapping m;
-      moduleBuilder.clone(op, m);
+    // Ensure insertion happens after the last DF op so DF decls remain first.
+    {
+      Operation *after = nullptr;
+      for (Operation &op : *module.getBody()) {
+        Dialect *dialect = op.getDialect();
+        if (dialect && dialect->getNamespace() == StringRef("df"))
+          after = &op;
+      }
+      if (after)
+        moduleBuilder.setInsertionPointAfter(after);
+      else
+        moduleBuilder.setInsertionPointToStart(module.getBody());
+
+      for (Operation &op : *out->getBody()) {
+        IRMapping m;
+        moduleBuilder.clone(op, m);
+      }
     }
   }
 
