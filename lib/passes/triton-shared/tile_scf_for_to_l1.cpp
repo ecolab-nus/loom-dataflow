@@ -268,16 +268,13 @@ public:
         Location loc = forOp.getLoc();
         auto idxTy = b.getIndexType();
 
-        // Compute tile span and tile count
-        Value step = forOp.getStep();
+        // Compute tile span and tile count (as constants when possible)
         Value tileCountVal = b.create<arith::ConstantIndexOp>(
             loc, *trip / static_cast<int64_t>(tileFactor));
-        Value tileFactorVal = b.create<arith::ConstantIndexOp>(
-            loc, static_cast<int64_t>(tileFactor));
-        Value stepCast = step;
-        if (step.getType() != idxTy)
-          stepCast = b.create<arith::IndexCastOp>(loc, idxTy, step);
-        Value tileSpan = b.create<arith::MulIOp>(loc, stepCast, tileFactorVal);
+        int64_t stepInt = *getConstIndex(forOp.getStep());
+        int64_t lbInt = *getConstIndex(forOp.getLowerBound());
+        int64_t tileSpanInt = stepInt * static_cast<int64_t>(tileFactor);
+        Value tileSpan = b.create<arith::ConstantIndexOp>(loc, tileSpanInt);
 
         // Create carry buffers BEFORE the outer loop and seed with init args
         b.setInsertionPoint(forOp);
@@ -316,16 +313,11 @@ public:
             /*upperBoundOperands=*/ValueRange{tileCountVal}, ubMap,
             /*step=*/1);
 
-        // Prepare inside outer: compute tile lower bound: lb + t * tileSpan
+        // Prepare inside outer: compute tile base = lb + t * tileSpan
         b.setInsertionPointToStart(outer.getBody());
         Value tIdx = outer.getInductionVar();
-        Value lb = forOp.getLowerBound();
-        Value lbCast = lb.getType() == idxTy
-                           ? lb
-                           : b.create<arith::IndexCastOp>(loc, idxTy, lb);
-        Value tileOffset = b.create<arith::MulIOp>(loc, tIdx, tileSpan);
-        Value innerLB = b.create<arith::AddIOp>(loc, lbCast, tileOffset);
-        Value innerUB = b.create<arith::AddIOp>(loc, innerLB, tileSpan);
+        Value innerLB = b.create<arith::ConstantIndexOp>(loc, 0);
+        Value innerUB = tileSpan;
 
         // Build init args for inner from current carry buffers
         SmallVector<Value, 4> iterArgs;
@@ -343,13 +335,23 @@ public:
 
         // Move original for body into inner and remap IV and carried args
         IRMapping mapper;
-        mapper.map(forOp.getInductionVar(), inner.getInductionVar());
         Block &oldBody = forOp.getRegion().front();
         Block &newBody = inner.getRegion().front();
         unsigned numCarried = forOp.getInitArgs().size();
         for (unsigned i = 0; i < numCarried; ++i)
           mapper.map(oldBody.getArgument(i + 1), newBody.getArgument(i + 1));
         b.setInsertionPointToStart(&newBody);
+        // Map original IV to absolute IV directly as
+        // absIV = lb + tIdx * tileSpan + innerLocalIV using a single
+        // affine.apply
+        AffineExpr d0 = getAffineDimExpr(0, b.getContext()); // tIdx
+        AffineExpr d1 = getAffineDimExpr(1, b.getContext()); // inner iv
+        AffineMap absMap = AffineMap::get(2, 0, d0 * tileSpanInt + d1 + lbInt);
+        Value absIV =
+            b.create<affine::AffineApplyOp>(
+                 loc, absMap, ValueRange{tIdx, inner.getInductionVar()})
+                .getResult();
+        mapper.map(forOp.getInductionVar(), absIV);
         for (Operation &op : llvm::make_early_inc_range(oldBody)) {
           if (isa<scf::YieldOp>(&op))
             continue;
