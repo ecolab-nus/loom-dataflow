@@ -15,6 +15,7 @@
 // Usage:
 //   tmd_triton_shared_to_affine --ttshared <ttshared.mlir> --df <df.mlir>
 //
+#include "const_dedup_cleanup.h"
 #include "explore_alloc_copy_mapping.h"
 #include "reinterpret_cast_reuse.h"
 #include "spatial_mapping.h"
@@ -182,6 +183,22 @@ int main(int argc, char **argv) {
     llvm::WithColor::error(llvm::errs()) << "Affinization pass failed\n";
     return 2;
   }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
   if (!clDumpDir.empty() &&
       failed(dumpModuleToFile(*tsModule, clDumpDir, "after_affinization.mlir")))
     return 5;
@@ -200,6 +217,22 @@ int main(int argc, char **argv) {
   if (failed(pmGrid.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs()) << "Grid-to-parallel pass failed\n";
     return 2;
+  }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
   }
   if (!clDumpDir.empty() &&
       failed(dumpModuleToFile(*tsModule, clDumpDir,
@@ -258,6 +291,22 @@ int main(int argc, char **argv) {
     for (Operation &op : *explored->getBody())
       rb.clone(op, m);
   }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
   if (!clDumpDir.empty() &&
       failed(dumpModuleToFile(*tsModule, clDumpDir, "after_exploration.mlir")))
     return 5;
@@ -276,6 +325,22 @@ int main(int argc, char **argv) {
   if (failed(annotatePM.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs()) << "Reuse annotation pass failed\n";
     return 3;
+  }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
   }
   if (!clDumpDir.empty() &&
       failed(dumpModuleToFile(*tsModule, clDumpDir,
@@ -299,6 +364,22 @@ int main(int argc, char **argv) {
         << "Alloc/Copy mapping exploration failed\n";
     return 4;
   }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
   if (!clDumpDir.empty() &&
       failed(
           dumpModuleToFile(*tsModule, clDumpDir, "after_memref_mapping.mlir")))
@@ -317,6 +398,22 @@ int main(int argc, char **argv) {
   if (failed(tilePM.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs()) << "SCF tiling to L1 pass failed\n";
     return 6;
+  }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
   }
   if (!clDumpDir.empty() &&
       failed(dumpModuleToFile(*tsModule, clDumpDir, "after_for_tiling.mlir")))
