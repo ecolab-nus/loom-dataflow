@@ -18,6 +18,7 @@
 #include "explore_alloc_copy_mapping.h"
 #include "reinterpret_cast_reuse.h"
 #include "spatial_mapping.h"
+#include "tile_scf_for_to_l1.h"
 #include "triton_shared_affinize.h"
 #include "triton_shared_grid_to_parallel.h"
 #include "triton_shared_spatial_mapping_pass.h"
@@ -301,6 +302,24 @@ int main(int argc, char **argv) {
   if (!clDumpDir.empty() &&
       failed(
           dumpModuleToFile(*tsModule, clDumpDir, "after_memref_mapping.mlir")))
+    return 5;
+  // Tile scf.for loops to fit L1, then dump if requested.
+  PassManager tilePM(&context);
+  if (clDumpIntermediate) {
+    tilePM.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
+  tilePM.addPass(tmd::passes::createTileScfForToL1Pass());
+  if (failed(tilePM.run(*tsModule))) {
+    llvm::WithColor::error(llvm::errs()) << "SCF tiling to L1 pass failed\n";
+    return 6;
+  }
+  if (!clDumpDir.empty() &&
+      failed(dumpModuleToFile(*tsModule, clDumpDir, "after_for_tiling.mlir")))
     return 5;
 
   // (Old merged-based path removed)

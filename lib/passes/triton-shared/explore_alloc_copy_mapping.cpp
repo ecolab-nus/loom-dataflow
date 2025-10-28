@@ -11,7 +11,7 @@
  *
  * Behavior
  * - Always annotate `memref.alloc` with `tmd.alloc = { local=true,
- *   memory_name=... }`.
+ *   memory_name=..., size=(bytes copied) }`.
  * - For each `memref.copy`, build a candidate set:
  *   - `kind=mem`: local memory copy into the single `df.memory`.
  *   - `kind=broadcast`, `dim=x|y`, `interconnect_name=...` for each eligible
@@ -173,6 +173,89 @@ static bool hasSpatialTotalReuse(DictionaryAttr reuse, StringRef dimName) {
   return false;
 }
 
+// Try to compute the number of bytes copied for a given memref.copy.
+// Returns std::nullopt if the copy size cannot be statically determined.
+static std::optional<int64_t> getCopySizeBytes(memref::CopyOp cpy) {
+  auto computeFromType = [](Type t) -> std::optional<int64_t> {
+    auto mr = llvm::dyn_cast<MemRefType>(t);
+    if (!mr || !mr.hasStaticShape())
+      return std::nullopt;
+    int64_t numElems = 1;
+    for (int64_t d : mr.getShape())
+      numElems *= d;
+    // ShapedType::getElementTypeBitWidth returns total bit width of the element
+    // (including vector lanes if the element is a vector type).
+    int64_t bitsPerElem = static_cast<int64_t>(mr.getElementTypeBitWidth());
+    if (bitsPerElem <= 0)
+      return std::nullopt;
+    int64_t bytesPerElem = (bitsPerElem + 7) / 8;
+    return numElems * bytesPerElem;
+  };
+
+  if (auto sz = computeFromType(cpy.getSource().getType()))
+    return sz;
+  return computeFromType(cpy.getTarget().getType());
+}
+
+// Discover the copied size (in bytes) for a given memref.alloc by locating
+// associated memref.copy operations. Preference order:
+// 1) Copies writing into the alloc (alloc as target), directly or via one
+//    level of memref.cast or memref.reinterpret_cast.
+// 2) Copies reading from the alloc (alloc as source), with the same one-level
+//    cast allowance.
+// If multiple copies are found with different sizes, the maximum size is used.
+static std::optional<int64_t> inferAllocCopiedSizeBytes(memref::AllocOp alloc) {
+  Value base = alloc.getResult();
+
+  auto scanUsersForCopies = [&](Value v,
+                                bool asTarget) -> std::optional<int64_t> {
+    std::optional<int64_t> best;
+    for (Operation *user : v.getUsers()) {
+      if (auto c = llvm::dyn_cast<memref::CopyOp>(user)) {
+        bool match = asTarget ? (c.getTarget() == v) : (c.getSource() == v);
+        if (!match)
+          continue;
+        if (auto sz = getCopySizeBytes(c)) {
+          if (!best || *sz > *best)
+            best = *sz;
+        }
+      }
+    }
+    return best;
+  };
+
+  // 1) Direct uses: alloc used as target of memref.copy
+  if (auto sz = scanUsersForCopies(base, /*asTarget=*/true))
+    return sz;
+
+  // 1b) One-level cast/reinterpret_cast from alloc, then used as target
+  for (Operation *user : base.getUsers()) {
+    if (auto castLike = llvm::dyn_cast<memref::CastOp>(user)) {
+      if (auto sz = scanUsersForCopies(castLike.getResult(), /*asTarget=*/true))
+        return sz;
+    } else if (auto rc = llvm::dyn_cast<memref::ReinterpretCastOp>(user)) {
+      if (auto sz = scanUsersForCopies(rc.getResult(), /*asTarget=*/true))
+        return sz;
+    }
+  }
+
+  // 2) Fallback: copies reading from the alloc
+  if (auto sz = scanUsersForCopies(base, /*asTarget=*/false))
+    return sz;
+  for (Operation *user : base.getUsers()) {
+    if (auto castLike = llvm::dyn_cast<memref::CastOp>(user)) {
+      if (auto sz =
+              scanUsersForCopies(castLike.getResult(), /*asTarget=*/false))
+        return sz;
+    } else if (auto rc = llvm::dyn_cast<memref::ReinterpretCastOp>(user)) {
+      if (auto sz = scanUsersForCopies(rc.getResult(), /*asTarget=*/false))
+        return sz;
+    }
+  }
+
+  return std::nullopt;
+}
+
 struct ExploreAllocCopyMappingPass
     : public PassWrapper<ExploreAllocCopyMappingPass, OperationPass<ModuleOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ExploreAllocCopyMappingPass)
@@ -204,6 +287,9 @@ struct ExploreAllocCopyMappingPass
       NamedAttrList nl;
       nl.append("local", BoolAttr::get(ctx, true));
       nl.append("memory_name", StringAttr::get(ctx, df.singleMemoryName));
+      if (auto sz = inferAllocCopiedSizeBytes(alloc)) {
+        nl.append("size", IntegerAttr::get(IntegerType::get(ctx, 64), *sz));
+      }
       alloc->setAttr("tmd.alloc", DictionaryAttr::get(ctx, nl));
     };
 

@@ -6,7 +6,7 @@ print("TRITON_SHARED_DUMP_PATH =", os.environ.get("TRITON_SHARED_DUMP_PATH"))
 
 @triton.jit
 def matmul_kernel(A, B, C,
-                  M, N, K,
+                  M:tl.constexpr, N:tl.constexpr, K:tl.constexpr,
                   stride_am: tl.constexpr, stride_ak: tl.constexpr,
                   stride_bk: tl.constexpr, stride_bn: tl.constexpr,
                   stride_cm: tl.constexpr, stride_cn: tl.constexpr,
@@ -78,6 +78,7 @@ def matmul_kernel(A, B, C,
 
 def run_once():
     M, N, K = 512, 512, 512
+    # M, N, K = 512, 4096, 4096
     torch.manual_seed(0)
     A = torch.randn((M, K), dtype=torch.float32)
     B = torch.randn((K, N), dtype=torch.float32)
