@@ -103,8 +103,17 @@ private:
       }
     });
 
-    for (Operation *op : toErase)
-      op->erase();
+    for (Operation *op : toErase) {
+      bool allResultsDead = true;
+      for (Value res : op->getResults()) {
+        if (!res.use_empty()) {
+          allResultsDead = false;
+          break;
+        }
+      }
+      if (allResultsDead)
+        op->erase();
+    }
   }
 
   void eraseTriviallyDeadConstants(func::FuncOp func) {
@@ -117,8 +126,17 @@ private:
       if (c.getResult().use_empty())
         toErase.push_back(c);
     });
-    for (Operation *op : toErase)
-      op->erase();
+    for (Operation *op : toErase) {
+      bool allResultsDead = true;
+      for (Value res : op->getResults()) {
+        if (!res.use_empty()) {
+          allResultsDead = false;
+          break;
+        }
+      }
+      if (allResultsDead)
+        op->erase();
+    }
   }
 
   void foldConstantsIntoAffine(func::FuncOp func) {
@@ -179,7 +197,10 @@ private:
       auto newApply =
           b.create<affine::AffineApplyOp>(a.getLoc(), newMap, newOperands);
       a.replaceAllUsesWith(newApply.getResult());
-      a.erase();
+      // Erase only if truly dead to avoid accidental erasure when IR printing
+      // or instrumentation holds transient references.
+      if (a->use_empty())
+        a.erase();
     }
   }
 };
