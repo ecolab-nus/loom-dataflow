@@ -27,6 +27,7 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -36,6 +37,7 @@
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
+#include "mlir/InitAllDialects.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/FileUtilities.h"
@@ -119,6 +121,10 @@ int main(int argc, char **argv) {
 
   // Setup context and register required dialects.
   mlir::DialectRegistry registry;
+  // Register all dialects and external models (e.g., BufferizableOpInterface
+  // implementations for Linalg/Tensor/SCF/etc.), then ensure our DF dialect is
+  // present.
+  mlir::registerAllDialects(registry);
   registry.insert<mlir::BuiltinDialect, mlir::func::FuncDialect,
                   mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
                   mlir::arith::ArithDialect, mlir::tensor::TensorDialect,
@@ -383,6 +389,49 @@ int main(int argc, char **argv) {
   if (!clDumpDir.empty() &&
       failed(
           dumpModuleToFile(*tsModule, clDumpDir, "after_memref_mapping.mlir")))
+    return 5;
+
+  // Run One-Shot Bufferize to convert tensors to memrefs, while allowing
+  // unknown ops (e.g., df.*) to be preserved.
+  {
+    PassManager bufPM(&context);
+    if (clDumpIntermediate) {
+      bufPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    mlir::bufferization::OneShotBufferizePassOptions bopts;
+    bopts.allowUnknownOps = true;
+    bopts.allowReturnAllocsFromLoops = true;
+    bufPM.addPass(mlir::bufferization::createOneShotBufferizePass(bopts));
+    if (failed(bufPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs())
+          << "One-Shot Bufferize pass failed\n";
+      return 8;
+    }
+  }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
+  if (!clDumpDir.empty() &&
+      failed(
+          dumpModuleToFile(*tsModule, clDumpDir, "after_bufferization.mlir")))
     return 5;
   // Tile scf.for loops to fit L1, then dump if requested.
   PassManager tilePM(&context);

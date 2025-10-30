@@ -36,6 +36,7 @@ target_link_libraries(ttshared-opt PRIVATE
   MLIRParser
   MLIRSupport
   LLVMSupport
+  MLIRRegisterAllDialects
   MLIRFuncDialect
   MLIRAffineDialect
   MLIRMemRefDialect
@@ -44,6 +45,7 @@ target_link_libraries(ttshared-opt PRIVATE
   MLIRLinalgDialect
   MLIRSCFDialect
   MLIRBufferizationDialect
+  MLIRBufferizationTransforms
   MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader

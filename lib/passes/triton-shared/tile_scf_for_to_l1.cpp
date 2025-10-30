@@ -1,5 +1,6 @@
 //===- tile_scf_for_to_l1.cpp ----------------------------------*- C++ -*-===//
 // Tile scf.for loops so that per-tile memory fits the single df.memory (L1).
+// This pass expects fully bufferized IR (no tensor types anywhere).
 //===----------------------------------------------------------------------===//
 
 /**
@@ -9,26 +10,31 @@
  * Algorithm outline:
  * - Validate the module has exactly one `df.memory`; record its `size` (bytes)
  *   and `label`.
+ * - Require the entire module to be fully bufferized: no tensor types are
+ *   allowed (operands, results, or block arguments). If any tensor is found,
+ *   the pass fails.
  * - For each function, visit `scf.for` loops and compute per-iteration memory
- *   by summing byte sizes of all static `memref.alloc` inside the loop body.
- *   Require all such allocs to carry `tmd.alloc.memory_name == <label>` and
- *   `local=true`. If any alloc violates, fail the pass.
+ *   by summing byte sizes of all static `memref.alloc` inside the loop body
+ *   that are explicitly annotated as local to the single `df.memory` (i.e.,
+ *   `tmd.alloc = {local=true, memory_name = <label>}`). Other allocs are
+ *   ignored for the L1 capacity check.
  * - Pick the largest power-of-two tile factor `t` such that
  *     `t * perIterBytes <= L1SizeBytes`.
  *   If `perIterBytes == 0`, skip the loop; if no positive `t` exists, fail.
  * - Compute the loop trip count `N` when statically provable with constant
  *   lb/ub/step and require exact divisibility by the tile factor; otherwise
  *   fail the pass.
- * - Rewrite the loop into an outer `affine.for` over tiles and an inner
+ * - Rewrite the loop into an outer `scf.for` over tiles and an inner
  *   `scf.for` over the tile span. Replace the original loop induction variable
- *   with the inner loop IV. Keep inner `scf.for` unchanged otherwise.
+ *   with the absolute IV: `lb + tileIdx * tileSpan + innerIV`. Thread
+ *   original iter_args/results through the outer `scf.for` directly (no
+ *   tensors or temporary buffers are created by this pass).
  */
 
 #include "tile_scf_for_to_l1.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -168,9 +174,9 @@ public:
   }
 
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<affine::AffineDialect, arith::ArithDialect,
-                    bufferization::BufferizationDialect, func::FuncDialect,
-                    scf::SCFDialect, memref::MemRefDialect>();
+    registry
+        .insert<affine::AffineDialect, arith::ArithDialect, func::FuncDialect,
+                scf::SCFDialect, memref::MemRefDialect>();
   }
 
   void runOnOperation() override {
@@ -183,6 +189,38 @@ public:
     }
     SingleMemoryInfo memInfo = *memInfoOr;
 
+    // Enforce fully bufferized IR: no tensor types anywhere.
+    bool foundTensor = false;
+    module.walk([&](Operation *op) -> WalkResult {
+      if (foundTensor)
+        return WalkResult::interrupt();
+      auto checkType = [&](Type t) {
+        if (llvm::isa<TensorType>(t)) {
+          foundTensor = true;
+          return true;
+        }
+        return false;
+      };
+      for (Type t : op->getResultTypes())
+        if (checkType(t))
+          return WalkResult::interrupt();
+      for (Value v : op->getOperands())
+        if (checkType(v.getType()))
+          return WalkResult::interrupt();
+      for (Region &r : op->getRegions())
+        for (Block &b : r)
+          for (BlockArgument a : b.getArguments())
+            if (checkType(a.getType()))
+              return WalkResult::interrupt();
+      return WalkResult::advance();
+    });
+    if (foundTensor) {
+      llvm::WithColor::error(llvm::errs())
+          << "This pass requires bufferized IR (no tensor types).\n";
+      signalPassFailure();
+      return;
+    }
+
     bool changedAny = false;
 
     module.walk([&](func::FuncOp func) {
@@ -190,19 +228,16 @@ public:
       func.walk([&](scf::ForOp f) { loops.push_back(f); });
 
       for (scf::ForOp forOp : loops) {
-        // Compute per-iteration alloc bytes and validate alloc targets.
+        // Compute per-iteration alloc bytes of L1-local buffers only.
         uint64_t perIterBytes = 0;
         bool badAlloc = false;
         forOp.getBody()->walk([&](memref::AllocOp a) {
-          if (!hasAllocOnMemory(a, memInfo.label)) {
-            badAlloc = true;
-            return WalkResult::interrupt();
-          }
+          // Only count allocs explicitly placed in the single L1 memory.
+          if (!hasAllocOnMemory(a, memInfo.label))
+            return WalkResult::advance();
           auto mt = llvm::dyn_cast<MemRefType>(a.getType());
-          if (!mt) {
-            badAlloc = true;
-            return WalkResult::interrupt();
-          }
+          if (!mt)
+            return WalkResult::advance();
           // Prefer the annotated size in bytes if present.
           uint64_t bytes = 0;
           if (auto dict = a->getAttrOfType<DictionaryAttr>("tmd.alloc")) {
@@ -223,7 +258,8 @@ public:
         });
         if (badAlloc) {
           llvm::WithColor::error(llvm::errs())
-              << "Alloc validation or sizing failed under scf.for in function '"
+              << "Alloc sizing failed for L1-local alloc under scf.for in "
+                 "function '"
               << func.getSymName() << "'\n";
           signalPassFailure();
           return;
@@ -266,7 +302,6 @@ public:
         // Start rewriting
         OpBuilder b(forOp);
         Location loc = forOp.getLoc();
-        auto idxTy = b.getIndexType();
 
         // Compute tile span and tile count (as constants when possible)
         Value tileCountVal = b.create<arith::ConstantIndexOp>(
@@ -276,62 +311,31 @@ public:
         int64_t tileSpanInt = stepInt * static_cast<int64_t>(tileFactor);
         Value tileSpan = b.create<arith::ConstantIndexOp>(loc, tileSpanInt);
 
-        // Create carry buffers BEFORE the outer loop and seed with init args
+        // Create outer scf.for over tiles, threading original iter_args.
         b.setInsertionPoint(forOp);
-        SmallVector<Value, 4> carryAllocs;
-        for (Value initVal : forOp.getInitArgs()) {
-          auto tTy = llvm::dyn_cast<RankedTensorType>(initVal.getType());
-          if (!tTy || !tTy.hasStaticShape()) {
-            llvm::WithColor::error(llvm::errs())
-                << "Only ranked static tensor iter_args supported for tiling\n";
-            signalPassFailure();
-            return;
-          }
-          MemRefType mty =
-              MemRefType::get(tTy.getShape(), tTy.getElementType());
-          auto alloc = b.create<memref::AllocOp>(loc, mty);
-          {
-            NamedAttrList nl;
-            nl.append("local", BoolAttr::get(module.getContext(), true));
-            nl.append("memory_name",
-                      StringAttr::get(module.getContext(), memInfo.label));
-            alloc->setAttr("tmd.alloc",
-                           DictionaryAttr::get(module.getContext(), nl));
-          }
-          auto midInit = b.create<bufferization::MaterializeInDestinationOp>(
-              loc, initVal, alloc);
-          midInit->setAttr("writable", UnitAttr::get(module.getContext()));
-          carryAllocs.push_back(alloc);
-        }
+        Value c0 = b.create<arith::ConstantIndexOp>(loc, 0);
+        Value c1 = b.create<arith::ConstantIndexOp>(loc, 1);
+        SmallVector<Value, 4> outerInit(forOp.getInitArgs().begin(),
+                                        forOp.getInitArgs().end());
+        auto outer = b.create<scf::ForOp>(loc, c0, tileCountVal, c1, outerInit);
 
-        // Create outer affine.for t in [0, tileCount)
-        auto lbMap = AffineMap::getConstantMap(0, b.getContext());
-        auto ubMap = AffineMap::get(/*dimCount=*/1, /*symCount=*/0,
-                                    getAffineDimExpr(0, b.getContext()));
-        auto outer = b.create<affine::AffineForOp>(
-            loc, /*lowerBoundOperands=*/ValueRange{}, lbMap,
-            /*upperBoundOperands=*/ValueRange{tileCountVal}, ubMap,
-            /*step=*/1);
-
-        // Prepare inside outer: compute tile base = lb + t * tileSpan
-        b.setInsertionPointToStart(outer.getBody());
+        // Prepare inside outer: compute inner loop bounds
+        Block &outerBody = outer.getRegion().front();
+        b.setInsertionPointToStart(&outerBody);
         Value tIdx = outer.getInductionVar();
         Value innerLB = b.create<arith::ConstantIndexOp>(loc, 0);
         Value innerUB = tileSpan;
 
-        // Build init args for inner from current carry buffers
-        SmallVector<Value, 4> iterArgs;
-        iterArgs.reserve(carryAllocs.size());
-        for (Value alloc : carryAllocs) {
-          auto mt = llvm::cast<MemRefType>(alloc.getType());
-          auto tt = RankedTensorType::get(mt.getShape(), mt.getElementType());
-          auto toT = b.create<bufferization::ToTensorOp>(loc, tt, alloc);
-          iterArgs.push_back(toT.getResult());
-        }
+        // Gather current carried values from outer body args for inner init
+        SmallVector<Value, 4> innerInitArgs;
+        innerInitArgs.reserve(outerBody.getNumArguments() - 1);
+        for (unsigned i = 1; i < outerBody.getNumArguments(); ++i)
+          innerInitArgs.push_back(outerBody.getArgument(i));
 
-        // Create inner scf.for with same iter_args/result arity
-        auto inner = b.create<scf::ForOp>(loc, innerLB, innerUB,
-                                          forOp.getStep(), iterArgs);
+        // Create inner scf.for with same iter_args/result arity as original
+        Value innerStep = b.create<arith::ConstantIndexOp>(loc, stepInt);
+        auto inner = b.create<scf::ForOp>(loc, innerLB, innerUB, innerStep,
+                                          innerInitArgs);
 
         // Move original for body into inner and remap IV and carried args
         IRMapping mapper;
@@ -383,29 +387,17 @@ public:
         b.setInsertionPointToEnd(&newBody);
         b.create<scf::YieldOp>(loc, newYieldVals);
 
-        // After inner loop, update carry buffers with the inner results
-        b.setInsertionPointAfter(inner);
-        for (auto it : llvm::enumerate(inner.getResults())) {
-          Value res = it.value();
-          Value alloc = carryAllocs[it.index()];
-          auto midUpdate = b.create<bufferization::MaterializeInDestinationOp>(
-              loc, res, alloc);
-          midUpdate->setAttr("writable", UnitAttr::get(module.getContext()));
-        }
+        // Outer loop yields the results produced by the inner loop.
+        // Remove any existing terminator first, then insert a new one.
+        if (!outerBody.empty() &&
+            outerBody.back().hasTrait<OpTrait::IsTerminator>())
+          outerBody.back().erase();
+        b.setInsertionPointToEnd(&outerBody);
+        b.create<scf::YieldOp>(loc, inner.getResults());
 
-        // After the outer loop, read back final carried tensors and replace
-        // uses
-        b.setInsertionPointAfter(outer);
-        SmallVector<Value, 4> finals;
-        finals.reserve(carryAllocs.size());
-        for (Value alloc : carryAllocs) {
-          auto mt = llvm::cast<MemRefType>(alloc.getType());
-          auto tt = RankedTensorType::get(mt.getShape(), mt.getElementType());
-          auto toT = b.create<bufferization::ToTensorOp>(loc, tt, alloc);
-          finals.push_back(toT.getResult());
-        }
-        if (forOp.getNumResults() == finals.size())
-          forOp.replaceAllUsesWith(finals);
+        // Replace original loop with the outer tiled loop results.
+        if (forOp.getNumResults() == outer.getNumResults())
+          forOp.replaceAllUsesWith(outer.getResults());
         else if (forOp.getNumResults() == 0)
           forOp.replaceAllUsesWith(ValueRange{});
         else {
