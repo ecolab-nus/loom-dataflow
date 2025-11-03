@@ -387,6 +387,35 @@ public:
         b.setInsertionPointToEnd(&newBody);
         b.create<scf::YieldOp>(loc, newYieldVals);
 
+        // After cloning, compose upstream affine.apply chains into users so
+        // that the temporary absolute IV affine.apply is fused into existing
+        // affine maps, eliminating the extra affine.apply where possible.
+        {
+          SmallVector<affine::AffineApplyOp, 16> applyOps;
+          newBody.walk(
+              [&](affine::AffineApplyOp aa) { applyOps.push_back(aa); });
+          for (affine::AffineApplyOp aa : applyOps) {
+            AffineMap map = aa.getAffineMap();
+            SmallVector<Value, 8> operands(aa.getMapOperands().begin(),
+                                           aa.getMapOperands().end());
+            affine::fullyComposeAffineMapAndOperands(&map, &operands);
+            affine::canonicalizeMapAndOperands(&map, &operands);
+            OpBuilder bb(aa);
+            auto newApply =
+                bb.create<affine::AffineApplyOp>(aa.getLoc(), map, operands);
+            aa.replaceAllUsesWith(newApply.getResult());
+            aa.erase();
+          }
+          // Erase any affine.apply ops that became dead after composition.
+          SmallVector<affine::AffineApplyOp, 16> toErase;
+          newBody.walk([&](affine::AffineApplyOp aa) {
+            if (aa->use_empty())
+              toErase.push_back(aa);
+          });
+          for (affine::AffineApplyOp aa : toErase)
+            aa.erase();
+        }
+
         // Outer loop yields the results produced by the inner loop.
         // Remove any existing terminator first, then insert a new one.
         if (!outerBody.empty() &&

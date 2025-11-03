@@ -21,13 +21,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32 + d1 * 16384 + d2 * 1048576 + d3 * 131072)>(%10, %arg9, %arg6, %arg8)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 16384 + d1 * 1048576 + d2 * 131072 + d3 * 128 + d4 * 32)>(%arg9, %arg6, %arg8, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 32)>(%arg7, %10)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 65536 + d2 * 16384)>(%arg7, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -35,8 +34,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -66,13 +65,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32 + d1 * 16384 + d2 * 1048576 + d3 * 131072)>(%10, %arg9, %arg6, %arg8)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 16384 + d1 * 1048576 + d2 * 131072 + d3 * 128 + d4 * 32)>(%arg9, %arg6, %arg8, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 32)>(%arg7, %10)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 65536 + d2 * 16384)>(%arg7, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {dim = "x", interconnect_name = "horizontal_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -80,8 +78,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -111,13 +109,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32 + d1 * 16384 + d2 * 1048576 + d3 * 131072)>(%10, %arg9, %arg6, %arg8)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 16384 + d1 * 1048576 + d2 * 131072 + d3 * 128 + d4 * 32)>(%arg9, %arg6, %arg8, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 32)>(%arg7, %10)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 65536 + d2 * 16384)>(%arg7, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {dim = "y", interconnect_name = "vertical_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -125,8 +122,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -156,13 +153,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32 + d1 * 16384 + d2 * 1048576 + d3 * 131072)>(%10, %arg9, %arg6, %arg8)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 16384 + d1 * 1048576 + d2 * 131072 + d3 * 128 + d4 * 32)>(%arg9, %arg6, %arg8, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 32)>(%arg7, %10)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 65536 + d2 * 16384)>(%arg7, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -170,8 +166,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -201,13 +197,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32 + d1 * 16384 + d2 * 1048576 + d3 * 131072)>(%10, %arg9, %arg6, %arg8)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 16384 + d1 * 1048576 + d2 * 131072 + d3 * 128 + d4 * 32)>(%arg9, %arg6, %arg8, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 32)>(%arg7, %10)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 65536 + d2 * 16384)>(%arg7, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {dim = "x", interconnect_name = "horizontal_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -215,8 +210,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -246,13 +241,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 32 + d1 * 16384 + d2 * 1048576 + d3 * 131072)>(%10, %arg9, %arg6, %arg8)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 16384 + d1 * 1048576 + d2 * 131072 + d3 * 128 + d4 * 32)>(%arg9, %arg6, %arg8, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 32)>(%arg7, %10)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 65536 + d2 * 16384)>(%arg7, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {dim = "y", interconnect_name = "vertical_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -260,8 +254,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -291,13 +285,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 131072 + d2 * 16384)>(%10, %arg6, %arg9)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 16384 + d2 * 128 + d3 * 32)>(%arg6, %arg9, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 256 + d2 * 32)>(%10, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 256 + d1 * 32 + d2 * 65536 + d3 * 16384)>(%arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -305,8 +298,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -336,13 +329,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 131072 + d2 * 16384)>(%10, %arg6, %arg9)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 16384 + d2 * 128 + d3 * 32)>(%arg6, %arg9, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {dim = "y", interconnect_name = "vertical_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 256 + d2 * 32)>(%10, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 256 + d1 * 32 + d2 * 65536 + d3 * 16384)>(%arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -350,8 +342,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -381,13 +373,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 131072 + d2 * 16384)>(%10, %arg6, %arg9)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 16384 + d2 * 128 + d3 * 32)>(%arg6, %arg9, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 256 + d2 * 32)>(%10, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 256 + d1 * 32 + d2 * 65536 + d3 * 16384)>(%arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {dim = "x", interconnect_name = "horizontal_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -395,8 +386,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -426,13 +417,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 131072 + d2 * 16384)>(%10, %arg6, %arg9)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 16384 + d2 * 128 + d3 * 32)>(%arg6, %arg9, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {dim = "y", interconnect_name = "vertical_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 256 + d2 * 32)>(%10, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 256 + d1 * 32 + d2 * 65536 + d3 * 16384)>(%arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {dim = "x", interconnect_name = "horizontal_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -440,8 +430,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -471,13 +461,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 131072 + d2 * 16384)>(%10, %arg6, %arg9)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 16384 + d2 * 128 + d3 * 32)>(%arg6, %arg9, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 256 + d2 * 32)>(%10, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 256 + d1 * 32 + d2 * 65536 + d3 * 16384)>(%arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -485,8 +474,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -516,13 +505,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 131072 + d2 * 16384)>(%10, %arg6, %arg9)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 16384 + d2 * 128 + d3 * 32)>(%arg6, %arg9, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {dim = "x", interconnect_name = "horizontal_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 256 + d2 * 32)>(%10, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 256 + d1 * 32 + d2 * 65536 + d3 * 16384)>(%arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -530,8 +518,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -561,13 +549,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 131072 + d2 * 16384)>(%10, %arg6, %arg9)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 16384 + d2 * 128 + d3 * 32)>(%arg6, %arg9, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 256 + d2 * 32)>(%10, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 256 + d1 * 32 + d2 * 65536 + d3 * 16384)>(%arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {dim = "y", interconnect_name = "vertical_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -575,8 +562,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -606,13 +593,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 32 + d1 * 131072 + d2 * 16384)>(%10, %arg6, %arg9)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 16384 + d2 * 128 + d3 * 32)>(%arg6, %arg9, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {dim = "x", interconnect_name = "horizontal_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 256 + d2 * 32)>(%10, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 256 + d1 * 32 + d2 * 65536 + d3 * 16384)>(%arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {dim = "y", interconnect_name = "vertical_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -620,8 +606,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -651,13 +637,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 32)>(%10, %arg6)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 128 + d2 * 32)>(%arg6, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 16384 + d1 * 32 + d2 * 2048 + d3 * 256)>(%10, %arg9, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 32 + d1 * 2048 + d2 * 256 + d3 * 65536 + d4 * 16384)>(%arg9, %arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -665,8 +650,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -696,13 +681,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 32)>(%10, %arg6)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 128 + d2 * 32)>(%arg6, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {dim = "x", interconnect_name = "horizontal_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 16384 + d1 * 32 + d2 * 2048 + d3 * 256)>(%10, %arg9, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 32 + d1 * 2048 + d2 * 256 + d3 * 65536 + d4 * 16384)>(%arg9, %arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -710,8 +694,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -741,13 +725,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 32)>(%10, %arg6)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 128 + d2 * 32)>(%arg6, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {dim = "y", interconnect_name = "vertical_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 16384 + d1 * 32 + d2 * 2048 + d3 * 256)>(%10, %arg9, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 32 + d1 * 2048 + d2 * 256 + d3 * 65536 + d4 * 16384)>(%arg9, %arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -755,8 +738,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -786,13 +769,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 32)>(%10, %arg6)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 128 + d2 * 32)>(%arg6, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 16384 + d1 * 32 + d2 * 2048 + d3 * 256)>(%10, %arg9, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 32 + d1 * 2048 + d2 * 256 + d3 * 65536 + d4 * 16384)>(%arg9, %arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -800,8 +782,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -831,13 +813,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 32)>(%10, %arg6)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 128 + d2 * 32)>(%arg6, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {dim = "x", interconnect_name = "horizontal_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 16384 + d1 * 32 + d2 * 2048 + d3 * 256)>(%10, %arg9, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 32 + d1 * 2048 + d2 * 256 + d3 * 65536 + d4 * 16384)>(%arg9, %arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -845,8 +826,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
@@ -876,13 +857,12 @@ module {
             %c4 = arith.constant 4 : index
             %7 = scf.for %arg10 = %c0 to %c4 step %c1 iter_args(%arg11 = %alloc_0) -> (memref<32x32xf32>) {
               %9 = scf.for %arg12 = %c0 to %c4 step %c1 iter_args(%arg13 = %arg11) -> (memref<32x32xf32>) {
-                %10 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg10, %arg12)
-                %11 = affine.apply affine_map<(d0, d1) -> (d1 * 16384 + d0 * 32)>(%10, %arg6)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %10 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 16384 + d1 * 128 + d2 * 32)>(%arg6, %arg10, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%10], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "total_reuse", volume = 4096 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "total_reuse", volume = 4096 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_2 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_1, %alloc_2 {tmd.copy.choice = {dim = "y", interconnect_name = "vertical_links", kind = "broadcast"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
-                %12 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 16384 + d1 * 32 + d2 * 2048 + d3 * 256)>(%10, %arg9, %arg7, %arg8)
-                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%12], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
+                %11 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 32 + d1 * 2048 + d2 * 256 + d3 * 65536 + d4 * 16384)>(%arg9, %arg7, %arg8, %arg10, %arg12)
+                %reinterpret_cast_3 = memref.reinterpret_cast %arg1 to offset: [%11], sizes: [32, 32], strides: [512, 1] {tmd.reuse = {sequential = [{depth = 4 : i64, iterator = "%arg10", reuse_type = "no_reuse", volume = 0 : i64}], spatial = [{depth = 2 : i64, iterator = "%arg8", mapped_to = "x", reuse_type = "no_reuse", volume = 0 : i64}, {depth = 3 : i64, iterator = "%arg9", mapped_to = "y", reuse_type = "no_reuse", volume = 0 : i64}], temporal = [{depth = 0 : i64, iterator = "%arg6", reuse_type = "total_reuse", volume = 4096 : i64}, {depth = 1 : i64, iterator = "%arg7", reuse_type = "no_reuse", volume = 0 : i64}]}} : memref<*xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
                 %alloc_4 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 4096 : i64}} : memref<32x32xf32>
                 memref.copy %reinterpret_cast_3, %alloc_4 {tmd.copy.choice = {kind = "mem", memory_name = "L1"}} : memref<32x32xf32, strided<[512, 1], offset: ?>> to memref<32x32xf32>
                 %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<32x32xf32>
@@ -890,8 +870,8 @@ module {
                 linalg.matmul ins(%alloc_2, %alloc_4 : memref<32x32xf32>, memref<32x32xf32>) outs(%alloc_5 : memref<32x32xf32>)
                 linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<32x32xf32>, memref<32x32xf32>) outs(%arg13 : memref<32x32xf32>) {
                 ^bb0(%in: f32, %in_6: f32, %out: f32):
-                  %13 = arith.addf %in, %in_6 : f32
-                  linalg.yield %13 : f32
+                  %12 = arith.addf %in, %in_6 : f32
+                  linalg.yield %12 : f32
                 }
                 scf.yield %arg13 : memref<32x32xf32>
               }
