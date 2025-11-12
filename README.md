@@ -107,7 +107,7 @@ The repository includes a runnable pipeline that lowers a Triton-shared kernel (
 1) Affinize Triton-shared indices
 ```bash
 build/tool/triton-shared/single_stage/affinize \
-  test/Dialect/Triton/mm_fixed_strides/ttshared.bufferized.mlir \
+  test/Triton/mm_fixed_strides/ttshared.mlir \
   > test/Passes/mm_2Dmesh/after_affinization.mlir
 ```
 
@@ -130,7 +130,7 @@ build/tool/triton-shared/single_stage/explore_mapping \
 ```bash
 build/tool/triton-shared/single_stage/annotate_reuse \
   test/Passes/mm_2Dmesh/after_exploration.mlir \
-  > test/Passes/mm_2Dmesh/reuse_annotated.mlir
+  > test/Passes/mm_2Dmesh/after_reuse_annotation.mlir
 ```
 
 5) Explore alloc/copy mapping choices
