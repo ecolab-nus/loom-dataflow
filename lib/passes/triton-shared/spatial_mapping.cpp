@@ -35,7 +35,15 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/Operation.h"
+#include "mlir/IR/IRMapping.h"
+#include "affine_parallel_to_for.h"
 #include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/SmallVector.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/IRMapping.h"
+#include "mlir/Interfaces/SideEffectInterfaces.h"
+#include <algorithm>
+#include <numeric>
 
 #include "DataflowDialect.h.inc"
 #define GET_TYPEDEF_CLASSES
@@ -164,15 +172,8 @@ LogicalResult mapSpatialDimsToAffine(ModuleOp affineModule,
   return success(consumed > 0);
 }
 
-} // namespace tmd_affine
-
-#include "mlir/IR/Builders.h"
-#include "mlir/IR/IRMapping.h"
-#include "mlir/Interfaces/SideEffectInterfaces.h"
-#include <algorithm>
-#include <numeric>
-
-namespace tmd_affine {
+// ------------------------------------------------------------
+// Helper functions
 
 /**
  * \brief Compose and canonicalize all affine.apply operations in a function.
@@ -217,6 +218,178 @@ static void composeAndCanonicalizeAffineApplies(func::FuncOp func) {
 }
 
 /**
+ * @brief Recursively enumerate all possible bucketing of dimensions into parallel iterators.
+ * 
+ * @param dimIdx The current dimension index.
+ * @param numDims The total number of dimensions.
+ * @param currentBuckets The current bucketing.
+ * @param out The result.
+ */
+static void EnumerateBucketingRec(unsigned dimIdx, unsigned numDims,
+  tmd_affine::DimBuckets& currentBuckets, llvm::SmallVector<tmd_affine::DimBuckets>& out) {
+  // If we have assigned all dimensions, add the current bucketing to the result.
+  if (dimIdx == numDims) {
+    out.push_back(currentBuckets);
+    return;
+  }
+  // For each iterator, add the current dimension to the bucket and recurse.
+  for (unsigned it = 0; it < currentBuckets.size(); ++it) {
+    currentBuckets[it].push_back(dimIdx);
+    EnumerateBucketingRec(dimIdx + 1, numDims, currentBuckets, out);
+    currentBuckets[it].pop_back();
+  }
+}
+
+
+/**
+ * @brief Generate all possible bucketing of dimensions into parallel iterators by calling EnumerateBucketingRec.
+ * 
+ * @param numParelleIter The number of parallel iterators.
+ * @param numDims The total number of dimensions.
+ * @return The result.
+ */
+static llvm::SmallVector<tmd_affine::DimBuckets> GenerateAllPossibleParallelBuckets(unsigned numParelleIter, unsigned numDims) {
+  llvm::SmallVector<tmd_affine::DimBuckets> bucketing_results;
+  tmd_affine::DimBuckets currentBuckets(numParelleIter);
+  EnumerateBucketingRec(0, numDims, currentBuckets, bucketing_results);
+  return bucketing_results;
+}
+
+
+/**
+ * @brief Generate all possible mappings by performing a Cartesian product of each iterator's dims in the permuted bucketing.
+ * 
+ * @param iterIdx The current iterator index.
+ * @param current The current bucketing.
+ * @param bucketsPerIter The permuted bucketing for each iterator.
+ * @param out The result.
+ */
+static void CartesianProductOfBuckets(unsigned iterIdx,
+  tmd_affine::DimBuckets &current,
+  const llvm::SmallVector<tmd_affine::DimBuckets> &bucketsPerIter,
+  llvm::SmallVector<tmd_affine::DimBuckets> &out) {
+  // If we have processed all iterators, add the current bucketing to the result.
+  if (iterIdx == current.size()) {
+      out.push_back(current);
+      return;
+  }
+
+  const auto &buckets = bucketsPerIter[iterIdx];
+  auto saved = current[iterIdx];
+
+  if (buckets.empty()) {
+    current[iterIdx].clear();
+    CartesianProductOfBuckets(iterIdx + 1, current, bucketsPerIter, out);
+    current[iterIdx] = saved;
+    return;
+  }
+
+  for (const auto &dims : buckets) {
+    current[iterIdx] = dims;
+    CartesianProductOfBuckets(iterIdx + 1, current, bucketsPerIter, out);
+  }
+
+  current[iterIdx] = saved;
+}
+
+
+/**
+ * @brief Generate all possible mappings by calling CartesianProductOfBuckets.
+ * 
+ * @param permutedBucketsPerIter The permuted bucketing for each iterator.
+ * @return The result.
+ */
+static llvm::SmallVector<tmd_affine::DimBuckets> GenerateAllPossibleMappings(const llvm::SmallVector<tmd_affine::DimBuckets>& permutedBucketsPerIter) {
+  llvm::SmallVector<tmd_affine::DimBuckets> result;
+  tmd_affine::DimBuckets currentBuckets(permutedBucketsPerIter.size());
+  CartesianProductOfBuckets(0, currentBuckets, permutedBucketsPerIter, result);
+  return result;
+}
+
+
+/**
+ * @brief Permute the dimensions in each iterator's bucket.
+ * 
+ * @param baseBuckets The base bucketing.
+ * @return The complete mappings.
+ */
+static llvm::SmallVector<tmd_affine::DimBuckets> PermuteBucket(const tmd_affine::DimBuckets& baseBuckets) {
+  const unsigned numIters = static_cast<unsigned>(baseBuckets.size());
+  llvm::SmallVector<tmd_affine::DimBuckets> permutedBucketsPerIter(numIters);
+
+  for (unsigned it = 0; it < numIters; ++it) {
+    SmallVector<unsigned> dims = baseBuckets[it];
+    if (dims.size() <= 1) {
+      permutedBucketsPerIter[it].push_back(dims);
+    } else {
+      std::sort(dims.begin(), dims.end());
+      do {
+        permutedBucketsPerIter[it].push_back(dims);
+      } while (std::next_permutation(dims.begin(), dims.end()));
+    }
+  }
+
+  return GenerateAllPossibleMappings(permutedBucketsPerIter);
+}
+
+
+/**
+ * @brief Get the outermost parallel iterator in a function.
+ * 
+ * @param func The function to get the outermost parallel iterator from.
+ * @return The outermost parallel iterator.
+ */
+static affine::AffineParallelOp getOutermostParallel(func::FuncOp func) {
+  affine::AffineParallelOp result = nullptr;
+  func.walk([&](affine::AffineParallelOp par) {
+    if (!par->getParentOfType<affine::AffineParallelOp>() && !result)
+      result = par;
+  });
+  return result;
+}
+
+
+/**
+ * @brief Apply a tiling mapping to a kernel function.
+ * 
+ * @param func The function to apply the tiling mapping to.
+ * @param mapping The tiling mapping to apply.
+ * @param dims The dimensions to map.
+ * @param suffix The suffix to add to the function name.
+ * @return success if the mapping is applied successfully, failure otherwise.
+ */
+static LogicalResult applyMappingToFunction(func::FuncOp func,
+                                            const tmd_affine::DimBuckets &mapping,
+                                            ArrayRef<tmd_affine::SpatialDimInfo> dims,
+                                            std::string &suffix) {
+  suffix.clear();
+  affine::AffineParallelOp currentOuter = getOutermostParallel(func);
+  if (!currentOuter)
+    return failure();
+
+  MLIRContext *ctx = func.getContext();
+  const unsigned numIter = static_cast<unsigned>(mapping.size());
+  for (unsigned iterIdx = 0; iterIdx < numIter; ++iterIdx) {
+    for (unsigned dimIdx : mapping[iterIdx]) {
+      const auto &sd = dims[dimIdx];
+      int64_t factor = sd.size.value_or(1);
+      tmd_affine::TiledParallels tp{};
+      if (failed(tileAffineParallel(currentOuter, factor, iterIdx, tp)))
+        return failure();
+      tp.inner->setAttr("tmd.mapped_to",
+                        StringAttr::get(ctx, sd.name.empty() ? "dim" : sd.name));
+      if (!suffix.empty())
+        suffix += "_";
+      suffix += "d" + std::to_string(dimIdx) + "i" + std::to_string(iterIdx);
+      currentOuter = tp.outer;
+    }
+  }
+  return success();
+}
+// End of Helper Functions
+// ------------------------------------------------------------
+
+/**
  * @copydoc tmd_affine::enumerateSpatialMappings
  */
 OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
@@ -255,109 +428,36 @@ OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
       continue;
     }
 
-    // Step 1: generate all partitions of D dims into P ordered buckets.
-    SmallVector<SmallVector<SmallVector<unsigned>>> bucketings;
-    SmallVector<SmallVector<unsigned>> buckets(P);
-    std::function<void(unsigned)> placeDim = [&](unsigned d) {
-      if (d == D) {
-        bucketings.push_back(buckets);
-        return;
-      }
-      for (unsigned it = 0; it < P; ++it) {
-        buckets[it].push_back(d);
-        placeDim(d + 1);
-        buckets[it].pop_back();
-      }
-    };
-    placeDim(0);
+    llvm::SmallVector<tmd_affine::DimBuckets> allBuckets =
+        GenerateAllPossibleParallelBuckets(P, D);
 
-    // Step 2: for each partition, permute within each bucket and apply.
-    for (auto &bucketing : bucketings) {
-      SmallVector<SmallVector<SmallVector<unsigned>>> permsPerIter(P);
-      for (unsigned it = 0; it < P; ++it) {
-        SmallVector<unsigned> b = bucketing[it];
-        if (b.size() <= 1) {
-          permsPerIter[it].push_back(b);
-        } else {
-          std::sort(b.begin(), b.end());
-          do {
-            permsPerIter[it].push_back(b);
-          } while (std::next_permutation(b.begin(), b.end()));
+    for (auto &bucketing : allBuckets) {
+      auto mappings = PermuteBucket(bucketing);
+      for (const auto &mapping : mappings) {
+        IRMapping map;
+        builder.setInsertionPointToEnd(out.getBody());
+        auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
+
+        std::string mappingSuffix;
+        if (failed(applyMappingToFunction(clonedFunc, mapping, dims,
+                                          mappingSuffix))) {
+          clonedFunc.erase();
+          continue;
         }
+
+        composeAndCanonicalizeAffineApplies(clonedFunc);
+
+        std::string newName = func.getName().str();
+        newName += "__";
+        if (!mappingSuffix.empty())
+          newName += mappingSuffix;
+        clonedFunc.setName(newName);
       }
-
-      SmallVector<unsigned> choiceIdx(P, 0);
-      std::function<void(unsigned)> choose = [&](unsigned it) {
-        if (it == P) {
-          // Build chosen order per iterator.
-          SmallVector<SmallVector<unsigned>> ordered(P);
-          for (unsigned j = 0; j < P; ++j)
-            ordered[j] = permsPerIter[j][choiceIdx[j]];
-
-          // Clone func and apply tiling: iterate iterators 0..P-1, and within
-          // each, tile per dim in that iterator's ordered list.
-          IRMapping map;
-          builder.setInsertionPointToEnd(out.getBody());
-          auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
-          // Post-process: compose nested affine.apply ops for cleaner IR.
-          composeAndCanonicalizeAffineApplies(clonedFunc);
-          affine::AffineParallelOp currentOuter = nullptr;
-          clonedFunc.walk([&](affine::AffineParallelOp par) {
-            if (!par->getParentOfType<affine::AffineParallelOp>() &&
-                !currentOuter)
-              currentOuter = par;
-          });
-          if (!currentOuter)
-            return;
-
-          // Encode the mapping in the cloned function name. The suffix is a
-          // sequence of tokens `d<dimIndex>i<iterIndex>` joined with `_`.
-          //   - `dimIndex` is the zero-based index into the collected spatial
-          //     dimensions (`dims` argument).
-          //   - `iterIndex` is the zero-based index of the iterator within the
-          //     outermost `affine.parallel` (0 → first IV, 1 → second, ...).
-          // The order of the tokens reflects the order in which mapping and
-          // tiling were applied. The outer-for loop order is canonicalized
-          // later and is no longer encoded in the name.
-          std::string suffix;
-          for (unsigned iter = 0; iter < P; ++iter) {
-            for (unsigned dIdx : ordered[iter]) {
-              const SpatialDimInfo &sd = dims[dIdx];
-              int64_t factor = 1;
-              if (sd.size.has_value())
-                factor = std::max<int64_t>(1, *sd.size);
-              TiledParallels tp{};
-              if (failed(tileAffineParallel(currentOuter, factor, iter, tp)))
-                return;
-              tp.inner->setAttr(
-                  "tmd.mapped_to",
-                  StringAttr::get(ctx, sd.name.empty() ? "dim" : sd.name));
-              if (!suffix.empty())
-                suffix += "_";
-              suffix += "d" + std::to_string(dIdx) + "i" + std::to_string(iter);
-              currentOuter = tp.outer;
-            }
-          }
-          clonedFunc.setName((func.getName() + "__" + suffix).str());
-          return;
-        }
-        for (unsigned k = 0; k < permsPerIter[it].size(); ++k) {
-          choiceIdx[it] = k;
-          choose(it + 1);
-        }
-      };
-      choose(0);
     }
   }
 
   return out;
 }
-
-} // namespace tmd_affine
-
-#include "affine_parallel_to_for.h"
-
-namespace tmd_affine {
 
 /**
  * @copydoc tmd_affine::enumerateSpatialMappingsWithOuterFors
@@ -413,100 +513,54 @@ enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
 
     // Generate partitions of D dims into P buckets, then permutations within
     // each bucket, as before.
-    SmallVector<SmallVector<SmallVector<unsigned>>> bucketings;
-    SmallVector<SmallVector<unsigned>> buckets(P);
-    std::function<void(unsigned)> placeDim = [&](unsigned d) {
-      if (d == D) {
-        bucketings.push_back(buckets);
-        return;
-      }
-      for (unsigned it = 0; it < P; ++it) {
-        buckets[it].push_back(d);
-        placeDim(d + 1);
-        buckets[it].pop_back();
-      }
-    };
-    placeDim(0);
+    llvm::SmallVector<tmd_affine::DimBuckets> allBuckets =
+        GenerateAllPossibleParallelBuckets(P, D);
 
-    for (auto &bucketing : bucketings) {
-      SmallVector<SmallVector<SmallVector<unsigned>>> permsPerIter(P);
-      for (unsigned it = 0; it < P; ++it) {
-        SmallVector<unsigned> b = bucketing[it];
-        if (b.size() <= 1) {
-          permsPerIter[it].push_back(b);
-        } else {
-          std::sort(b.begin(), b.end());
-          do {
-            permsPerIter[it].push_back(b);
-          } while (std::next_permutation(b.begin(), b.end()));
-        }
-      }
+    for (auto &bucketing : allBuckets) {
+      auto mappings = PermuteBucket(bucketing);
+      for (const auto &mapping : mappings) {
+        SmallVector<unsigned> order(P);
+        std::iota(order.begin(), order.end(), 0);
 
-      SmallVector<unsigned> choiceIdx(P, 0);
-      std::function<void(unsigned)> choose = [&](unsigned it) {
-        if (it == P) {
-          SmallVector<SmallVector<unsigned>> ordered(P);
-          for (unsigned j = 0; j < P; ++j)
-            ordered[j] = permsPerIter[j][choiceIdx[j]];
-
-          // For each mapping, convert the remaining outer parallel to a
-          // canonical nested-for in identity order and emit a single clone.
-          SmallVector<unsigned> forOrder(P);
-          std::iota(forOrder.begin(), forOrder.end(), 0);
-
+        SmallVector<unsigned> orderCopy = order;
+        do {
           IRMapping map;
           builder.setInsertionPointToEnd(out.getBody());
           auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
-          affine::AffineParallelOp currentOuter = nullptr;
-          clonedFunc.walk([&](affine::AffineParallelOp par) {
-            if (!par->getParentOfType<affine::AffineParallelOp>() &&
-                !currentOuter)
-              currentOuter = par;
-          });
-          if (!currentOuter)
-            return;
 
-          std::string suffix;
-          for (unsigned iter = 0; iter < P; ++iter) {
-            for (unsigned dIdx : ordered[iter]) {
-              const SpatialDimInfo &sd = dims[dIdx];
-              int64_t factor = 1;
-              if (sd.size.has_value())
-                factor = std::max<int64_t>(1, *sd.size);
-              TiledParallels tp{};
-              if (failed(tileAffineParallel(currentOuter, factor, iter, tp)))
-                return;
-              tp.inner->setAttr(
-                  "tmd.mapped_to",
-                  StringAttr::get(ctx, sd.name.empty() ? "dim" : sd.name));
-              if (!suffix.empty())
-                suffix += "_";
-              suffix += "d" + std::to_string(dIdx) + "i" + std::to_string(iter);
-              currentOuter = tp.outer;
-            }
+          std::string mappingSuffix;
+          if (failed(applyMappingToFunction(clonedFunc, mapping, dims,
+                                            mappingSuffix))) {
+            clonedFunc.erase();
+            continue;
           }
 
-          (void)convertOutermostParallelToNestedFors(currentOuter, forOrder);
-          // Compose again in case new applies were introduced by transforms.
+          affine::AffineParallelOp outer = getOutermostParallel(clonedFunc);
+          if (!outer ||
+              failed(convertOutermostParallelToNestedFors(outer, orderCopy))) {
+            clonedFunc.erase();
+            continue;
+          }
+
           composeAndCanonicalizeAffineApplies(clonedFunc);
-          clonedFunc.setName((func.getName() + "__" + suffix).str());
-          return;
-        }
-        for (unsigned k = 0; k < permsPerIter[it].size(); ++k) {
-          choiceIdx[it] = k;
-          choose(it + 1);
-        }
-      };
-      choose(0);
+
+          std::string newName = func.getName().str();
+          newName += "__";
+          if (!mappingSuffix.empty())
+            newName += mappingSuffix;
+          newName += "__f";
+          for (unsigned idx : orderCopy)
+            newName += std::to_string(idx);
+          clonedFunc.setName(newName);
+
+        } while (std::next_permutation(orderCopy.begin(), orderCopy.end()));
+      }
     }
   }
 
   return out;
 }
 
-} // namespace tmd_affine
-
-namespace tmd_affine {
 
 /**
  * @copydoc tmd_affine::enumerateTritonSharedSpatialMappings

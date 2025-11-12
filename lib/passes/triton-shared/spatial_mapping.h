@@ -41,6 +41,8 @@ struct SpatialDimInfo {
   std::optional<int64_t> size;
 };
 
+typedef llvm::SmallVector<llvm::SmallVector<unsigned>> DimBuckets;
+
 /**
  * \brief Collect spatial dimensions from a DF module.
  *
