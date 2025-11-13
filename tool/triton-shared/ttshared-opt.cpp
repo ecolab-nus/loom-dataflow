@@ -151,10 +151,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  llvm::SmallVector<tmd_affine::SpatialDimInfo, 8> spatialDims;
-  if (failed(tmd_affine::collectSpatialDims(*dfModule, spatialDims))) {
+  tmd_affine::HardwareInfo hardwareInfo;
+  if (failed(tmd_affine::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
     llvm::WithColor::error(llvm::errs())
-        << "No df.spatial_dim found or parse failure in DF module\n";
+        << "Failed to collect hardware information from DF module\n";
     return 1;
   }
 
@@ -281,7 +281,7 @@ int main(int argc, char **argv) {
   if (!hasFuncs) {
     OwningOpRef<ModuleOp> explored =
         tmd_affine::enumerateSpatialMappingsWithOuterFors(*tsModule,
-                                                          spatialDims);
+                                                          hardwareInfo);
     // Replace non-DF ops with explored clones.
     SmallVector<Operation *, 16> toErase;
     for (Operation &op : *tsModule->getBody()) {

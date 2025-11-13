@@ -41,6 +41,15 @@ struct SpatialDimInfo {
   std::optional<int64_t> size;
 };
 
+struct HardwareInfo {
+  llvm::SmallVector<tmd_affine::SpatialDimInfo> spatialDimInfoVec;
+  bool hasBidirInterconnect = false;
+
+  bool skipPermutation() const {
+    return spatialDimInfoVec.size() == 2 && hasBidirInterconnect;
+  }
+};
+
 typedef llvm::SmallVector<llvm::SmallVector<unsigned>> DimBuckets;
 
 /**
@@ -54,8 +63,8 @@ typedef llvm::SmallVector<llvm::SmallVector<unsigned>> DimBuckets;
  * \return success if at least one dimension was found; failure otherwise.
  */
 mlir::LogicalResult
-collectSpatialDims(mlir::ModuleOp dfModule,
-                   llvm::SmallVectorImpl<SpatialDimInfo> &out);
+GetHardwareInfoForExploration(mlir::ModuleOp dfModule, 
+  HardwareInfo &hardwareInfo);
 
 /**
  * \brief Greedily map spatial dimensions to `affine.parallel` loops by tiling.
@@ -105,7 +114,7 @@ mlir::LogicalResult mapSpatialDimsToAffine(mlir::ModuleOp affineModule,
  */
 mlir::OwningOpRef<mlir::ModuleOp>
 enumerateSpatialMappings(mlir::ModuleOp affineModule,
-                         llvm::ArrayRef<SpatialDimInfo> dims);
+                         const HardwareInfo& hardwareInfo);
 
 /**
  * \brief Enumerate spatial mappings and also convert the remaining
@@ -120,7 +129,7 @@ enumerateSpatialMappings(mlir::ModuleOp affineModule,
  */
 mlir::OwningOpRef<mlir::ModuleOp>
 enumerateSpatialMappingsWithOuterFors(mlir::ModuleOp affineModule,
-                                      llvm::ArrayRef<SpatialDimInfo> dims);
+                                      const HardwareInfo& hardwareInfo);
 
 /**
  * \brief Enumerate mappings from Triton-shared grid dims to hardware spatial
@@ -155,7 +164,7 @@ enumerateSpatialMappingsWithOuterFors(mlir::ModuleOp affineModule,
  */
 mlir::OwningOpRef<mlir::ModuleOp>
 enumerateTritonSharedSpatialMappings(mlir::ModuleOp module,
-                                     llvm::ArrayRef<SpatialDimInfo> dims,
+                                     const HardwareInfo& hardwareInfo,
                                      unsigned numGridDims = 3);
 
 } // namespace tmd_affine

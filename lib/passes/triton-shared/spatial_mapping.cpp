@@ -31,6 +31,7 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/OpDefinition.h"
@@ -55,27 +56,62 @@ using namespace mlir;
 
 namespace tmd_affine {
 
-LogicalResult collectSpatialDims(ModuleOp dfModule,
-                                 llvm::SmallVectorImpl<SpatialDimInfo> &out) {
-  bool foundAny = false;
+static LogicalResult GetSpatialDimInfo(tmd::df::SpatialDimOp sdOp, llvm::SmallVector<tmd_affine::SpatialDimInfo>& dimVec) {
+  tmd_affine::SpatialDimInfo info;
+  // Read declared name and size from the op properties.
+  if (auto nameAttr = sdOp.getNameAttr())
+    info.name = nameAttr.getValue().str();
+  else
+    info.name = "dim";
+  uint64_t sz = sdOp.getSize();
+  if (sz > 0)
+    info.size = static_cast<int64_t>(sz);
+  else
+    info.size = std::nullopt;
+  dimVec.push_back(std::move(info));
+  return success();
+}
+
+
+static std::pair<bool, bool> AnalyzeInterconnectDirection(AffineMap map) {
+  if (map.getNumResults() < 2) return {false, false};
+
+  bool d0Connected = false;
+  bool d1Connected = false;
+  for (unsigned i = 0; i < map.getNumResults(); ++i) {
+    AffineExpr expr = map.getResult(i);
+
+    if (i == 0 && expr != getAffineDimExpr(0, map.getContext())) d0Connected = true;
+    if (i == 1 && expr != getAffineDimExpr(1, map.getContext())) d1Connected = true;
+  }
+
+  return {d0Connected, d1Connected};
+}
+
+
+LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp dfModule, 
+  HardwareInfo &hardwareInfo) {
+  bool res = false;
+  bool d0Connected = false;
+  bool d1Connected = false;
   dfModule.walk([&](Operation *op) {
     if (auto sd = dyn_cast<tmd::df::SpatialDimOp>(op)) {
-      SpatialDimInfo info;
-      // Read declared name and size from the op properties.
-      if (auto nameAttr = sd.getNameAttr())
-        info.name = nameAttr.getValue().str();
-      else
-        info.name = "dim";
-      uint64_t sz = sd.getSize();
-      if (sz > 0)
-        info.size = static_cast<int64_t>(sz);
-      else
-        info.size = std::nullopt;
-      out.push_back(std::move(info));
-      foundAny = true;
+      res = res || failed(GetSpatialDimInfo(sd, hardwareInfo.spatialDimInfoVec));
+    }
+    else if (auto ic = dyn_cast<tmd::df::InterconnectsOp>(op)) {
+      AffineMap map = ic.getMapAttr().getValue();
+      auto [x, y] = AnalyzeInterconnectDirection(map);
+      if (x && !y) {
+        d0Connected = true;
+      }
+      if (y && !x) {
+        d1Connected = true;
+      }
+      res = res || x || y;
     }
   });
-  return success(foundAny);
+  hardwareInfo.hasBidirInterconnect = d0Connected && d1Connected;
+  return success(res);
 }
 
 static LogicalResult markInnerMapped(affine::AffineParallelOp inner,
@@ -311,15 +347,17 @@ static llvm::SmallVector<tmd_affine::DimBuckets> GenerateAllPossibleMappings(con
  * @brief Permute the dimensions in each iterator's bucket.
  * 
  * @param baseBuckets The base bucketing.
+ * @param skipPermutation Whether to skip permutation if the number of dimensions is 2 and there is a bidirectional interconnect.
  * @return The complete mappings.
  */
-static llvm::SmallVector<tmd_affine::DimBuckets> PermuteBucket(const tmd_affine::DimBuckets& baseBuckets) {
+static llvm::SmallVector<tmd_affine::DimBuckets> PermuteBucket(const tmd_affine::DimBuckets& baseBuckets, const HardwareInfo& hardwareInfo) {
   const unsigned numIters = static_cast<unsigned>(baseBuckets.size());
   llvm::SmallVector<tmd_affine::DimBuckets> permutedBucketsPerIter(numIters);
 
   for (unsigned it = 0; it < numIters; ++it) {
     SmallVector<unsigned> dims = baseBuckets[it];
-    if (dims.size() <= 1) {
+    if (dims.size() <= 1 
+        || (dims.size() == hardwareInfo.spatialDimInfoVec.size() && hardwareInfo.skipPermutation())) {
       permutedBucketsPerIter[it].push_back(dims);
     } else {
       std::sort(dims.begin(), dims.end());
@@ -360,7 +398,7 @@ static affine::AffineParallelOp getOutermostParallel(func::FuncOp func) {
  */
 static LogicalResult applyMappingToFunction(func::FuncOp func,
                                             const tmd_affine::DimBuckets &mapping,
-                                            ArrayRef<tmd_affine::SpatialDimInfo> dims,
+                                            const llvm::SmallVector<tmd_affine::SpatialDimInfo>& dims,
                                             std::string &suffix) {
   suffix.clear();
   affine::AffineParallelOp currentOuter = getOutermostParallel(func);
@@ -393,7 +431,7 @@ static LogicalResult applyMappingToFunction(func::FuncOp func,
  * @copydoc tmd_affine::enumerateSpatialMappings
  */
 OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
-                                               ArrayRef<SpatialDimInfo> dims) {
+                                               const HardwareInfo& hardwareInfo) {
   MLIRContext *ctx = affineModule.getContext();
   OpBuilder builder(ctx);
 
@@ -420,7 +458,7 @@ OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
     // Extensions can lift this to multiple regions by nested enumeration.
     affine::AffineParallelOp root = roots.front();
     const unsigned P = root.getNumDims();
-    const unsigned D = static_cast<unsigned>(dims.size());
+    const unsigned D = static_cast<unsigned>(hardwareInfo.spatialDimInfoVec.size());
     if (D == 0) {
       IRMapping map;
       builder.setInsertionPointToEnd(out.getBody());
@@ -432,14 +470,14 @@ OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
         GenerateAllPossibleParallelBuckets(P, D);
 
     for (auto &bucketing : allBuckets) {
-      auto mappings = PermuteBucket(bucketing);
+      auto mappings = PermuteBucket(bucketing, hardwareInfo);
       for (const auto &mapping : mappings) {
         IRMapping map;
         builder.setInsertionPointToEnd(out.getBody());
         auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
 
         std::string mappingSuffix;
-        if (failed(applyMappingToFunction(clonedFunc, mapping, dims,
+        if (failed(applyMappingToFunction(clonedFunc, mapping, hardwareInfo.spatialDimInfoVec,
                                           mappingSuffix))) {
           clonedFunc.erase();
           continue;
@@ -464,7 +502,7 @@ OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
  */
 OwningOpRef<ModuleOp>
 enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
-                                      ArrayRef<SpatialDimInfo> dims) {
+                                      const HardwareInfo& hardwareInfo) {
   MLIRContext *ctx = affineModule.getContext();
   OpBuilder builder(ctx);
   auto out = ModuleOp::create(affineModule.getLoc());
@@ -489,7 +527,7 @@ enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
     // as in enumerateSpatialMappings, but additionally enumerate all
     // permutations of the remaining outer parallel iterators as well.
 
-    const unsigned D = static_cast<unsigned>(dims.size());
+    const unsigned D = static_cast<unsigned>(hardwareInfo.spatialDimInfoVec.size());
     if (D == 0) {
       // No spatial dims to map: convert the outer parallel to a canonical
       // nested-for in identity order [0..P-1] and emit a single clone.
@@ -517,7 +555,7 @@ enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
         GenerateAllPossibleParallelBuckets(P, D);
 
     for (auto &bucketing : allBuckets) {
-      auto mappings = PermuteBucket(bucketing);
+      auto mappings = PermuteBucket(bucketing, hardwareInfo);
       for (const auto &mapping : mappings) {
         SmallVector<unsigned> order(P);
         std::iota(order.begin(), order.end(), 0);
@@ -529,7 +567,7 @@ enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
           auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
 
           std::string mappingSuffix;
-          if (failed(applyMappingToFunction(clonedFunc, mapping, dims,
+          if (failed(applyMappingToFunction(clonedFunc, mapping, hardwareInfo.spatialDimInfoVec,
                                             mappingSuffix))) {
             clonedFunc.erase();
             continue;
@@ -566,7 +604,7 @@ enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
  * @copydoc tmd_affine::enumerateTritonSharedSpatialMappings
  */
 OwningOpRef<ModuleOp> enumerateTritonSharedSpatialMappings(
-    ModuleOp module, ArrayRef<SpatialDimInfo> dims, unsigned numGridDims) {
+    ModuleOp module, const HardwareInfo& hardwareInfo, unsigned numGridDims) {
   MLIRContext *ctx = module.getContext();
   OpBuilder builder(ctx);
   auto out = ModuleOp::create(module.getLoc());
@@ -574,15 +612,15 @@ OwningOpRef<ModuleOp> enumerateTritonSharedSpatialMappings(
   // Precompute spatial dim metadata attrs (names, sizes) once.
   SmallVector<Attribute> spatialNameAttrs;
   SmallVector<Attribute> spatialSizeAttrs;
-  spatialNameAttrs.reserve(dims.size());
-  spatialSizeAttrs.reserve(dims.size());
-  for (const SpatialDimInfo &sd : dims) {
+  spatialNameAttrs.reserve(hardwareInfo.spatialDimInfoVec.size());
+  spatialSizeAttrs.reserve(hardwareInfo.spatialDimInfoVec.size());
+  for (const SpatialDimInfo &sd : hardwareInfo.spatialDimInfoVec) {
     spatialNameAttrs.push_back(StringAttr::get(ctx, sd.name));
     int64_t sz = sd.size.has_value() ? *sd.size : static_cast<int64_t>(-1);
     spatialSizeAttrs.push_back(IntegerAttr::get(IntegerType::get(ctx, 64), sz));
   }
 
-  const unsigned S = static_cast<unsigned>(dims.size());
+  const unsigned S = static_cast<unsigned>(hardwareInfo.spatialDimInfoVec.size());
   (void)numGridDims; // Grid dims are fixed to x,y,z; analyze usage below.
 
   for (func::FuncOp func : module.getOps<func::FuncOp>()) {
@@ -744,7 +782,7 @@ OwningOpRef<ModuleOp> enumerateTritonSharedSpatialMappings(
               (void)clonedFunc.insertArgument(idx, i32Ty, /*argAttrs=*/{}, loc);
               // Tag the argument with the spatial dimension name for clarity.
               clonedFunc.setArgAttr(idx, "tmd.spatial_dim_name",
-                                    StringAttr::get(ctx, dims[sIdx].name));
+                                    StringAttr::get(ctx, hardwareInfo.spatialDimInfoVec[sIdx].name));
               spatialIdArgs.push_back(clonedFunc.getArgument(idx));
             }
 
@@ -764,7 +802,7 @@ OwningOpRef<ModuleOp> enumerateTritonSharedSpatialMappings(
                 unsigned sIdx =
                     static_cast<unsigned>(cast<IntegerAttr>(a).getInt());
                 (void)sIdx;
-                prodStatic *= *dims[sIdx].size;
+                prodStatic *= *hardwareInfo.spatialDimInfoVec[sIdx].size;
               }
               return entryBuilder.create<arith::ConstantIntOp>(loc, prodStatic,
                                                                32);
@@ -783,7 +821,7 @@ OwningOpRef<ModuleOp> enumerateTritonSharedSpatialMappings(
                 strides[i] = running;
                 unsigned sIdx =
                     static_cast<unsigned>(cast<IntegerAttr>(arr[i]).getInt());
-                running *= *dims[sIdx].size;
+                running *= *hardwareInfo.spatialDimInfoVec[sIdx].size;
               }
               // Construct affine map sum_j (d_j * stride_j) over id operands
               // d_j.

@@ -72,11 +72,11 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Collect spatial dimensions.
-  llvm::SmallVector<tmd_affine::SpatialDimInfo, 8> spatialDims;
-  if (failed(tmd_affine::collectSpatialDims(*dfModule, spatialDims))) {
+  // Collect hardware information.
+  tmd_affine::HardwareInfo hardwareInfo;
+  if (failed(tmd_affine::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
     llvm::WithColor::error(llvm::errs())
-        << "No df.spatial_dim found or parse failure in DF module\n";
+        << "Failed to collect hardware information from DF module\n";
     return 1;
   }
 

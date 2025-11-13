@@ -52,16 +52,16 @@ struct TritonSharedExploreSpatialMappingsPass
     (void)module.getContext();
 
     // Collect spatial dimensions from DF ops in this module.
-    llvm::SmallVector<tmd_affine::SpatialDimInfo, 8> spatialDims;
-    if (failed(tmd_affine::collectSpatialDims(module, spatialDims)))
-      return; // No DF spatial dims; silently no-op
+    tmd_affine::HardwareInfo hardwareInfo;
+    if (failed(tmd_affine::GetHardwareInfoForExploration(module, hardwareInfo)))
+      return; // Failed to collect hardware information from DF module; silently no-op
 
     // Create an enumerated output module using existing utilities.
     OwningOpRef<ModuleOp> enumerated =
         withOuterFors
             ? tmd_affine::enumerateSpatialMappingsWithOuterFors(module,
-                                                                spatialDims)
-            : tmd_affine::enumerateSpatialMappings(module, spatialDims);
+                                                                hardwareInfo)
+            : tmd_affine::enumerateSpatialMappings(module, hardwareInfo);
 
     // If enumeration produced no functions, keep the original functions.
     bool producedAnyFunc = false;

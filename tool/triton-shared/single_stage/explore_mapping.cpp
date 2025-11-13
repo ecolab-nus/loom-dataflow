@@ -89,10 +89,10 @@ int main(int argc, char **argv) {
   }
 
   // Collect spatial dimensions.
-  llvm::SmallVector<tmd_affine::SpatialDimInfo, 8> spatialDims;
-  if (failed(tmd_affine::collectSpatialDims(*dfModule, spatialDims))) {
+  tmd_affine::HardwareInfo hardwareInfo;
+  if (failed(tmd_affine::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
     llvm::WithColor::error(llvm::errs())
-        << "No df.spatial_dim found or parse failure in DF module\n";
+        << "Failed to collect hardware information from DF module\n";
     return 1;
   }
 
@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
   // and rely purely on the number of iterators in the parallel op.
   // Enumerate mappings and also explore outer-for loop orderings.
   OwningOpRef<ModuleOp> out =
-      tmd_affine::enumerateSpatialMappingsWithOuterFors(*tsModule, spatialDims);
+      tmd_affine::enumerateSpatialMappingsWithOuterFors(*tsModule, hardwareInfo);
 
   // Merge DF declarations and generated clones into a single module.
   OwningOpRef<ModuleOp> merged = ModuleOp::create(UnknownLoc::get(&context));
