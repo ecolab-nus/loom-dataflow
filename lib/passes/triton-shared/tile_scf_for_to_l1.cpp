@@ -48,6 +48,7 @@
 #include "mlir/Pass/Pass.h"
 
 #include "DataflowDialect.h.inc"
+#include "llvm/ADT/Twine.h"
 #define GET_TYPEDEF_CLASSES
 #include "DataflowTypes.h.inc"
 #define GET_OP_CLASSES
@@ -61,8 +62,6 @@ using namespace mlir;
 
 namespace tmd {
 namespace passes {
-
-namespace {
 
 struct SingleMemoryInfo {
   std::string label;
@@ -89,6 +88,34 @@ static FailureOr<SingleMemoryInfo> requireSingleMemory(ModuleOp module) {
     info.label = "mem0";
   info.sizeBytes = (uint64_t)first.getSize();
   return info;
+}
+
+static bool IsFullyBufferized(ModuleOp& module) {
+  bool foundTensor = false;
+  module.walk([&](Operation *op) -> WalkResult {
+    if (foundTensor)
+      return WalkResult::interrupt();
+    auto checkType = [&](Type t) {
+      if (llvm::isa<TensorType>(t)) {
+        foundTensor = true;
+        return true;
+      }
+      return false;
+    };
+    for (Type t : op->getResultTypes())
+      if (checkType(t))
+        return WalkResult::interrupt();
+    for (Value v : op->getOperands())
+      if (checkType(v.getType()))
+        return WalkResult::interrupt();
+    for (Region &r : op->getRegions())
+      for (Block &b : r)
+        for (BlockArgument a : b.getArguments())
+          if (checkType(a.getType()))
+            return WalkResult::interrupt();
+    return WalkResult::advance();
+  });
+  return !foundTensor;
 }
 
 static std::optional<unsigned> getElementBitWidth(Type elemTy) {
@@ -123,6 +150,43 @@ static bool hasAllocOnMemory(memref::AllocOp alloc, StringRef label) {
     return b && b.getValue() && s && s.getValue() == label;
   }
   return false;
+}
+
+static FailureOr<uint64_t> ComputePerIterMemoryBytes(scf::ForOp forOp, StringRef memoryLabel) {
+  uint64_t totalBytes = 0;
+
+  auto walkResult = forOp.getBody()->walk([&](memref::AllocOp allocOp) {
+  // Only count allocs explicitly placed in the single L1 memory.
+  if (!hasAllocOnMemory(allocOp, memoryLabel)) return WalkResult::advance();
+
+  auto memrefType = llvm::dyn_cast<MemRefType>(allocOp.getType());
+  if (!memrefType) return WalkResult::advance();
+
+  // Prefer the annotated size in bytes if present.
+  uint64_t bytes = 0;
+  if (auto dict = allocOp->getAttrOfType<DictionaryAttr>("tmd.alloc")) {
+    if (auto sizeAttr = dict.get("size"))
+      if (auto intAttr = llvm::dyn_cast<IntegerAttr>(sizeAttr))
+        bytes = static_cast<uint64_t>(intAttr.getInt());
+  }
+
+  // Fallback: compute static memref byte size
+  if (bytes == 0) {
+    auto sizeOrFailure = getStaticMemrefByteSize(memrefType);
+    if (failed(sizeOrFailure)) // Cannot compute size for this allocation
+      return WalkResult::interrupt();
+    bytes = *sizeOrFailure;
+  }
+
+  totalBytes += bytes;
+  return WalkResult::advance();
+  });
+
+  // Check if walk was interrupted due to unsized allocation
+  if (walkResult.wasInterrupted())
+    return failure();
+
+  return totalBytes;
 }
 
 static std::optional<int64_t> getConstIndex(Value v) {
@@ -162,8 +226,286 @@ static uint64_t largestPowerOfTwoLE(uint64_t n) {
   return p;
 }
 
+
+class TillingManager {
+  private:
+    struct TilingConfig {
+      int64_t tripCount;
+      int64_t tileFactor;
+      int64_t lowerBound;
+      int64_t step;
+      int64_t tileCount;
+      int64_t tileSpan;
+    };
+  
+  public:
+    /**
+     * @brief Constructor for TillingManager
+     * @param forOp The original scf.for loop to be transformed
+     * @param trip The static iteration count of the loop
+     * @param tileFactor The tile size (must divide trip)
+     */
+    TillingManager(mlir::scf::ForOp& forOp, int64_t trip, uint64_t tileFactor) 
+      : forOp_(forOp), op_builder_(forOp), loc_(forOp.getLoc()) {
+      tiling_config_ = ComputeTilingConfig(trip, tileFactor);
+    }
+  
+    /**
+     * @brief Compute the tiling configuration
+     * @param trip The static iteration count of the loop
+     * @param tileFactor The tile size (must divide trip)
+     * @return The tiling configuration
+     */
+    TilingConfig ComputeTilingConfig(int64_t trip, uint64_t tileFactor) {
+      TilingConfig config;
+      config.tripCount = trip;
+      config.tileFactor = static_cast<int64_t>(tileFactor);
+      config.lowerBound = *getConstIndex(forOp_.getLowerBound());
+      config.step = *getConstIndex(forOp_.getStep());
+      config.tileCount = trip / static_cast<int64_t>(tileFactor);
+      config.tileSpan = config.step * static_cast<int64_t>(tileFactor);
+      
+      return config;
+    }
+  
+    /**
+     * @brief Create the outer tile loop
+     * @return The outer loop and its body block on success, failure otherwise
+     */
+    FailureOr<std::pair<scf::ForOp, Block*>> CreateOuterTileLoop() {
+      Location loc = forOp_.getLoc();
+      
+      Value c0 = op_builder_.create<arith::ConstantIndexOp>(loc, 0);
+      Value c1 = op_builder_.create<arith::ConstantIndexOp>(loc, 1);
+      Value tileCount = op_builder_.create<arith::ConstantIndexOp>(loc, tiling_config_.tileCount);
+      
+      SmallVector<Value, 4> initArgs(forOp_.getInitArgs());
+      auto outer = op_builder_.create<scf::ForOp>(loc, c0, tileCount, c1, initArgs);
+      
+      if (!outer) {
+        llvm::WithColor::error(llvm::errs()) 
+            << "Failed to create outer tile loop\n";
+        return failure();
+      }
+      
+      return std::make_pair(outer, &outer.getRegion().front());
+    }
+  
+    /**
+     * @brief Create the inner local iteration loop
+     * @param outerBody The body block of the outer loop
+     * @return The inner loop on success, failure otherwise
+     */
+    FailureOr<scf::ForOp> CreateInnerLocalLoop(Block *outerBody) {
+      if (!outerBody) {
+        llvm::WithColor::error(llvm::errs()) 
+            << "Invalid outer body block\n";
+        return failure();
+      }
+      
+      op_builder_.setInsertionPointToStart(outerBody);
+  
+      Value innerLB = op_builder_.create<arith::ConstantIndexOp>(loc_, 0);
+      Value innerUB = op_builder_.create<arith::ConstantIndexOp>(loc_, tiling_config_.tileSpan);
+      Value innerStep = op_builder_.create<arith::ConstantIndexOp>(loc_, tiling_config_.step);
+  
+      // Collect the outer block arguments as the inner initial values
+      SmallVector<Value, 4> innerInit;
+      for (unsigned i = 1; i < outerBody->getNumArguments(); ++i)
+        innerInit.push_back(outerBody->getArgument(i));
+  
+      auto inner = op_builder_.create<scf::ForOp>(loc_, innerLB, innerUB, innerStep, innerInit);
+      
+      if (!inner) {
+        llvm::WithColor::error(llvm::errs()) 
+            << "Failed to create inner local loop\n";
+        return failure();
+      }
+      
+      return inner;
+    }
+  
+    /**
+     * @brief Clone the loop body to the inner loop and remap all references
+     * @param innerFor The inner loop
+     * @param tileIndexIV The tile index induction variable
+     * @return The remapped yield operands on success, failure otherwise
+     */
+    FailureOr<SmallVector<Value, 4>> CloneAndRemapLoopBody(scf::ForOp innerFor, Value tileIndexIV) {
+      Block &oldBody = forOp_.getRegion().front();
+      Block &newBody = innerFor.getRegion().front();
+      IRMapping mapper;
+      
+      // 1. Map the iteration parameters
+      unsigned numCarried = forOp_.getInitArgs().size();
+      for (unsigned i = 0; i < numCarried; ++i)
+        mapper.map(oldBody.getArgument(i + 1), newBody.getArgument(i + 1));
+      
+      // 2. Map the induction variables to the absolute IV
+      op_builder_.setInsertionPointToStart(&newBody);
+      AffineExpr d0 = getAffineDimExpr(0, op_builder_.getContext());
+      AffineExpr d1 = getAffineDimExpr(1, op_builder_.getContext());
+      AffineMap absMap = AffineMap::get(
+          2, 0, d0 * tiling_config_.tileSpan + d1 + tiling_config_.lowerBound);
+      
+      Value absIV = op_builder_.create<affine::AffineApplyOp>(
+          forOp_.getLoc(), absMap, 
+          ValueRange{tileIndexIV, innerFor.getInductionVar()}).getResult();
+      mapper.map(forOp_.getInductionVar(), absIV);
+      
+      // 3. Clone all operations (except yield)
+      for (Operation &op : llvm::make_early_inc_range(oldBody)) {
+        if (isa<scf::YieldOp>(&op))
+          continue;
+        op_builder_.clone(op, mapper);
+      }
+      
+      // 4. Remap the yield operands (with error checking)
+      auto oldYield = cast<scf::YieldOp>(oldBody.getTerminator());
+      SmallVector<Value, 4> newYieldVals;
+      for (Value v : oldYield.getOperands()) {
+        Value mapped = mapper.lookupOrNull(v);
+        if (!mapped) {
+          llvm::WithColor::error(llvm::errs())
+              << "Internal error: missing mapping for yield operand in tiled loop\n";
+          return failure();
+        }
+        newYieldVals.push_back(mapped);
+      }
+      
+      return newYieldVals;
+    }
+  
+    /**
+     * @brief Optimize the affine expressions in the loop body
+     * @param loopBody The loop body to optimize
+     */
+    void OptimizeAffineExpressions(Block &loopBody) {
+      // Collect all affine.apply operations
+      SmallVector<affine::AffineApplyOp, 16> applyOps;
+      loopBody.walk([&](affine::AffineApplyOp aa) { applyOps.push_back(aa); });
+      
+      // Compose and canonicalize
+      for (affine::AffineApplyOp aa : applyOps) {
+        AffineMap map = aa.getAffineMap();
+        SmallVector<Value, 8> operands(aa.getMapOperands());
+        
+        affine::fullyComposeAffineMapAndOperands(&map, &operands);
+        affine::canonicalizeMapAndOperands(&map, &operands);
+        
+        OpBuilder builder(aa);
+        auto newApply = builder.create<affine::AffineApplyOp>(
+            aa.getLoc(), map, operands);
+        aa.replaceAllUsesWith(newApply.getResult());
+        aa.erase();
+      }
+      
+      // Clean up dead operations
+      SmallVector<affine::AffineApplyOp, 16> deadOps;
+      loopBody.walk([&](affine::AffineApplyOp aa) {
+        if (aa->use_empty())
+          deadOps.push_back(aa);
+      });
+      for (auto aa : deadOps)
+        aa.erase();
+    }
+  
+    /**
+     * @brief Finalize the outer loop and replace the original loop
+     * @param outerFor The outer tile loop
+     * @param innerFor The inner local iteration loop
+     * @return success on success, failure otherwise
+     */
+    LogicalResult FinalizeAndReplaceLoop(scf::ForOp outerFor, scf::ForOp innerFor) {
+      Block &outerBody = outerFor.getRegion().front();
+  
+      // 1. Build the outer yield
+      if (!outerBody.empty() && outerBody.back().hasTrait<OpTrait::IsTerminator>())
+        outerBody.back().erase();
+      
+      op_builder_.setInsertionPointToEnd(&outerBody);
+      op_builder_.create<scf::YieldOp>(loc_, innerFor.getResults());
+  
+      // 2. Verify the result count matches
+      if (forOp_.getNumResults() != outerFor.getNumResults() && forOp_.getNumResults() != 0)
+        return failure();
+  
+      // 3. Replace the original loop
+      if (forOp_.getNumResults() == outerFor.getNumResults())
+        forOp_.replaceAllUsesWith(outerFor.getResults());
+      else
+        forOp_.replaceAllUsesWith(ValueRange{});
+  
+      forOp_.erase();
+      return success();
+    }
+  
+    /**
+     * @brief Execute the complete tiling transformation
+     * @return success on success, failure otherwise
+     */
+    LogicalResult Transform() {
+      // 1. Create the outer tile loop
+      auto outerResult = CreateOuterTileLoop();
+      if (failed(outerResult))
+        return failure();
+      auto [outer, outerBody] = *outerResult;
+      
+      // 2. Create the inner local iteration loop
+      auto innerResult = CreateInnerLocalLoop(outerBody);
+      if (failed(innerResult))
+        return failure();
+      auto inner = *innerResult;
+  
+      // 3. Clone and remap the loop body
+      auto yieldValsResult = CloneAndRemapLoopBody(inner, outer.getInductionVar());
+      if (failed(yieldValsResult))
+        return failure();
+      auto yieldVals = *yieldValsResult;
+      
+      // 4. Build the inner loop yield
+      Block& innerBody = inner.getRegion().front();
+      if (!innerBody.empty() && innerBody.back().hasTrait<OpTrait::IsTerminator>())
+        innerBody.back().erase();
+      op_builder_.setInsertionPointToEnd(&innerBody);
+      op_builder_.create<scf::YieldOp>(loc_, yieldVals);
+  
+      // 5. Optimize the affine expressions
+      OptimizeAffineExpressions(innerBody);
+  
+      // 6. Finalize the transformation and replace the original loop
+      return FinalizeAndReplaceLoop(outer, inner);
+    }
+  
+  
+  private:
+    mlir::scf::ForOp forOp_;          ///< The original loop to be transformed
+    OpBuilder op_builder_;             ///< IR builder
+    Location loc_;                     ///< Source code location information
+    TilingConfig tiling_config_;       ///< Tiling configuration parameters
+  };
+  
+
 class TileScfForToL1Pass
     : public PassWrapper<TileScfForToL1Pass, OperationPass<ModuleOp>> {
+private:
+  template <typename T>
+  void TMD_RETURN_ON_FAILURE(const T& result, StringRef reason) {
+    if (!result) {
+      llvm::WithColor::error(llvm::errs()) << "[Error] " << reason << "\n";
+      signalPassFailure();
+      return;
+    }
+  }
+
+  template <typename T>
+  void TMD_RETURN_ON_FAILURE(const FailureOr<T>& result, StringRef reason) {
+    if (failed(result)) {
+      llvm::WithColor::error(llvm::errs()) << "[Error] " << reason << "\n";
+      signalPassFailure();
+      return;
+    }
+  }
 public:
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(TileScfForToL1Pass)
 
@@ -183,43 +525,11 @@ public:
     ModuleOp module = getOperation();
 
     auto memInfoOr = requireSingleMemory(module);
-    if (failed(memInfoOr)) {
-      signalPassFailure();
-      return;
-    }
+    TMD_RETURN_ON_FAILURE(memInfoOr, "Failed to require single memory");
     SingleMemoryInfo memInfo = *memInfoOr;
 
     // Enforce fully bufferized IR: no tensor types anywhere.
-    bool foundTensor = false;
-    module.walk([&](Operation *op) -> WalkResult {
-      if (foundTensor)
-        return WalkResult::interrupt();
-      auto checkType = [&](Type t) {
-        if (llvm::isa<TensorType>(t)) {
-          foundTensor = true;
-          return true;
-        }
-        return false;
-      };
-      for (Type t : op->getResultTypes())
-        if (checkType(t))
-          return WalkResult::interrupt();
-      for (Value v : op->getOperands())
-        if (checkType(v.getType()))
-          return WalkResult::interrupt();
-      for (Region &r : op->getRegions())
-        for (Block &b : r)
-          for (BlockArgument a : b.getArguments())
-            if (checkType(a.getType()))
-              return WalkResult::interrupt();
-      return WalkResult::advance();
-    });
-    if (foundTensor) {
-      llvm::WithColor::error(llvm::errs())
-          << "This pass requires bufferized IR (no tensor types).\n";
-      signalPassFailure();
-      return;
-    }
+    TMD_RETURN_ON_FAILURE(IsFullyBufferized(module), "IR is not fully bufferized");
 
     bool changedAny = false;
 
@@ -227,216 +537,33 @@ public:
       SmallVector<scf::ForOp, 8> loops;
       func.walk([&](scf::ForOp f) { loops.push_back(f); });
 
-      for (scf::ForOp forOp : loops) {
-        // Compute per-iteration alloc bytes of L1-local buffers only.
-        uint64_t perIterBytes = 0;
-        bool badAlloc = false;
-        forOp.getBody()->walk([&](memref::AllocOp a) {
-          // Only count allocs explicitly placed in the single L1 memory.
-          if (!hasAllocOnMemory(a, memInfo.label))
-            return WalkResult::advance();
-          auto mt = llvm::dyn_cast<MemRefType>(a.getType());
-          if (!mt)
-            return WalkResult::advance();
-          // Prefer the annotated size in bytes if present.
-          uint64_t bytes = 0;
-          if (auto dict = a->getAttrOfType<DictionaryAttr>("tmd.alloc")) {
-            if (auto any = dict.get("size"))
-              if (auto szAttr = llvm::dyn_cast<IntegerAttr>(any))
-                bytes = static_cast<uint64_t>(szAttr.getInt());
-          }
-          if (bytes == 0) {
-            auto sz = getStaticMemrefByteSize(mt);
-            if (failed(sz)) {
-              badAlloc = true;
-              return WalkResult::interrupt();
-            }
-            bytes = *sz;
-          }
-          perIterBytes += bytes;
-          return WalkResult::advance();
-        });
-        if (badAlloc) {
-          llvm::WithColor::error(llvm::errs())
-              << "Alloc sizing failed for L1-local alloc under scf.for in "
-                 "function '"
-              << func.getSymName() << "'\n";
-          signalPassFailure();
-          return;
-        }
-        if (perIterBytes == 0)
+      for (auto& forOp : loops) {
+        auto perIterBytes = ComputePerIterMemoryBytes(forOp, memInfo.label);
+        TMD_RETURN_ON_FAILURE(perIterBytes, "Failed to compute per-iteration memory bytes");
+        uint64_t perIterBytesVal = *perIterBytes;
+
+        if (perIterBytesVal == 0)
           continue; // nothing to tile
 
-        uint64_t maxTiles = memInfo.sizeBytes / perIterBytes;
-        if (maxTiles == 0) {
-          llvm::WithColor::error(llvm::errs())
-              << "Per-iteration memory exceeds L1 size in function '"
-              << func.getSymName() << "'\n";
-          signalPassFailure();
-          return;
-        }
+        uint64_t maxTiles = memInfo.sizeBytes / perIterBytesVal;
+        TMD_RETURN_ON_FAILURE(maxTiles, (Twine("Per-iteration memory exceeds L1 size in function '") + 
+        func.getSymName() + "'").str());
+        
         uint64_t tileFactor = largestPowerOfTwoLE(maxTiles);
-        if (tileFactor == 0) {
-          signalPassFailure();
-          return;
-        }
+        TMD_RETURN_ON_FAILURE(tileFactor, (Twine("Failed to compute tile factor in function '") + 
+        func.getSymName() + "'").str());
 
         // Prove trip count and divisibility.
         auto trip = getTripCount(forOp);
-        if (!trip) {
-          llvm::WithColor::error(llvm::errs())
-              << "Trip count is not statically provable for scf.for in "
-                 "function '"
-              << func.getSymName() << "'\n";
-          signalPassFailure();
-          return;
-        }
-        if ((*trip % static_cast<int64_t>(tileFactor)) != 0) {
-          llvm::WithColor::error(llvm::errs())
-              << "Trip count not divisible by tile factor in function '"
-              << func.getSymName() << "'\n";
-          signalPassFailure();
-          return;
-        }
+        TMD_RETURN_ON_FAILURE(trip, (Twine("Trip count is not statically provable for scf.for in function '") + func.getSymName() + "'").str());
+        TMD_RETURN_ON_FAILURE(!(*trip % static_cast<int64_t>(tileFactor)), (Twine("Trip count not divisible by tile factor in function '") + func.getSymName() + "'").str());
 
         // Start rewriting
-        OpBuilder b(forOp);
-        Location loc = forOp.getLoc();
-
-        // Compute tile span and tile count (as constants when possible)
-        Value tileCountVal = b.create<arith::ConstantIndexOp>(
-            loc, *trip / static_cast<int64_t>(tileFactor));
-        int64_t stepInt = *getConstIndex(forOp.getStep());
-        int64_t lbInt = *getConstIndex(forOp.getLowerBound());
-        int64_t tileSpanInt = stepInt * static_cast<int64_t>(tileFactor);
-        Value tileSpan = b.create<arith::ConstantIndexOp>(loc, tileSpanInt);
-
-        // Create outer scf.for over tiles, threading original iter_args.
-        b.setInsertionPoint(forOp);
-        Value c0 = b.create<arith::ConstantIndexOp>(loc, 0);
-        Value c1 = b.create<arith::ConstantIndexOp>(loc, 1);
-        SmallVector<Value, 4> outerInit(forOp.getInitArgs().begin(),
-                                        forOp.getInitArgs().end());
-        auto outer = b.create<scf::ForOp>(loc, c0, tileCountVal, c1, outerInit);
-
-        // Prepare inside outer: compute inner loop bounds
-        Block &outerBody = outer.getRegion().front();
-        b.setInsertionPointToStart(&outerBody);
-        Value tIdx = outer.getInductionVar();
-        Value innerLB = b.create<arith::ConstantIndexOp>(loc, 0);
-        Value innerUB = tileSpan;
-
-        // Gather current carried values from outer body args for inner init
-        SmallVector<Value, 4> innerInitArgs;
-        innerInitArgs.reserve(outerBody.getNumArguments() - 1);
-        for (unsigned i = 1; i < outerBody.getNumArguments(); ++i)
-          innerInitArgs.push_back(outerBody.getArgument(i));
-
-        // Create inner scf.for with same iter_args/result arity as original
-        Value innerStep = b.create<arith::ConstantIndexOp>(loc, stepInt);
-        auto inner = b.create<scf::ForOp>(loc, innerLB, innerUB, innerStep,
-                                          innerInitArgs);
-
-        // Move original for body into inner and remap IV and carried args
-        IRMapping mapper;
-        Block &oldBody = forOp.getRegion().front();
-        Block &newBody = inner.getRegion().front();
-        unsigned numCarried = forOp.getInitArgs().size();
-        for (unsigned i = 0; i < numCarried; ++i)
-          mapper.map(oldBody.getArgument(i + 1), newBody.getArgument(i + 1));
-        b.setInsertionPointToStart(&newBody);
-        // Map original IV to absolute IV directly as
-        // absIV = lb + tIdx * tileSpan + innerLocalIV using a single
-        // affine.apply
-        AffineExpr d0 = getAffineDimExpr(0, b.getContext()); // tIdx
-        AffineExpr d1 = getAffineDimExpr(1, b.getContext()); // inner iv
-        AffineMap absMap = AffineMap::get(2, 0, d0 * tileSpanInt + d1 + lbInt);
-        Value absIV =
-            b.create<affine::AffineApplyOp>(
-                 loc, absMap, ValueRange{tIdx, inner.getInductionVar()})
-                .getResult();
-        mapper.map(forOp.getInductionVar(), absIV);
-        for (Operation &op : llvm::make_early_inc_range(oldBody)) {
-          if (isa<scf::YieldOp>(&op))
-            continue;
-          b.clone(op, mapper);
-        }
-
-        // Build new yield from mapped operands of old yield and replace
-        // terminator
-        auto oldYield = cast<scf::YieldOp>(oldBody.getTerminator());
-        SmallVector<Value, 4> newYieldVals;
-        for (Value v : oldYield.getOperands()) {
-          Value mapped = mapper.lookupOrNull(v);
-          if (!mapped) {
-            llvm::WithColor::error(llvm::errs())
-                << "Internal error: missing mapping for yield operand in tiled "
-                   "loop\n";
-            signalPassFailure();
-            return;
-          }
-          newYieldVals.push_back(mapped);
-        }
-        // Ensure the body has exactly one terminator: if the last operation is
-        // a terminator, remove it before inserting a new scf.yield with the
-        // remapped operands. Avoid calling getTerminator() here because the
-        // builder may not have inserted a terminator yet when iter_args exist.
-        if (!newBody.empty() &&
-            newBody.back().hasTrait<OpTrait::IsTerminator>())
-          newBody.back().erase();
-        b.setInsertionPointToEnd(&newBody);
-        b.create<scf::YieldOp>(loc, newYieldVals);
-
-        // After cloning, compose upstream affine.apply chains into users so
-        // that the temporary absolute IV affine.apply is fused into existing
-        // affine maps, eliminating the extra affine.apply where possible.
-        {
-          SmallVector<affine::AffineApplyOp, 16> applyOps;
-          newBody.walk(
-              [&](affine::AffineApplyOp aa) { applyOps.push_back(aa); });
-          for (affine::AffineApplyOp aa : applyOps) {
-            AffineMap map = aa.getAffineMap();
-            SmallVector<Value, 8> operands(aa.getMapOperands().begin(),
-                                           aa.getMapOperands().end());
-            affine::fullyComposeAffineMapAndOperands(&map, &operands);
-            affine::canonicalizeMapAndOperands(&map, &operands);
-            OpBuilder bb(aa);
-            auto newApply =
-                bb.create<affine::AffineApplyOp>(aa.getLoc(), map, operands);
-            aa.replaceAllUsesWith(newApply.getResult());
-            aa.erase();
-          }
-          // Erase any affine.apply ops that became dead after composition.
-          SmallVector<affine::AffineApplyOp, 16> toErase;
-          newBody.walk([&](affine::AffineApplyOp aa) {
-            if (aa->use_empty())
-              toErase.push_back(aa);
-          });
-          for (affine::AffineApplyOp aa : toErase)
-            aa.erase();
-        }
-
-        // Outer loop yields the results produced by the inner loop.
-        // Remove any existing terminator first, then insert a new one.
-        if (!outerBody.empty() &&
-            outerBody.back().hasTrait<OpTrait::IsTerminator>())
-          outerBody.back().erase();
-        b.setInsertionPointToEnd(&outerBody);
-        b.create<scf::YieldOp>(loc, inner.getResults());
-
-        // Replace original loop with the outer tiled loop results.
-        if (forOp.getNumResults() == outer.getNumResults())
-          forOp.replaceAllUsesWith(outer.getResults());
-        else if (forOp.getNumResults() == 0)
-          forOp.replaceAllUsesWith(ValueRange{});
-        else {
-          llvm::WithColor::error(llvm::errs())
-              << "Unexpected arity mismatch when replacing loop results\n";
-          signalPassFailure();
+        TillingManager manager(forOp, *trip, tileFactor);
+        if (failed(manager.Transform())) {
+          signalPassFailure();  // Handled by the caller
           return;
         }
-        forOp.erase();
-
         changedAny = true;
       }
     });
@@ -445,7 +572,6 @@ public:
   }
 };
 
-} // namespace
 
 std::unique_ptr<mlir::Pass> createTileScfForToL1Pass() {
   return std::make_unique<TileScfForToL1Pass>();
