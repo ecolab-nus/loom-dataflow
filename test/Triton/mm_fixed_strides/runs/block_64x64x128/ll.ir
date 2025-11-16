@@ -1,0 +1,311 @@
+; ModuleID = 'LLVMDialectModule'
+source_filename = "LLVMDialectModule"
+
+declare void @memrefCopy(i64, ptr, ptr)
+
+declare ptr @malloc(i64)
+
+define void @matmul_kernel(i64 %0, ptr %1, i64 %2, ptr %3, i64 %4, ptr %5, i32 %6, i32 %7, i32 %8, i32 %9, i32 %10, i32 %11) {
+  %13 = insertvalue { i64, ptr } poison, i64 %4, 0
+  %14 = insertvalue { i64, ptr } %13, ptr %5, 1
+  %15 = insertvalue { i64, ptr } poison, i64 %2, 0
+  %16 = insertvalue { i64, ptr } %15, ptr %3, 1
+  %17 = insertvalue { i64, ptr } poison, i64 %0, 0
+  %18 = insertvalue { i64, ptr } %17, ptr %1, 1
+  %19 = call ptr @malloc(i64 16448)
+  %20 = ptrtoint ptr %19 to i64
+  %21 = add i64 %20, 63
+  %22 = urem i64 %21, 64
+  %23 = sub i64 %21, %22
+  %24 = inttoptr i64 %23 to ptr
+  %25 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } poison, ptr %19, 0
+  %26 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %25, ptr %24, 1
+  %27 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %26, i64 0, 2
+  %28 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %27, i64 64, 3, 0
+  %29 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %28, i64 64, 3, 1
+  %30 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %29, i64 64, 4, 0
+  %31 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %30, i64 1, 4, 1
+  br label %32
+
+32:                                               ; preds = %44, %12
+  %33 = phi i64 [ %45, %44 ], [ 0, %12 ]
+  %34 = icmp slt i64 %33, 64
+  br i1 %34, label %35, label %46
+
+35:                                               ; preds = %32
+  br label %36
+
+36:                                               ; preds = %39, %35
+  %37 = phi i64 [ %43, %39 ], [ 0, %35 ]
+  %38 = icmp slt i64 %37, 64
+  br i1 %38, label %39, label %44
+
+39:                                               ; preds = %36
+  %40 = mul nuw nsw i64 %33, 64
+  %41 = add nuw nsw i64 %40, %37
+  %42 = getelementptr inbounds nuw float, ptr %24, i64 %41
+  store float 0.000000e+00, ptr %42, align 4
+  %43 = add i64 %37, 1
+  br label %36
+
+44:                                               ; preds = %36
+  %45 = add i64 %33, 1
+  br label %32
+
+46:                                               ; preds = %32
+  %47 = mul i32 %9, 64
+  %48 = mul i32 %10, 64
+  %49 = sext i32 %47 to i64
+  %50 = sext i32 %48 to i64
+  %51 = call ptr @malloc(i64 16448)
+  %52 = ptrtoint ptr %51 to i64
+  %53 = add i64 %52, 63
+  %54 = urem i64 %53, 64
+  %55 = sub i64 %53, %54
+  %56 = inttoptr i64 %55 to ptr
+  %57 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } poison, ptr %51, 0
+  %58 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %57, ptr %56, 1
+  %59 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %58, i64 0, 2
+  %60 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %59, i64 64, 3, 0
+  %61 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %60, i64 64, 3, 1
+  %62 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %61, i64 64, 4, 0
+  %63 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %62, i64 1, 4, 1
+  %64 = getelementptr float, ptr %24, i64 0
+  %65 = getelementptr float, ptr %56, i64 0
+  call void @llvm.memcpy.p0.p0.i64(ptr %65, ptr %64, i64 16384, i1 false)
+  br label %66
+
+66:                                               ; preds = %204, %46
+  %67 = phi i32 [ %205, %204 ], [ 0, %46 ]
+  %68 = phi { ptr, ptr, i64, [2 x i64], [2 x i64] } [ %68, %204 ], [ %63, %46 ]
+  %69 = icmp slt i32 %67, 4
+  br i1 %69, label %70, label %206
+
+70:                                               ; preds = %66
+  %71 = mul i32 %67, 128
+  %72 = sext i32 %71 to i64
+  %73 = mul i64 %49, 512
+  %74 = add i64 %73, %72
+  %75 = extractvalue { i64, ptr } %18, 1
+  %76 = load ptr, ptr %75, align 8
+  %77 = getelementptr ptr, ptr %75, i32 1
+  %78 = load ptr, ptr %77, align 8
+  %79 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } poison, ptr %76, 0
+  %80 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %79, ptr %78, 1
+  %81 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %80, i64 %74, 2
+  %82 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %81, i64 64, 3, 0
+  %83 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %82, i64 512, 4, 0
+  %84 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %83, i64 128, 3, 1
+  %85 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %84, i64 1, 4, 1
+  %86 = call ptr @malloc(i64 32768)
+  %87 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } poison, ptr %86, 0
+  %88 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %87, ptr %86, 1
+  %89 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %88, i64 0, 2
+  %90 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %89, i64 64, 3, 0
+  %91 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %90, i64 128, 3, 1
+  %92 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %91, i64 128, 4, 0
+  %93 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %92, i64 1, 4, 1
+  %94 = call ptr @llvm.stacksave.p0()
+  %95 = alloca { ptr, ptr, i64, [2 x i64], [2 x i64] }, i64 1, align 8
+  store { ptr, ptr, i64, [2 x i64], [2 x i64] } %85, ptr %95, align 8
+  %96 = insertvalue { i64, ptr } { i64 2, ptr poison }, ptr %95, 1
+  %97 = alloca { ptr, ptr, i64, [2 x i64], [2 x i64] }, i64 1, align 8
+  store { ptr, ptr, i64, [2 x i64], [2 x i64] } %93, ptr %97, align 8
+  %98 = insertvalue { i64, ptr } { i64 2, ptr poison }, ptr %97, 1
+  %99 = alloca { i64, ptr }, i64 1, align 8
+  store { i64, ptr } %96, ptr %99, align 8
+  %100 = alloca { i64, ptr }, i64 1, align 8
+  store { i64, ptr } %98, ptr %100, align 8
+  call void @memrefCopy(i64 4, ptr %99, ptr %100)
+  call void @llvm.stackrestore.p0(ptr %94)
+  %101 = mul i64 %72, 512
+  %102 = add i64 %101, %50
+  %103 = extractvalue { i64, ptr } %16, 1
+  %104 = load ptr, ptr %103, align 8
+  %105 = getelementptr ptr, ptr %103, i32 1
+  %106 = load ptr, ptr %105, align 8
+  %107 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } poison, ptr %104, 0
+  %108 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %107, ptr %106, 1
+  %109 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %108, i64 %102, 2
+  %110 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %109, i64 128, 3, 0
+  %111 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %110, i64 512, 4, 0
+  %112 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %111, i64 64, 3, 1
+  %113 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %112, i64 1, 4, 1
+  %114 = call ptr @malloc(i64 32768)
+  %115 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } poison, ptr %114, 0
+  %116 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %115, ptr %114, 1
+  %117 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %116, i64 0, 2
+  %118 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %117, i64 128, 3, 0
+  %119 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %118, i64 64, 3, 1
+  %120 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %119, i64 64, 4, 0
+  %121 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %120, i64 1, 4, 1
+  %122 = call ptr @llvm.stacksave.p0()
+  %123 = alloca { ptr, ptr, i64, [2 x i64], [2 x i64] }, i64 1, align 8
+  store { ptr, ptr, i64, [2 x i64], [2 x i64] } %113, ptr %123, align 8
+  %124 = insertvalue { i64, ptr } { i64 2, ptr poison }, ptr %123, 1
+  %125 = alloca { ptr, ptr, i64, [2 x i64], [2 x i64] }, i64 1, align 8
+  store { ptr, ptr, i64, [2 x i64], [2 x i64] } %121, ptr %125, align 8
+  %126 = insertvalue { i64, ptr } { i64 2, ptr poison }, ptr %125, 1
+  %127 = alloca { i64, ptr }, i64 1, align 8
+  store { i64, ptr } %124, ptr %127, align 8
+  %128 = alloca { i64, ptr }, i64 1, align 8
+  store { i64, ptr } %126, ptr %128, align 8
+  call void @memrefCopy(i64 4, ptr %127, ptr %128)
+  call void @llvm.stackrestore.p0(ptr %122)
+  %129 = call ptr @malloc(i64 16448)
+  %130 = ptrtoint ptr %129 to i64
+  %131 = add i64 %130, 63
+  %132 = urem i64 %131, 64
+  %133 = sub i64 %131, %132
+  %134 = inttoptr i64 %133 to ptr
+  %135 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } poison, ptr %129, 0
+  %136 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %135, ptr %134, 1
+  %137 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %136, i64 0, 2
+  %138 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %137, i64 64, 3, 0
+  %139 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %138, i64 64, 3, 1
+  %140 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %139, i64 64, 4, 0
+  %141 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %140, i64 1, 4, 1
+  %142 = getelementptr float, ptr %24, i64 0
+  %143 = getelementptr float, ptr %134, i64 0
+  call void @llvm.memcpy.p0.p0.i64(ptr %143, ptr %142, i64 16384, i1 false)
+  br label %144
+
+144:                                              ; preds = %176, %70
+  %145 = phi i64 [ %177, %176 ], [ 0, %70 ]
+  %146 = icmp slt i64 %145, 64
+  br i1 %146, label %147, label %178
+
+147:                                              ; preds = %144
+  br label %148
+
+148:                                              ; preds = %174, %147
+  %149 = phi i64 [ %175, %174 ], [ 0, %147 ]
+  %150 = icmp slt i64 %149, 64
+  br i1 %150, label %151, label %176
+
+151:                                              ; preds = %148
+  br label %152
+
+152:                                              ; preds = %155, %151
+  %153 = phi i64 [ %173, %155 ], [ 0, %151 ]
+  %154 = icmp slt i64 %153, 128
+  br i1 %154, label %155, label %174
+
+155:                                              ; preds = %152
+  %156 = mul nuw nsw i64 %145, 128
+  %157 = add nuw nsw i64 %156, %153
+  %158 = getelementptr inbounds nuw float, ptr %86, i64 %157
+  %159 = load float, ptr %158, align 4
+  %160 = mul nuw nsw i64 %153, 64
+  %161 = add nuw nsw i64 %160, %149
+  %162 = getelementptr inbounds nuw float, ptr %114, i64 %161
+  %163 = load float, ptr %162, align 4
+  %164 = mul nuw nsw i64 %145, 64
+  %165 = add nuw nsw i64 %164, %149
+  %166 = getelementptr inbounds nuw float, ptr %134, i64 %165
+  %167 = load float, ptr %166, align 4
+  %168 = fmul float %159, %163
+  %169 = fadd float %167, %168
+  %170 = mul nuw nsw i64 %145, 64
+  %171 = add nuw nsw i64 %170, %149
+  %172 = getelementptr inbounds nuw float, ptr %134, i64 %171
+  store float %169, ptr %172, align 4
+  %173 = add i64 %153, 1
+  br label %152
+
+174:                                              ; preds = %152
+  %175 = add i64 %149, 1
+  br label %148
+
+176:                                              ; preds = %148
+  %177 = add i64 %145, 1
+  br label %144
+
+178:                                              ; preds = %144
+  br label %179
+
+179:                                              ; preds = %202, %178
+  %180 = phi i64 [ %203, %202 ], [ 0, %178 ]
+  %181 = icmp slt i64 %180, 64
+  br i1 %181, label %182, label %204
+
+182:                                              ; preds = %179
+  br label %183
+
+183:                                              ; preds = %186, %182
+  %184 = phi i64 [ %201, %186 ], [ 0, %182 ]
+  %185 = icmp slt i64 %184, 64
+  br i1 %185, label %186, label %202
+
+186:                                              ; preds = %183
+  %187 = extractvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %68, 1
+  %188 = mul nuw nsw i64 %180, 64
+  %189 = add nuw nsw i64 %188, %184
+  %190 = getelementptr inbounds nuw float, ptr %187, i64 %189
+  %191 = load float, ptr %190, align 4
+  %192 = mul nuw nsw i64 %180, 64
+  %193 = add nuw nsw i64 %192, %184
+  %194 = getelementptr inbounds nuw float, ptr %134, i64 %193
+  %195 = load float, ptr %194, align 4
+  %196 = fadd float %191, %195
+  %197 = extractvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %68, 1
+  %198 = mul nuw nsw i64 %180, 64
+  %199 = add nuw nsw i64 %198, %184
+  %200 = getelementptr inbounds nuw float, ptr %197, i64 %199
+  store float %196, ptr %200, align 4
+  %201 = add i64 %184, 1
+  br label %183
+
+202:                                              ; preds = %183
+  %203 = add i64 %180, 1
+  br label %179
+
+204:                                              ; preds = %179
+  %205 = add i32 %67, 1
+  br label %66
+
+206:                                              ; preds = %66
+  %207 = mul i64 %49, 512
+  %208 = add i64 %207, %50
+  %209 = extractvalue { i64, ptr } %14, 1
+  %210 = load ptr, ptr %209, align 8
+  %211 = getelementptr ptr, ptr %209, i32 1
+  %212 = load ptr, ptr %211, align 8
+  %213 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } poison, ptr %210, 0
+  %214 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %213, ptr %212, 1
+  %215 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %214, i64 %208, 2
+  %216 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %215, i64 64, 3, 0
+  %217 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %216, i64 512, 4, 0
+  %218 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %217, i64 64, 3, 1
+  %219 = insertvalue { ptr, ptr, i64, [2 x i64], [2 x i64] } %218, i64 1, 4, 1
+  %220 = call ptr @llvm.stacksave.p0()
+  %221 = alloca { ptr, ptr, i64, [2 x i64], [2 x i64] }, i64 1, align 8
+  store { ptr, ptr, i64, [2 x i64], [2 x i64] } %68, ptr %221, align 8
+  %222 = insertvalue { i64, ptr } { i64 2, ptr poison }, ptr %221, 1
+  %223 = alloca { ptr, ptr, i64, [2 x i64], [2 x i64] }, i64 1, align 8
+  store { ptr, ptr, i64, [2 x i64], [2 x i64] } %219, ptr %223, align 8
+  %224 = insertvalue { i64, ptr } { i64 2, ptr poison }, ptr %223, 1
+  %225 = alloca { i64, ptr }, i64 1, align 8
+  store { i64, ptr } %222, ptr %225, align 8
+  %226 = alloca { i64, ptr }, i64 1, align 8
+  store { i64, ptr } %224, ptr %226, align 8
+  call void @memrefCopy(i64 4, ptr %225, ptr %226)
+  call void @llvm.stackrestore.p0(ptr %220)
+  ret void
+}
+
+; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)
+declare void @llvm.memcpy.p0.p0.i64(ptr noalias writeonly captures(none), ptr noalias readonly captures(none), i64, i1 immarg) #0
+
+; Function Attrs: nocallback nofree nosync nounwind willreturn
+declare ptr @llvm.stacksave.p0() #1
+
+; Function Attrs: nocallback nofree nosync nounwind willreturn
+declare void @llvm.stackrestore.p0(ptr) #1
+
+attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: readwrite) }
+attributes #1 = { nocallback nofree nosync nounwind willreturn }
+
+!llvm.module.flags = !{!0}
+
+!0 = !{i32 2, !"Debug Info Version", i32 3}

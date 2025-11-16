@@ -1,6 +1,15 @@
-import os, torch, triton, triton.language as tl
+import argparse
+import os
+
+import torch
+import triton
+import triton.language as tl
 from triton.backends.triton_shared.driver import CPUDriver
 triton.runtime.driver.set_active(CPUDriver())
+
+DEFAULT_M = 512
+DEFAULT_N = 512
+DEFAULT_K = 512
 
 print("TRITON_SHARED_DUMP_PATH =", os.environ.get("TRITON_SHARED_DUMP_PATH"))
 
@@ -76,15 +85,13 @@ def matmul_kernel(A, B, C,
     tl.store(c_block, acc)
 
 
-def run_once():
-    M, N, K = 512, 512, 512
-    # M, N, K = 512, 4096, 4096
-    torch.manual_seed(0)
+def run_once(BLOCK_M=32, BLOCK_N=32, BLOCK_K=32, seed=0):
+    M, N, K = DEFAULT_M, DEFAULT_N, DEFAULT_K
+    torch.manual_seed(seed)
     A = torch.randn((M, K), dtype=torch.float32)
     B = torch.randn((K, N), dtype=torch.float32)
     C = torch.empty((M, N), dtype=torch.float32)
 
-    BLOCK_M, BLOCK_N, BLOCK_K = 32, 32, 32
     grid = (triton.cdiv(M, BLOCK_M), triton.cdiv(N, BLOCK_N))
 
     matmul_kernel[grid](
@@ -100,4 +107,10 @@ def run_once():
     print("max error:", err)
 
 if __name__ == "__main__":
-    run_once()
+    parser = argparse.ArgumentParser(description="Run the fixed-stride matmul kernel.")
+    parser.add_argument("--block-m", type=int, default=32, help="Tile size along M.")
+    parser.add_argument("--block-n", type=int, default=32, help="Tile size along N.")
+    parser.add_argument("--block-k", type=int, default=32, help="Tile size along K.")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for inputs.")
+    args = parser.parse_args()
+    run_once(BLOCK_M=args.block_m, BLOCK_N=args.block_n, BLOCK_K=args.block_k, seed=args.seed)

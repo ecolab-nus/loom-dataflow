@@ -1,0 +1,7 @@
+{
+  "BLOCK_M": 16,
+  "BLOCK_N": 16,
+  "BLOCK_K": 32,
+  "seed": 0,
+  "description": "Smaller 16x16 tiles with BLOCK_K=32"
+}

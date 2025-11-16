@@ -1,0 +1,7 @@
+{
+  "BLOCK_M": 32,
+  "BLOCK_N": 32,
+  "BLOCK_K": 32,
+  "seed": 0,
+  "description": "Baseline 32x32x32 blocking"
+}

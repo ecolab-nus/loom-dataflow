@@ -1,0 +1,7 @@
+{
+  "BLOCK_M": 32,
+  "BLOCK_N": 32,
+  "BLOCK_K": 64,
+  "seed": 0,
+  "description": "Wider block along K"
+}

@@ -1,0 +1,7 @@
+{
+  "BLOCK_M": 128,
+  "BLOCK_N": 128,
+  "BLOCK_K": 32,
+  "seed": 0,
+  "description": "128x128x32 blocking"
+}
