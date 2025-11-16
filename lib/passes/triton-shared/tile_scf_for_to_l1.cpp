@@ -33,18 +33,19 @@
 
 #include "tile_scf_for_to_l1.h"
 
-#include <cassert>
-
-#include "mlir/Dialect/Affine/Utils.h"
-#include "mlir/Dialect/Affine/LoopUtils.h"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/AffineExpr.h"
+#include "mlir/IR/AffineMap.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/Operation.h"
+#include "mlir/Pass/Pass.h"
 
 #include "DataflowDialect.h.inc"
 #include "llvm/ADT/Twine.h"
@@ -226,74 +227,7 @@ static uint64_t largestPowerOfTwoLE(uint64_t n) {
 }
 
 
-/**
- * @brief Implement FromAffineFor factory method
- */
-FailureOr<LoopDescriptor> LoopDescriptor::FromAffineFor(affine::AffineForOp op, uint64_t tileFactor) {
-  LoopDescriptor desc;
-  desc.type = AFFINE_FOR;
-  desc.op = op.getOperation();
-  desc.inductionVar = op.getInductionVar();
-  desc.tileFactor = tileFactor;
-  
-  // Extract bounds and step
-  desc.lowerBoundMap = op.getLowerBoundMap();
-  desc.upperBoundMap = op.getUpperBoundMap();
-  desc.lbOperands.append(op.getLowerBoundOperands().begin(), op.getLowerBoundOperands().end());
-  desc.ubOperands.append(op.getUpperBoundOperands().begin(), op.getUpperBoundOperands().end());
-  desc.step = op.getStepAsInt();
-  desc.tripCount = -1;
-  
-  return desc;
-}
-
-/**
- * @brief Implement FromScfFor factory method
- */
-FailureOr<LoopDescriptor> LoopDescriptor::FromScfFor(scf::ForOp op, uint64_t tileFactor) {
-  LoopDescriptor desc;
-  desc.type = SCF_FOR;
-  desc.op = op.getOperation();
-  desc.inductionVar = op.getInductionVar();
-  desc.tileFactor = tileFactor;
-  
-  // Extract bounds and step
-  desc.lowerBound = op.getLowerBound();
-  desc.upperBound = op.getUpperBound();
-  desc.stepValue = op.getStep();
-  
-  // Compute trip count (reuse existing function)
-  auto tripOpt = getTripCount(op);
-  if (!tripOpt) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "Scf.for trip count is not statically provable\n";
-    return failure();
-  }
-  desc.tripCount = *tripOpt;
-  
-  // Extract step value
-  auto stepOpt = getConstIndex(desc.stepValue);
-  if (!stepOpt) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "Scf.for step is not constant\n";
-    return failure();
-  }
-  desc.step = *stepOpt;
-  
-  // Check divisibility
-  if (desc.tripCount % static_cast<int64_t>(tileFactor) != 0) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "Scf.for trip count (" << desc.tripCount 
-        << ") not divisible by tile factor (" << tileFactor << ")\n";
-    return failure();
-  }
-  
-  return desc;
-}
-
-
-// SingleLoopTillingManager: original single loop tiling implementation (kept for backward compatibility)
-class SingleLoopTillingManager {
+class TillingManager {
   private:
     struct TilingConfig {
       int64_t tripCount;
@@ -306,12 +240,12 @@ class SingleLoopTillingManager {
   
   public:
     /**
-     * @brief Constructor for SingleLoopTillingManager
+     * @brief Constructor for TillingManager
      * @param forOp The original scf.for loop to be transformed
      * @param trip The static iteration count of the loop
      * @param tileFactor The tile size (must divide trip)
      */
-    SingleLoopTillingManager(mlir::scf::ForOp& forOp, int64_t trip, uint64_t tileFactor) 
+    TillingManager(mlir::scf::ForOp& forOp, int64_t trip, uint64_t tileFactor) 
       : forOp_(forOp), op_builder_(forOp), loc_(forOp.getLoc()) {
       tiling_config_ = ComputeTilingConfig(trip, tileFactor);
     }
@@ -545,323 +479,12 @@ class SingleLoopTillingManager {
   
   
   private:
-    mlir::scf::ForOp forOp_;          /// The original loop to be transformed
-    OpBuilder op_builder_;             /// IR builder
-    Location loc_;                     /// Source code location information
-    TilingConfig tiling_config_;       /// Tiling configuration parameters
+    mlir::scf::ForOp forOp_;          ///< The original loop to be transformed
+    OpBuilder op_builder_;             ///< IR builder
+    Location loc_;                     ///< Source code location information
+    TilingConfig tiling_config_;       ///< Tiling configuration parameters
   };
-
-
-/**
- * @brief Implement DiscoverNestedLoops
- */
-FailureOr<SmallVector<Operation*>> TillingManager::DiscoverNestedLoops() {
-  SmallVector<Operation*> loops;
   
-  // 1. Find the outermost affine.for (no parent affine.for)
-  affine::AffineForOp outermost = nullptr;
-  func_.walk([&](affine::AffineForOp affineFor) {
-    if (!outermost && !affineFor->getParentOfType<affine::AffineForOp>()) {
-      outermost = affineFor;
-    }
-  });
-  
-  if (!outermost) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "No outermost affine.for found in function\n";
-    return failure();
-  }
-  loops.push_back(outermost.getOperation());
-  
-  // 2. Find the second affine.for in the body of the first affine.for
-  affine::AffineForOp second = nullptr;
-  outermost.getBody()->walk([&](affine::AffineForOp affineFor) {
-    if (!second && affineFor != outermost) {
-      second = affineFor;
-    }
-  });
-  
-  if (!second) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "No second affine.for found in outermost affine.for body\n";
-    return failure();
-  }
-  loops.push_back(second.getOperation());
-  
-  // 3. Skip intermediate affine.parallel, find the innermost scf.for
-  scf::ForOp scfFor = nullptr;
-  second.getBody()->walk([&](scf::ForOp f) {
-    if (!scfFor) {
-      scfFor = f;
-    }
-  });
-  
-  if (!scfFor) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "No scf.for found in nested structure\n";
-    return failure();
-  }
-  loops.push_back(scfFor.getOperation());
-  
-  return loops;
-}
-
-/**
- * @brief Implement ValidateLoopStructure
- */
-LogicalResult TillingManager::ValidateLoopStructure(ArrayRef<Operation*> loops, ArrayRef<uint64_t> tileFactors) {
-  if (loops.size() != tileFactors.size()) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "Loop count (" << loops.size() << ") does not match tile factor count (" 
-        << tileFactors.size() << ")\n";
-    return failure();
-  }
-  
-  // Check that the first two must be affine.for
-  if (!isa<affine::AffineForOp>(loops[0]) || !isa<affine::AffineForOp>(loops[1])) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "Expected first two loops to be affine.for\n";
-    return failure();
-  }
-  
-  // Check that the third must be scf.for
-  if (!isa<scf::ForOp>(loops[2])) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "Expected third loop to be scf.for\n";
-    return failure();
-  }
-  
-  // Build loopDescriptors_
-  loopDescriptors_.clear();
-  for (size_t i = 0; i < loops.size(); ++i) {
-    if (auto affineFor = dyn_cast<affine::AffineForOp>(loops[i])) {
-      auto desc = LoopDescriptor::FromAffineFor(affineFor, tileFactors[i]);
-      if (failed(desc)) {
-        llvm::WithColor::error(llvm::errs()) 
-            << "Failed to create LoopDescriptor for affine.for at level " << i << "\n";
-        return failure();
-      }
-      loopDescriptors_.push_back(*desc);
-    } else if (auto scfFor = dyn_cast<scf::ForOp>(loops[i])) {
-      auto desc = LoopDescriptor::FromScfFor(scfFor, tileFactors[i]);
-      if (failed(desc)) {
-        llvm::WithColor::error(llvm::errs()) 
-            << "Failed to create LoopDescriptor for scf.for at level " << i << "\n";
-        return failure();
-      }
-      loopDescriptors_.push_back(*desc);
-    } else {
-      llvm::WithColor::error(llvm::errs()) 
-          << "Unknown loop type at level " << i << "\n";
-      return failure();
-    }
-  }
-  
-  return success();
-}
-
-/**
- * @brief Implement SetupTiling
- */
-LogicalResult TillingManager::SetupTiling(ArrayRef<uint64_t> tileFactors) {
-  tileFactors_.clear();
-  tileFactors_.append(tileFactors.begin(), tileFactors.end());
-  
-  // Automatically discover loop structure
-  auto loopsResult = DiscoverNestedLoops();
-  if (failed(loopsResult)) {
-    return failure();
-  }
-  auto loops = *loopsResult;
-  
-  // Validate and build loopDescriptors_
-  if (failed(ValidateLoopStructure(loops, tileFactors))) {
-    return failure();
-  }
-  
-  return success();
-}
-
-/**
- * @brief Implement TileTwoAffineFors - use MLIR built-in API
- */
-FailureOr<SmallVector<affine::AffineForOp, 4>>
-TillingManager::TileTwoAffineFors(const LoopDescriptor& outerDesc, 
-                                   const LoopDescriptor& innerDesc,
-                                   unsigned outerTileSize, 
-                                   unsigned innerTileSize) {
-  auto outerLoop = cast<affine::AffineForOp>(outerDesc.op);
-  auto innerLoop = cast<affine::AffineForOp>(innerDesc.op);
-  
-  // Prepare loop array and tile size array
-  SmallVector<affine::AffineForOp> loops = {outerLoop, innerLoop};
-  SmallVector<unsigned> tileSizes = {outerTileSize, innerTileSize};
-  
-  // Call MLIR built-in API (note the third parameter is a pointer)
-  SmallVector<affine::AffineForOp, 4> tiledNest;
-  if (failed(affine::tilePerfectlyNested(loops, tileSizes, &tiledNest))) {
-    llvm::WithColor::error(llvm::errs())
-        << "Failed to tile two affine.for loops using MLIR built-in API\n";
-    return failure();
-  }
-  
-  // tiledNest contains tiled loops, the order should be:
-  // [outerTile, outerLocal, innerTile, innerLocal]
-  // But need to validate the actual returned structure
-  if (tiledNest.size() < 4) {
-    llvm::WithColor::error(llvm::errs())
-        << "Unexpected tiled nest structure: expected 4 loops, got " 
-        << tiledNest.size() << "\n";
-    return failure();
-  }
-  
-  return tiledNest;
-}
-
-/**
- * @brief Compute multi-level loop tile factors
- * @param func 目标函数
- * @param memInfo L1 memory information
- * @param m outer affine.for tile factor (default 4)
- * @param n inner affine.for tile factor (default 4)
- * @param k innermost scf.for tile factor (default 4)
- * @return {m, n, k} three tile factors, or failure
- * 
- * TODO: Implement automatic calculation logic based on L1 size
- * Currently using the default values (all 4)
- */
-static FailureOr<SmallVector<uint64_t, 3>> 
-ComputeMultiLevelTileFactors(func::FuncOp func, const SingleMemoryInfo& memInfo,
-                              uint64_t m = 4, uint64_t n = 4, uint64_t k = 4) {
-  (void)func;      // Not used yet
-  (void)memInfo;   // Not used yet
-  
-  SmallVector<uint64_t, 3> factors = {m, n, k};
-  
-  llvm::outs() << "[ComputeMultiLevelTileFactors] Using tile factors: "
-               << "m=" << factors[0] << ", n=" << factors[1] << ", k=" << factors[2] << "\n";
-  
-  return factors;
-}
-
-/**
- * @brief Implement Transform main流程 - 两步 tiling
- * First step: use MLIR built-in API to tile the outermost two affine.for loops
- * Second step: use SingleLoopTillingManager to tile the innermost scf.for loop
- */
-LogicalResult TillingManager::Transform() {
-  if (loopDescriptors_.empty()) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "No loop descriptors available. Call SetupTiling() first.\n";
-    return failure();
-  }
-  
-  // Validate loop structure: should be two affine.for and one scf.for
-  if (loopDescriptors_.size() != 3) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "Expected 3 loop descriptors (2 affine.for + 1 scf.for), got " 
-        << loopDescriptors_.size() << "\n";
-    return failure();
-  }
-  
-  if (loopDescriptors_[0].type != LoopDescriptor::AFFINE_FOR ||
-      loopDescriptors_[1].type != LoopDescriptor::AFFINE_FOR ||
-      loopDescriptors_[2].type != LoopDescriptor::SCF_FOR) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "Expected loop structure: affine.for, affine.for, scf.for\n";
-    return failure();
-  }
-
-  // First step: use MLIR built-in API to tile the outermost two affine.for loops
-  auto& outerDesc = loopDescriptors_[0];
-  auto& innerAffineDesc = loopDescriptors_[1];
-  
-  auto tiledAffineResult = TileTwoAffineFors(
-      outerDesc, innerAffineDesc, 
-      static_cast<unsigned>(tileFactors_[0]), 
-      static_cast<unsigned>(tileFactors_[1]));
-  
-  if (failed(tiledAffineResult)) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "Failed to tile two affine.for loops using MLIR built-in API\n";
-    return failure();
-  }
-  
-  auto tiledAffineNest = *tiledAffineResult;
-  // tiledAffineNest should contain 4 loops: [outerTile, outerLocal, innerTile, innerLocal]
-  if (tiledAffineNest.size() != 4) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "Unexpected tiled affine nest size: expected 4, got " 
-        << tiledAffineNest.size() << "\n";
-    return failure();
-  }
-  
-  // MLIR built-in API has automatically handled IV remapping, the IVs in the original loops have been replaced
-  // tiledAffineNest 包含：[outerTile, outerLocal, innerTile, innerLocal]
-  auto innerLocalLoop = tiledAffineNest[3];
-  
-  // Get the body of the innermost affine local loop, this is the insertion point for the second step tiling
-  Block* innermostAffineBody = innerLocalLoop.getBody();
-  
-  // Second step: find the scf.for in the innermost body after tiling, use SingleLoopTillingManager to tile
-  scf::ForOp scfForToTile = nullptr;
-  innermostAffineBody->walk([&](scf::ForOp scfFor) {
-    if (!scfForToTile) {
-      scfForToTile = scfFor;
-    }
-  });
-  
-  if (!scfForToTile) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "No scf.for found in tiled affine nest for second step tiling\n";
-    return failure();
-  }
-  
-  // Validate the found scf.for is the one we expect
-  auto& scfDesc = loopDescriptors_[2];
-  if (scfForToTile.getOperation() != scfDesc.op) {
-    llvm::WithColor::warning(llvm::errs()) 
-        << "Found scf.for does not match expected one, proceeding anyway\n";
-  }
-  
-  // Compute the tile factor for the scf.for
-  uint64_t scfTileFactor = tileFactors_[2];
-  
-  // Compute trip count
-  auto tripOpt = getTripCount(scfForToTile);
-  if (!tripOpt) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "Scf.for trip count is not statically provable\n";
-    return failure();
-  }
-  
-  // Check divisibility
-  if (*tripOpt % static_cast<int64_t>(scfTileFactor) != 0) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "Scf.for trip count (" << *tripOpt 
-        << ") not divisible by tile factor (" << scfTileFactor << ")\n";
-    return failure();
-  }
-  
-  // Use SingleLoopTillingManager to tile
-  SingleLoopTillingManager scfTilingManager(scfForToTile, *tripOpt, scfTileFactor);
-  if (failed(scfTilingManager.Transform())) {
-    llvm::WithColor::error(llvm::errs()) 
-        << "Failed to tile scf.for using SingleLoopTillingManager\n";
-    return failure();
-  }
-  
-  // Delete the original outermost affine.for (MLIR built-in API should have already handled it, but for safety check)
-  // Actually MLIR built-in API should have already deleted the original loop, so this might not need to be manually deleted
-  // But for clarity, we check if the original loop still exists
-  if (outerDesc.op->getParentOp()) {
-    // If the original loop still exists, it means MLIR API did not delete it, we need to manually delete it
-    outerDesc.op->erase();
-  }
-  
-  return success();
-}
-
 
 class TileScfForToL1Pass
     : public PassWrapper<TileScfForToL1Pass, OperationPass<ModuleOp>> {
@@ -911,39 +534,6 @@ public:
     bool changedAny = false;
 
     module.walk([&](func::FuncOp func) {
-      // Try using func-level multi-level tiling
-      llvm::outs() << "[TileScfForToL1Pass] Processing function: " << func.getSymName() << "\n";
-      
-      // Compute multi-level tile factors
-      auto tileFactorsResult = ComputeMultiLevelTileFactors(func, memInfo);
-      
-      if (succeeded(tileFactorsResult)) {
-        auto tileFactors = *tileFactorsResult;
-        
-        // Create func-level TillingManager
-        TillingManager manager(func);
-        
-        // Configure tiling scheme
-        if (succeeded(manager.SetupTiling(tileFactors))) {
-          // Execute transformation
-          if (succeeded(manager.Transform())) {
-            llvm::outs() << "[TileScfForToL1Pass] Successfully applied multi-level tiling to function: " 
-                         << func.getSymName() << "\n";
-            changedAny = true;
-            return;  // Successfully completed multi-level tiling, skip fallback
-          } else {
-            llvm::outs() << "[TileScfForToL1Pass] Multi-level tiling Transform() failed, falling back to single-loop tiling\n";
-          }
-        } else {
-          llvm::outs() << "[TileScfForToL1Pass] Multi-level tiling SetupTiling() failed, falling back to single-loop tiling\n";
-        }
-      } else {
-        llvm::outs() << "[TileScfForToL1Pass] ComputeMultiLevelTileFactors() failed, falling back to single-loop tiling\n";
-      }
-      
-      // Fallback: use the original single-loop tiling logic
-      llvm::outs() << "[TileScfForToL1Pass] Applying single-loop tiling to function: " << func.getSymName() << "\n";
-      
       SmallVector<scf::ForOp, 8> loops;
       func.walk([&](scf::ForOp f) { loops.push_back(f); });
 
@@ -969,7 +559,7 @@ public:
         TMD_RETURN_ON_FAILURE(!(*trip % static_cast<int64_t>(tileFactor)), (Twine("Trip count not divisible by tile factor in function '") + func.getSymName() + "'").str());
 
         // Start rewriting
-        SingleLoopTillingManager manager(forOp, *trip, tileFactor);
+        TillingManager manager(forOp, *trip, tileFactor);
         if (failed(manager.Transform())) {
           signalPassFailure();  // Handled by the caller
           return;
