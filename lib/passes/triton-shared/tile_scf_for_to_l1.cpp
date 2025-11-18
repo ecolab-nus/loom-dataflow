@@ -274,6 +274,114 @@ extractMatmulDimensions(linalg::MatmulOp matmul) {
   return std::make_tuple(M, N, K);
 }
 
+/**
+ * @brief Prefetch A and B matrix blocks to L1 memory.
+ * @param forOp The original inner scf.for loop
+ * @param insertionPoint The operation before which to insert prefetch code
+ * @param aOperand The A matrix operand (contains memory address info: base, offset, shape, strides)
+ * @param bOperand The B matrix operand (contains memory address info: base, offset, shape, strides)
+ * @param M The M dimension of the block
+ * @param N The N dimension of the block
+ * @param K The K dimension of the block
+ * @param memoryLabel The memory label (default "L1")
+ * @return A pair of (aL1Block, bL1Block) - the allocated L1 memory blocks
+ */
+static std::pair<Value, Value> prefetchABBlocksToL1(
+    scf::ForOp forOp, Operation *insertionPoint, Value aOperand, Value bOperand,
+    int64_t M, int64_t N, int64_t K, StringRef memoryLabel = "L1") {
+  Location loc = forOp.getLoc();
+  OpBuilder builder(forOp);
+  OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPoint(insertionPoint);
+
+  // Get element type from aOperand
+  auto aType = llvm::cast<MemRefType>(aOperand.getType());
+  Type elemType = aType.getElementType();
+
+  // Calculate byte size for L1 allocation
+  // Get element bit width
+  auto getElementBitWidth = [](Type elemTy) -> uint64_t {
+    if (auto i = llvm::dyn_cast<IntegerType>(elemTy))
+      return i.getWidth();
+    if (auto f = llvm::dyn_cast<FloatType>(elemTy))
+      return f.getWidth();
+    if (auto idx = llvm::dyn_cast<IndexType>(elemTy))
+      return 64u; // Assume 64-bit index
+    return 32u; // Default to 32 bits
+  };
+
+  auto getByteSize = [&](int64_t rows, int64_t cols) -> uint64_t {
+    uint64_t elems = static_cast<uint64_t>(rows) * static_cast<uint64_t>(cols);
+    uint64_t bitsPerElem = getElementBitWidth(elemType);
+    uint64_t bytesPerElem = (bitsPerElem + 7) / 8;
+    return elems * bytesPerElem;
+  };
+
+  auto ctx = builder.getContext();
+
+  // Create L1 memory allocation for A block (M x K)
+  uint64_t aBlockBytes = getByteSize(M, K);
+  MemRefType aBlockType = MemRefType::get({M, K}, elemType);
+  NamedAttribute allocAttr = NamedAttribute(
+      StringAttr::get(ctx, "tmd.alloc"),
+      DictionaryAttr::get(ctx, {
+          NamedAttribute(StringAttr::get(ctx, "local"), BoolAttr::get(ctx, true)),
+          NamedAttribute(StringAttr::get(ctx, "memory_name"),
+                       StringAttr::get(ctx, memoryLabel)),
+          NamedAttribute(StringAttr::get(ctx, "size"),
+                       IntegerAttr::get(IntegerType::get(ctx, 64), aBlockBytes))}));
+  Value aL1Block = builder.create<memref::AllocOp>(
+      loc, aBlockType, ValueRange{}, ArrayRef<NamedAttribute>{allocAttr});
+
+  // Create L1 memory allocation for B block (K x N)
+  uint64_t bBlockBytes = getByteSize(K, N);
+  MemRefType bBlockType = MemRefType::get({K, N}, elemType);
+  NamedAttribute bAllocAttr = NamedAttribute(
+      StringAttr::get(ctx, "tmd.alloc"),
+      DictionaryAttr::get(ctx, {
+          NamedAttribute(StringAttr::get(ctx, "local"), BoolAttr::get(ctx, true)),
+          NamedAttribute(StringAttr::get(ctx, "memory_name"),
+                       StringAttr::get(ctx, memoryLabel)),
+          NamedAttribute(StringAttr::get(ctx, "size"),
+                       IntegerAttr::get(IntegerType::get(ctx, 64), bBlockBytes))}));
+  Value bL1Block = builder.create<memref::AllocOp>(
+      loc, bBlockType, ValueRange{}, ArrayRef<NamedAttribute>{bAllocAttr});
+
+  // Copy A and B blocks to L1
+  // Find the original memref sources (they might be from reinterpret_cast)
+  Value aSource = aOperand;
+  Value bSource = bOperand;
+
+  // If operands come from reinterpret_cast, get the source
+  if (auto aCast = aOperand.getDefiningOp<memref::ReinterpretCastOp>()) {
+    aSource = aCast.getSource();
+  }
+  if (auto bCast = bOperand.getDefiningOp<memref::ReinterpretCastOp>()) {
+    bSource = bCast.getSource();
+  }
+
+  // Check if aOperand is already M x K
+  auto aOperandType = llvm::cast<MemRefType>(aOperand.getType());
+  if (aOperandType.getShape()[0] == M && aOperandType.getShape()[1] == K) {
+    // Already the right size
+    builder.create<memref::CopyOp>(loc, aOperand, aL1Block);
+  } else {
+    // Need to extract from source - this is complex and depends on the original layout
+    // For now, we'll assume aOperand can be used directly
+    // In a full implementation, we'd need to create a new reinterpret_cast
+    builder.create<memref::CopyOp>(loc, aOperand, aL1Block);
+  }
+
+  // Same for B block (K x N)
+  auto bOperandType = llvm::cast<MemRefType>(bOperand.getType());
+  if (bOperandType.getShape()[0] == K && bOperandType.getShape()[1] == N) {
+    builder.create<memref::CopyOp>(loc, bOperand, bL1Block);
+  } else {
+    builder.create<memref::CopyOp>(loc, bOperand, bL1Block);
+  }
+
+  return {aL1Block, bL1Block};
+}
 
 class TillingManager {
   private:
@@ -576,98 +684,25 @@ class TillingManager {
       
       // Step 1: Load A and B blocks to L1 (before matmul, not at start of scf.for body)
       // Insert before matmul to ensure aOperand and bOperand are already defined
-      op_builder_.setInsertionPoint(matmulOpPtr);
+      // NOTE: Prefetch is already done in bufferization phase, so we reuse aOperand and bOperand
+      // which are already L1 memrefs (%alloc_2 and %alloc_4 in after_bufferization.mlir)
+      // auto [aL1Block, bL1Block] = prefetchABBlocksToL1(
+      //     forOp_, matmulOpPtr, aOperand, bOperand, M, N, K, "L1");
+      
+      // Reuse the existing L1 blocks from aOperand and bOperand
+      // These are already prefetched to L1 in the bufferization phase
+      Value aL1Block = aOperand;
+      Value bL1Block = bOperand;
       
       // Create constants (these will be used in nested loops, so create them early)
+      op_builder_.setInsertionPoint(matmulOpPtr);
       Value tileSizeVal = op_builder_.create<arith::ConstantIndexOp>(loc_, tileSize);
       Value strideOne = op_builder_.create<arith::ConstantIndexOp>(loc_, 1);
       
-      // Get element type
+      // Get element type and context for later use
       auto aType = llvm::cast<MemRefType>(aOperand.getType());
       Type elemType = aType.getElementType();
-      
-      // Calculate byte size for L1 allocation
-      auto getByteSize = [&](int64_t rows, int64_t cols) -> uint64_t {
-        uint64_t elems = static_cast<uint64_t>(rows) * static_cast<uint64_t>(cols);
-        uint64_t bytesPerElem = 4; // f32 = 4 bytes
-        return elems * bytesPerElem;
-      };
-      
-      // Create L1 memory allocation for A block (M x K = 64 x K)
-      uint64_t aBlockBytes = getByteSize(M, K);
-      MemRefType aBlockType = MemRefType::get({M, K}, elemType);
       auto ctx = op_builder_.getContext();
-      NamedAttribute allocAttr = NamedAttribute(
-          StringAttr::get(ctx, "tmd.alloc"),
-          DictionaryAttr::get(ctx, {
-              NamedAttribute(StringAttr::get(ctx, "local"), BoolAttr::get(ctx, true)),
-              NamedAttribute(StringAttr::get(ctx, "memory_name"), StringAttr::get(ctx, "L1")),
-              NamedAttribute(StringAttr::get(ctx, "size"), 
-                           IntegerAttr::get(IntegerType::get(ctx, 64), aBlockBytes))
-          })
-      );
-      Value aL1Block = op_builder_.create<memref::AllocOp>(
-          loc_, aBlockType, ValueRange{}, ArrayRef<NamedAttribute>{allocAttr});
-      
-      // Create L1 memory allocation for B block (K x N = K x 64)
-      uint64_t bBlockBytes = getByteSize(K, N);
-      MemRefType bBlockType = MemRefType::get({K, N}, elemType);
-      NamedAttribute bAllocAttr = NamedAttribute(
-          StringAttr::get(ctx, "tmd.alloc"),
-          DictionaryAttr::get(ctx, {
-              NamedAttribute(StringAttr::get(ctx, "local"), BoolAttr::get(ctx, true)),
-              NamedAttribute(StringAttr::get(ctx, "memory_name"), StringAttr::get(ctx, "L1")),
-              NamedAttribute(StringAttr::get(ctx, "size"), 
-                           IntegerAttr::get(IntegerType::get(ctx, 64), bBlockBytes))
-          })
-      );
-      Value bL1Block = op_builder_.create<memref::AllocOp>(
-          loc_, bBlockType, ValueRange{}, ArrayRef<NamedAttribute>{bAllocAttr});
-      
-      // Copy A and B blocks to L1
-      // Find the original memref sources (they might be from reinterpret_cast)
-      Value aSource = aOperand;
-      Value bSource = bOperand;
-      
-      // If operands come from reinterpret_cast, get the source
-      if (auto aCast = aOperand.getDefiningOp<memref::ReinterpretCastOp>()) {
-        aSource = aCast.getSource();
-      }
-      if (auto bCast = bOperand.getDefiningOp<memref::ReinterpretCastOp>()) {
-        bSource = bCast.getSource();
-      }
-      
-      // Extract A block (M x K = 64 x K) from source
-      // The block should span the full K dimension for this scf.for iteration
-      // We need to compute the offset based on scf.for IV and other loop IVs
-      // For now, we'll create a reinterpret_cast to extract the full block
-      // Note: This is a simplified version - in full implementation, we'd need
-      // to properly compute offsets based on all enclosing loop IVs
-      
-      // Create reinterpret_cast for A block (64 x K)
-      // Offset calculation: we need to find the base offset for this scf.for iteration
-      // For simplicity, we'll use the existing aOperand if it's already the right size
-      // Otherwise, we need to extract from source
-      
-      // Check if aOperand is already M x K
-      auto aOperandType = llvm::cast<MemRefType>(aOperand.getType());
-      if (aOperandType.getShape()[0] == M && aOperandType.getShape()[1] == K) {
-        // Already the right size
-        op_builder_.create<memref::CopyOp>(loc_, aOperand, aL1Block);
-      } else {
-        // Need to extract from source - this is complex and depends on the original layout
-        // For now, we'll assume aOperand can be used directly
-        // In a full implementation, we'd need to create a new reinterpret_cast
-        op_builder_.create<memref::CopyOp>(loc_, aOperand, aL1Block);
-      }
-      
-      // Same for B block (K x N = K x 64)
-      auto bOperandType = llvm::cast<MemRefType>(bOperand.getType());
-      if (bOperandType.getShape()[0] == K && bOperandType.getShape()[1] == N) {
-        op_builder_.create<memref::CopyOp>(loc_, bOperand, bL1Block);
-      } else {
-        op_builder_.create<memref::CopyOp>(loc_, bOperand, bL1Block);
-      }
       
       // Step 2: Create 3 nested affine.for loops (m, n, k) to replace matmul
       // Insert after L1 allocations (aL1Block and bL1Block are now defined)

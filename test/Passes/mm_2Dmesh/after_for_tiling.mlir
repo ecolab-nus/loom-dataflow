@@ -33,29 +33,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -98,29 +94,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -163,29 +155,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -228,29 +216,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -293,29 +277,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -358,29 +338,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -423,29 +399,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -488,29 +460,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -553,29 +521,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -618,29 +582,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -683,29 +643,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -748,29 +704,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -813,29 +765,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -878,29 +826,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -943,29 +887,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -1008,29 +948,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -1073,29 +1009,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -1138,29 +1070,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -1203,29 +1131,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -1268,29 +1192,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -1333,29 +1253,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -1398,29 +1314,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -1463,29 +1375,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -1528,29 +1436,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -1593,29 +1497,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -1658,29 +1558,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -1723,29 +1619,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
@@ -1788,29 +1680,25 @@ module {
                   %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<64x64xf32>
                   memref.copy %alloc, %alloc_5 : memref<64x64xf32> to memref<64x64xf32>
                   %c32 = arith.constant 32 : index
-                  %alloc_6 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  %alloc_7 = memref.alloc() {tmd.alloc = {local = true, memory_name = "L1", size = 16384 : i64}} : memref<64x64xf32>
-                  memref.copy %alloc_2, %alloc_6 : memref<64x64xf32> to memref<64x64xf32>
-                  memref.copy %alloc_4, %alloc_7 : memref<64x64xf32> to memref<64x64xf32>
                   affine.for %arg14 = 0 to 2 {
                     affine.for %arg15 = 0 to 2 {
                       %11 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg14)
                       %12 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg15)
-                      %alloc_8 = memref.alloc() : memref<32x32xf32>
+                      %alloc_6 = memref.alloc() : memref<32x32xf32>
                       %subview = memref.subview %arg13[%11, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                      memref.copy %subview, %alloc_8 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
+                      memref.copy %subview, %alloc_6 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<32x32xf32>
                       affine.for %arg16 = 0 to 2 {
                         %13 = affine.apply affine_map<(d0) -> (d0 * 32)>(%arg16)
-                        %subview_9 = memref.subview %alloc_6[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        %subview_10 = memref.subview %alloc_7[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-                        linalg.matmul ins(%subview_9, %subview_10 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_8 : memref<32x32xf32>)
+                        %subview_7 = memref.subview %alloc_2[%11, %13] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        %subview_8 = memref.subview %alloc_4[%13, %12] [%c32, %c32] [%c1, %c1] : memref<64x64xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                        linalg.matmul ins(%subview_7, %subview_8 : memref<?x?xf32, strided<[?, ?], offset: ?>>, memref<?x?xf32, strided<[?, ?], offset: ?>>) outs(%alloc_6 : memref<32x32xf32>)
                       }
-                      memref.copy %alloc_8, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
+                      memref.copy %alloc_6, %subview : memref<32x32xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
                     }
                   }
                   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg13, %alloc_5 : memref<64x64xf32>, memref<64x64xf32>) outs(%arg13 : memref<64x64xf32>) {
-                  ^bb0(%in: f32, %in_8: f32, %out: f32):
-                    %11 = arith.addf %in, %in_8 : f32
+                  ^bb0(%in: f32, %in_6: f32, %out: f32):
+                    %11 = arith.addf %in, %in_6 : f32
                     linalg.yield %11 : f32
                   }
                   scf.yield %arg13 : memref<64x64xf32>
