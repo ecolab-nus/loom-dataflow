@@ -25,9 +25,63 @@
 #pragma once
 
 #include "mlir/Pass/Pass.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 
 namespace tmd {
 namespace passes {
+class ScfForWrapperProcessor {
+public:
+    static void processParallelBody(mlir::affine::AffineParallelOp& parallelOp) {
+    mlir::scf::ForOp scfFor = findScfForInParallelBody(parallelOp);
+    if (!scfFor) return;
+    
+    auto [blockm, blockn] = extractBlockSizes(scfFor);
+    auto [mLoop, nLoop] = createTwoLevelLoops(parallelOp, blockm, blockn);
+    moveOperationsToNestedLoops(parallelOp, scfFor, nLoop);
+    updateIndexCalculations(nLoop, parallelOp.getIVs()[0], 
+                            parallelOp.getIVs()[1], blockm, blockn);
+    }
+
+private:
+    static mlir::scf::ForOp findScfForInParallelBody(mlir::affine::AffineParallelOp& parallelOp);
+    static std::pair<int64_t, int64_t> extractBlockSizes(mlir::scf::ForOp& scfFor);
+    static std::pair<mlir::affine::AffineForOp, mlir::affine::AffineForOp> 
+    createTwoLevelLoops(mlir::affine::AffineParallelOp& parallelOp, int64_t blockm, int64_t blockn);
+    static void moveOperationsToNestedLoops(mlir::affine::AffineParallelOp parallelOp,
+                                            mlir::scf::ForOp scfFor, mlir::affine::AffineForOp nLoop);
+    static void updateIndexCalculations(mlir::affine::AffineForOp nLoop, 
+                                        mlir::Value ivX, mlir::Value ivY, int64_t blockm, int64_t blockn);
+};
+
+
+class AffineParallelConverter {
+public:
+    static void convertFunction(mlir::func::FuncOp func) {
+    if (!hasValidSignature(func)) return;
+    
+    auto [sizeX, sizeY, sizeZ, idxX, idxY, idxZ] = extractArgs(func);
+    auto parallelOp = createAffineParallel(func, sizeX, sizeY, sizeZ);
+    moveOriginalBody(parallelOp, func);
+    replaceIndexUses(parallelOp, idxX, idxY, idxZ);
+    cleanupFunctionSignature(func, idxX, idxY, idxZ);
+    optimizeParallelOp(parallelOp);
+    }
+
+private:
+    static bool hasValidSignature(mlir::func::FuncOp func);
+    static std::tuple<mlir::Value, mlir::Value, mlir::Value, mlir::Value, mlir::Value, mlir::Value> 
+    extractArgs(mlir::func::FuncOp func);
+    static mlir::affine::AffineParallelOp 
+    createAffineParallel(mlir::func::FuncOp func, mlir::Value sizeX, mlir::Value sizeY, mlir::Value sizeZ);
+    static void moveOriginalBody(mlir::affine::AffineParallelOp parallelOp, mlir::func::FuncOp func);
+    static void replaceIndexUses(mlir::affine::AffineParallelOp parallelOp, 
+                                mlir::Value idxX, mlir::Value idxY, mlir::Value idxZ);
+    static void cleanupFunctionSignature(mlir::func::FuncOp func, mlir::Value idxX, mlir::Value idxY, mlir::Value idxZ);
+    static void optimizeParallelOp(mlir::affine::AffineParallelOp parallelOp);
+};
+
 
 /**
  * \brief Create a pass that wraps function bodies with a 3-D affine.parallel

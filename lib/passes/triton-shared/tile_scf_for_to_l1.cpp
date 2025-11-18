@@ -36,6 +36,7 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/AffineExpr.h"
@@ -224,6 +225,53 @@ static uint64_t largestPowerOfTwoLE(uint64_t n) {
   while ((p << 1) > p && (p << 1) <= n)
     p <<= 1;
   return p;
+}
+
+/**
+ * @brief Extract M, N, K dimensions from a linalg.matmul operation.
+ * @param matmul The matmul operation
+ * @return A tuple of (M, N, K) dimensions, or failure if dimensions cannot be extracted
+ */
+static FailureOr<std::tuple<int64_t, int64_t, int64_t>>
+extractMatmulDimensions(linalg::MatmulOp matmul) {
+  // Get operands: A (M x K), B (K x N), C (M x N)
+  if (matmul.getNumDpsInputs() != 2 || matmul.getNumDpsInits() != 1)
+    return failure();
+
+  Value aOperand = matmul.getDpsInputOperand(0)->get();
+  Value bOperand = matmul.getDpsInputOperand(1)->get();
+  Value cOperand = matmul.getDpsInitOperand(0)->get();
+
+  auto aType = llvm::dyn_cast<MemRefType>(aOperand.getType());
+  auto bType = llvm::dyn_cast<MemRefType>(bOperand.getType());
+  auto cType = llvm::dyn_cast<MemRefType>(cOperand.getType());
+
+  if (!aType || !bType || !cType)
+    return failure();
+
+  if (!aType.hasStaticShape() || !bType.hasStaticShape() ||
+      !cType.hasStaticShape())
+    return failure();
+
+  // A is M x K, B is K x N, C is M x N
+  auto aShape = aType.getShape();
+  auto bShape = bType.getShape();
+  auto cShape = cType.getShape();
+
+  if (aShape.size() != 2 || bShape.size() != 2 || cShape.size() != 2)
+    return failure();
+
+  int64_t M = aShape[0]; // A's first dimension
+  int64_t K = aShape[1]; // A's second dimension (should match B's first)
+  int64_t N = bShape[1]; // B's second dimension
+
+  // Verify consistency
+  if (aShape[1] != bShape[0] || aShape[0] != cShape[0] ||
+      bShape[1] != cShape[1]) {
+    return failure();
+  }
+
+  return std::make_tuple(M, N, K);
 }
 
 
@@ -476,8 +524,270 @@ class TillingManager {
       // 6. Finalize the transformation and replace the original loop
       return FinalizeAndReplaceLoop(outer, inner);
     }
-  
-  
+
+    /**
+     * @brief Tile a matmul operation inside the scf.for loop with fixed tile size.
+     * @param matmulOp The matmul operation to tile
+     * @param tileSize The tile size for each dimension (default 32)
+     * @return success on success, failure otherwise
+     */
+    LogicalResult TileMatmulInLoop(linalg::MatmulOp matmulOp, int64_t tileSize) {
+      // Extract dimensions
+      auto dimsOr = extractMatmulDimensions(matmulOp);
+      if (failed(dimsOr))
+        return failure();
+      auto [M, N, K] = *dimsOr;
+
+      // Verify divisibility
+      if (M % tileSize != 0 || N % tileSize != 0 || K % tileSize != 0) {
+        llvm::WithColor::error(llvm::errs())
+            << "Matmul dimensions (" << M << ", " << N << ", " << K
+            << ") are not divisible by tile size " << tileSize << "\n";
+        return failure();
+      }
+
+      int64_t numMTiles = M / tileSize;
+      int64_t numNTiles = N / tileSize;
+      int64_t numKTiles = K / tileSize;
+
+      // Get matmul operands
+      Value aOperand = matmulOp.getDpsInputOperand(0)->get();
+      Value bOperand = matmulOp.getDpsInputOperand(1)->get();
+      Value cOperand = matmulOp.getDpsInitOperand(0)->get();
+
+      OpBuilder::InsertionGuard guard(op_builder_);
+
+      // Find matmul in scf.for body and get its position
+      Block *scfForBody = &forOp_.getRegion().front();
+      Operation *matmulOpPtr = matmulOp.getOperation();
+      
+      // Get scf.for's iter_arg (C buffer)
+      Value cIterArg = nullptr;
+      if (forOp_.getNumRegionIterArgs() > 0) {
+        cIterArg = scfForBody->getArgument(1); // First iter_arg is at index 1
+      } else {
+        llvm::WithColor::error(llvm::errs())
+            << "scf.for must have at least one iter_arg for C buffer\n";
+        return failure();
+      }
+
+      // Get the original A and B operands from the matmul
+      // These are likely from reinterpret_cast operations in the scf.for body
+      
+      // Step 1: Load A and B blocks to L1 (before matmul, not at start of scf.for body)
+      // Insert before matmul to ensure aOperand and bOperand are already defined
+      op_builder_.setInsertionPoint(matmulOpPtr);
+      
+      // Create constants (these will be used in nested loops, so create them early)
+      Value tileSizeVal = op_builder_.create<arith::ConstantIndexOp>(loc_, tileSize);
+      Value strideOne = op_builder_.create<arith::ConstantIndexOp>(loc_, 1);
+      
+      // Get element type
+      auto aType = llvm::cast<MemRefType>(aOperand.getType());
+      Type elemType = aType.getElementType();
+      
+      // Calculate byte size for L1 allocation
+      auto getByteSize = [&](int64_t rows, int64_t cols) -> uint64_t {
+        uint64_t elems = static_cast<uint64_t>(rows) * static_cast<uint64_t>(cols);
+        uint64_t bytesPerElem = 4; // f32 = 4 bytes
+        return elems * bytesPerElem;
+      };
+      
+      // Create L1 memory allocation for A block (M x K = 64 x K)
+      uint64_t aBlockBytes = getByteSize(M, K);
+      MemRefType aBlockType = MemRefType::get({M, K}, elemType);
+      auto ctx = op_builder_.getContext();
+      NamedAttribute allocAttr = NamedAttribute(
+          StringAttr::get(ctx, "tmd.alloc"),
+          DictionaryAttr::get(ctx, {
+              NamedAttribute(StringAttr::get(ctx, "local"), BoolAttr::get(ctx, true)),
+              NamedAttribute(StringAttr::get(ctx, "memory_name"), StringAttr::get(ctx, "L1")),
+              NamedAttribute(StringAttr::get(ctx, "size"), 
+                           IntegerAttr::get(IntegerType::get(ctx, 64), aBlockBytes))
+          })
+      );
+      Value aL1Block = op_builder_.create<memref::AllocOp>(
+          loc_, aBlockType, ValueRange{}, ArrayRef<NamedAttribute>{allocAttr});
+      
+      // Create L1 memory allocation for B block (K x N = K x 64)
+      uint64_t bBlockBytes = getByteSize(K, N);
+      MemRefType bBlockType = MemRefType::get({K, N}, elemType);
+      NamedAttribute bAllocAttr = NamedAttribute(
+          StringAttr::get(ctx, "tmd.alloc"),
+          DictionaryAttr::get(ctx, {
+              NamedAttribute(StringAttr::get(ctx, "local"), BoolAttr::get(ctx, true)),
+              NamedAttribute(StringAttr::get(ctx, "memory_name"), StringAttr::get(ctx, "L1")),
+              NamedAttribute(StringAttr::get(ctx, "size"), 
+                           IntegerAttr::get(IntegerType::get(ctx, 64), bBlockBytes))
+          })
+      );
+      Value bL1Block = op_builder_.create<memref::AllocOp>(
+          loc_, bBlockType, ValueRange{}, ArrayRef<NamedAttribute>{bAllocAttr});
+      
+      // Copy A and B blocks to L1
+      // Find the original memref sources (they might be from reinterpret_cast)
+      Value aSource = aOperand;
+      Value bSource = bOperand;
+      
+      // If operands come from reinterpret_cast, get the source
+      if (auto aCast = aOperand.getDefiningOp<memref::ReinterpretCastOp>()) {
+        aSource = aCast.getSource();
+      }
+      if (auto bCast = bOperand.getDefiningOp<memref::ReinterpretCastOp>()) {
+        bSource = bCast.getSource();
+      }
+      
+      // Extract A block (M x K = 64 x K) from source
+      // The block should span the full K dimension for this scf.for iteration
+      // We need to compute the offset based on scf.for IV and other loop IVs
+      // For now, we'll create a reinterpret_cast to extract the full block
+      // Note: This is a simplified version - in full implementation, we'd need
+      // to properly compute offsets based on all enclosing loop IVs
+      
+      // Create reinterpret_cast for A block (64 x K)
+      // Offset calculation: we need to find the base offset for this scf.for iteration
+      // For simplicity, we'll use the existing aOperand if it's already the right size
+      // Otherwise, we need to extract from source
+      
+      // Check if aOperand is already M x K
+      auto aOperandType = llvm::cast<MemRefType>(aOperand.getType());
+      if (aOperandType.getShape()[0] == M && aOperandType.getShape()[1] == K) {
+        // Already the right size
+        op_builder_.create<memref::CopyOp>(loc_, aOperand, aL1Block);
+      } else {
+        // Need to extract from source - this is complex and depends on the original layout
+        // For now, we'll assume aOperand can be used directly
+        // In a full implementation, we'd need to create a new reinterpret_cast
+        op_builder_.create<memref::CopyOp>(loc_, aOperand, aL1Block);
+      }
+      
+      // Same for B block (K x N = K x 64)
+      auto bOperandType = llvm::cast<MemRefType>(bOperand.getType());
+      if (bOperandType.getShape()[0] == K && bOperandType.getShape()[1] == N) {
+        op_builder_.create<memref::CopyOp>(loc_, bOperand, bL1Block);
+      } else {
+        op_builder_.create<memref::CopyOp>(loc_, bOperand, bL1Block);
+      }
+      
+      // Step 2: Create 3 nested affine.for loops (m, n, k) to replace matmul
+      // Insert after L1 allocations (aL1Block and bL1Block are now defined)
+      // The matmul will be replaced, so we insert the loops at matmul's position
+      // Note: aL1Block and bL1Block are defined before matmul, so they're accessible
+      // in all nested loops (m, n, k) that we create here
+      op_builder_.setInsertionPoint(matmulOpPtr);
+      
+      // Create m loop (outermost)
+      AffineMap mLbMap = AffineMap::getConstantMap(0, ctx);
+      AffineMap mUbMap = AffineMap::getConstantMap(numMTiles, ctx);
+      auto mLoop = affine::AffineForOp::create(
+          op_builder_, loc_, ValueRange{}, mLbMap, ValueRange{}, mUbMap, 1);
+      Block *mLoopBody = mLoop.getBody();
+      if (mLoopBody->empty() || !isa<affine::AffineYieldOp>(mLoopBody->back())) {
+        OpBuilder termBuilder = OpBuilder::atBlockEnd(mLoopBody);
+        termBuilder.create<affine::AffineYieldOp>(loc_);
+      }
+      Value mIV = mLoopBody->getArgument(0);
+      
+      // Create n loop (inside m loop)
+      op_builder_.setInsertionPoint(mLoopBody, std::prev(mLoopBody->end()));
+      AffineMap nLbMap = AffineMap::getConstantMap(0, ctx);
+      AffineMap nUbMap = AffineMap::getConstantMap(numNTiles, ctx);
+      auto nLoop = affine::AffineForOp::create(
+          op_builder_, loc_, ValueRange{}, nLbMap, ValueRange{}, nUbMap, 1);
+      Block *nLoopBody = nLoop.getBody();
+      if (nLoopBody->empty() || !isa<affine::AffineYieldOp>(nLoopBody->back())) {
+        OpBuilder termBuilder = OpBuilder::atBlockEnd(nLoopBody);
+        termBuilder.create<affine::AffineYieldOp>(loc_);
+      }
+      Value nIV = nLoopBody->getArgument(0);
+      
+      // Initialize C tile (32x32) from iter_arg
+      op_builder_.setInsertionPointToStart(nLoopBody);
+      
+      // Calculate offsets for C tile extraction
+      AffineExpr d0 = getAffineDimExpr(0, ctx);
+      AffineExpr c32 = getAffineConstantExpr(tileSize, ctx);
+      AffineMap mOffsetMap = AffineMap::get(1, 0, d0 * c32, ctx);
+      AffineMap nOffsetMap = AffineMap::get(1, 0, d0 * c32, ctx);
+      
+      Value mOffset = op_builder_.create<affine::AffineApplyOp>(
+          loc_, mOffsetMap, ValueRange{mIV}).getResult();
+      Value nOffset = op_builder_.create<affine::AffineApplyOp>(
+          loc_, nOffsetMap, ValueRange{nIV}).getResult();
+      
+      // Create C tile by subview from iter_arg
+      MemRefType cTileType = MemRefType::get({tileSize, tileSize}, elemType);
+      Value cTile = op_builder_.create<memref::AllocOp>(
+          loc_, cTileType, ValueRange{}, ArrayRef<NamedAttribute>{});
+      
+      // Initialize C tile from iter_arg (extract 32x32 region)
+      // Use SubViewOp with dynamic offsets
+      // tileSizeVal and strideOne are defined before n loop, so accessible here
+      SmallVector<Value> offsets = {mOffset, nOffset};
+      SmallVector<Value> sizes = {tileSizeVal, tileSizeVal};
+      SmallVector<Value> strides = {strideOne, strideOne};
+      
+      // Create subview with dynamic offsets/sizes
+      auto cTileView = op_builder_.create<memref::SubViewOp>(
+          loc_, cIterArg, offsets, sizes, strides);
+      op_builder_.create<memref::CopyOp>(loc_, cTileView, cTile);
+      
+      // Create k loop (inside n loop)
+      op_builder_.setInsertionPoint(nLoopBody, std::prev(nLoopBody->end()));
+      AffineMap kLbMap = AffineMap::getConstantMap(0, ctx);
+      AffineMap kUbMap = AffineMap::getConstantMap(numKTiles, ctx);
+      auto kLoop = affine::AffineForOp::create(
+          op_builder_, loc_, ValueRange{}, kLbMap, ValueRange{}, kUbMap, 1);
+      Block *kLoopBody = kLoop.getBody();
+      if (kLoopBody->empty() || !isa<affine::AffineYieldOp>(kLoopBody->back())) {
+        OpBuilder termBuilder = OpBuilder::atBlockEnd(kLoopBody);
+        termBuilder.create<affine::AffineYieldOp>(loc_);
+      }
+      Value kIV = kLoopBody->getArgument(0);
+      
+      // In k loop: extract 32x32 tiles from L1 blocks and compute
+      // Note: mOffset, nOffset, tileSizeVal, strideOne are defined in n loop, 
+      // so they're accessible in k loop (which is inside n loop)
+      op_builder_.setInsertionPointToStart(kLoopBody);
+      
+      // Calculate k offset (kIV is from k loop, so it's accessible)
+      AffineMap kOffsetMap = AffineMap::get(1, 0, d0 * c32, ctx);
+      Value kOffset = op_builder_.create<affine::AffineApplyOp>(
+          loc_, kOffsetMap, ValueRange{kIV}).getResult();
+      
+      // Extract A tile (32x32) from L1 A block
+      // All values (mOffset, tileSizeVal, strideOne) are from n loop, accessible here
+      SmallVector<Value> aOffsets = {mOffset, kOffset};
+      SmallVector<Value> aSizes = {tileSizeVal, tileSizeVal};
+      SmallVector<Value> aStrides = {strideOne, strideOne};
+      auto aTileView = op_builder_.create<memref::SubViewOp>(
+          loc_, aL1Block, aOffsets, aSizes, aStrides);
+      
+      // Extract B tile (32x32) from L1 B block
+      // All values (nOffset, tileSizeVal, strideOne) are from n loop, accessible here
+      SmallVector<Value> bOffsets = {kOffset, nOffset};
+      SmallVector<Value> bSizes = {tileSizeVal, tileSizeVal};
+      SmallVector<Value> bStrides = {strideOne, strideOne};
+      auto bTileView = op_builder_.create<memref::SubViewOp>(
+          loc_, bL1Block, bOffsets, bSizes, bStrides);
+      
+      // Execute 32x32 matrix multiplication (accumulates into cTile)
+      // Insert before k loop terminator
+      Operation *kTerminator = kLoopBody->getTerminator();
+      op_builder_.setInsertionPoint(kTerminator);
+      op_builder_.create<linalg::MatmulOp>(
+          loc_, ValueRange{aTileView, bTileView}, ValueRange{cTile});
+      
+      // Step 3: Write back C tile to iter_arg (after n loop, before n loop terminator)
+      op_builder_.setInsertionPoint(nLoopBody, std::prev(nLoopBody->end()));
+      op_builder_.create<memref::CopyOp>(loc_, cTile, cTileView);
+      
+      // Replace the original matmul with the new structure
+      matmulOpPtr->erase();
+
+      return success();
+    }
+
   private:
     mlir::scf::ForOp forOp_;          ///< The original loop to be transformed
     OpBuilder op_builder_;             ///< IR builder
@@ -518,7 +828,7 @@ public:
   void getDependentDialects(DialectRegistry &registry) const override {
     registry
         .insert<affine::AffineDialect, arith::ArithDialect, func::FuncDialect,
-                scf::SCFDialect, memref::MemRefDialect>();
+                linalg::LinalgDialect, scf::SCFDialect, memref::MemRefDialect>();
   }
 
   void runOnOperation() override {
@@ -538,6 +848,27 @@ public:
       func.walk([&](scf::ForOp f) { loops.push_back(f); });
 
       for (auto& forOp : loops) {
+        // Check if this loop contains a matmul operation
+        linalg::MatmulOp matmulOp = nullptr;
+        for (Operation &op : forOp.getBody()->getOperations()) {
+          if (auto mm = llvm::dyn_cast<linalg::MatmulOp>(&op)) {
+            matmulOp = mm;
+            break;
+          }
+        }
+
+        // If matmul found, apply matmul tiling with fixed tile size
+        if (matmulOp) {
+          TillingManager manager(forOp, 0, 1); // Dummy values, not used for matmul tiling
+          if (failed(manager.TileMatmulInLoop(matmulOp, 32))) {
+            signalPassFailure();
+            return;
+          }
+          changedAny = true;
+          continue;
+        }
+
+        // Otherwise, apply regular L1 tiling
         auto perIterBytes = ComputePerIterMemoryBytes(forOp, memInfo.label);
         TMD_RETURN_ON_FAILURE(perIterBytes, "Failed to compute per-iteration memory bytes");
         uint64_t perIterBytesVal = *perIterBytes;
