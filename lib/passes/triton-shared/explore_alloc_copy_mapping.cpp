@@ -256,6 +256,205 @@ static std::optional<int64_t> inferAllocCopiedSizeBytes(memref::AllocOp alloc) {
   return std::nullopt;
 }
 
+/**
+ * @brief Information about copy operations and their candidates.
+ * @details Encapsulates the result of collecting copy operations and building
+ *          their candidate lists for enumeration.
+ */
+struct CopyCandidatesInfo {
+  /// All memref.copy operations found in the function, in walk order.
+  SmallVector<memref::CopyOp> copies;
+  /// Candidate list for each copy operation, indexed by position in copies.
+  SmallVector<SmallVector<DictionaryAttr>> perCopyCands;
+};
+
+/**
+ * @brief Build candidate list for a single memref.copy operation.
+ * @param cpy The copy operation to build candidates for.
+ * @param df The dataflow context containing interconnect information.
+ * @param ctx The MLIR context.
+ * @return Vector of candidate dictionary attributes (mem + broadcast options).
+ */
+ static SmallVector<DictionaryAttr>
+ BuildCandidatesForCopy(memref::CopyOp cpy, const DFContext &df,
+                        MLIRContext *ctx) {
+   SmallVector<DictionaryAttr> cand;
+   // Always include memory copy.
+   {
+     NamedAttrList m;
+     m.append("kind", StringAttr::get(ctx, "mem"));
+     m.append("memory_name", StringAttr::get(ctx, df.singleMemoryName));
+     cand.push_back(DictionaryAttr::get(ctx, m));
+   }
+   // Try to find source reinterpret_cast and its reuse.
+   DictionaryAttr reuse;
+   if (auto srcDef = cpy.getSource().getDefiningOp()) {
+     if (auto rc = dyn_cast<memref::ReinterpretCastOp>(srcDef))
+       reuse = rc->getAttrOfType<DictionaryAttr>("tmd.reuse");
+   }
+   
+   // Check which dimensions have total reuse.
+   bool hasXReuse = false;
+   bool hasYReuse = false;
+   for (const auto &kv : df.icByDimName) {
+     StringRef dimNameRef = kv.getKey();
+     if (hasSpatialTotalReuse(reuse, dimNameRef)) {
+       if (dimNameRef == "x")
+         hasXReuse = true;
+       else if (dimNameRef == "y")
+         hasYReuse = true;
+     }
+   }
+   
+   // Broadcast candidates for each inferred dimension name when reuse is total.
+   for (const auto &kv : df.icByDimName) {
+     StringRef dimNameRef = kv.getKey();
+     const auto &ics = kv.getValue();
+     if (!hasSpatialTotalReuse(reuse, dimNameRef))
+       continue;
+     for (const auto &p : ics) {
+       NamedAttrList b;
+       b.append("kind", StringAttr::get(ctx, "broadcast"));
+       b.append("dim", StringAttr::get(ctx, dimNameRef));
+       b.append("interconnect_name", StringAttr::get(ctx, p.second));
+       cand.push_back(DictionaryAttr::get(ctx, b));
+     }
+   }
+   
+   // If both x and y have total reuse, add all_links broadcast candidate.
+   if (hasXReuse && hasYReuse) {
+     NamedAttrList allLinks;
+     allLinks.append("kind", StringAttr::get(ctx, "broadcast"));
+     allLinks.append("dim", StringAttr::get(ctx, "xy"));  // or "all" depending on your preference
+     allLinks.append("interconnect_name", StringAttr::get(ctx, "all_links"));
+     cand.push_back(DictionaryAttr::get(ctx, allLinks));
+   }
+   
+   return cand;
+ }
+
+/**
+ * @brief Collect all copy operations and build their candidate lists.
+ * @param f The function to analyze.
+ * @param df The dataflow context containing interconnect information.
+ * @param ctx The MLIR context.
+ * @return CopyCandidatesInfo containing copies and their candidate lists.
+ */
+static CopyCandidatesInfo CollectCopyCandidates(func::FuncOp f,
+                                                 const DFContext &df,
+                                                 MLIRContext *ctx) {
+  CopyCandidatesInfo info;
+  f.walk([&](memref::CopyOp cpy) {
+    info.copies.push_back(cpy);
+    info.perCopyCands.push_back(BuildCandidatesForCopy(cpy, df, ctx));
+  });
+  // If no copies, just add empty entry to keep behavior consistent.
+  if (info.copies.empty())
+    info.perCopyCands.push_back({});
+  return info;
+}
+
+/**
+ * @brief Build function name suffix from selected candidates.
+ * @param perCopyCands The candidate lists for each copy operation.
+ * @param idx The current selection indices for each copy.
+ * @return Function name suffix string (e.g., "c0mem_c1bx").
+ */
+static std::string
+BuildFunctionNameSuffix(const SmallVector<SmallVector<DictionaryAttr>> &perCopyCands,
+                       const SmallVector<size_t> &idx) {
+  std::string suffix;
+  for (size_t i = 0; i < perCopyCands.size(); ++i) {
+    if (perCopyCands[i].empty())
+      continue;
+    if (idx[i] >= perCopyCands[i].size())
+      continue;
+    DictionaryAttr choice = perCopyCands[i][idx[i]];
+    if (!suffix.empty())
+      suffix += "_";
+    auto kindAny = choice.get("kind");
+    auto kind =
+        kindAny ? llvm::dyn_cast<StringAttr>(kindAny) : StringAttr();
+    if (kind && kind.getValue() == "mem") {
+      suffix += ("c" + std::to_string(i) + "mem");
+    } else if (kind && kind.getValue() == "broadcast") {
+      auto dimAny = choice.get("dim");
+      auto dim =
+          dimAny ? llvm::dyn_cast<StringAttr>(dimAny) : StringAttr();
+      std::string tag = "b";
+      if (dim && dim.getValue() == "x")
+        tag += "x";
+      else if (dim && dim.getValue() == "y")
+        tag += "y";
+      else
+        tag += "d";
+      suffix += ("c" + std::to_string(i) + tag);
+    } else {
+      suffix += ("c" + std::to_string(i) + "unk");
+    }
+  }
+  return suffix;
+}
+
+/**
+ * @brief Enumerate all candidate combinations and clone functions.
+ * @param f The original function to clone.
+ * @param info The copy candidates information.
+ * @param outBuilder Builder for the output module.
+ * @param annotateAlloc Function to annotate alloc operations.
+ * @return Vector of all cloned functions with choices attached.
+ */
+static SmallVector<func::FuncOp>
+EnumerateAndCloneFunctions(func::FuncOp f, const CopyCandidatesInfo &info,
+                           OpBuilder &outBuilder,
+                           std::function<void(memref::AllocOp)> annotateAlloc) {
+  SmallVector<func::FuncOp> clones;
+
+  // Enumerate cross product via mixed radix counters.
+  SmallVector<size_t> idx(info.perCopyCands.size(), 0);
+  auto bump = [&]() -> bool {
+    for (size_t i = 0; i < idx.size(); ++i) {
+      if (info.perCopyCands[i].empty())
+        continue;
+      idx[i]++;
+      if (idx[i] < info.perCopyCands[i].size())
+        return true;
+      idx[i] = 0;
+    }
+    return false;
+  };
+
+  do {
+    // Clone function.
+    IRMapping map;
+    func::FuncOp clone = cast<func::FuncOp>(outBuilder.clone(*f, map));
+    // Re-find copies in the clone in the same order.
+    SmallVector<memref::CopyOp> cloneCopies;
+    clone.walk([&](memref::CopyOp c) { cloneCopies.push_back(c); });
+    // Annotate allocs again in clone (attributes don't transfer to new ops
+    // until we set them here because we annotated originals only).
+    clone.walk([&](memref::AllocOp a) { annotateAlloc(a); });
+
+    // Attach choices and build suffix.
+    std::string suffix = BuildFunctionNameSuffix(info.perCopyCands, idx);
+    for (size_t i = 0, k = 0;
+         i < info.perCopyCands.size() && k < cloneCopies.size(); ++i) {
+      if (info.perCopyCands[i].empty())
+        continue;
+      if (idx[i] >= info.perCopyCands[i].size())
+        continue;
+      DictionaryAttr choice = info.perCopyCands[i][idx[i]];
+      cloneCopies[k]->setAttr("tmd.copy.choice", choice);
+      ++k;
+    }
+    if (!suffix.empty())
+      clone.setName((f.getSymName().str() + "__" + suffix).c_str());
+    clones.push_back(clone);
+  } while (bump());
+
+  return clones;
+}
+
 struct ExploreAllocCopyMappingPass
     : public PassWrapper<ExploreAllocCopyMappingPass, OperationPass<ModuleOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ExploreAllocCopyMappingPass)
@@ -303,35 +502,8 @@ struct ExploreAllocCopyMappingPass
       for (func::FuncOp f : funcs) {
         f.walk([&](memref::AllocOp a) { annotateAlloc(a); });
         f.walk([&](memref::CopyOp cpy) {
-          SmallVector<Attribute> candidates;
-          // Always include memory copy.
-          {
-            NamedAttrList m;
-            m.append("kind", StringAttr::get(ctx, "mem"));
-            m.append("memory_name", StringAttr::get(ctx, df.singleMemoryName));
-            candidates.push_back(DictionaryAttr::get(ctx, m));
-          }
-          // Try to find source reinterpret_cast and its reuse.
-          DictionaryAttr reuse;
-          if (auto srcDef = cpy.getSource().getDefiningOp()) {
-            if (auto rc = dyn_cast<memref::ReinterpretCastOp>(srcDef))
-              reuse = rc->getAttrOfType<DictionaryAttr>("tmd.reuse");
-          }
-          // Broadcast candidates for each inferred dimension name when reuse is
-          // total.
-          for (const auto &kv : df.icByDimName) {
-            StringRef dimNameRef = kv.getKey();
-            const auto &ics = kv.getValue();
-            if (!hasSpatialTotalReuse(reuse, dimNameRef))
-              continue;
-            for (const auto &p : ics) {
-              NamedAttrList b;
-              b.append("kind", StringAttr::get(ctx, "broadcast"));
-              b.append("dim", StringAttr::get(ctx, dimNameRef));
-              b.append("interconnect_name", StringAttr::get(ctx, p.second));
-              candidates.push_back(DictionaryAttr::get(ctx, b));
-            }
-          }
+          SmallVector<DictionaryAttr> cand = BuildCandidatesForCopy(cpy, df, ctx);
+          SmallVector<Attribute> candidates(cand.begin(), cand.end());
           cpy->setAttr("tmd.copy.candidates", ArrayAttr::get(ctx, candidates));
         });
       }
@@ -346,108 +518,17 @@ struct ExploreAllocCopyMappingPass
     llvm::SmallVector<func::FuncOp> originals(funcs.begin(), funcs.end());
 
     for (func::FuncOp f : originals) {
-      // Gather copy sites and per-site candidate sets.
-      SmallVector<memref::CopyOp> copies;
-      SmallVector<SmallVector<DictionaryAttr>> perCopyCands;
-
+      // Annotate allocs in the original function.
       f.walk([&](memref::AllocOp a) { annotateAlloc(a); });
 
-      f.walk([&](memref::CopyOp cpy) {
-        copies.push_back(cpy);
-        SmallVector<DictionaryAttr> cand;
-        // Always include memory copy.
-        {
-          NamedAttrList m;
-          m.append("kind", StringAttr::get(ctx, "mem"));
-          m.append("memory_name", StringAttr::get(ctx, df.singleMemoryName));
-          cand.push_back(DictionaryAttr::get(ctx, m));
-        }
-        DictionaryAttr reuse;
-        if (auto srcDef = cpy.getSource().getDefiningOp()) {
-          if (auto rc = dyn_cast<memref::ReinterpretCastOp>(srcDef))
-            reuse = rc->getAttrOfType<DictionaryAttr>("tmd.reuse");
-        }
-        for (const auto &kv : df.icByDimName) {
-          StringRef dimNameRef = kv.getKey();
-          const auto &ics = kv.getValue();
-          if (!hasSpatialTotalReuse(reuse, dimNameRef))
-            continue;
-          for (const auto &p : ics) {
-            NamedAttrList b;
-            b.append("kind", StringAttr::get(ctx, "broadcast"));
-            b.append("dim", StringAttr::get(ctx, dimNameRef));
-            b.append("interconnect_name", StringAttr::get(ctx, p.second));
-            cand.push_back(DictionaryAttr::get(ctx, b));
-          }
-        }
-        perCopyCands.push_back(std::move(cand));
-      });
+      // Collect copy operations and their candidates.
+      CopyCandidatesInfo info = CollectCopyCandidates(f, df, ctx);
 
-      // If no copies, just clone once to keep behavior consistent.
-      if (copies.empty())
-        perCopyCands.push_back({});
-
-      // Enumerate cross product via mixed radix counters.
-      SmallVector<size_t> idx(perCopyCands.size(), 0);
-      auto bump = [&]() -> bool {
-        for (size_t i = 0; i < idx.size(); ++i) {
-          if (perCopyCands[i].empty())
-            continue;
-          idx[i]++;
-          if (idx[i] < perCopyCands[i].size())
-            return true;
-          idx[i] = 0;
-        }
-        return false;
-      };
-
-      do {
-        // Clone function.
-        IRMapping map;
-        func::FuncOp clone = cast<func::FuncOp>(outBuilder.clone(*f, map));
-        // Re-find copies in the clone in the same order.
-        SmallVector<memref::CopyOp> cloneCopies;
-        clone.walk([&](memref::CopyOp c) { cloneCopies.push_back(c); });
-        // Annotate allocs again in clone (attributes don't transfer to new ops
-        // until we set them here because we annotated originals only).
-        clone.walk([&](memref::AllocOp a) { annotateAlloc(a); });
-
-        // Attach choices and build suffix.
-        std::string suffix;
-        for (size_t i = 0, k = 0;
-             i < perCopyCands.size() && k < cloneCopies.size(); ++i) {
-          if (perCopyCands[i].empty())
-            continue;
-          DictionaryAttr choice = perCopyCands[i][idx[i]];
-          cloneCopies[k]->setAttr("tmd.copy.choice", choice);
-          // Suffix token
-          auto kindAny = choice.get("kind");
-          auto kind =
-              kindAny ? llvm::dyn_cast<StringAttr>(kindAny) : StringAttr();
-          if (!suffix.empty())
-            suffix += "_";
-          if (kind && kind.getValue() == "mem") {
-            suffix += ("c" + std::to_string(i) + "mem");
-          } else if (kind && kind.getValue() == "broadcast") {
-            auto dimAny = choice.get("dim");
-            auto dim =
-                dimAny ? llvm::dyn_cast<StringAttr>(dimAny) : StringAttr();
-            std::string tag = "b";
-            if (dim && dim.getValue() == "x")
-              tag += "x";
-            else if (dim && dim.getValue() == "y")
-              tag += "y";
-            else
-              tag += "d";
-            suffix += ("c" + std::to_string(i) + tag);
-          } else {
-            suffix += ("c" + std::to_string(i) + "unk");
-          }
-          ++k;
-        }
-        if (!suffix.empty())
-          clone.setName((f.getSymName().str() + "__" + suffix).c_str());
-      } while (bump());
+      // Enumerate all combinations and clone functions.
+      SmallVector<func::FuncOp> clones = EnumerateAndCloneFunctions(
+          f, info, outBuilder, annotateAlloc);
+      // Clones are already added to the output module by enumerateAndCloneFunctions.
+      (void)clones; // Suppress unused variable warning.
     }
 
     // Drop all non-DF top-level ops (old functions etc.), keep DF ops only.
