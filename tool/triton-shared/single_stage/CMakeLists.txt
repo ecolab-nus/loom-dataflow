@@ -176,4 +176,39 @@ set_target_properties(explore_alloc_copy_mapping PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# tile_scf_for_to_l1: Tile scf.for loops to fit L1
+add_executable(tile_scf_for_to_l1
+  ${CMAKE_CURRENT_LIST_DIR}/tile_scf_for_to_l1.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/tile_scf_for_to_l1.cpp
+)
+
+target_include_directories(tile_scf_for_to_l1 PRIVATE
+  ${MLIR_INCLUDE_DIRS}
+  ${TMD_PASSES_INC}
+)
+
+target_link_libraries(tile_scf_for_to_l1 PRIVATE
+  MLIRIR
+  MLIRParser
+  MLIRSupport
+  LLVMSupport
+  MLIRFuncDialect
+  MLIRAffineDialect
+  MLIRMemRefDialect
+  MLIRArithDialect
+  MLIRLinalgDialect
+  MLIRSCFDialect
+  MLIRPass
+  MLIRAsmParser
+  MLIRBytecodeReader
+  tmdDataflowDialect
+)
+mlir_check_all_link_libraries(tile_scf_for_to_l1)
+
+target_compile_options(tile_scf_for_to_l1 PRIVATE -fno-rtti)
+
+set_target_properties(tile_scf_for_to_l1 PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 
