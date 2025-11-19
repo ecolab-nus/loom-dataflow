@@ -69,6 +69,10 @@ static llvm::cl::opt<bool> clMapAnalysisOnly(
     llvm::cl::desc("Only attach tmd.copy.candidates; do not clone functions"),
     llvm::cl::init(false));
 
+static llvm::cl::opt<bool> clSkipTileScfForToL1("skip-tile-scf-for-to-l1",
+                      llvm::cl::desc("Skip the tile-scf-for-to-l1 pass"),
+                      llvm::cl::init(false));
+
 static llvm::cl::opt<bool>
     clDumpIntermediate("dump-intermediate",
                        llvm::cl::desc("Dump MLIR after each pass to stderr"),
@@ -206,7 +210,7 @@ int main(int argc, char **argv) {
     }
   }
   if (!clDumpDir.empty() &&
-      failed(dumpModuleToFile(*tsModule, clDumpDir, "after_affinization.mlir")))
+      failed(dumpModuleToFile(*tsModule, clDumpDir, "01_after_affinization.mlir")))
     return 5;
 
   // Run grid-to-parallel, then dump if requested.
@@ -242,7 +246,7 @@ int main(int argc, char **argv) {
   }
   if (!clDumpDir.empty() &&
       failed(dumpModuleToFile(*tsModule, clDumpDir,
-                              "after_grid_to_parallel.mlir")))
+                              "02_after_grid_to_parallel.mlir")))
     return 5;
 
   // Merge DF decls into the transformed tsModule so passes can see DF.
@@ -314,7 +318,7 @@ int main(int argc, char **argv) {
     }
   }
   if (!clDumpDir.empty() &&
-      failed(dumpModuleToFile(*tsModule, clDumpDir, "after_exploration.mlir")))
+      failed(dumpModuleToFile(*tsModule, clDumpDir, "03_after_exploration.mlir")))
     return 5;
 
   // Annotate reinterpret_cast ops with reuse information.
@@ -350,7 +354,7 @@ int main(int argc, char **argv) {
   }
   if (!clDumpDir.empty() &&
       failed(dumpModuleToFile(*tsModule, clDumpDir,
-                              "after_reuse_annotation.mlir")))
+                              "04_after_reuse_annotation.mlir")))
     return 5;
 
   // Explore alloc/copy mapping choices.
@@ -388,7 +392,7 @@ int main(int argc, char **argv) {
   }
   if (!clDumpDir.empty() &&
       failed(
-          dumpModuleToFile(*tsModule, clDumpDir, "after_memref_mapping.mlir")))
+          dumpModuleToFile(*tsModule, clDumpDir, "05_after_memref_mapping.mlir")))
     return 5;
 
   // Run One-Shot Bufferize to convert tensors to memrefs, while allowing
@@ -429,50 +433,56 @@ int main(int argc, char **argv) {
       return 7;
     }
   }
+
   if (!clDumpDir.empty() &&
       failed(
-          dumpModuleToFile(*tsModule, clDumpDir, "after_bufferization.mlir")))
+          dumpModuleToFile(*tsModule, clDumpDir, "06_after_bufferization.mlir")))
     return 5;
+  
   // Tile scf.for loops to fit L1, then dump if requested.
-  PassManager tilePM(&context);
-  if (clDumpIntermediate) {
-    tilePM.enableIRPrinting(
-        [](mlir::Pass *, mlir::Operation *) { return false; },
-        [](mlir::Pass *, mlir::Operation *) { return true; },
-        /*printModuleScope=*/true,
-        /*printAfterOnlyOnChange=*/false,
-        /*printAfterOnlyOnFailure=*/false, llvm::errs());
-  }
-  tilePM.addPass(tmd::passes::createTileScfForToL1Pass());
-  if (failed(tilePM.run(*tsModule))) {
-    llvm::WithColor::error(llvm::errs()) << "SCF tiling to L1 pass failed\n";
-    return 6;
-  }
-  {
-    PassManager cleanupPM(&context);
+  if (clSkipTileScfForToL1) {
+    PassManager tilePM(&context);
     if (clDumpIntermediate) {
-      cleanupPM.enableIRPrinting(
+      tilePM.enableIRPrinting(
           [](mlir::Pass *, mlir::Operation *) { return false; },
           [](mlir::Pass *, mlir::Operation *) { return true; },
           /*printModuleScope=*/true,
           /*printAfterOnlyOnChange=*/false,
           /*printAfterOnlyOnFailure=*/false, llvm::errs());
     }
-    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
-    if (failed(cleanupPM.run(*tsModule))) {
-      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
-      return 7;
+    tilePM.addPass(tmd::passes::createTileScfForToL1Pass());
+    if (failed(tilePM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "SCF tiling to L1 pass failed\n";
+      return 6;
     }
+    
+    // Cleanup after tiling pass.
+    {
+      PassManager cleanupPM(&context);
+      if (clDumpIntermediate) {
+        cleanupPM.enableIRPrinting(
+            [](mlir::Pass *, mlir::Operation *) { return false; },
+            [](mlir::Pass *, mlir::Operation *) { return true; },
+            /*printModuleScope=*/true,
+            /*printAfterOnlyOnChange=*/false,
+            /*printAfterOnlyOnFailure=*/false, llvm::errs());
+      }
+      cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+      if (failed(cleanupPM.run(*tsModule))) {
+        llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+        return 7;
+      }
+    }
+    
+    // Dump after tiling only if tiling pass was executed.
+    if (!clDumpDir.empty() &&
+        failed(dumpModuleToFile(*tsModule, clDumpDir, "07_after_for_tiling.mlir")))
+      return 5;
   }
-  if (!clDumpDir.empty() &&
-      failed(dumpModuleToFile(*tsModule, clDumpDir, "after_for_tiling.mlir")))
-    return 5;
 
   // (Old merged-based path removed)
 
-  mlir::OpPrintingFlags flags;
-  flags.useLocalScope();
-  // Reorder DF ops to the front (stable order) and print.
+  // Reorder DF ops to the front (stable order).
   {
     Block &body = *tsModule->getBody();
     SmallVector<Operation *, 16> dfOps;
@@ -484,7 +494,14 @@ int main(int argc, char **argv) {
     for (Operation *op : llvm::reverse(dfOps))
       op->moveBefore(&body.front());
   }
-  tsModule->print(llvm::outs(), flags);
-  llvm::outs() << "\n";
+  
+  // Print to stdout only if no dump directory was specified.
+  if (clDumpDir.empty()) {
+    mlir::OpPrintingFlags flags;
+    flags.useLocalScope();
+    tsModule->print(llvm::outs(), flags);
+    llvm::outs() << "\n";
+  }
+  
   return 0;
 }
