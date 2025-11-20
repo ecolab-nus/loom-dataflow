@@ -26,14 +26,81 @@
 #include "affine_parallel_to_for.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/Operation.h"
+#include "llvm/ADT/DenseMap.h"
 
 using namespace mlir;
 
 namespace tmd_affine {
 /// Affine structural transformations used within TMD passes.
+
+/**
+ * @brief Remap dimension expressions to symbol expressions in an AffineExpr.
+ *
+ * @param expr The AffineExpr to remap.
+ * @param dimToSymMap Mapping from old dimension positions to new symbol positions.
+ * @param dimRemapMap Mapping from old dimension positions to new dimension positions
+ *                    (for dimensions that are not converted to symbols).
+ * @param ctx MLIRContext.
+ * @return Remapped AffineExpr with dimensions converted to symbols where specified.
+ */
+static AffineExpr remapDimsToSymbols(AffineExpr expr,
+                                     const llvm::DenseMap<unsigned, unsigned> &dimToSymMap,
+                                     const llvm::DenseMap<unsigned, unsigned> &dimRemapMap,
+                                     MLIRContext *ctx) {
+  if (!expr)
+    return expr;
+
+  std::function<AffineExpr(AffineExpr)> remap = [&](AffineExpr e) -> AffineExpr {
+    switch (e.getKind()) {
+    case AffineExprKind::DimId: {
+      auto dim = llvm::cast<AffineDimExpr>(e);
+      unsigned oldPos = dim.getPosition();
+      // Check if this dimension should become a symbol.
+      auto symIt = dimToSymMap.find(oldPos);
+      if (symIt != dimToSymMap.end()) {
+        return getAffineSymbolExpr(symIt->second, ctx);
+      }
+      // Otherwise, remap to new dimension position.
+      auto dimIt = dimRemapMap.find(oldPos);
+      if (dimIt != dimRemapMap.end()) {
+        return getAffineDimExpr(dimIt->second, ctx);
+      }
+      // If not in either map, keep original (shouldn't happen).
+      return e;
+    }
+    case AffineExprKind::SymbolId:
+    case AffineExprKind::Constant:
+      return e;
+    case AffineExprKind::Add: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return remap(bin.getLHS()) + remap(bin.getRHS());
+    }
+    case AffineExprKind::Mul: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return remap(bin.getLHS()) * remap(bin.getRHS());
+    }
+    case AffineExprKind::Mod: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return remap(bin.getLHS()) % remap(bin.getRHS());
+    }
+    case AffineExprKind::FloorDiv: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return remap(bin.getLHS()).floorDiv(remap(bin.getRHS()));
+    }
+    case AffineExprKind::CeilDiv: {
+      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
+      return remap(bin.getLHS()).ceilDiv(remap(bin.getRHS()));
+    }
+    }
+    return e;
+  };
+  return remap(expr);
+}
 
 /**
  * @brief Extract iterator bounds and step for a specific dimension of a
@@ -121,6 +188,9 @@ LogicalResult convertOutermostParallelToNestedFors(affine::AffineParallelOp par,
   newFors.reserve(P);
   affine::AffineForOp innermostFor = nullptr;
 
+  // Get the parent function to check for function arguments.
+  func::FuncOp parentFunc = par->getParentOfType<func::FuncOp>();
+
   // Create the outermost for inserted before `par`.
   for (unsigned i = 0; i < P; ++i) {
     unsigned iterIdx = order[i];
@@ -130,6 +200,57 @@ LogicalResult convertOutermostParallelToNestedFors(affine::AffineParallelOp par,
     if (failed(getIteratorBoundsAndStep(par, iterIdx, lbMap, lbOperands, ubMap,
                                         ubOperands, stepVal)))
       return failure();
+
+    // Detect function arguments in upper bound operands and convert them to
+    // symbols.
+    SmallVector<Value> ubDimOperands, ubSymOperands;
+    llvm::DenseMap<unsigned, unsigned> dimToSymMap;  // old dim pos -> new sym pos
+    llvm::DenseMap<unsigned, unsigned> dimRemapMap;  // old dim pos -> new dim pos
+
+    if (parentFunc) {
+      // Separate function arguments (BlockArguments) from other operands.
+      unsigned newDimIdx = 0;
+      unsigned newSymIdx = 0;
+      for (unsigned j = 0; j < ubOperands.size(); ++j) {
+        Value operand = ubOperands[j];
+        if (auto blockArg = dyn_cast<BlockArgument>(operand)) {
+          // Check if this BlockArgument belongs to the function.
+          if (blockArg.getOwner() == &parentFunc.getBody().front()) {
+            // This is a function argument, convert to symbol.
+            dimToSymMap[j] = newSymIdx++;
+            ubSymOperands.push_back(operand);
+          } else {
+            // Not a function argument, keep as dimension.
+            dimRemapMap[j] = newDimIdx++;
+            ubDimOperands.push_back(operand);
+          }
+        } else {
+          // Not a BlockArgument, keep as dimension.
+          dimRemapMap[j] = newDimIdx++;
+          ubDimOperands.push_back(operand);
+        }
+      }
+
+      // If we found function arguments, rewrite the upper bound map.
+      if (!ubSymOperands.empty()) {
+        MLIRContext *ctx = ubMap.getContext();
+        SmallVector<AffineExpr, 4> newResults;
+        newResults.reserve(ubMap.getNumResults());
+
+        for (AffineExpr expr : ubMap.getResults()) {
+          AffineExpr remapped = remapDimsToSymbols(expr, dimToSymMap, dimRemapMap, ctx);
+          newResults.push_back(remapped);
+        }
+
+        // Create new AffineMap with updated dimensions and symbols.
+        ubMap = AffineMap::get(ubDimOperands.size(), ubSymOperands.size(),
+                               newResults, ctx);
+        // Combine operands: dimensions first, then symbols.
+        ubOperands.clear();
+        ubOperands.append(ubDimOperands.begin(), ubDimOperands.end());
+        ubOperands.append(ubSymOperands.begin(), ubSymOperands.end());
+      }
+    }
 
     if (i == 0)
       builder.setInsertionPoint(par);

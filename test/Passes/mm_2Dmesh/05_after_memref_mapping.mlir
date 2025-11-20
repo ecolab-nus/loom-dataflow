@@ -7,8 +7,8 @@ module {
   %5 = df.interconnects "horizontal_links" %3 : !df.memory, %3 : !df.memory, %0, %1 {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : !df.interconnect
   %6 = df.interconnects "vertical_links" %3 : !df.memory, %3 : !df.memory, %0, %1 {map = affine_map<(d0, d1) -> (d0, d1 + 1)>} : !df.interconnect
   func.func @matmul_kernel__d0i0_d1i0__f01__c0mem_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> ((d0 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d1)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s1)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -46,8 +46,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i0__f01__c0mem_c1bx(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> ((d0 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d1)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s1)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -85,8 +85,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i0__f01__c0mem_c1by(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> ((d0 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d1)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s1)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -124,8 +124,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i0__f01__c0mem_c1bd(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> ((d0 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d1)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s1)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -163,8 +163,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i0__f10__c0mem_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d1)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> ((d0 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s1)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -202,8 +202,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i0__f10__c0mem_c1bx(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d1)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> ((d0 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s1)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -241,8 +241,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i0__f10__c0mem_c1by(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d1)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> ((d0 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s1)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -280,8 +280,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i0__f10__c0mem_c1bd(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d1)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> ((d0 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s1)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -319,8 +319,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f01__c0mem_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -358,8 +358,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f01__c0by_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -397,8 +397,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f01__c0mem_c1bx(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -436,8 +436,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f01__c0by_c1bx(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -475,8 +475,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f10__c0mem_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -514,8 +514,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f10__c0by_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -553,8 +553,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f10__c0mem_c1bx(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -592,8 +592,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f10__c0by_c1bx(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -631,8 +631,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f01__c0mem_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -670,8 +670,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f01__c0bx_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -709,8 +709,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f01__c0mem_c1by(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -748,8 +748,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f01__c0bx_c1by(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -787,8 +787,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f10__c0mem_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -826,8 +826,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f10__c0bx_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -865,8 +865,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f10__c0mem_c1by(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -904,8 +904,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f10__c0bx_c1by(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d1 ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d0 ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s1 ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s0 ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -943,8 +943,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f01__c0mem_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d0)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> ((d1 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s0)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> ((s1 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -982,8 +982,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f01__c0bx_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d0)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> ((d1 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s0)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> ((s1 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -1021,8 +1021,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f01__c0by_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d0)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> ((d1 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s0)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> ((s1 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -1060,8 +1060,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f01__c0bd_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> (d0)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> ((d1 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (s0)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> ((s1 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -1099,8 +1099,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f10__c0mem_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> ((d1 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d0)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((s1 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s0)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -1138,8 +1138,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f10__c0bx_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> ((d1 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d0)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((s1 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s0)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -1177,8 +1177,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f10__c0by_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> ((d1 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d0)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((s1 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s0)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
@@ -1216,8 +1216,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f10__c0bd_c1mem(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index) {
-    affine.for %arg6 = 0 to affine_map<(d0, d1) -> ((d1 ceildiv 8) ceildiv 8)>(%arg3, %arg4) {
-      affine.for %arg7 = 0 to affine_map<(d0, d1) -> (d0)>(%arg3, %arg4) {
+    affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((s1 ceildiv 8) ceildiv 8)>()[%arg3, %arg4] {
+      affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (s0)>()[%arg3, %arg4] {
         affine.parallel (%arg8) = (0) to (8) {
           affine.parallel (%arg9) = (0) to (8) {
             %cst = arith.constant 0.000000e+00 : f32
