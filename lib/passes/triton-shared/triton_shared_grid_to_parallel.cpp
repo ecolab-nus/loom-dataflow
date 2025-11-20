@@ -143,57 +143,80 @@ public:
       Block &entry = func.getBody().front();
       unsigned numArgs = func.getNumArguments();
       if (numArgs < 6)
-        return;
+        return; // Not our calling convention.
 
+      // Identify the last six args as (sizeX, sizeY, sizeZ, idxX, idxY, idxZ).
       Value sizeX = entry.getArgument(numArgs - 6);
       Value sizeY = entry.getArgument(numArgs - 5);
+      Value sizeZ = entry.getArgument(numArgs - 4);
       Value idxX = entry.getArgument(numArgs - 3);
       Value idxY = entry.getArgument(numArgs - 2);
+      Value idxZ = entry.getArgument(numArgs - 1);
 
+      // Builder set up.
       OpBuilder b(func);
-      
+
+      // Insert the affine.parallel at the very beginning of the entry block,
+      // after any argument-related ops we may materialize.
+      // We expect sizes to already be of index type after affinization. Use
+      // them directly as dynamic upper bounds.
       Value sizeXi = sizeX;
       Value sizeYi = sizeY;
+      Value sizeZi = sizeZ;
 
-      SmallVector<AffineMap, 2> lbMaps(2, AffineMap::getConstantMap(0, ctx));
-      SmallVector<AffineMap, 2> ubMaps{
-          AffineMap::get(/*dimCount=*/2, /*symCount=*/0,
+      // Build lb/ub maps for 3-D parallel: all lower bounds 0, dynamic uppers.
+      SmallVector<AffineMap, 3> lbMaps(3, AffineMap::getConstantMap(0, ctx));
+      // For upper bounds, the builder requires each map to have as many inputs
+      // as the shared ubArgs vector. Provide maps (d0,d1,d2)->(d0),
+      // (d0,d1,d2)->(d1), (d0,d1,d2)->(d2)
+      SmallVector<AffineMap, 3> ubMaps{
+          AffineMap::get(/*dimCount=*/3, /*symCount=*/0,
                          getAffineDimExpr(0, ctx)),
-          AffineMap::get(/*dimCount=*/2, /*symCount=*/0,
-                         getAffineDimExpr(1, ctx))};
+          AffineMap::get(/*dimCount=*/3, /*symCount=*/0,
+                         getAffineDimExpr(1, ctx)),
+          AffineMap::get(/*dimCount=*/3, /*symCount=*/0,
+                         getAffineDimExpr(2, ctx))};
 
-      SmallVector<Value, 2> lbArgs;
-      SmallVector<int64_t, 2> steps{1, 1};
+      SmallVector<Value, 3> lbArgs; // none for constant 0
+      SmallVector<Value, 3> ubArgs{sizeXi, sizeYi, sizeZi};
+      SmallVector<int64_t, 3> steps{1, 1, 1};
 
       OpBuilder::InsertionGuard guard(b);
       b.setInsertionPointToStart(&entry);
-      Value gridX = b.create<arith::ConstantIndexOp>(func.getLoc(), 1);
-      Value gridY = b.create<arith::ConstantIndexOp>(func.getLoc(), 1);
-      SmallVector<Value, 2> ubArgs{gridX, gridY};
-      
       auto par = b.create<affine::AffineParallelOp>(
           func.getLoc(), /*resultTypes=*/TypeRange{},
           /*reductions=*/ArrayRef<arith::AtomicRMWKind>{}, lbMaps,
           /*lbArgs=*/ValueRange(lbArgs), ubMaps, /*ubArgs=*/ValueRange(ubArgs),
           steps);
 
+      // Move the entire original body (except the terminator) into the
+      // parallel region. We will then replace idx args with IVs.
       Block &parBody = par.getRegion().front();
-      Operation *gridXOp = gridX.getDefiningOp();
-      Operation *gridYOp = gridY.getDefiningOp();
+      // Save all ops currently in entry except the terminator of func region
+      // and the newly created parallel itself.
       SmallVector<Operation *, 32> opsToMove;
       for (Operation &op : entry.without_terminator())
-        if (&op != par.getOperation() && &op != gridXOp && &op != gridYOp)
+        if (&op != par.getOperation())
           opsToMove.push_back(&op);
 
+      // The parallel body initially contains only an affine.yield terminator;
+      // insert before it.
       Operation *yieldOp = parBody.getTerminator();
       for (Operation *op : opsToMove)
         op->moveBefore(yieldOp);
 
+      // Replace all uses of (idxX, idxY, idxZ) by the loop IVs.
       Value ivX = par.getIVs()[0];
       Value ivY = par.getIVs()[1];
+      Value ivZ = par.getIVs()[2];
       idxX.replaceAllUsesWith(ivX);
       idxY.replaceAllUsesWith(ivY);
+      idxZ.replaceAllUsesWith(ivZ);
 
+      // Add two-level affine.for loops around scf.for to enable multi-block
+      // processing per core.
+      
+      // Find scf.for loop in the parallel body
       scf::ForOp scfFor = nullptr;
       for (Operation &op : parBody) {
         if (auto forOp = llvm::dyn_cast<scf::ForOp>(&op)) {
@@ -203,7 +226,8 @@ public:
       }
       
       if (scfFor) {
-        int64_t blockm = 64, blockn = 64;
+        // Extract blockm and blockn from scf.for return type
+        int64_t blockm = 64, blockn = 64; // defaults
         if (scfFor.getNumResults() > 0) {
           Type resultType = scfFor.getResult(0).getType();
           if (auto tensorType = llvm::dyn_cast<RankedTensorType>(resultType)) {
@@ -225,49 +249,40 @@ public:
           }
         }
         
+        // Create ceildiv maps for loop bounds
+        // First loop: ceildiv(sizeX, blockm) where sizeX is ivX's bound
+        // Second loop: ceildiv(sizeY, blockn) where sizeY is ivY's bound
+        AffineExpr d0 = getAffineDimExpr(0, ctx);
+        
+        // Create ceildiv maps: (d0) -> (d0 ceildiv blockm) and (d0) -> (d0 ceildiv blockn)
+        AffineMap mCeilDivMap = AffineMap::get(1, 0, d0.ceilDiv(blockm), ctx);
+        AffineMap nCeilDivMap = AffineMap::get(1, 0, d0.ceilDiv(blockn), ctx);
+        
+        // Create first affine.for loop (m dimension)
         OpBuilder::InsertionGuard loopGuard(b);
         b.setInsertionPoint(scfFor);
-        
-        Value gridXInner = b.create<arith::ConstantIndexOp>(func.getLoc(), 1);
-        Value gridYInner = b.create<arith::ConstantIndexOp>(func.getLoc(), 1);
-        Value blockMSize = b.create<arith::ConstantIndexOp>(func.getLoc(), blockm);
-        Value blockNSize = b.create<arith::ConstantIndexOp>(func.getLoc(), blockn);
-        
-        AffineExpr d0 = getAffineDimExpr(0, ctx);
-        AffineExpr d1 = getAffineDimExpr(1, ctx);
-        AffineMap ceilDivMap = AffineMap::get(2, 0, d0.ceilDiv(d1), ctx);
-        
-        Value coreMSize = b.create<affine::AffineApplyOp>(
-            func.getLoc(), ceilDivMap, ValueRange{sizeXi, gridXInner});
-        Value coreNSize = b.create<affine::AffineApplyOp>(
-            func.getLoc(), ceilDivMap, ValueRange{sizeYi, gridYInner});
-        
-        Value temporalIterM = b.create<affine::AffineApplyOp>(
-            func.getLoc(), ceilDivMap, ValueRange{coreMSize, blockMSize});
-        Value temporalIterN = b.create<affine::AffineApplyOp>(
-            func.getLoc(), ceilDivMap, ValueRange{coreNSize, blockNSize});
-        
         AffineMap mLbMap = AffineMap::getConstantMap(0, ctx);
-        AffineMap mUbMap = AffineMap::get(1, 0, getAffineDimExpr(0, ctx), ctx);
         auto mLoop = affine::AffineForOp::create(
             b, func.getLoc(), /*lowerBoundOperands=*/ValueRange{},
-            /*lowerBoundMap=*/mLbMap, /*upperBoundOperands=*/ValueRange{temporalIterM},
-            /*upperBoundMap=*/mUbMap, /*step=*/1);
+            /*lowerBoundMap=*/mLbMap, /*upperBoundOperands=*/ValueRange{sizeXi},
+            /*upperBoundMap=*/mCeilDivMap, /*step=*/1);
         
         Block *mLoopBody = mLoop.getBody();
         Value mIV = mLoopBody->getArgument(0);
         
+        // Create second affine.for loop (n dimension) inside m loop
         b.setInsertionPointToStart(mLoopBody);
         AffineMap nLbMap = AffineMap::getConstantMap(0, ctx);
-        AffineMap nUbMap = AffineMap::get(1, 0, getAffineDimExpr(0, ctx), ctx);
         auto nLoop = affine::AffineForOp::create(
             b, func.getLoc(), /*lowerBoundOperands=*/ValueRange{},
-            /*lowerBoundMap=*/nLbMap, /*upperBoundOperands=*/ValueRange{temporalIterN},
-            /*upperBoundMap=*/nUbMap, /*step=*/1);
+            /*lowerBoundMap=*/nLbMap, /*upperBoundOperands=*/ValueRange{sizeYi},
+            /*upperBoundMap=*/nCeilDivMap, /*step=*/1);
         
         Block *nLoopBody = nLoop.getBody();
         Value nIV = nLoopBody->getArgument(0);
         
+        // CRITICAL: Collect ALL operations starting from scf.for to the end of parBody
+        // (excluding terminator). We need to move all these operations into nLoopBody.
         SmallVector<Operation *> opsToMove;
         bool foundScfFor = false;
         for (Operation &op : parBody.without_terminator()) {
@@ -279,57 +294,117 @@ public:
           }
         }
         
+        // Move all operations from scf.for onwards into n loop body (before terminator)
         Operation *nTerminator = nLoopBody->getTerminator();
         for (Operation *op : opsToMove) {
           op->moveBefore(nTerminator);
         }
         
+        // Now create the new index calculations at the start of nLoopBody, before everything.
+        // These will replace ivX with mIV*blockm + ivX, and ivY with nIV*blockn + ivY.
         b.setInsertionPointToStart(nLoopBody);
+        AffineExpr mIVExpr = getAffineDimExpr(0, ctx); // mIV
+        AffineExpr blockmExpr2 = getAffineConstantExpr(blockm, ctx);
+        AffineExpr ivXExpr = getAffineDimExpr(1, ctx); // ivX (from parallel)
+        AffineMap mIndexMap = AffineMap::get(2, 0, mIVExpr * blockmExpr2 + ivXExpr, ctx);
+        Value newMIndex = b.create<affine::AffineApplyOp>(
+            func.getLoc(), mIndexMap, ValueRange{mIV, ivX});
         
-        AffineExpr d0Expr = getAffineDimExpr(0, ctx);
-        AffineExpr d1Expr = getAffineDimExpr(1, ctx);
-        AffineMap mulMap = AffineMap::get(2, 0, d0Expr * d1Expr, ctx);
-        AffineMap addMap = AffineMap::get(2, 0, d0Expr + d1Expr, ctx);
+        AffineExpr nIVExpr = getAffineDimExpr(0, ctx); // nIV
+        AffineExpr blocknExpr2 = getAffineConstantExpr(blockn, ctx);
+        AffineExpr ivYExpr = getAffineDimExpr(1, ctx); // ivY (from parallel)
+        AffineMap nIndexMap = AffineMap::get(2, 0, nIVExpr * blocknExpr2 + ivYExpr, ctx);
+        Value newNIndex = b.create<affine::AffineApplyOp>(
+            func.getLoc(), nIndexMap, ValueRange{nIV, ivY});
         
-        Value coreBlockM = b.create<affine::AffineApplyOp>(
-            func.getLoc(), mulMap, ValueRange{ivX, temporalIterM});
-        Value globalBlockM = b.create<affine::AffineApplyOp>(
-            func.getLoc(), addMap, ValueRange{coreBlockM, mIV});
-        Value elementIndexM = b.create<affine::AffineApplyOp>(
-            func.getLoc(), mulMap, ValueRange{globalBlockM, blockMSize});
-        
-        Value coreBlockN = b.create<affine::AffineApplyOp>(
-            func.getLoc(), mulMap, ValueRange{ivY, temporalIterN});
-        Value globalBlockN = b.create<affine::AffineApplyOp>(
-            func.getLoc(), addMap, ValueRange{coreBlockN, nIV});
-        Value elementIndexN = b.create<affine::AffineApplyOp>(
-            func.getLoc(), mulMap, ValueRange{globalBlockN, blockNSize});
-        
+        // Replace all uses of ivX and ivY in the moved operations.
+        // Since we collected operations BEFORE creating newMIndex and newNIndex,
+        // those new operations are NOT in opsToMove, avoiding self-reference.
+        // We need to recursively replace uses within nested regions (e.g., scf.for body).
         for (Operation *op : opsToMove) {
-          op->replaceUsesOfWith(ivX, elementIndexM);
-          op->replaceUsesOfWith(ivY, elementIndexN);
+          op->replaceUsesOfWith(ivX, newMIndex);
+          op->replaceUsesOfWith(ivY, newNIndex);
+          // Also recursively replace uses in all nested regions
           op->walk([&](Operation *nestedOp) {
-            nestedOp->replaceUsesOfWith(ivX, elementIndexM);
-            nestedOp->replaceUsesOfWith(ivY, elementIndexN);
+            nestedOp->replaceUsesOfWith(ivX, newMIndex);
+            nestedOp->replaceUsesOfWith(ivY, newNIndex);
           });
         }
       }
 
-      entry.eraseArgument(numArgs - 1);
-      entry.eraseArgument(numArgs - 2);
-      entry.eraseArgument(numArgs - 3);
-      
-      entry.addArgument(b.getIndexType(), func.getLoc());
-      entry.addArgument(b.getIndexType(), func.getLoc());
-      
+      // Now remove the three index arguments from the function type and entry
+      // block, keeping the first (numArgs - 3) arguments.
       SmallVector<Type, 8> newInputTypes;
-      for (unsigned i = 0; i < entry.getNumArguments(); ++i)
+      newInputTypes.reserve(numArgs - 3);
+      for (unsigned i = 0; i < numArgs - 3; ++i)
         newInputTypes.push_back(entry.getArgument(i).getType());
       FunctionType oldTy = func.getFunctionType();
       FunctionType newTy =
           FunctionType::get(ctx, newInputTypes, oldTy.getResults());
       func.setType(newTy);
 
+      // Erase the last three BlockArguments from the entry block (no uses
+      // left).
+      entry.eraseArgument(numArgs - 1);
+      entry.eraseArgument(numArgs - 2);
+      entry.eraseArgument(numArgs - 3);
+
+      // After introducing the 3-D parallel, prune unused IVs.
+      // Identify used IV indices among {0,1,2}.
+      SmallVector<unsigned, 3> usedIdx;
+      auto ivs = par.getIVs();
+      for (unsigned i = 0; i < ivs.size(); ++i)
+        if (!ivs[i].use_empty())
+          usedIdx.push_back(i);
+      if (usedIdx.size() < ivs.size()) {
+        if (usedIdx.empty())
+          usedIdx.push_back(0); // keep at least one dim
+
+        MLIRContext *ctx2 = func.getContext();
+        // Build new bounds: lb = 0 per used dim; ub selects corresponding size.
+        SmallVector<AffineMap, 4> newLbMaps;
+        SmallVector<AffineMap, 4> newUbMaps;
+        SmallVector<int64_t, 4> newSteps;
+        SmallVector<Value, 4> lbArgs2; // none for constant zero
+        SmallVector<Value, 4> ubArgs2;
+
+        // Original ub operands order: [sizeX, sizeY, sizeZ]
+        SmallVector<Value, 3> oldUbOps{sizeXi, sizeYi, sizeZi};
+
+        for (unsigned ignored : usedIdx)
+          (void)ignored,
+              newLbMaps.push_back(AffineMap::getConstantMap(0, ctx2));
+        unsigned nUsed = usedIdx.size();
+        for (unsigned i = 0; i < nUsed; ++i) {
+          newUbMaps.push_back(AffineMap::get(/*dimCount=*/nUsed, /*symCount=*/0,
+                                             getAffineDimExpr(i, ctx2)));
+          ubArgs2.push_back(oldUbOps[usedIdx[i]]);
+        }
+        for (unsigned pos : usedIdx)
+          newSteps.push_back(steps[pos]);
+
+        OpBuilder::InsertionGuard g2(b);
+        b.setInsertionPoint(par);
+        auto newPar = b.create<affine::AffineParallelOp>(
+            par.getLoc(), /*resultTypes=*/TypeRange{},
+            /*reductions=*/ArrayRef<arith::AtomicRMWKind>{}, newLbMaps,
+            /*lbArgs=*/ValueRange(lbArgs2), newUbMaps,
+            /*ubArgs=*/ValueRange(ubArgs2), newSteps);
+
+        // Remap IVs and clone old body.
+        IRMapping mapper;
+        Block &newBody = *newPar.getBody();
+        for (auto it : llvm::enumerate(usedIdx))
+          mapper.map(ivs[it.value()], newBody.getArgument(it.index()));
+
+        Block &oldBody = *par.getBody();
+        OpBuilder nb(&newBody, newBody.begin());
+        for (Operation &op :
+             llvm::make_early_inc_range(oldBody.without_terminator()))
+          nb.clone(op, mapper);
+
+        par.erase();
+      }
     });
   }
 };
