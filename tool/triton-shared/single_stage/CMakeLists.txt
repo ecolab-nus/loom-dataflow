@@ -72,6 +72,9 @@ set_target_properties(affinize PROPERTIES
 add_executable(grid_to_parallel
   ${CMAKE_CURRENT_LIST_DIR}/grid_to_parallel.cpp
   ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/triton_shared_grid_to_parallel.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/spatial_mapping.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_tile.cpp
+  ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_parallel_to_for.cpp
 )
 
 target_include_directories(grid_to_parallel PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
@@ -92,6 +95,7 @@ target_link_libraries(grid_to_parallel PRIVATE
   MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader
+  tmdDataflowDialect
 )
 mlir_check_all_link_libraries(grid_to_parallel)
 

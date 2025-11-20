@@ -82,17 +82,74 @@
 
 #include "triton_shared_grid_to_parallel.h"
 
+#include "spatial_mapping.h"
+
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/IRMapping.h"
 #include "mlir/Pass/Pass.h"
+#include "llvm/ADT/DenseMap.h"
+
+#include "DataflowDialect.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "DataflowTypes.h.inc"
+#define GET_OP_CLASSES
+#include "DataflowOps.h.inc"
+
 using namespace mlir;
 
 namespace tmd {
 namespace passes {
 
+/**
+ * @brief Helper to get or create a constant index value, reusing existing
+ * constants to avoid duplication.
+ * 
+ * @param b OpBuilder to use for creating constants
+ * @param loc Location for the constant operation
+ * @param value The constant index value
+ * @param existingConstants Map of value -> existing Value to reuse constants
+ * @param entryBlock Entry block of the function, used to check if we can reuse
+ *                   constants defined there in nested blocks
+ * @return Value representing the constant
+ */
+static Value getOrCreateConstantIndex(OpBuilder &b, Location loc, int64_t value,
+                                      llvm::DenseMap<int64_t, Value> &existingConstants,
+                                      Block *entryBlock) {
+  auto it = existingConstants.find(value);
+  if (it != existingConstants.end()) {
+    Value existing = it->second;
+    Block *defBlock = existing.getParentBlock();
+    Block *insertBlock = b.getInsertionBlock();
+    
+    if (defBlock == entryBlock && insertBlock && entryBlock != insertBlock) {
+      return existing;
+    }
+    if (defBlock == insertBlock) {
+      Operation *defOp = existing.getDefiningOp();
+      auto insertPoint = b.getInsertionPoint();
+      if (defOp && insertPoint != defBlock->end()) {
+        bool found = false;
+        for (auto it2 = defBlock->begin(); it2 != defBlock->end(); ++it2) {
+          if (&*it2 == defOp) {
+            found = true;
+          }
+          if (it2 == insertPoint) {
+            break;
+          }
+        }
+        if (found) {
+          return existing;
+        }
+      }
+    }
+  }
+  Value cst = b.create<arith::ConstantIndexOp>(loc, value);
+  existingConstants[value] = cst;
+  return cst;
+}
 
 class TritonSharedGridToParallelPass
     : public PassWrapper<TritonSharedGridToParallelPass,
@@ -122,7 +179,7 @@ public:
   /// Declare dialect dependencies used by this pass implementation.
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<affine::AffineDialect, arith::ArithDialect,
-                    func::FuncDialect>();
+                    func::FuncDialect, tmd::df::DataflowDialect>();
   }
 
   /**
@@ -139,6 +196,10 @@ public:
     ModuleOp module = getOperation();
     MLIRContext *ctx = module.getContext();
 
+    // Collect hardware information from DF operations in the module.
+    tmd_affine::HardwareInfo hardwareInfo;
+    bool hasHardwareInfo = succeeded(tmd_affine::GetHardwareInfoForExploration(module, hardwareInfo));
+
     module.walk([&](func::FuncOp func) {
       Block &entry = func.getBody().front();
       unsigned numArgs = func.getNumArguments();
@@ -151,25 +212,71 @@ public:
       Value idxY = entry.getArgument(numArgs - 2);
 
       OpBuilder b(func);
+
+      llvm::DenseMap<int64_t, Value> constantCache;
       
-      Value sizeXi = sizeX;
-      Value sizeYi = sizeY;
-
-      SmallVector<AffineMap, 2> lbMaps(2, AffineMap::getConstantMap(0, ctx));
-      SmallVector<AffineMap, 2> ubMaps{
-          AffineMap::get(/*dimCount=*/2, /*symCount=*/0,
-                         getAffineDimExpr(0, ctx)),
-          AffineMap::get(/*dimCount=*/2, /*symCount=*/0,
-                         getAffineDimExpr(1, ctx))};
-
-      SmallVector<Value, 2> lbArgs;
-      SmallVector<int64_t, 2> steps{1, 1};
-
+      func.walk([&](arith::ConstantIndexOp cst) {
+        int64_t val = cst.value();
+        if (constantCache.find(val) == constantCache.end()) {
+          constantCache[val] = cst.getResult();
+        }
+      });
+      
       OpBuilder::InsertionGuard guard(b);
       b.setInsertionPointToStart(&entry);
-      Value gridX = b.create<arith::ConstantIndexOp>(func.getLoc(), 1);
-      Value gridY = b.create<arith::ConstantIndexOp>(func.getLoc(), 1);
-      SmallVector<Value, 2> ubArgs{gridX, gridY};
+      
+      int64_t blockm = 64, blockn = 64;
+      scf::ForOp scfFor = nullptr;
+      for (Operation &op : entry) {
+        if (auto forOp = llvm::dyn_cast<scf::ForOp>(&op)) {
+          scfFor = forOp;
+          if (scfFor.getNumResults() > 0) {
+            Type resultType = scfFor.getResult(0).getType();
+            if (auto tensorType = llvm::dyn_cast<RankedTensorType>(resultType)) {
+              auto shape = tensorType.getShape();
+              if (shape.size() >= 2) {
+                if (shape[0] != ShapedType::kDynamic)
+                  blockm = shape[0];
+                if (shape[1] != ShapedType::kDynamic)
+                  blockn = shape[1];
+              }
+            } else if (auto memrefType = llvm::dyn_cast<MemRefType>(resultType)) {
+              auto shape = memrefType.getShape();
+              if (shape.size() >= 2) {
+                if (shape[0] != ShapedType::kDynamic)
+                  blockm = shape[0];
+                if (shape[1] != ShapedType::kDynamic)
+                  blockn = shape[1];
+              }
+            }
+          }
+          break;
+        }
+      }
+      
+      // Use hardware spatial dimension sizes if available, otherwise default to 1.
+      int64_t gridXSize = 1;
+      int64_t gridYSize = 1;
+      if (hasHardwareInfo && hardwareInfo.spatialDimInfoVec.size() >= 2) {
+        if (hardwareInfo.spatialDimInfoVec[0].size.has_value())
+          gridXSize = *hardwareInfo.spatialDimInfoVec[0].size;
+        if (hardwareInfo.spatialDimInfoVec[1].size.has_value())
+          gridYSize = *hardwareInfo.spatialDimInfoVec[1].size;
+      }
+      
+      // Use constant maps for constant upper bounds to avoid creating constant Values
+      SmallVector<AffineMap, 2> lbMaps(2, AffineMap::getConstantMap(0, ctx));
+      SmallVector<AffineMap, 2> ubMaps{
+          AffineMap::getConstantMap(gridXSize, ctx),
+          AffineMap::getConstantMap(gridYSize, ctx)};
+
+      SmallVector<Value, 2> lbArgs;
+      SmallVector<Value, 2> ubArgs;  // Empty for constant bounds
+      SmallVector<int64_t, 2> steps{1, 1};
+      
+      // blockMSize and blockNSize are still needed for later calculations
+      Value blockMSize = getOrCreateConstantIndex(b, func.getLoc(), blockm, constantCache, &entry);
+      Value blockNSize = getOrCreateConstantIndex(b, func.getLoc(), blockn, constantCache, &entry);
       
       auto par = b.create<affine::AffineParallelOp>(
           func.getLoc(), /*resultTypes=*/TypeRange{},
@@ -178,11 +285,11 @@ public:
           steps);
 
       Block &parBody = par.getRegion().front();
-      Operation *gridXOp = gridX.getDefiningOp();
-      Operation *gridYOp = gridY.getDefiningOp();
+      Operation *blockMSizeOp = blockMSize.getDefiningOp();
+      Operation *blockNSizeOp = blockNSize.getDefiningOp();
       SmallVector<Operation *, 32> opsToMove;
       for (Operation &op : entry.without_terminator())
-        if (&op != par.getOperation() && &op != gridXOp && &op != gridYOp)
+        if (&op != par.getOperation() && &op != blockMSizeOp && &op != blockNSizeOp)
           opsToMove.push_back(&op);
 
       Operation *yieldOp = parBody.getTerminator();
@@ -194,7 +301,7 @@ public:
       idxX.replaceAllUsesWith(ivX);
       idxY.replaceAllUsesWith(ivY);
 
-      scf::ForOp scfFor = nullptr;
+      scfFor = nullptr;
       for (Operation &op : parBody) {
         if (auto forOp = llvm::dyn_cast<scf::ForOp>(&op)) {
           scfFor = forOp;
@@ -203,44 +310,23 @@ public:
       }
       
       if (scfFor) {
-        int64_t blockm = 64, blockn = 64;
-        if (scfFor.getNumResults() > 0) {
-          Type resultType = scfFor.getResult(0).getType();
-          if (auto tensorType = llvm::dyn_cast<RankedTensorType>(resultType)) {
-            auto shape = tensorType.getShape();
-            if (shape.size() >= 2) {
-              if (shape[0] != ShapedType::kDynamic)
-                blockm = shape[0];
-              if (shape[1] != ShapedType::kDynamic)
-                blockn = shape[1];
-            }
-          } else if (auto memrefType = llvm::dyn_cast<MemRefType>(resultType)) {
-            auto shape = memrefType.getShape();
-            if (shape.size() >= 2) {
-              if (shape[0] != ShapedType::kDynamic)
-                blockm = shape[0];
-              if (shape[1] != ShapedType::kDynamic)
-                blockn = shape[1];
-            }
-          }
-        }
-        
         OpBuilder::InsertionGuard loopGuard(b);
         b.setInsertionPoint(scfFor);
         
-        Value gridXInner = b.create<arith::ConstantIndexOp>(func.getLoc(), 1);
-        Value gridYInner = b.create<arith::ConstantIndexOp>(func.getLoc(), 1);
-        Value blockMSize = b.create<arith::ConstantIndexOp>(func.getLoc(), blockm);
-        Value blockNSize = b.create<arith::ConstantIndexOp>(func.getLoc(), blockn);
-        
+        // Use constant 1 directly in AffineMap instead of creating constant Value
         AffineExpr d0 = getAffineDimExpr(0, ctx);
-        AffineExpr d1 = getAffineDimExpr(1, ctx);
-        AffineMap ceilDivMap = AffineMap::get(2, 0, d0.ceilDiv(d1), ctx);
+        AffineExpr c1 = getAffineConstantExpr(1, ctx);
+        AffineMap ceilDivByOneMap = AffineMap::get(1, 0, d0.ceilDiv(c1), ctx);
         
         Value coreMSize = b.create<affine::AffineApplyOp>(
-            func.getLoc(), ceilDivMap, ValueRange{sizeXi, gridXInner});
+            func.getLoc(), ceilDivByOneMap, ValueRange{sizeX});
         Value coreNSize = b.create<affine::AffineApplyOp>(
-            func.getLoc(), ceilDivMap, ValueRange{sizeYi, gridYInner});
+            func.getLoc(), ceilDivByOneMap, ValueRange{sizeY});
+        
+        // Create a separate AffineMap for division by blockMSize/blockNSize (dynamic values)
+        AffineExpr d0Div = getAffineDimExpr(0, ctx);
+        AffineExpr d1Div = getAffineDimExpr(1, ctx);
+        AffineMap ceilDivMap = AffineMap::get(2, 0, d0Div.ceilDiv(d1Div), ctx);
         
         Value temporalIterM = b.create<affine::AffineApplyOp>(
             func.getLoc(), ceilDivMap, ValueRange{coreMSize, blockMSize});
