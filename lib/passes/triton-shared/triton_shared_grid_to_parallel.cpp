@@ -82,17 +82,19 @@
 
 #include "triton_shared_grid_to_parallel.h"
 
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
-
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Pass/Pass.h"
+
 using namespace mlir;
 
 namespace tmd {
 namespace passes {
 
+namespace {
 
 class TritonSharedGridToParallelPass
     : public PassWrapper<TritonSharedGridToParallelPass,
@@ -213,125 +215,6 @@ public:
       idxY.replaceAllUsesWith(ivY);
       idxZ.replaceAllUsesWith(ivZ);
 
-      // Add two-level affine.for loops around scf.for to enable multi-block
-      // processing per core.
-      
-      // Find scf.for loop in the parallel body
-      scf::ForOp scfFor = nullptr;
-      for (Operation &op : parBody) {
-        if (auto forOp = llvm::dyn_cast<scf::ForOp>(&op)) {
-          scfFor = forOp;
-          break;
-        }
-      }
-      
-      if (scfFor) {
-        // Extract blockm and blockn from scf.for return type
-        int64_t blockm = 64, blockn = 64; // defaults
-        if (scfFor.getNumResults() > 0) {
-          Type resultType = scfFor.getResult(0).getType();
-          if (auto tensorType = llvm::dyn_cast<RankedTensorType>(resultType)) {
-            auto shape = tensorType.getShape();
-            if (shape.size() >= 2) {
-              if (shape[0] != ShapedType::kDynamic)
-                blockm = shape[0];
-              if (shape[1] != ShapedType::kDynamic)
-                blockn = shape[1];
-            }
-          } else if (auto memrefType = llvm::dyn_cast<MemRefType>(resultType)) {
-            auto shape = memrefType.getShape();
-            if (shape.size() >= 2) {
-              if (shape[0] != ShapedType::kDynamic)
-                blockm = shape[0];
-              if (shape[1] != ShapedType::kDynamic)
-                blockn = shape[1];
-            }
-          }
-        }
-        
-        // Create ceildiv maps for loop bounds
-        // First loop: ceildiv(sizeX, blockm) where sizeX is ivX's bound
-        // Second loop: ceildiv(sizeY, blockn) where sizeY is ivY's bound
-        AffineExpr d0 = getAffineDimExpr(0, ctx);
-        
-        // Create ceildiv maps: (d0) -> (d0 ceildiv blockm) and (d0) -> (d0 ceildiv blockn)
-        AffineMap mCeilDivMap = AffineMap::get(1, 0, d0.ceilDiv(blockm), ctx);
-        AffineMap nCeilDivMap = AffineMap::get(1, 0, d0.ceilDiv(blockn), ctx);
-        
-        // Create first affine.for loop (m dimension)
-        OpBuilder::InsertionGuard loopGuard(b);
-        b.setInsertionPoint(scfFor);
-        AffineMap mLbMap = AffineMap::getConstantMap(0, ctx);
-        auto mLoop = affine::AffineForOp::create(
-            b, func.getLoc(), /*lowerBoundOperands=*/ValueRange{},
-            /*lowerBoundMap=*/mLbMap, /*upperBoundOperands=*/ValueRange{sizeXi},
-            /*upperBoundMap=*/mCeilDivMap, /*step=*/1);
-        
-        Block *mLoopBody = mLoop.getBody();
-        Value mIV = mLoopBody->getArgument(0);
-        
-        // Create second affine.for loop (n dimension) inside m loop
-        b.setInsertionPointToStart(mLoopBody);
-        AffineMap nLbMap = AffineMap::getConstantMap(0, ctx);
-        auto nLoop = affine::AffineForOp::create(
-            b, func.getLoc(), /*lowerBoundOperands=*/ValueRange{},
-            /*lowerBoundMap=*/nLbMap, /*upperBoundOperands=*/ValueRange{sizeYi},
-            /*upperBoundMap=*/nCeilDivMap, /*step=*/1);
-        
-        Block *nLoopBody = nLoop.getBody();
-        Value nIV = nLoopBody->getArgument(0);
-        
-        // CRITICAL: Collect ALL operations starting from scf.for to the end of parBody
-        // (excluding terminator). We need to move all these operations into nLoopBody.
-        SmallVector<Operation *> opsToMove;
-        bool foundScfFor = false;
-        for (Operation &op : parBody.without_terminator()) {
-          if (&op == scfFor.getOperation()) {
-            foundScfFor = true;
-          }
-          if (foundScfFor) {
-            opsToMove.push_back(&op);
-          }
-        }
-        
-        // Move all operations from scf.for onwards into n loop body (before terminator)
-        Operation *nTerminator = nLoopBody->getTerminator();
-        for (Operation *op : opsToMove) {
-          op->moveBefore(nTerminator);
-        }
-        
-        // Now create the new index calculations at the start of nLoopBody, before everything.
-        // These will replace ivX with mIV*blockm + ivX, and ivY with nIV*blockn + ivY.
-        b.setInsertionPointToStart(nLoopBody);
-        AffineExpr mIVExpr = getAffineDimExpr(0, ctx); // mIV
-        AffineExpr blockmExpr2 = getAffineConstantExpr(blockm, ctx);
-        AffineExpr ivXExpr = getAffineDimExpr(1, ctx); // ivX (from parallel)
-        AffineMap mIndexMap = AffineMap::get(2, 0, mIVExpr * blockmExpr2 + ivXExpr, ctx);
-        Value newMIndex = b.create<affine::AffineApplyOp>(
-            func.getLoc(), mIndexMap, ValueRange{mIV, ivX});
-        
-        AffineExpr nIVExpr = getAffineDimExpr(0, ctx); // nIV
-        AffineExpr blocknExpr2 = getAffineConstantExpr(blockn, ctx);
-        AffineExpr ivYExpr = getAffineDimExpr(1, ctx); // ivY (from parallel)
-        AffineMap nIndexMap = AffineMap::get(2, 0, nIVExpr * blocknExpr2 + ivYExpr, ctx);
-        Value newNIndex = b.create<affine::AffineApplyOp>(
-            func.getLoc(), nIndexMap, ValueRange{nIV, ivY});
-        
-        // Replace all uses of ivX and ivY in the moved operations.
-        // Since we collected operations BEFORE creating newMIndex and newNIndex,
-        // those new operations are NOT in opsToMove, avoiding self-reference.
-        // We need to recursively replace uses within nested regions (e.g., scf.for body).
-        for (Operation *op : opsToMove) {
-          op->replaceUsesOfWith(ivX, newMIndex);
-          op->replaceUsesOfWith(ivY, newNIndex);
-          // Also recursively replace uses in all nested regions
-          op->walk([&](Operation *nestedOp) {
-            nestedOp->replaceUsesOfWith(ivX, newMIndex);
-            nestedOp->replaceUsesOfWith(ivY, newNIndex);
-          });
-        }
-      }
-
       // Now remove the three index arguments from the function type and entry
       // block, keeping the first (numArgs - 3) arguments.
       SmallVector<Type, 8> newInputTypes;
@@ -409,6 +292,7 @@ public:
   }
 };
 
+} // namespace
 
 std::unique_ptr<mlir::Pass> createTritonSharedGridToParallelPass() {
   /**
