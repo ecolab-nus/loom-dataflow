@@ -71,7 +71,7 @@ static llvm::cl::opt<bool> clMapAnalysisOnly(
 
 static llvm::cl::opt<bool> clSkipTileScfForToL1("skip-tile-scf-for-to-l1",
                       llvm::cl::desc("Skip the tile-scf-for-to-l1 pass"),
-                      llvm::cl::init(false));
+                      llvm::cl::init(true));
 
 static llvm::cl::opt<bool>
     clDumpIntermediate("dump-intermediate",
@@ -440,7 +440,7 @@ int main(int argc, char **argv) {
     return 5;
   
   // Tile scf.for loops to fit L1, then dump if requested.
-  if (clSkipTileScfForToL1) {
+  if (!clSkipTileScfForToL1) {
     PassManager tilePM(&context);
     if (clDumpIntermediate) {
       tilePM.enableIRPrinting(
