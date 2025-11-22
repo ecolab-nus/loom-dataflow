@@ -109,7 +109,7 @@ The repository includes a runnable pipeline that lowers a Triton-shared kernel (
 build/tool/ttshared-opt \
   --ttshared test/Triton/mm_fixed_strides/runs/block_64x64x64/ttshared.mlir \
   --df test/Dialect/DataflowDialect/2D_mesh.mlir \
-  --dump-dir test/Passes/mm_2Dmesh/
+  --dump-dir test/Passes/mm_2Dmesh/ \
   --skip-tile-scf-for-to-l1
 ```
 #### Option B step-by-step
@@ -123,14 +123,14 @@ build/tool/triton-shared/single_stage/affinize \
 2) Replace grid indices with a 3-D `affine.parallel`
 ```bash
 build/tool/triton-shared/single_stage/grid_to_parallel \
-  test/Passes/mm_2Dmesh/01_after_affinization.mlir \
+  --input test/Passes/mm_2Dmesh/01_after_affinization.mlir \
   > test/Passes/mm_2Dmesh/02_after_grid_to_parallel.mlir
 ```
 
 3) Enumerate spatial mappings and merge DF declarations
 ```bash
 build/tool/triton-shared/single_stage/explore_mapping \
-  --ttshared test/Passes/mm_2Dmesh/02_after_grid_to_parallel.mlir \
+  --input test/Passes/mm_2Dmesh/02_after_grid_to_parallel.mlir \
   --df test/Dialect/DataflowDialect/2D_mesh.mlir \
   > test/Passes/mm_2Dmesh/03_after_exploration.mlir
 ```
@@ -138,7 +138,7 @@ build/tool/triton-shared/single_stage/explore_mapping \
 4) Annotate reuse on `memref.reinterpret_cast`
 ```bash
 build/tool/triton-shared/single_stage/annotate_reuse \
-  test/Passes/mm_2Dmesh/03_after_exploration.mlir \
+  --input test/Passes/mm_2Dmesh/03_after_exploration.mlir \
   > test/Passes/mm_2Dmesh/04_after_reuse_annotation.mlir
 ```
 
