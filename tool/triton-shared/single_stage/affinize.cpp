@@ -1,7 +1,7 @@
 // Standalone driver to run the Triton-shared affinization pass.
 //
 // Usage:
-//   tmd_triton_shared_affinize <input.mlir>
+//   tmd_triton_shared_affinize --ttshared <input.mlir>
 
 #include "triton_shared_affinize.h"
 
@@ -20,6 +20,7 @@
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/FileUtilities.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
 
@@ -29,7 +30,14 @@
 
 using namespace mlir;
 
+static llvm::cl::opt<std::string>
+    clTTSharedInput("ttshared", llvm::cl::desc("Path to ttshared MLIR file"),
+                    llvm::cl::value_desc("filename"), llvm::cl::Required);
+
 int main(int argc, char **argv) {
+  llvm::cl::ParseCommandLineOptions(argc, argv,
+                                    "TMD Triton-shared affinization\n");
+
   MLIRContext context;
   (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
   context.loadDialect<mlir::func::FuncDialect>();
@@ -42,12 +50,11 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::affine::AffineDialect>();
   context.loadDialect<tmd::df::DataflowDialect>();
 
-  const char *filename = argc > 1 ? argv[1] : "-";
   llvm::SourceMgr sm;
-  auto file = mlir::openInputFile(filename);
+  auto file = mlir::openInputFile(clTTSharedInput);
   if (!file) {
     llvm::WithColor::error(llvm::errs())
-        << "Failed to open input file: " << filename << "\n";
+        << "Failed to open input file: " << clTTSharedInput << "\n";
     return 1;
   }
   sm.AddNewSourceBuffer(std::move(file), llvm::SMLoc());

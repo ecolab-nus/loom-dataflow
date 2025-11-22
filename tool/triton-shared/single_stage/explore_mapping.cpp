@@ -44,7 +44,7 @@
 using namespace mlir;
 
 static llvm::cl::opt<std::string>
-    clTTSharedInput("ttshared", llvm::cl::desc("Path to ttshared MLIR file"),
+    clTTSharedInput("input", llvm::cl::desc("Path to input MLIR file"),
                     llvm::cl::value_desc("filename"), llvm::cl::Required);
 
 static llvm::cl::opt<std::string>

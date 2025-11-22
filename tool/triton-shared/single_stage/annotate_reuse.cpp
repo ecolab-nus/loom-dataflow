@@ -2,7 +2,8 @@
 // information relative to surrounding affine/scf iterators.
 //
 // Usage:
-//   tmd_triton_shared_annotate_reuse <input.mlir>
+//   tmd_triton_shared_annotate_reuse --input <input.mlir>
+//   tmd_triton_shared_annotate_reuse --input -  (reads from stdin)
 
 #include "reinterpret_cast_reuse.h"
 
@@ -21,42 +22,22 @@
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/FileUtilities.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
-#include "llvm/Support/raw_ostream.h"
 
 #include "DataflowDialect.h.inc"
 #include "DataflowOps.h.inc"
 
 using namespace mlir;
 
-/// Print usage information for this tool.
-///
-/// \param os        The output stream to write usage text to.
-/// \param progName  The program name as invoked (argv[0]).
-static void printUsage(llvm::raw_ostream &os, const char *progName) {
-  os << "Usage:\n";
-  os << "  " << progName << " [<input.mlir>]\n\n";
-  os << "Options:\n";
-  os << "  -h, --help    Show this help message and exit\n\n";
-  os << "Notes:\n";
-  os << "  If no input is provided, or '-' is used, reads from stdin.\n";
-}
+static llvm::cl::opt<std::string>
+    clInput("input", llvm::cl::desc("Path to input MLIR file (use '-' for stdin)"),
+            llvm::cl::value_desc("filename"), llvm::cl::init("-"));
 
 int main(int argc, char **argv) {
-  // Handle help and basic argument validation before doing any work.
-  if (argc > 2) {
-    llvm::WithColor::error(llvm::errs()) << "Unexpected arguments.\n";
-    printUsage(llvm::errs(), argv[0]);
-    return 1;
-  }
-  if (argc == 2) {
-    llvm::StringRef arg1(argv[1]);
-    if (arg1 == "-h" || arg1 == "--help" || arg1 == "-help" || arg1 == "-?") {
-      printUsage(llvm::outs(), argv[0]);
-      return 0;
-    }
-  }
+  llvm::cl::ParseCommandLineOptions(argc, argv,
+                                    "TMD Triton-shared reuse annotation\n");
 
   MLIRContext context;
   context.loadDialect<mlir::BuiltinDialect>();
@@ -70,12 +51,11 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::bufferization::BufferizationDialect>();
   context.loadDialect<tmd::df::DataflowDialect>();
 
-  const char *filename = argc > 1 ? argv[1] : "-";
   llvm::SourceMgr sm;
-  auto file = mlir::openInputFile(filename);
+  auto file = mlir::openInputFile(clInput);
   if (!file) {
     llvm::WithColor::error(llvm::errs())
-        << "Failed to open input file: " << filename << "\n";
+        << "Failed to open input file: " << clInput << "\n";
     return 1;
   }
   sm.AddNewSourceBuffer(std::move(file), llvm::SMLoc());

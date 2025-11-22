@@ -1,7 +1,7 @@
 // Standalone driver to run the Triton-shared grid-to-parallel pass.
 //
 // Usage:
-//   tmd_triton_shared_grid_to_parallel <input.mlir>
+//   tmd_triton_shared_grid_to_parallel --input <input.mlir>
 
 #include "triton_shared_grid_to_parallel.h"
 
@@ -20,12 +20,20 @@
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/FileUtilities.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
 
 using namespace mlir;
 
+static llvm::cl::opt<std::string>
+    clInput("input", llvm::cl::desc("Path to input MLIR file"),
+            llvm::cl::value_desc("filename"), llvm::cl::Required);
+
 int main(int argc, char **argv) {
+  llvm::cl::ParseCommandLineOptions(argc, argv,
+                                    "TMD Triton-shared grid-to-parallel\n");
+
   MLIRContext context;
   (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
   context.loadDialect<mlir::func::FuncDialect>();
@@ -37,12 +45,11 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::scf::SCFDialect>();
   context.loadDialect<mlir::bufferization::BufferizationDialect>();
 
-  const char *filename = argc > 1 ? argv[1] : "-";
   llvm::SourceMgr sm;
-  auto file = mlir::openInputFile(filename);
+  auto file = mlir::openInputFile(clInput);
   if (!file) {
     llvm::WithColor::error(llvm::errs())
-        << "Failed to open input file: " << filename << "\n";
+        << "Failed to open input file: " << clInput << "\n";
     return 1;
   }
   sm.AddNewSourceBuffer(std::move(file), llvm::SMLoc());
