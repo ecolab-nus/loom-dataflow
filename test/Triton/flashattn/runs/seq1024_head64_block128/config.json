@@ -1,0 +1,8 @@
+{
+  "SEQ_LEN": 1024,
+  "HEAD_DIM": 64,
+  "BLOCK_Q": 128,
+  "BLOCK_KV": 128,
+  "seed": 0,
+  "description": "1k sequence with large 128x128 blocks."
+}

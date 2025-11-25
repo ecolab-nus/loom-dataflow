@@ -1,0 +1,8 @@
+{
+  "SEQ_LEN": 512,
+  "HEAD_DIM": 128,
+  "BLOCK_Q": 64,
+  "BLOCK_KV": 64,
+  "seed": 0,
+  "description": "Stress head-dimension to 128 while keeping seq=512."
+}
