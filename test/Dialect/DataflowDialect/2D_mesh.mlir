@@ -8,8 +8,8 @@ module {
     %cores = df.core "core" {scaleout=(%x, %y) , scalein=(mat_unit, vec_unit, [8,1])}
     %memories = df.memory "L1" {scaleout=(%x, %y) , size = 32768, bandwidth = 64}
     %core_to_mem = df.mux %cores, %memories, {map = affine_map<(d0, d1) -> (d0, d1)>}
-    %noc_h = df.interconnects "horizontal_links" %memories, %memories, {map = affine_map<(d0, d1) -> ((d0 + 1) mod 8, d1)>} 
-    %noc_v = df.interconnects "vertical_links" %memories, %memories, {map = affine_map<(d0, d1) -> (d0, (d1 + 1) mod 8)>} 
+    %noc_h = df.interconnects "horizontal_links" %memories, %memories, {map = affine_map<(d0, d1) -> ((d0 + 1) mod 8, d1)>, bandwidth = 128} 
+    %noc_v = df.interconnects "vertical_links" %memories, %memories, {map = affine_map<(d0, d1) -> (d0, (d1 + 1) mod 8)>, bandwidth = 128} 
     // dram
     %dram_idx = df.spatial_dim "d", 4
     %drams = df.memory "DRAM"{scaleout=(%dram_idx) , size = 34359738368, bandwidth = 512}
