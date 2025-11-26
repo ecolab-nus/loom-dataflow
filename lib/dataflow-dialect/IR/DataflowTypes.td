@@ -56,4 +56,16 @@ def MuxHandleType : TypeDef<Dataflow_Dialect, "MuxHandle"> {
   }];
 }
 
+def FunctionalUnitHandleType : TypeDef<Dataflow_Dialect, "FunctionalUnitHandle"> {
+  let mnemonic = "functional_unit";
+  let summary = "Opaque functional unit handle type";
+  let description = [{
+    An opaque handle representing a functional unit (e.g., matrix unit, vector unit)
+    declared by `df.mat` or `df.vec`. The handle can be referenced in core
+    declarations to describe the compute components available within each core.
+
+    Syntax: `!df.functional_unit`
+  }];
+}
+
  
