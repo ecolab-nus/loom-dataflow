@@ -101,12 +101,27 @@ static bool collectDFContext(ModuleOp module, DFContext &out) {
       return false;
     };
     auto isDimPlusOne = [](AffineExpr e, unsigned p) -> bool {
-      if (auto s = llvm::dyn_cast<AffineBinaryOpExpr>(e)) {
-        if (s.getKind() == AffineExprKind::Add) {
-          auto lhsD = llvm::dyn_cast<AffineDimExpr>(s.getLHS());
-          auto rhsC = llvm::dyn_cast<AffineConstantExpr>(s.getRHS());
-          return lhsD && lhsD.getPosition() == p && rhsC &&
-                 rhsC.getValue() == 1;
+      // Unwrap mod operations: ((d0 + 1) mod N) -> (d0 + 1)
+      AffineExpr toCheck = e;
+      if (auto mod = llvm::dyn_cast<AffineBinaryOpExpr>(e)) {
+        if (mod.getKind() == AffineExprKind::Mod) {
+          toCheck = mod.getLHS();
+        }
+      }
+      // Check for (dim + constant) or (constant + dim) pattern
+      if (auto add = llvm::dyn_cast<AffineBinaryOpExpr>(toCheck)) {
+        if (add.getKind() == AffineExprKind::Add) {
+          auto lhsD = llvm::dyn_cast<AffineDimExpr>(add.getLHS());
+          auto rhsC = llvm::dyn_cast<AffineConstantExpr>(add.getRHS());
+          if (lhsD && lhsD.getPosition() == p && rhsC &&
+              rhsC.getValue() == 1)
+            return true;
+          // Also check swapped: (constant + dim)
+          lhsD = llvm::dyn_cast<AffineDimExpr>(add.getRHS());
+          rhsC = llvm::dyn_cast<AffineConstantExpr>(add.getLHS());
+          if (lhsD && lhsD.getPosition() == p && rhsC &&
+              rhsC.getValue() == 1)
+            return true;
         }
       }
       return false;
@@ -132,16 +147,23 @@ static bool collectDFContext(ModuleOp module, DFContext &out) {
       // Backward-compat: fall back to symbol name if present.
       name = sym.getValue().str();
     }
-    // Infer dimension name from operands of the interconnect op.
-    ValueRange idxs = ic.getIndices();
+    // Infer dimension name from source memory's scaleout.
     std::string dimName = ("d" + std::to_string(*axis));
-    if (idxs.size() > *axis) {
-      if (Operation *def = idxs[*axis].getDefiningOp()) {
-        if (auto sd = llvm::dyn_cast<tmd::df::SpatialDimOp>(def)) {
-          dimName = getStringOr(sd.getNameAttr(), dimName);
+    Value source = ic.getSource();
+    // Find the MemoryOp that produces the source handle.
+    module.walk([&](tmd::df::MemoryOp mem) {
+      if (mem.getResult() == source) {
+        auto scaleout = mem.getScaleout();
+        if (*axis < scaleout.size()) {
+          Value dimValue = scaleout[*axis];
+          if (Operation *def = dimValue.getDefiningOp()) {
+            if (auto sd = llvm::dyn_cast<tmd::df::SpatialDimOp>(def)) {
+              dimName = getStringOr(sd.getNameAttr(), dimName);
+            }
+          }
         }
       }
-    }
+    });
     out.icByDimName[dimName].emplace_back(ic.getResult(), name);
   });
 

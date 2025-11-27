@@ -218,9 +218,6 @@ void CoreOp::print(OpAsmPrinter &p) {
     p << "}";
   }
   
-  // Print other attributes (exclude internal ones)
-  p.printOptionalAttrDict((*this)->getAttrs(),
-                          {"label", "scalein_counts", "operand_segment_sizes"});
 }
 
 /// Verify CoreOp invariants
@@ -615,7 +612,7 @@ void MuxOp::print(OpAsmPrinter &p) {
   }
   
   p << " ";
-  p.printOptionalAttrDict((*this)->getAttrs(), {"map"});
+  p.printOptionalAttrDict((*this)->getAttrs());
 }
 
 //===----------------------------------------------------------------------===//
