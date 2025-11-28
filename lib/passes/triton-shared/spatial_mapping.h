@@ -66,28 +66,6 @@ mlir::LogicalResult
 GetHardwareInfoForExploration(mlir::ModuleOp dfModule, 
   HardwareInfo &hardwareInfo);
 
-/**
- * \brief Greedily map spatial dimensions to `affine.parallel` loops by tiling.
- *
- * Applies repeated `tileAffineParallel` to the outermost `affine.parallel`
- * operations in `affineModule`, consuming spatial dimensions in order. The
- * inner loop created at each step is annotated with `tmd.mapped_to` to
- * indicate the mapped dimension.
- *
- * Semantics and constraints:
- * - One spatial dimension is used at most once globally (greedy consumption).
- * - A single `affine.parallel` may be mapped by multiple dimensions if the
- *   iterator extent allows (dynamic extents are treated as unbounded).
- * - The tiling factor equals the dimension size when static, or 1 if dynamic.
- *
- * \param affineModule Module containing the Affine program to transform.
- * \param dims         Spatial dimensions to map in order of preference.
- * \param tileDimIndex Iterator index within each `affine.parallel` to tile.
- * \return success if at least one mapping was applied; failure otherwise.
- */
-mlir::LogicalResult mapSpatialDimsToAffine(mlir::ModuleOp affineModule,
-                                           llvm::ArrayRef<SpatialDimInfo> dims,
-                                           unsigned tileDimIndex);
 
 /**
  * \brief Enumerate all unique mappings and emit one function clone per mapping.

@@ -216,8 +216,8 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
   // Erase the original op; the rewrite is complete.
   op.erase();
   // Populate result handles.
-  result.outer = outerPar;
-  result.inner = innerParOp;
+  result.original = outerPar;
+  result.tiled = innerParOp;
   return success();
 }
 
