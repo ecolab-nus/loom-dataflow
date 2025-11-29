@@ -4,14 +4,14 @@
  *
  * @details Implements tiling of an `affine.parallel` by a constant factor on a
  * chosen dimension. The transformation replaces the original loop with:
- * - an outer `affine.parallel` whose upper bound on the tiled dimension is
- *   `ceilDiv(originalUB, tilingFactor)`, and
- * - an inner `affine.parallel` that iterates `[0, tilingFactor)` with unit
- * step.
+ * - an outer `affine.parallel` that iterates `[0, tilingFactor)` with unit
+ *   step, and
+ * - an inner `affine.parallel` whose upper bound on the tiled dimension is
+ *   `ceilDiv(originalUB, tilingFactor)`.
  *
  * The original induction variable on the tiled dimension is remapped to
- * `outerIv * tilingFactor + innerIv`. Non-tiled dimensions reuse the outer
- * induction variables. The original body is cloned into the inner loop, and the
+ * `outerIv * tilingFactor + innerIv`. Non-tiled dimensions reuse the inner
+ * loop's induction variables. The original body is cloned into the inner loop, and the
  * original operation is erased.
  *
  * Constraints enforced by the implementation:
@@ -61,13 +61,13 @@ namespace tmd_affine {
  *   - when available, static extent of the chosen dimension is divisible by
  *     `tilingFactor`
  * - Rewrite:
- *   - Create an outer `affine.parallel` reusing the original bounds on all
+ *   - Create an outer `affine.parallel` with range `[0, tilingFactor)`.
+ *   - Create an inner `affine.parallel` reusing the original bounds on all
  *     dimensions except the chosen one, for which the upper bound becomes
  *     `ceilDiv(originalUB, tilingFactor)`.
- *   - Create an inner `affine.parallel` with range `[0, tilingFactor)`.
  *   - Remap induction variables: on the chosen dimension,
  *     `oldIv -> outerIv * tilingFactor + innerIv`; other dimensions map to the
- *     corresponding outer IVs.
+ *     corresponding inner IVs.
  *   - Clone the original body into the inner loop and erase the original op.
  */
 LogicalResult tileAffineParallel(affine::AffineParallelOp original_parop,
@@ -118,8 +118,26 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp original_parop,
 
   builder.setInsertionPoint(original_parop);
 
+  // Prepare IV remapping.
+  IRMapping ivMap;
+
+  // Create the outer affine.parallel with constant range [0, tilingFactor).
+  SmallVector<AffineMap> tiled_new_lb_maps = {builder.getConstantAffineMap(0)};
+  SmallVector<AffineMap> tiled_new_ub_maps = {
+      builder.getConstantAffineMap(static_cast<int64_t>(tilingFactor))};
+  SmallVector<int64_t> tiled_new_steps = {1};
+  auto tiled_new = builder.create<affine::AffineParallelOp>(
+      loc, TypeRange{},
+      ArrayRef<arith::AtomicRMWKind>{}, 
+      tiled_new_lb_maps, ValueRange{}, 
+      tiled_new_ub_maps, ValueRange{}, 
+      tiled_new_steps
+    );
+
   // Reuse original LB/UB maps and operands. Replace only the chosen dimension's
-  // UB with ceilDiv(originalUB, tilingFactor) to form the outer loop space.
+  // UB with ceilDiv(originalUB, tilingFactor) to form the inner loop space.
+  OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToStart(tiled_new.getBody());
   SmallVector<AffineMap> tiled_org_lb_maps;
   SmallVector<AffineMap> tiled_org_ub_maps;
   tiled_org_lb_maps.reserve(numDims);
@@ -140,13 +158,12 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp original_parop,
     }
   }
 
-
   ValueRange org_lb_args = original_parop.getLowerBoundsOperands();
   ValueRange org_ub_args = original_parop.getUpperBoundsOperands();
-  // Steps remain unchanged on all outer-loop dimensions.
+  // Steps remain unchanged on all inner-loop dimensions.
   SmallVector<int64_t> org_steps = steps;
 
-  // Create the outer affine.parallel.
+  // Create the inner affine.parallel.
   auto tiled_org = builder.create<affine::AffineParallelOp>(
       loc, TypeRange{},
       ArrayRef<arith::AtomicRMWKind>{}, 
@@ -155,38 +172,14 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp original_parop,
       org_steps
     );
 
-  // Prepare IV remapping.
-  IRMapping ivMap;
-
-  // Create the inner affine.parallel with constant range [0, tilingFactor).
-  OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointToStart(tiled_org.getBody());
-  SmallVector<AffineMap> tiled_new_lb_maps = {builder.getConstantAffineMap(0)};
-  SmallVector<AffineMap> tiled_new_ub_maps = {
-      builder.getConstantAffineMap(static_cast<int64_t>(tilingFactor))};
-  SmallVector<int64_t> tiled_new_steps = {1};
-  (void)builder.create<affine::AffineParallelOp>(
-      loc, TypeRange{},
-      ArrayRef<arith::AtomicRMWKind>{}, 
-      tiled_new_lb_maps, ValueRange{}, 
-      tiled_new_ub_maps, ValueRange{}, 
-      tiled_new_steps
-    );
-
   // Clone original body ops into the inner parallel, remapping IVs. Skip the
   // terminator if present.
   Block *org_body = original_parop.getBody();
-  Block *tiled_org_body = tiled_org.getBody();
-  // The newly created innerPar is the first op in the body; set insertion
-  // point to its body start to clone the body into it.
-  auto &firstOp = tiled_org_body->front();
-  auto tiled_new = dyn_cast<affine::AffineParallelOp>(&firstOp);
-  if (!tiled_new)
-    return original_parop.emitError("internal error: expected inner AffineParallelOp"),
-           failure();
   Block *tiled_new_body = tiled_new.getBody();
-  builder.setInsertionPointToStart(tiled_new_body);
-  // Build the IV mapping now that the inner IV exists.
+  Block *tiled_org_body = tiled_org.getBody();
+  // Set insertion point to the inner parallel's body start to clone the body into it.
+  builder.setInsertionPointToStart(tiled_org_body);
+  // Build the IV mapping now that both IVs exist.
   Value tiled_new_iv = tiled_new_body->getArgument(0);
   for (unsigned i = 0; i < numDims; ++i) {
     Value org_iv = org_body->getArgument(i);
@@ -198,7 +191,7 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp original_parop,
       AffineMap tileMap =
           AffineMap::get(/*dims=*/2, /*symbols=*/0, d0 * cT + d1, ctx);
       Value combined = builder.create<affine::AffineApplyOp>(
-          loc, tileMap, ValueRange{tiled_org_iv, tiled_new_iv});
+          loc, tileMap, ValueRange{tiled_new_iv, tiled_org_iv});
       ivMap.map(org_iv, combined);
     } else {
       ivMap.map(org_iv, tiled_org_body->getArgument(i));

@@ -28,7 +28,7 @@ namespace tmd_affine {
  * \return success on a successful conversion, failure otherwise.
  */
 mlir::LogicalResult
-convertOutermostParallelToNestedFors(mlir::affine::AffineParallelOp par,
+ConvertParallelToNested(mlir::affine::AffineParallelOp par,
                                      llvm::ArrayRef<unsigned> order);
 
 } // namespace tmd_affine

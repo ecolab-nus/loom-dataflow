@@ -284,7 +284,7 @@ int main(int argc, char **argv) {
     }
   if (!hasFuncs) {
     OwningOpRef<ModuleOp> explored =
-        tmd_affine::enumerateSpatialMappingsWithOuterFors(*tsModule,
+        tmd_affine::EnumerateSpatialMappings(*tsModule,
                                                           hardwareInfo);
     // Replace non-DF ops with explored clones.
     SmallVector<Operation *, 16> toErase;

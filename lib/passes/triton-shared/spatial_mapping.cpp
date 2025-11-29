@@ -11,9 +11,6 @@
  * - `enumerateSpatialMappings`: produce clones for all unique bucketings and
  *   per-iterator permutations of spatial dims over the first outermost
  *   `affine.parallel` in each function.
- * - `enumerateSpatialMappingsWithOuterFors`: additionally convert the
- *   remaining parallel iterators to a canonical `affine.for` nest (identity
- *   iterator order; no enumeration over permutations).
  * - `enumerateTritonSharedSpatialMappings`: Triton-specific enumeration that
  *   associates used program grid indices {x,y,z} with hardware spatial dims and
  *   records the mapping as function attributes; also rewrites the legacy grid
@@ -304,11 +301,8 @@ static affine::AffineParallelOp getOutermostParallel(func::FuncOp func) {
 static LogicalResult applyMappingToFunction(func::FuncOp func,
                                             const tmd_affine::DimBuckets &mapping,
                                             const llvm::SmallVector<tmd_affine::SpatialDimInfo>& dims,
-                                            std::string &suffix) {
+                                            affine::AffineParallelOp &tar_forOp, std::string &suffix) {
   suffix.clear();
-  affine::AffineParallelOp currentOuter = getOutermostParallel(func);
-  if (!currentOuter)
-    return failure();
 
   MLIRContext *ctx = func.getContext();
   const unsigned numIter = static_cast<unsigned>(mapping.size());
@@ -317,14 +311,14 @@ static LogicalResult applyMappingToFunction(func::FuncOp func,
       const auto &sd = dims[dimIdx];
       int64_t factor = sd.size.value_or(1);
       tmd_affine::TiledParallels tiled_parallels{};
-      if (failed(tileAffineParallel(currentOuter, factor, iterIdx, tiled_parallels)))
+      if (failed(tileAffineParallel(tar_forOp, factor, iterIdx, tiled_parallels)))
         return failure();
       tiled_parallels.tiled_new_->setAttr("tmd.mapped_to",
                         StringAttr::get(ctx, sd.name.empty() ? "dim" : sd.name));
       if (!suffix.empty())
         suffix += "_";
       suffix += "d" + std::to_string(dimIdx) + "i" + std::to_string(iterIdx);
-      currentOuter = tiled_parallels.tiled_org_;
+      tar_forOp = tiled_parallels.tiled_org_;
     }
   }
   return success();
@@ -332,81 +326,13 @@ static LogicalResult applyMappingToFunction(func::FuncOp func,
 // End of Helper Functions
 // ------------------------------------------------------------
 
-/**
- * @copydoc tmd_affine::enumerateSpatialMappings
- */
-OwningOpRef<ModuleOp> enumerateSpatialMappings(ModuleOp affineModule,
-                                               const HardwareInfo& hardwareInfo) {
-  MLIRContext *ctx = affineModule.getContext();
-  OpBuilder builder(ctx);
 
-  // Create an output module that will hold all clones.
-  auto out = ModuleOp::create(affineModule.getLoc());
-
-  for (func::FuncOp func : affineModule.getOps<func::FuncOp>()) {
-    // Collect outermost affine.parallel candidates in function order.
-    SmallVector<affine::AffineParallelOp> roots;
-    func.walk([&](affine::AffineParallelOp par) {
-      if (!par->getParentOfType<affine::AffineParallelOp>())
-        roots.push_back(par);
-    });
-
-    if (roots.empty()) {
-      // Just clone function unchanged.
-      IRMapping map;
-      builder.setInsertionPointToEnd(out.getBody());
-      (void)builder.clone(*func, map);
-      continue;
-    }
-
-    // For simplicity, only enumerate for the first outermost par in the func.
-    // Extensions can lift this to multiple regions by nested enumeration.
-    affine::AffineParallelOp root = roots.front();
-    const unsigned P = root.getNumDims();
-    const unsigned D = static_cast<unsigned>(hardwareInfo.spatialDimInfoVec.size());
-    if (D == 0) {
-      IRMapping map;
-      builder.setInsertionPointToEnd(out.getBody());
-      (void)builder.clone(*func, map);
-      continue;
-    }
-
-    llvm::SmallVector<tmd_affine::DimBuckets> allBuckets =
-        GenerateAllPossibleParallelBuckets(P, D);
-
-    for (auto &bucketing : allBuckets) {
-      auto mappings = PermuteBucket(bucketing, hardwareInfo);
-      for (const auto &mapping : mappings) {
-        IRMapping map;
-        builder.setInsertionPointToEnd(out.getBody());
-        auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
-
-        std::string mappingSuffix;
-        if (failed(applyMappingToFunction(clonedFunc, mapping, hardwareInfo.spatialDimInfoVec,
-                                          mappingSuffix))) {
-          clonedFunc.erase();
-          continue;
-        }
-
-        composeAndCanonicalizeAffineApplies(clonedFunc);
-
-        std::string newName = func.getName().str();
-        newName += "__";
-        if (!mappingSuffix.empty())
-          newName += mappingSuffix;
-        clonedFunc.setName(newName);
-      }
-    }
-  }
-
-  return out;
-}
 
 /**
- * @copydoc tmd_affine::enumerateSpatialMappingsWithOuterFors
+ * @copydoc tmd_affine::EnumerateSpatialMappings
  */
 OwningOpRef<ModuleOp>
-enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
+EnumerateSpatialMappings(ModuleOp affineModule,
                                       const HardwareInfo& hardwareInfo) {
   MLIRContext *ctx = affineModule.getContext();
   OpBuilder builder(ctx);
@@ -448,7 +374,7 @@ enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
       });
       if (!currentOuter)
         continue;
-      (void)convertOutermostParallelToNestedFors(currentOuter, order);
+      (void)ConvertParallelToNested(currentOuter, order);
       // Canonical case: append "__for" to indicate outer-for materialization.
       clonedFunc.setName((func.getName() + "__for").str());
       continue;
@@ -472,15 +398,20 @@ enumerateSpatialMappingsWithOuterFors(ModuleOp affineModule,
           auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
 
           std::string mappingSuffix;
-          if (failed(applyMappingToFunction(clonedFunc, mapping, hardwareInfo.spatialDimInfoVec,
-                                            mappingSuffix))) {
+          affine::AffineParallelOp tar_forOp = getOutermostParallel(clonedFunc);
+          if (!tar_forOp) {
             clonedFunc.erase();
             continue;
           }
 
-          affine::AffineParallelOp outer = getOutermostParallel(clonedFunc);
-          if (!outer ||
-              failed(convertOutermostParallelToNestedFors(outer, orderCopy))) {
+          if (failed(applyMappingToFunction(clonedFunc, mapping, hardwareInfo.spatialDimInfoVec,
+                                            tar_forOp, mappingSuffix))) {
+            clonedFunc.erase();
+            continue;
+          }
+
+          if (!tar_forOp ||
+              failed(ConvertParallelToNested(tar_forOp, orderCopy))) {
             clonedFunc.erase();
             continue;
           }

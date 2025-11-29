@@ -67,7 +67,9 @@ GetHardwareInfoForExploration(mlir::ModuleOp dfModule,
 
 
 /**
- * \brief Enumerate all unique mappings and emit one function clone per mapping.
+ * \brief Enumerate all unique mappings and emit one function clone per mapping,
+ * then convert remaining outermost `affine.parallel` into nested `affine.for`
+ * loops in all possible iterator orders.
  *
  * For each function, find its first outermost `affine.parallel` with `P`
  * iterators and compute the set of all unique mappings from `D` spatial
@@ -84,28 +86,18 @@ GetHardwareInfoForExploration(mlir::ModuleOp dfModule,
  * every created inner loop is annotated with `tmd.mapped_to`, and the function
  * name is suffixed to encode the mapping.
  *
+ * After mapping spatial dims (tiling), this function also replaces the
+ * surviving top-level `affine.parallel` with `affine.for` nests. If the
+ * surviving parallel has `P` iterators, the exploration clones the function
+ * `P!` times to cover all permutations of the iterator ordering.
+ *
  * \param affineModule Source Affine module to enumerate mappings for.
- * \param dims         Spatial dimensions defining the mapping space.
+ * \param hardwareInfo Hardware spatial dimensions defining the mapping space.
  * \return A new module containing one clone per mapping (original functions
  *         are preserved in the input module).
  */
 mlir::OwningOpRef<mlir::ModuleOp>
-enumerateSpatialMappings(mlir::ModuleOp affineModule,
-                         const HardwareInfo& hardwareInfo);
-
-/**
- * \brief Enumerate spatial mappings and also convert the remaining
- * outermost `affine.parallel` into nested `affine.for` loops in all possible
- * iterator orders.
- *
- * This is identical to `enumerateSpatialMappings`, but after mapping spatial
- * dims (tiling), it replaces the surviving top-level `affine.parallel` with
- * `affine.for` nests. If the surviving parallel has `P` iterators, the
- * exploration clones the function `P!` times to cover all permutations of the
- * iterator ordering.
- */
-mlir::OwningOpRef<mlir::ModuleOp>
-enumerateSpatialMappingsWithOuterFors(mlir::ModuleOp affineModule,
+EnumerateSpatialMappings(mlir::ModuleOp affineModule,
                                       const HardwareInfo& hardwareInfo);
 
 /**

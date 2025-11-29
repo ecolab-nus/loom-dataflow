@@ -161,12 +161,10 @@ static LogicalResult getIteratorBoundsAndStep(affine::AffineParallelOp par,
  * - Clones the original parallel body (excluding the terminator) into the
  *   innermost loop and erases the source parallel op.
  */
-LogicalResult convertOutermostParallelToNestedFors(affine::AffineParallelOp par,
+LogicalResult ConvertParallelToNested(affine::AffineParallelOp par,
                                                    ArrayRef<unsigned> order) {
   // Preconditions: no reductions, is outermost, valid permutation.
   if (par.getNumResults() != 0)
-    return failure();
-  if (par->getParentOfType<affine::AffineParallelOp>())
     return failure();
   const unsigned P = par.getNumDims();
   if (order.size() != P)

@@ -24,7 +24,6 @@
 #include "mlir/Parser/Parser.h"
 #include "mlir/Support/FileUtilities.h"
 
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
@@ -99,7 +98,7 @@ int main(int argc, char **argv) {
 
   // Enumerate all mapping combinations for the Affine module.
   OwningOpRef<ModuleOp> out =
-      tmd_affine::enumerateSpatialMappings(*affineModule, hardwareInfo);
+      tmd_affine::EnumerateSpatialMappings(*affineModule, hardwareInfo);
 
   // Merge DF declarations and generated Affine clones into a single module to
   // avoid duplicate alias ids and produce a single well-formed module.

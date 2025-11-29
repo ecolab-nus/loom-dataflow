@@ -33,7 +33,6 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/FileUtilities.h"
 
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
@@ -118,7 +117,7 @@ int main(int argc, char **argv) {
   // and rely purely on the number of iterators in the parallel op.
   // Enumerate mappings and also explore outer-for loop orderings.
   OwningOpRef<ModuleOp> out =
-      tmd_affine::enumerateSpatialMappingsWithOuterFors(*tsModule, hardwareInfo);
+      tmd_affine::EnumerateSpatialMappings(*tsModule, hardwareInfo);
 
   // Merge DF declarations and generated clones into a single module.
   OwningOpRef<ModuleOp> merged = ModuleOp::create(UnknownLoc::get(&context));

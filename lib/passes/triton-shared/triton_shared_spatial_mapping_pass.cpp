@@ -56,12 +56,8 @@ struct TritonSharedExploreSpatialMappingsPass
     if (failed(tmd_affine::GetHardwareInfoForExploration(module, hardwareInfo)))
       return; // Failed to collect hardware information from DF module; silently no-op
 
-    // Create an enumerated output module using existing utilities.
-    OwningOpRef<ModuleOp> enumerated =
-        withOuterFors
-            ? tmd_affine::enumerateSpatialMappingsWithOuterFors(module,
-                                                                hardwareInfo)
-            : tmd_affine::enumerateSpatialMappings(module, hardwareInfo);
+
+    OwningOpRef<ModuleOp> enumerated = tmd_affine::EnumerateSpatialMappings(module, hardwareInfo);
 
     // If enumeration produced no functions, keep the original functions.
     bool producedAnyFunc = false;
