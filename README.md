@@ -182,7 +182,7 @@ Notes:
 - Spatial mapping exploration
   - Purpose: Enumerate mappings from hardware `df.spatial_dim` declarations to the outermost `affine.parallel` iterators; clone per mapping, annotate inner loops with `tmd.mapped_to`, and insert outer `affine.for` “waves” when the mesh cannot cover the grid in one shot.
   - Limitations: Combinatorial growth in clones due to partitioning/permutation of dims and outer-for orderings. Exploration is structural (not resource-capacity aware) in this prototype.
-  - Implementation: `lib/passes/triton-shared/spatial_mapping.{h,cpp}` (`enumerateSpatialMappingsWithOuterFors`). CLI: `build/tool/triton-shared/single_stage/explore_mapping`.
+  - Implementation: `lib/passes/triton-shared/spatial_mapping.{h,cpp}` (`EnumerateSpatialMappings`). CLI: `build/tool/triton-shared/single_stage/explore_mapping`.
 
 - Reuse annotation on reinterpret-cast (`tmd-annotate-reinterpret-cast-reuse`)
   - Purpose: Attach a `tmd.reuse` dictionary to each `memref.reinterpret_cast` describing how its offset varies with surrounding iterators, grouped by `spatial` (`affine.parallel`), `temporal` (`affine.for`), and `sequential` (`scf.for`). Each entry records `iterator` (SSA name), `depth`, `reuse_type` (`no_reuse`/`total_reuse`), `volume` (bytes; 0, full block, or -1 unknown), and `mapped_to` for spatial entries.
