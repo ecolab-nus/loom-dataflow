@@ -70,154 +70,151 @@ namespace tmd_affine {
  *     corresponding outer IVs.
  *   - Clone the original body into the inner loop and erase the original op.
  */
-LogicalResult tileAffineParallel(affine::AffineParallelOp op,
+LogicalResult tileAffineParallel(affine::AffineParallelOp original_parop,
                                  int64_t tilingFactor, unsigned tileDimIndex,
                                  TiledParallels &result) {
-  MLIRContext *ctx = op.getContext();
+  MLIRContext *ctx = original_parop.getContext();
   if (tilingFactor <= 0)
-    return op.emitError("tiling-factor must be positive"), failure();
+    return original_parop.emitError("tiling-factor must be positive"), failure();
 
   OpBuilder builder(ctx);
-  Location loc = op.getLoc();
-  unsigned numDims = op.getNumDims();
+  Location loc = original_parop.getLoc();
+  unsigned numDims = original_parop.getNumDims();
   if (numDims == 0)
     return success();
   if (tileDimIndex >= numDims)
-    return op.emitError("tileDimIndex out of range"), failure();
+    return original_parop.emitError("tileDimIndex out of range"), failure();
 
   // The tiled dimension must have unit step for this implementation.
-  SmallVector<int64_t> steps = llvm::to_vector(op.getSteps());
+  SmallVector<int64_t> steps = llvm::to_vector(original_parop.getSteps());
   if (steps.empty() || steps[tileDimIndex] != 1)
-    return op.emitError("only step 1 supported on the chosen dimension"),
+    return original_parop.emitError("only step 1 supported on the chosen dimension"),
            failure();
 
   // The tiled dimension must start from a constant-zero lower bound.
-  AffineMap lbChosen = op.getLowerBoundMap(tileDimIndex);
+  AffineMap lbChosen = original_parop.getLowerBoundMap(tileDimIndex);
   if (lbChosen.getNumResults() != 1 || !lbChosen.isSingleConstant())
-    return op.emitError(
+    return original_parop.emitError(
                "expected constant-zero lower bound on chosen dimension"),
            failure();
   if (lbChosen.getSingleConstantResult() != 0)
-    return op.emitError("expected lower bound 0 on chosen dimension"),
+    return original_parop.emitError("expected lower bound 0 on chosen dimension"),
            failure();
 
   // If a static range is known, verify divisibility by the tiling factor.
-  if (auto maybeRanges = op.getConstantRanges()) {
+  if (auto maybeRanges = original_parop.getConstantRanges()) {
     auto ranges = *maybeRanges;
     if (!ranges.empty()) {
       if (tileDimIndex >= ranges.size())
-        return op.emitError("range metadata missing for chosen dimension"),
+        return original_parop.emitError("range metadata missing for chosen dimension"),
                failure();
       int64_t extentK = ranges[tileDimIndex];
       if (extentK % tilingFactor != 0)
-        return op.emitError(
+        return original_parop.emitError(
                    "chosen-dimension bound not divisible by tiling-factor"),
                failure();
     }
   }
 
-  builder.setInsertionPoint(op);
+  builder.setInsertionPoint(original_parop);
 
   // Reuse original LB/UB maps and operands. Replace only the chosen dimension's
   // UB with ceilDiv(originalUB, tilingFactor) to form the outer loop space.
-  SmallVector<AffineMap> outerLbMaps;
-  SmallVector<AffineMap> outerUbMaps;
-  outerLbMaps.reserve(numDims);
-  outerUbMaps.reserve(numDims);
+  SmallVector<AffineMap> tiled_org_lb_maps;
+  SmallVector<AffineMap> tiled_org_ub_maps;
+  tiled_org_lb_maps.reserve(numDims);
+  tiled_org_ub_maps.reserve(numDims);
   for (unsigned i = 0; i < numDims; ++i) {
-    outerLbMaps.push_back(op.getLowerBoundMap(i));
-    AffineMap ubI = op.getUpperBoundMap(i);
+    tiled_org_lb_maps.push_back(original_parop.getLowerBoundMap(i));
+    AffineMap ubI = original_parop.getUpperBoundMap(i);
     if (i == tileDimIndex) {
       // Transform the single-result UB map to ceilDiv(expr, tilingFactor).
       if (ubI.getNumResults() != 1)
-        return op.emitError("expected single-result UB map"), failure();
+        return original_parop.emitError("expected single-result UB map"), failure();
       AffineExpr e = ubI.getResult(0);
       AffineExpr transformed = e.ceilDiv(tilingFactor);
-      outerUbMaps.push_back(
+      tiled_org_ub_maps.push_back(
           AffineMap::get(ubI.getNumDims(), ubI.getNumSymbols(), transformed));
     } else {
-      outerUbMaps.push_back(ubI);
+      tiled_org_ub_maps.push_back(ubI);
     }
   }
-  ValueRange outerLbArgs = op.getLowerBoundsOperands();
-  ValueRange outerUbArgs = op.getUpperBoundsOperands();
 
+
+  ValueRange org_lb_args = original_parop.getLowerBoundsOperands();
+  ValueRange org_ub_args = original_parop.getUpperBoundsOperands();
   // Steps remain unchanged on all outer-loop dimensions.
-  SmallVector<int64_t> outerSteps = steps;
-
-  // Reductions (parallel ops with results) are not supported.
-  if (!op->getResults().empty())
-    return op.emitError("reduction results not supported by this tiling pass"),
-           failure();
+  SmallVector<int64_t> org_steps = steps;
 
   // Create the outer affine.parallel.
-  auto outerPar = builder.create<affine::AffineParallelOp>(
-      loc, /*resultTypes=*/TypeRange{},
-      /*reductions=*/ArrayRef<arith::AtomicRMWKind>{}, outerLbMaps,
-      /*lbArgs=*/outerLbArgs, outerUbMaps,
-      /*ubArgs=*/outerUbArgs, outerSteps);
+  auto tiled_org = builder.create<affine::AffineParallelOp>(
+      loc, TypeRange{},
+      ArrayRef<arith::AtomicRMWKind>{}, 
+      tiled_org_lb_maps, org_lb_args, 
+      tiled_org_ub_maps, org_ub_args,
+      org_steps
+    );
 
-  // Prepare IV remapping. For the tiled dimension k, map
-  //   old_iv_k -> affine.apply (d0, d1) -> (d0 * tile + d1),
-  // where d0 = outer iv_k and d1 = inner iv_0. Other dimensions map to their
-  // corresponding outer IVs.
+  // Prepare IV remapping.
   IRMapping ivMap;
 
   // Create the inner affine.parallel with constant range [0, tilingFactor).
   OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointToStart(outerPar.getBody());
-  // Create inner with explicit affine lb/ub maps: (0) to (tilingFactor).
-  SmallVector<AffineMap> innerLbMaps = {builder.getConstantAffineMap(0)};
-  SmallVector<AffineMap> innerUbMaps = {
+  builder.setInsertionPointToStart(tiled_org.getBody());
+  SmallVector<AffineMap> tiled_new_lb_maps = {builder.getConstantAffineMap(0)};
+  SmallVector<AffineMap> tiled_new_ub_maps = {
       builder.getConstantAffineMap(static_cast<int64_t>(tilingFactor))};
-  SmallVector<int64_t> innerSteps = {1};
+  SmallVector<int64_t> tiled_new_steps = {1};
   (void)builder.create<affine::AffineParallelOp>(
-      loc, /*resultTypes=*/TypeRange{},
-      /*reductions=*/ArrayRef<arith::AtomicRMWKind>{}, innerLbMaps,
-      /*lbArgs=*/ValueRange{}, innerUbMaps,
-      /*ubArgs=*/ValueRange{}, innerSteps);
+      loc, TypeRange{},
+      ArrayRef<arith::AtomicRMWKind>{}, 
+      tiled_new_lb_maps, ValueRange{}, 
+      tiled_new_ub_maps, ValueRange{}, 
+      tiled_new_steps
+    );
+
   // Clone original body ops into the inner parallel, remapping IVs. Skip the
   // terminator if present.
-  Block *origBody = op.getBody();
-  Block *innerBody = outerPar.getBody();
+  Block *org_body = original_parop.getBody();
+  Block *tiled_org_body = tiled_org.getBody();
   // The newly created innerPar is the first op in the body; set insertion
   // point to its body start to clone the body into it.
-  auto &firstOp = innerBody->front();
-  auto innerParOp = dyn_cast<affine::AffineParallelOp>(&firstOp);
-  if (!innerParOp)
-    return op.emitError("internal error: expected inner AffineParallelOp"),
+  auto &firstOp = tiled_org_body->front();
+  auto tiled_new = dyn_cast<affine::AffineParallelOp>(&firstOp);
+  if (!tiled_new)
+    return original_parop.emitError("internal error: expected inner AffineParallelOp"),
            failure();
-  Block *innerParBody = innerParOp.getBody();
-  builder.setInsertionPointToStart(innerParBody);
+  Block *tiled_new_body = tiled_new.getBody();
+  builder.setInsertionPointToStart(tiled_new_body);
   // Build the IV mapping now that the inner IV exists.
-  Value innerIv = innerParOp.getBody()->getArgument(0);
+  Value tiled_new_iv = tiled_new_body->getArgument(0);
   for (unsigned i = 0; i < numDims; ++i) {
-    Value oldIv = op.getBody()->getArgument(i);
+    Value org_iv = org_body->getArgument(i);
     if (i == tileDimIndex) {
-      Value outerIv = outerPar.getBody()->getArgument(i);
+      Value tiled_org_iv = tiled_org_body->getArgument(i);
       AffineExpr d0 = getAffineDimExpr(0, ctx);
       AffineExpr d1 = getAffineDimExpr(1, ctx);
       AffineExpr cT = getAffineConstantExpr(tilingFactor, ctx);
       AffineMap tileMap =
           AffineMap::get(/*dims=*/2, /*symbols=*/0, d0 * cT + d1, ctx);
       Value combined = builder.create<affine::AffineApplyOp>(
-          loc, tileMap, ValueRange{outerIv, innerIv});
-      ivMap.map(oldIv, combined);
+          loc, tileMap, ValueRange{tiled_org_iv, tiled_new_iv});
+      ivMap.map(org_iv, combined);
     } else {
-      ivMap.map(oldIv, outerPar.getBody()->getArgument(i));
+      ivMap.map(org_iv, tiled_org_body->getArgument(i));
     }
   }
-  for (Operation &nested : llvm::make_early_inc_range(*origBody)) {
+  for (Operation &nested : llvm::make_early_inc_range(*org_body)) {
     if (nested.hasTrait<OpTrait::IsTerminator>())
       continue;
     (void)builder.clone(nested, ivMap);
   }
 
   // Erase the original op; the rewrite is complete.
-  op.erase();
+  original_parop.erase();
   // Populate result handles.
-  result.original = outerPar;
-  result.tiled = innerParOp;
+  result.tiled_org_ = tiled_org;
+  result.tiled_new_ = tiled_new;
   return success();
 }
 

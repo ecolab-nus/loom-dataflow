@@ -19,7 +19,6 @@
 #pragma once
 
 #include "mlir/IR/BuiltinOps.h"
-#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include <optional>
 #include <string>

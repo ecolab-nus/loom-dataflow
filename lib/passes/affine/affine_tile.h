@@ -36,8 +36,8 @@ namespace tmd_affine {
  *   expressions are formed via composition of `affine.apply` operations.
  */
 struct TiledParallels {
-  mlir::affine::AffineParallelOp original;
-  mlir::affine::AffineParallelOp tiled;
+  mlir::affine::AffineParallelOp tiled_org_;
+  mlir::affine::AffineParallelOp tiled_new_;
 };
 
 /**

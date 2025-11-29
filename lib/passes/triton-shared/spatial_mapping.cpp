@@ -29,7 +29,6 @@
 #include "affine_tile.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/Attributes.h"
@@ -38,7 +37,6 @@
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/IRMapping.h"
 #include "affine_parallel_to_for.h"
-#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/IRMapping.h"
@@ -321,12 +319,12 @@ static LogicalResult applyMappingToFunction(func::FuncOp func,
       tmd_affine::TiledParallels tiled_parallels{};
       if (failed(tileAffineParallel(currentOuter, factor, iterIdx, tiled_parallels)))
         return failure();
-      tiled_parallels.tiled->setAttr("tmd.mapped_to",
+      tiled_parallels.tiled_new_->setAttr("tmd.mapped_to",
                         StringAttr::get(ctx, sd.name.empty() ? "dim" : sd.name));
       if (!suffix.empty())
         suffix += "_";
       suffix += "d" + std::to_string(dimIdx) + "i" + std::to_string(iterIdx);
-      currentOuter = tiled_parallels.original;
+      currentOuter = tiled_parallels.tiled_org_;
     }
   }
   return success();
