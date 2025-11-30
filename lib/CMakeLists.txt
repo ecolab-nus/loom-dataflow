@@ -1,20 +1,18 @@
-# ScaleOut static library
-add_library(scaleout STATIC
-    resources/memory.cpp
-    resources/ring.cpp
-    resources/chain.cpp
-    modules/network.cpp
-)
+# ScaleOut library - aggregates all submodules
+# This is the main library that combines resources, modules, passes, and dialect
 
-# Link MLIR IR to provide headers and symbols for AffineMap used in modules
-target_link_libraries(scaleout PUBLIC MLIRIR)
-mlir_check_all_link_libraries(scaleout)
-
-# Add MLIR components
+# Build submodules
+add_subdirectory(resources)
+add_subdirectory(modules)
 add_subdirectory(passes)
-
-# Dataflow dialect (df)
 add_subdirectory(dataflow-dialect)
 
-# Ensure the main library depends on the dialect so it builds in the project
-target_link_libraries(scaleout PUBLIC tmdDataflowDialect)
+# Aggregate library that combines resources and modules
+# This is an interface library that aggregates tmdResources and tmdModules
+add_library(scaleout INTERFACE)
+
+# Link submodule libraries
+target_link_libraries(scaleout INTERFACE
+    tmdResources
+    tmdModules
+)

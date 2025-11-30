@@ -1,4 +1,4 @@
-#include "ring.h"
+#include "../inc/chain.h"
 
 namespace scaleout {
 namespace resources {

@@ -2,16 +2,13 @@
 
 # explore_mapping
 add_executable(explore_mapping
-  ${CMAKE_CURRENT_LIST_DIR}/explore_mapping.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/spatial_mapping.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/reinterpret_cast_reuse.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_tile.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_parallel_to_for.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/explore_mapping_main.cpp
 )
 
 target_include_directories(explore_mapping PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
 
 target_link_libraries(explore_mapping PRIVATE
+  tmdTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -37,13 +34,13 @@ set_target_properties(explore_mapping PROPERTIES
 )
 
 add_executable(affinize
-  ${CMAKE_CURRENT_LIST_DIR}/affinize.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/triton_shared_affinize.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/affinize_main.cpp
 )
 
 target_include_directories(affinize PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
 
 target_link_libraries(affinize PRIVATE
+  tmdTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -70,13 +67,13 @@ set_target_properties(affinize PROPERTIES
 )
 
 add_executable(grid_to_parallel
-  ${CMAKE_CURRENT_LIST_DIR}/grid_to_parallel.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/triton_shared_grid_to_parallel.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/grid_to_parallel_main.cpp
 )
 
 target_include_directories(grid_to_parallel PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
 
 target_link_libraries(grid_to_parallel PRIVATE
+  tmdTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -102,8 +99,7 @@ set_target_properties(grid_to_parallel PROPERTIES
 )
 
 add_executable(annotate_reuse
-  ${CMAKE_CURRENT_LIST_DIR}/annotate_reuse.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/reinterpret_cast_reuse.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/annotate_reuse_main.cpp
 )
 
 target_include_directories(annotate_reuse PRIVATE
@@ -112,6 +108,7 @@ target_include_directories(annotate_reuse PRIVATE
 )
 
 target_link_libraries(annotate_reuse PRIVATE
+  tmdTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -140,9 +137,7 @@ set_target_properties(annotate_reuse PROPERTIES
 
 # explore_alloc_copy_mapping: Annotate reuse and explore alloc/copy mappings
 add_executable(explore_alloc_copy_mapping
-  ${CMAKE_CURRENT_LIST_DIR}/explore_alloc_copy_mapping.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/reinterpret_cast_reuse.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/explore_alloc_copy_mapping.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/explore_alloc_copy_mapping_main.cpp
 )
 
 target_include_directories(explore_alloc_copy_mapping PRIVATE
@@ -151,6 +146,7 @@ target_include_directories(explore_alloc_copy_mapping PRIVATE
 )
 
 target_link_libraries(explore_alloc_copy_mapping PRIVATE
+  tmdTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -178,8 +174,7 @@ set_target_properties(explore_alloc_copy_mapping PROPERTIES
 
 # tile_scf_for_to_l1: Tile scf.for loops to fit L1
 add_executable(tile_scf_for_to_l1
-  ${CMAKE_CURRENT_LIST_DIR}/tile_scf_for_to_l1.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/tile_scf_for_to_l1.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/tile_scf_for_to_l1_main.cpp
 )
 
 target_include_directories(tile_scf_for_to_l1 PRIVATE
@@ -188,6 +183,7 @@ target_include_directories(tile_scf_for_to_l1 PRIVATE
 )
 
 target_link_libraries(tile_scf_for_to_l1 PRIVATE
+  tmdTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport

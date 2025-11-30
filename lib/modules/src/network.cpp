@@ -1,4 +1,4 @@
-#include "network.h"
+#include "../inc/network.h"
 #include "mlir/IR/AffineMap.h"
 
 namespace scaleout {

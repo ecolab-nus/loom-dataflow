@@ -1,5 +1,5 @@
-#include "resources/memory.h"
-#include "resources/resource_manager.h"
+#include "memory.h"
+#include "resource_manager.h"
 #include <exception>
 #include <iostream>
 #include <memory>

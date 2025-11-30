@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../resources/memory.h"
-#include "../resources/ring.h"
+#include "memory.h"  // resources::MemoryCapacity, etc. (from resources/inc)
+#include "ring.h"    // resources::Ring (from resources/inc)
 #include "network.h"
 #include <cstddef>
 #include <vector>

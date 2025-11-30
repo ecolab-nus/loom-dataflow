@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../resources/chain.h"
+#include "chain.h"  // resources::Chain (from resources/inc)
 #include "network.h"
 
 namespace scaleout {
