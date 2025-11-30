@@ -622,54 +622,86 @@ void MuxOp::print(OpAsmPrinter &p) {
 /// Parse InterconnectsOp with custom syntax:
 ///   df.interconnects "horizontal_links" %memories, %memories, {map = ..., bandwidth = 128}
 ///   or: df.interconnects %memories: !df.memory, %drams : !df.memory, {map = ...}
+/// 
+/// This parser uses a flexible function-object based approach to handle various
+/// format combinations (with/without label, type annotations, indices, etc.)
 ParseResult InterconnectsOp::parse(OpAsmParser &parser, OperationState &result) {
-  // Parse optional label (string attribute)
-  // Try to parse a string literal first
-  std::string labelStr;
-  StringAttr label;
-  bool hasLabel = succeeded(parser.parseOptionalString(&labelStr));
-  if (hasLabel) {
-    label = parser.getBuilder().getStringAttr(labelStr);
-    result.addAttribute("label", label);
-  }
+  Builder &builder = parser.getBuilder();
+  MLIRContext *context = builder.getContext();
 
-  // Parse source operand
-  OpAsmParser::UnresolvedOperand source;
-  if (parser.parseOperand(source))
+  // Helper function to parse optional label (string attribute)
+  auto parseLabel = [&]() -> ParseResult {
+    std::string labelStr;
+    if (succeeded(parser.parseOptionalString(&labelStr))) {
+      StringAttr label = builder.getStringAttr(labelStr);
+      result.addAttribute("label", label);
+    }
+    return success();
+  };
+
+  // Helper function to parse an operand with optional type annotation
+  // Returns the operand and whether a type was provided
+  auto parseOperandWithType = [&](OpAsmParser::UnresolvedOperand &operand,
+                                  Type &type, bool &hasType) -> ParseResult {
+    if (parser.parseOperand(operand))
+      return failure();
+    
+    hasType = false;
+    if (succeeded(parser.parseOptionalColon())) {
+      if (parser.parseType(type).failed())
+        return failure();
+      hasType = true;
+    }
+    return success();
+  };
+
+  // Helper function to validate that a type is a valid df handle type
+  auto isValidHandleType = [](Type type) -> bool {
+    return llvm::isa<ComputeHandleType>(type) ||
+           llvm::isa<MemoryHandleType>(type);
+  };
+
+  // Parse optional label
+  if (parseLabel().failed())
     return failure();
 
-  // Parse optional type annotation
+  // Parse source operand with optional type
+  OpAsmParser::UnresolvedOperand source;
   Type sourceType;
   bool hasSourceType = false;
-  if (succeeded(parser.parseOptionalColon())) {
-    if (parser.parseType(sourceType).failed())
-      return failure();
-    hasSourceType = true;
+  if (parseOperandWithType(source, sourceType, hasSourceType).failed())
+    return failure();
+
+  // Validate source type if provided
+  if (hasSourceType && !isValidHandleType(sourceType)) {
+    return parser.emitError(parser.getNameLoc(),
+                           "source type must be a df handle type (!df.compute, "
+                           "!df.memory, etc.)");
   }
 
-  // Parse comma
+  // Parse comma separator
   if (parser.parseComma())
     return failure();
 
-  // Parse target operand
+  // Parse target operand with optional type
   OpAsmParser::UnresolvedOperand target;
-  if (parser.parseOperand(target))
-    return failure();
-
-  // Parse optional type annotation
   Type targetType;
   bool hasTargetType = false;
-  if (succeeded(parser.parseOptionalColon())) {
-    if (parser.parseType(targetType).failed())
-      return failure();
-    hasTargetType = true;
+  if (parseOperandWithType(target, targetType, hasTargetType).failed())
+    return failure();
+
+  // Validate target type if provided
+  if (hasTargetType && !isValidHandleType(targetType)) {
+    return parser.emitError(parser.getNameLoc(),
+                           "target type must be a df handle type (!df.compute, "
+                           "!df.memory, etc.)");
   }
 
-  // Parse optional indices and comma
+  // Parse optional indices (comma-separated list after target)
   SmallVector<OpAsmParser::UnresolvedOperand> indices;
   if (parser.parseOptionalComma().succeeded()) {
     // Try to parse indices - if next token is '{', parseOperandList will fail
-    // and we'll just continue to parse attributes
+    // gracefully and we'll continue to parse attributes
     (void)parser.parseOperandList(indices);
   }
 
@@ -684,26 +716,28 @@ ParseResult InterconnectsOp::parse(OpAsmParser &parser, OperationState &result) 
       return failure();
   } else {
     // No result type provided, use default
-    resultType = InterconnectHandleType::get(parser.getBuilder().getContext());
+    resultType = InterconnectHandleType::get(context);
   }
 
   // Resolve operand types
-  // If types were not provided, use placeholder types
+  // If types were not provided, use default placeholder types
   if (!hasSourceType) {
-    sourceType = MemoryHandleType::get(parser.getBuilder().getContext());
+    sourceType = MemoryHandleType::get(context);
   }
   if (!hasTargetType) {
-    targetType = MemoryHandleType::get(parser.getBuilder().getContext());
+    targetType = MemoryHandleType::get(context);
   }
 
+  // Build operand types list: source, target, then indices
   SmallVector<Type> operandTypes = {sourceType, targetType};
   SmallVector<OpAsmParser::UnresolvedOperand> allOperands = {source, target};
   allOperands.append(indices.begin(), indices.end());
 
   // Resolve types for indices (all should be index type)
-  SmallVector<Type> indexTypes(indices.size(), parser.getBuilder().getIndexType());
+  SmallVector<Type> indexTypes(indices.size(), builder.getIndexType());
   operandTypes.append(indexTypes.begin(), indexTypes.end());
 
+  // Resolve all operands
   if (parser.resolveOperands(allOperands, operandTypes, parser.getNameLoc(),
                              result.operands))
     return failure();
