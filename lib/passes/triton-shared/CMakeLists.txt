@@ -2,8 +2,10 @@
 # Provides passes for Triton-shared optimization pipeline
 
 add_library(tmdTritonSharedPasses STATIC
+    ${CMAKE_CURRENT_LIST_DIR}/src/block_loading_pattern.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/const_dedup_cleanup.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/explore_alloc_copy_mapping.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/hoist_block_loading.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/input_sharing_analysis.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/reinterpret_cast_reuse.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/spatial_mapping.cpp

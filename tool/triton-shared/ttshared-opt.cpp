@@ -17,6 +17,7 @@
 //
 #include "const_dedup_cleanup.h"
 #include "explore_alloc_copy_mapping.h"
+#include "hoist_block_loading.h"
 #include "reinterpret_cast_reuse.h"
 #include "spatial_mapping.h"
 #include "tile_scf_for_to_l1.h"
@@ -395,6 +396,43 @@ int main(int argc, char **argv) {
           dumpModuleToFile(*tsModule, clDumpDir, "05_after_memref_mapping.mlir")))
     return 5;
 
+  // Run hoist block loading pass.
+  PassManager hoistPM(&context);
+  if (clDumpIntermediate) {
+    hoistPM.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
+  hoistPM.addPass(tmd::passes::createHoistBlockLoadingPass());
+  if (failed(hoistPM.run(*tsModule))) {
+    llvm::WithColor::error(llvm::errs())
+        << "Hoist block loading pass failed\n";
+    return 9;
+  }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
+  if (!clDumpDir.empty() &&
+      failed(dumpModuleToFile(*tsModule, clDumpDir,
+                              "06_after_hoist_block_loading.mlir")))
+    return 5;
+
   // Run One-Shot Bufferize to convert tensors to memrefs, while allowing
   // unknown ops (e.g., df.*) to be preserved.
   {
@@ -436,7 +474,7 @@ int main(int argc, char **argv) {
 
   if (!clDumpDir.empty() &&
       failed(
-          dumpModuleToFile(*tsModule, clDumpDir, "06_after_bufferization.mlir")))
+          dumpModuleToFile(*tsModule, clDumpDir, "07_after_bufferization.mlir")))
     return 5;
   
   // Tile scf.for loops to fit L1, then dump if requested.
@@ -476,7 +514,7 @@ int main(int argc, char **argv) {
     
     // Dump after tiling only if tiling pass was executed.
     if (!clDumpDir.empty() &&
-        failed(dumpModuleToFile(*tsModule, clDumpDir, "07_after_for_tiling.mlir")))
+        failed(dumpModuleToFile(*tsModule, clDumpDir, "08_after_for_tiling.mlir")))
       return 5;
   }
 
