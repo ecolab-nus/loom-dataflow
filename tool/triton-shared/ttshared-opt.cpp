@@ -322,6 +322,43 @@ int main(int argc, char **argv) {
       failed(dumpModuleToFile(*tsModule, clDumpDir, "03_after_exploration.mlir")))
     return 5;
 
+  // Run hoist block loading pass.
+  PassManager hoistPM(&context);
+  if (clDumpIntermediate) {
+    hoistPM.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
+  hoistPM.addPass(tmd::passes::createHoistBlockLoadingPass());
+  if (failed(hoistPM.run(*tsModule))) {
+    llvm::WithColor::error(llvm::errs())
+        << "Hoist block loading pass failed\n";
+    return 9;
+  }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
+  if (!clDumpDir.empty() &&
+      failed(dumpModuleToFile(*tsModule, clDumpDir,
+                              "04_after_hoist_block_loading.mlir")))
+    return 5;
+
   // Annotate reinterpret_cast ops with reuse information.
   PassManager annotatePM(&context);
   if (clDumpIntermediate) {
@@ -355,7 +392,7 @@ int main(int argc, char **argv) {
   }
   if (!clDumpDir.empty() &&
       failed(dumpModuleToFile(*tsModule, clDumpDir,
-                              "04_after_reuse_annotation.mlir")))
+                              "05_after_reuse_annotation.mlir")))
     return 5;
 
   // Explore alloc/copy mapping choices.
@@ -393,44 +430,7 @@ int main(int argc, char **argv) {
   }
   if (!clDumpDir.empty() &&
       failed(
-          dumpModuleToFile(*tsModule, clDumpDir, "05_after_memref_mapping.mlir")))
-    return 5;
-
-  // Run hoist block loading pass.
-  PassManager hoistPM(&context);
-  if (clDumpIntermediate) {
-    hoistPM.enableIRPrinting(
-        [](mlir::Pass *, mlir::Operation *) { return false; },
-        [](mlir::Pass *, mlir::Operation *) { return true; },
-        /*printModuleScope=*/true,
-        /*printAfterOnlyOnChange=*/false,
-        /*printAfterOnlyOnFailure=*/false, llvm::errs());
-  }
-  hoistPM.addPass(tmd::passes::createHoistBlockLoadingPass());
-  if (failed(hoistPM.run(*tsModule))) {
-    llvm::WithColor::error(llvm::errs())
-        << "Hoist block loading pass failed\n";
-    return 9;
-  }
-  {
-    PassManager cleanupPM(&context);
-    if (clDumpIntermediate) {
-      cleanupPM.enableIRPrinting(
-          [](mlir::Pass *, mlir::Operation *) { return false; },
-          [](mlir::Pass *, mlir::Operation *) { return true; },
-          /*printModuleScope=*/true,
-          /*printAfterOnlyOnChange=*/false,
-          /*printAfterOnlyOnFailure=*/false, llvm::errs());
-    }
-    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
-    if (failed(cleanupPM.run(*tsModule))) {
-      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
-      return 7;
-    }
-  }
-  if (!clDumpDir.empty() &&
-      failed(dumpModuleToFile(*tsModule, clDumpDir,
-                              "06_after_hoist_block_loading.mlir")))
+          dumpModuleToFile(*tsModule, clDumpDir, "06_after_memref_mapping.mlir")))
     return 5;
 
   // Run One-Shot Bufferize to convert tensors to memrefs, while allowing

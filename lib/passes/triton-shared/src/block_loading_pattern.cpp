@@ -522,12 +522,6 @@ void LoadingBlock::CreateHoistedOpsWithReshape(
         new_strides_attr
     );
     
-    if (auto tmd_reuse_attr = org_reinterpret->getAttrOfType<mlir::DictionaryAttr>("tmd.reuse")) {
-        mlir::NamedAttrList new_attrs;
-        new_attrs.append("tmd.reuse", tmd_reuse_attr);
-        new_reinterpret->setAttrs(mlir::DictionaryAttr::get(builder.getContext(), new_attrs));
-    }
-    
     // Create new alloc type: memref<loop_ubx64x64xf32>
     auto org_alloc_type = llvm::cast<mlir::MemRefType>(org_alloc.getResult().getType());
     llvm::SmallVector<int64_t> new_alloc_shape;
