@@ -638,6 +638,9 @@ void LoadingBlock::CreateHoistedOpsSimple(
     if (!org_alloc->getAttrs().empty()) {
         new_alloc->setAttrs(org_alloc->getAttrs());
     }
+    
+    // Mark this block as valid since we used CreateHoistedOpsSimple
+    is_valid_ = true;
 }
 
 /**
@@ -698,7 +701,7 @@ void LoadingBlock::HoistLoadingBlock() {
  * @param for_op The innermost scf.for loop operation.
  */
 LoadingBlock::LoadingBlock(llvm::SmallVector<mlir::Operation *> op_block, mlir::scf::ForOp for_op) : 
-    outer_for_op_(for_op), op_block_({op_block.begin(), op_block.begin() + 4UL}) {
+    outer_for_op_(for_op), op_block_({op_block.begin(), op_block.begin() + 4UL}), is_valid_(false) {
     if(auto alloc_op = llvm::dyn_cast<mlir::memref::AllocOp>(op_block[2])) {
         mem_req_bytes_as_const_ = GetAllocSizeAsConst(alloc_op);
     }
@@ -829,6 +832,32 @@ mlir::LogicalResult MatchAndHoist(mlir::scf::ForOp inner_most_loop) {
 
     block_B.Hoist();
 
+    return mlir::success();
+}
+
+/**
+ * @brief Hoist a single loading block at the specified index for the innermost loop.
+ * @param inner_most_loop The innermost scf.for loop operation.
+ * @param block_index The index of the block to hoist.
+ * @return LogicalResult indicating success or failure.
+ */
+mlir::LogicalResult HoistSingleBlock(mlir::scf::ForOp inner_most_loop, size_t block_index) {
+    llvm::SmallVector<LoadingBlock, 2> loading_blocks;
+    if (failed(BuildLoadingBlocks(inner_most_loop, loading_blocks))) {
+        return mlir::failure();
+    }
+    
+    if (block_index >= loading_blocks.size()) {
+        return mlir::failure();
+    }
+    
+    loading_blocks[block_index].Hoist();
+    
+    // Check if the block is valid (has been hoisted using CreateHoistedOpsSimple at least once)
+    if (!loading_blocks[block_index].IsValid()) {
+        return mlir::failure();
+    }
+    
     return mlir::success();
 }
 

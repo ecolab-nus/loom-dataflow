@@ -1,8 +1,12 @@
 #include "hoist_block_loading.h"
 #include "block_loading_pattern.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/IRMapping.h"
+#include "mlir/IR/Builders.h"
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/SCF/IR/SCF.h>
+#include "llvm/ADT/SmallVector.h"
+#include <cstddef>
 
 
 namespace tmd {
@@ -17,39 +21,106 @@ public:
      */
     MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(HoistBlockLoadingPass)
 
-    /// @brief Run the hoist block loading pass on the module.
-    /// Traverses all functions in the module and hoists loading blocks from innermost loops.
-    void runOnOperation() override {
-        mlir::ModuleOp module = getOperation();
+    /// @brief Find the innermost scf.for loop in a function.
+    /// @param funcOp The function to search in.
+    /// @return The innermost scf.for loop, or nullptr if not found.
+    mlir::scf::ForOp findInnermostForOp(mlir::func::FuncOp funcOp) {
+        mlir::scf::ForOp innermostForOp = nullptr;
         
-        // Traverse each function in the module
-        module.walk([&](mlir::func::FuncOp funcOp) {
-            // Find the innermost scf.for loop
-            mlir::scf::ForOp innermostForOp = nullptr;
-            
-            funcOp.walk([&](mlir::scf::ForOp forOp) {
-                // Check if this forOp is the innermost (no nested forOp in its body)
-                bool hasNestedForOp = false;
-                forOp.getBody()->walk([&](mlir::Operation *op) {
-                    // Check if there are nested scf.for or affine.for loops
-                    if (tmd::affine::isInWhitelist(op) && op != forOp.getOperation()) {
-                        hasNestedForOp = true;
-                        return mlir::WalkResult::interrupt();
-                    }
-                    return mlir::WalkResult::advance();
-                });
-                
-                if (!hasNestedForOp) {
-                    innermostForOp = forOp;
-                    return mlir::WalkResult::interrupt(); // Found innermost, stop traversal
+        funcOp.walk([&](mlir::scf::ForOp forOp) {
+            // Check if this forOp is the innermost (no nested forOp in its body)
+            bool hasNestedForOp = false;
+            forOp.getBody()->walk([&](mlir::Operation *op) {
+                // Check if there are nested scf.for or affine.for loops
+                if (tmd::affine::isInWhitelist(op) && op != forOp.getOperation()) {
+                    hasNestedForOp = true;
+                    return mlir::WalkResult::interrupt();
                 }
                 return mlir::WalkResult::advance();
             });
             
-            if (innermostForOp) {
-                (void)tmd::affine::MatchAndHoist(innermostForOp);
+            if (!hasNestedForOp) {
+                innermostForOp = forOp;
+                return mlir::WalkResult::interrupt(); // Found innermost, stop traversal
             }
+            return mlir::WalkResult::advance();
         });
+        
+        return innermostForOp;
+    }
+
+    /// @brief Run the hoist block loading pass on the module.
+    /// Traverses all functions in the module and creates explore variants with hoisted blocks.
+    void runOnOperation() override {
+        mlir::ModuleOp module = getOperation();
+        mlir::OpBuilder moduleBuilder(module.getBodyRegion());
+        
+        // Collect all functions in the module (need to collect first to avoid iterator invalidation)
+        llvm::SmallVector<mlir::func::FuncOp> funcs;
+        for (mlir::func::FuncOp f : module.getOps<mlir::func::FuncOp>()) {
+            funcs.push_back(f);
+        }
+        
+        // Process each function and insert clones immediately after it
+        for (mlir::func::FuncOp originalFunc : funcs) {
+            // Find the innermost scf.for loop
+            mlir::scf::ForOp innermostForOp = findInnermostForOp(originalFunc);
+            
+            if (!innermostForOp) {
+                // No innermost loop found, skip this function
+                continue;
+            }
+            
+            // Build loading blocks to determine how many variants we need
+            llvm::SmallVector<tmd::affine::LoadingBlock, 2> loading_blocks;
+            if (failed(tmd::affine::BuildLoadingBlocks(innermostForOp, loading_blocks))) {
+                // No loading blocks found, skip this function
+                continue;
+            }
+            
+            // If no blocks found, keep original function only
+            if (loading_blocks.empty()) {
+                continue;
+            }
+            
+            // Set insertion point right after the original function
+            moduleBuilder.setInsertionPointAfter(originalFunc);
+            
+            // Create clones for each block index and insert them immediately after the original function
+            for (size_t block_idx = 0; block_idx < loading_blocks.size(); ++block_idx) {
+                // Clone the function
+                mlir::IRMapping map;
+                mlir::func::FuncOp clonedFunc = 
+                    mlir::cast<mlir::func::FuncOp>(moduleBuilder.clone(*originalFunc, map));
+                
+                // Rename the cloned function
+                std::string newName = originalFunc.getSymName().str() + "__hoist_block_" + 
+                                     std::to_string(block_idx);
+                clonedFunc.setName(newName);
+                
+                // Find the innermost loop in the cloned function
+                mlir::scf::ForOp clonedInnermostForOp = findInnermostForOp(clonedFunc);
+                
+                bool isValid = false;
+                if (clonedInnermostForOp) {
+                    // Hoist the block at the specified index and check validity
+                    if (succeeded(tmd::affine::HoistSingleBlock(clonedInnermostForOp, block_idx))) {
+                        isValid = true;
+                    }
+                }
+                
+                if (!isValid) {
+                    // Block is invalid (never used CreateHoistedOpsSimple), erase the cloned function
+                    clonedFunc.erase();
+                    // Keep insertion point at the original function for next iteration
+                    moduleBuilder.setInsertionPointAfter(originalFunc);
+                } else {
+                    // Block is valid, keep the cloned function
+                    // Update insertion point to after the current clone for next iteration
+                    moduleBuilder.setInsertionPointAfter(clonedFunc);
+                }
+            }
+        }
     }
 
 };

@@ -35,7 +35,8 @@ private:
     std::optional<int64_t> mem_req_bytes_as_const_;
     std::optional<int64_t> loop_ub_as_const_;
     std::optional<std::vector<int64_t>> block_size_;
-    int64_t coeff_loop_iv_; 
+    int64_t coeff_loop_iv_;
+    bool is_valid_;  // Whether this block has been hoisted using CreateHoistedOpsSimple at least once 
 
 
 private:
@@ -82,13 +83,18 @@ public:
     LoadingBlock(llvm::SmallVector<mlir::Operation *> op_block, mlir::scf::ForOp for_op);
     void HoistRec(mlir::affine::AffineForOp new_outer_for);
     void Hoist();
+    
+    /// @brief Check if this block is valid (has been hoisted using CreateHoistedOpsSimple at least once).
+    /// @return true if the block is valid, false otherwise.
+    bool IsValid() const { return is_valid_; }
 
 };
 
 /// @brief Build loading blocks for the given forOp
 /// @param forOp The innermost for loop operation (can be AffineForOp or scf::ForOp)
+/// @param block_vec Output vector to store the found loading blocks
 /// @return LogicalResult indicating success or failure
-mlir::LogicalResult BuildLoadingBlocks(mlir::scf::ForOp inner_most_for_op, llvm::SmallSetVector<LoadingBlock, 2>& block_vec);
+mlir::LogicalResult BuildLoadingBlocks(mlir::scf::ForOp inner_most_for_op, llvm::SmallVector<LoadingBlock, 2>& block_vec);
 
 /// @brief Check if an operation is in the whitelist (AffineForOp or scf::ForOp)
 /// @param op The operation to check
@@ -106,4 +112,10 @@ static inline bool isInBlacklist(mlir::Operation *op) {
 
 
 mlir::LogicalResult MatchAndHoist(mlir::scf::ForOp inner_most_loop);
+
+/// @brief Hoist a single loading block at the specified index for the innermost loop.
+/// @param inner_most_loop The innermost scf.for loop operation.
+/// @param block_index The index of the block to hoist.
+/// @return LogicalResult indicating success or failure.
+mlir::LogicalResult HoistSingleBlock(mlir::scf::ForOp inner_most_loop, size_t block_index);
 } // namespace tmd::affine
