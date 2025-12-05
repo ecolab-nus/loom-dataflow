@@ -39,26 +39,15 @@ using namespace mlir;
 
 namespace {
 
+/// @brief Check whether `value` depends (transitively) on `target`.
+/// @details Walks the SSA def-use graph backward from `value` to determine if
+/// `target` appears among its transitive operands. Block arguments stop the walk.
 static bool dependsOn(Value value, Value target) {
-  /**
-   * @brief Check whether `value` depends (transitively) on `target`.
-   *
-   * @details Walks the SSA def-use graph backward from `value` to determine if
-   * `target` appears among its transitive operands. Block arguments stop the
-   * walk (treated as leaves).
-   *
-   * @param value  The value to test for dependency.
-   * @param target The candidate dependency to look for.
-   * @return True if `value` depends on `target`, false otherwise.
-   */
-  if (!value)
-    return false;
-  if (value == target)
-    return true;
+  if (!value || value == target)
+    return value == target;
 
   SmallPtrSet<Value, 16> visited;
-  SmallVector<Value, 16> worklist;
-  worklist.push_back(value);
+  SmallVector<Value, 16> worklist = {value};
 
   while (!worklist.empty()) {
     Value current = worklist.pop_back_val();
@@ -67,17 +56,13 @@ static bool dependsOn(Value value, Value target) {
     if (current == target)
       return true;
 
-    if (auto barg = llvm::dyn_cast<BlockArgument>(current)) {
-      (void)barg;
+    // Block arguments stop the walk (treated as leaves).
+    if (llvm::isa<BlockArgument>(current))
       continue;
+
+    if (Operation *def = current.getDefiningOp()) {
+      worklist.append(def->operand_begin(), def->operand_end());
     }
-
-    Operation *def = current.getDefiningOp();
-    if (!def)
-      continue;
-
-    for (Value operand : def->getOperands())
-      worklist.push_back(operand);
   }
 
   return false;
@@ -146,41 +131,48 @@ public:
     //                    is dynamic.
     //   * `mapped_to` – spatial dimension name taken from `tmd.mapped_to`.
     module.walk([&](memref::ReinterpretCastOp op) {
+      // Collect dynamic offsets (non-constant ones).
       SmallVector<Value, 4> dynamicOffsets;
-      for (OpFoldResult ofr : op.getMixedOffsets())
+      for (OpFoldResult ofr : op.getMixedOffsets()) {
         if (auto val = ofr.dyn_cast<Value>())
           dynamicOffsets.push_back(val);
+      }
 
+      // Compute block volume in bytes, or nullopt if not statically determinable.
       auto blockVolumeBytes = [&]() -> std::optional<int64_t> {
         auto resultType = llvm::dyn_cast<MemRefType>(op.getResult().getType());
-        if (!resultType)
+        if (!resultType || !resultType.hasStaticShape())
           return std::nullopt;
-        if (!resultType.hasStaticShape())
-          return std::nullopt;
+        
         int64_t numElements = resultType.getNumElements();
         Type elemType = resultType.getElementType();
+        
         int64_t elemBits = 0;
-        if (auto intTy = llvm::dyn_cast<IntegerType>(elemType))
+        if (auto intTy = llvm::dyn_cast<IntegerType>(elemType)) {
           elemBits = intTy.getWidth();
-        else if (auto floatTy = llvm::dyn_cast<FloatType>(elemType))
+        } else if (auto floatTy = llvm::dyn_cast<FloatType>(elemType)) {
           elemBits = floatTy.getWidth();
-        else
+        } else {
           return std::nullopt;
+        }
+        
         if (elemBits % 8 != 0)
           return std::nullopt;
+        
         return numElements * (elemBits / 8);
       }();
 
+      // Collect enclosing loops in lexical order (outermost to innermost).
       SmallVector<Operation *, 8> loopStack;
       for (Operation *parent = op->getParentOp(); parent;
            parent = parent->getParentOp()) {
-        if (isa<affine::AffineParallelOp, affine::AffineForOp, scf::ForOp>(
-                parent))
+        if (isa<affine::AffineParallelOp, affine::AffineForOp, scf::ForOp>(parent))
           loopStack.push_back(parent);
       }
       if (loopStack.empty())
         return;
-
+      
+      // Reverse to get outermost-to-innermost order for depth calculation.
       std::reverse(loopStack.begin(), loopStack.end());
 
       SmallVector<Attribute, 4> spatialEntries;
@@ -189,47 +181,49 @@ public:
 
       auto annotateIterator = [&](Value iv, SmallVectorImpl<Attribute> &bucket,
                                   StringAttr mappedTo, unsigned depth) {
-        bool variant = llvm::any_of(dynamicOffsets,
-                                    [&](Value v) { return dependsOn(v, iv); });
-        StringRef reuseType = variant ? "no_reuse" : "total_reuse";
-        int64_t reuseVolume = 0;
-        if (!variant) {
-          if (blockVolumeBytes)
-            reuseVolume = *blockVolumeBytes;
-          else
-            reuseVolume = -1; // unknown block size
-        }
-        NamedAttrList attrs;
+        // Check if any dynamic offset depends on this iterator.
+        bool hasVariant = llvm::any_of(dynamicOffsets,
+                                      [&](Value v) { return dependsOn(v, iv); });
+        
+        // Compute reuse volume: 0 for variant, block size for total reuse, -1 if unknown.
+        int64_t reuseVolume = hasVariant ? 0 : 
+                             (blockVolumeBytes ? *blockVolumeBytes : -1);
+        
+        // Get iterator name for display.
         std::string iteratorName;
         {
           llvm::raw_string_ostream os(iteratorName);
           iv.printAsOperand(os, asmState);
         }
-        if (iteratorName.empty())
-          iteratorName = "<unnamed>";
-        attrs.append("iterator", StringAttr::get(ctx, iteratorName));
+        
+        NamedAttrList attrs;
+        attrs.append("iterator", StringAttr::get(ctx, 
+                     iteratorName.empty() ? "<unnamed>" : iteratorName));
         attrs.append("depth", IntegerAttr::get(i64Type, depth));
-        attrs.append("reuse_type", StringAttr::get(ctx, reuseType));
+        attrs.append("reuse_type", StringAttr::get(ctx, 
+                     hasVariant ? "no_reuse" : "total_reuse"));
         attrs.append("volume", IntegerAttr::get(i64Type, reuseVolume));
         if (mappedTo)
           attrs.append("mapped_to", mappedTo);
+        
         bucket.push_back(DictionaryAttr::get(ctx, attrs));
       };
 
       for (auto [depth, loop] : llvm::enumerate(loopStack)) {
         if (auto par = dyn_cast<affine::AffineParallelOp>(loop)) {
-          StringAttr mapped = loop->getAttrOfType<StringAttr>("tmd.mapped_to");
+          auto mapped = loop->getAttrOfType<StringAttr>("tmd.mapped_to");
           for (Value iv : par.getIVs())
             annotateIterator(iv, spatialEntries, mapped, depth);
         } else if (auto affFor = dyn_cast<affine::AffineForOp>(loop)) {
-          annotateIterator(affFor.getInductionVar(), temporalEntries,
-                           StringAttr(), depth);
+          annotateIterator(affFor.getInductionVar(), temporalEntries, 
+                          StringAttr(), depth);
         } else if (auto scfFor = dyn_cast<scf::ForOp>(loop)) {
-          annotateIterator(scfFor.getInductionVar(), sequentialEntries,
-                           StringAttr(), depth);
+          annotateIterator(scfFor.getInductionVar(), sequentialEntries, 
+                         StringAttr(), depth);
         }
       }
 
+      // Build reuse dictionary with non-empty entry arrays.
       NamedAttrList reuseAttrs;
       if (!spatialEntries.empty())
         reuseAttrs.append("spatial", ArrayAttr::get(ctx, spatialEntries));
