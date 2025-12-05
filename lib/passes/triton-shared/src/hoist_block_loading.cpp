@@ -28,20 +28,19 @@ public:
         mlir::scf::ForOp innermostForOp = nullptr;
         
         funcOp.walk([&](mlir::scf::ForOp forOp) {
-            // Check if this forOp is the innermost (no nested forOp in its body)
-            bool hasNestedForOp = false;
+            // Check if this forOp is the innermost (no nested loops in its body)
+            bool hasNestedLoop = false;
             forOp.getBody()->walk([&](mlir::Operation *op) {
-                // Check if there are nested scf.for or affine.for loops
                 if (tmd::affine::isInWhitelist(op) && op != forOp.getOperation()) {
-                    hasNestedForOp = true;
+                    hasNestedLoop = true;
                     return mlir::WalkResult::interrupt();
                 }
                 return mlir::WalkResult::advance();
             });
             
-            if (!hasNestedForOp) {
+            if (!hasNestedLoop) {
                 innermostForOp = forOp;
-                return mlir::WalkResult::interrupt(); // Found innermost, stop traversal
+                return mlir::WalkResult::interrupt();
             }
             return mlir::WalkResult::advance();
         });
@@ -55,11 +54,9 @@ public:
         mlir::ModuleOp module = getOperation();
         mlir::OpBuilder moduleBuilder(module.getBodyRegion());
         
-        // Collect all functions in the module (need to collect first to avoid iterator invalidation)
-        llvm::SmallVector<mlir::func::FuncOp> funcs;
-        for (mlir::func::FuncOp f : module.getOps<mlir::func::FuncOp>()) {
-            funcs.push_back(f);
-        }
+        // Collect all functions first to avoid iterator invalidation
+        llvm::SmallVector<mlir::func::FuncOp> funcs(module.getOps<mlir::func::FuncOp>().begin(),
+                                                     module.getOps<mlir::func::FuncOp>().end());
         
         // Process each function and insert clones immediately after it
         for (mlir::func::FuncOp originalFunc : funcs) {
@@ -74,12 +71,6 @@ public:
             // Build loading blocks to determine how many variants we need
             llvm::SmallVector<tmd::affine::LoadingBlock, 2> loading_blocks;
             if (failed(tmd::affine::BuildLoadingBlocks(innermostForOp, loading_blocks))) {
-                // No loading blocks found, skip this function
-                continue;
-            }
-            
-            // If no blocks found, keep original function only
-            if (loading_blocks.empty()) {
                 continue;
             }
             
@@ -98,25 +89,17 @@ public:
                                      std::to_string(block_idx);
                 clonedFunc.setName(newName);
                 
-                // Find the innermost loop in the cloned function
+                // Find the innermost loop in the cloned function and hoist the block
                 mlir::scf::ForOp clonedInnermostForOp = findInnermostForOp(clonedFunc);
-                
-                bool isValid = false;
-                if (clonedInnermostForOp) {
-                    // Hoist the block at the specified index and check validity
-                    if (succeeded(tmd::affine::HoistSingleBlock(clonedInnermostForOp, block_idx))) {
-                        isValid = true;
-                    }
-                }
+                bool isValid = clonedInnermostForOp && 
+                              succeeded(tmd::affine::HoistSingleBlock(clonedInnermostForOp, block_idx));
                 
                 if (!isValid) {
                     // Block is invalid (never used CreateHoistedOpsSimple), erase the cloned function
                     clonedFunc.erase();
-                    // Keep insertion point at the original function for next iteration
                     moduleBuilder.setInsertionPointAfter(originalFunc);
                 } else {
                     // Block is valid, keep the cloned function
-                    // Update insertion point to after the current clone for next iteration
                     moduleBuilder.setInsertionPointAfter(clonedFunc);
                 }
             }

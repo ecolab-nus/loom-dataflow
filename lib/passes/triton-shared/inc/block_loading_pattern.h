@@ -16,12 +16,6 @@
 
 namespace tmd::affine {
 
-enum LoopType {
-    UNKNOWN = 0,
-    AFFINE,
-    SCF
-};
-
 class LoadingBlock {
 private:
     std::variant<mlir::scf::ForOp, mlir::affine::AffineForOp> outer_for_op_;
@@ -52,7 +46,6 @@ private:
 
 
     void SetReplacementBlock();
-    LoopType GetLoopType();
     bool IsIndependent();
     void ReplaceOpBlock(
         mlir::affine::AffineApplyOp new_apply,
@@ -109,9 +102,6 @@ static inline bool isInWhitelist(mlir::Operation *op) {
 static inline bool isInBlacklist(mlir::Operation *op) {
     return mlir::isa<mlir::affine::AffineParallelOp>(op);
 }
-
-
-mlir::LogicalResult MatchAndHoist(mlir::scf::ForOp inner_most_loop);
 
 /// @brief Hoist a single loading block at the specified index for the innermost loop.
 /// @param inner_most_loop The innermost scf.for loop operation.

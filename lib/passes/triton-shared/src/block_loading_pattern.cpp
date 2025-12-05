@@ -35,65 +35,52 @@ int64_t LoadingBlock::GetAllocSizeAsConst(mlir::memref::AllocOp alloc_op) {
     return 0;
 }
 
+/// @brief Helper to extract static sizes from a range, returning nullopt if any is dynamic.
+static std::optional<std::vector<int64_t>> extractStaticSizes(llvm::ArrayRef<int64_t> sizes) {
+    std::vector<int64_t> result;
+    for (int64_t size : sizes) {
+        if (size == mlir::ShapedType::kDynamic) {
+            return std::nullopt;
+        }
+        result.push_back(size);
+    }
+    return result.empty() ? std::nullopt : std::make_optional(result);
+}
+
 /**
  * @brief Get the block sizes as constants from the reinterpret_cast operation.
  * @param reinterpret_op The memref reinterpret_cast operation.
  * @return The block sizes as a vector of constants, or std::nullopt if not all sizes are constants.
  */
 std::optional<std::vector<int64_t>> LoadingBlock::GetBlockSize(mlir::memref::ReinterpretCastOp reinterpret_op) {
-    std::vector<int64_t> block_sizes;
-    
-    // Try to get from static sizes attribute first
+    // Try static sizes attribute first
     if (auto static_sizes_attr = reinterpret_op.getStaticSizesAttr()) {
-        auto static_sizes = static_sizes_attr.asArrayRef();
-        bool all_static = true;
-        for (int64_t size : static_sizes) {
-            if (size == mlir::ShapedType::kDynamic) {
-                all_static = false;
-                break;
-            }
-            block_sizes.push_back(size);
-        }
-        if (all_static && !block_sizes.empty()) {
-            return block_sizes;
+        if (auto sizes = extractStaticSizes(static_sizes_attr.asArrayRef())) {
+            return sizes;
         }
     }
     
-    // If not found in static sizes, try from result type shape
+    // Try result type shape
     auto result_type = llvm::cast<mlir::MemRefType>(reinterpret_op.getResult().getType());
-    auto shape = result_type.getShape();
-    bool all_static = true;
-    block_sizes.clear();
-    for (int64_t dim : shape) {
-        if (dim == mlir::ShapedType::kDynamic) {
-            all_static = false;
-            break;
-        }
-        block_sizes.push_back(dim);
-    }
-    if (all_static && !block_sizes.empty()) {
-        return block_sizes;
+    if (auto sizes = extractStaticSizes(result_type.getShape())) {
+        return sizes;
     }
     
-    // Last resort: try from dynamic sizes
+    // Last resort: try dynamic sizes
     auto sizes = reinterpret_op.getSizes();
-    if (!sizes.empty()) {
-        block_sizes.clear();
-        bool all_const = true;
-        for (auto size_val : sizes) {
-            if (auto const_val = GetConstantIntValue(size_val)) {
-                block_sizes.push_back(const_val.value());
-            } else {
-                all_const = false;
-                break;
-            }
-        }
-        if (all_const && !block_sizes.empty()) {
-            return block_sizes;
-        }
+    if (sizes.empty()) {
+        return std::nullopt;
     }
     
-    return std::nullopt;
+    std::vector<int64_t> block_sizes;
+    for (auto size_val : sizes) {
+        if (auto const_val = GetConstantIntValue(size_val)) {
+            block_sizes.push_back(const_val.value());
+        } else {
+            return std::nullopt;
+        }
+    }
+    return block_sizes.empty() ? std::nullopt : std::make_optional(block_sizes);
 }
 
 /**
@@ -320,16 +307,6 @@ void LoadingBlock::SetReplacementBlock() {
         original_to_tensor.erase();
         org_to_tensor_op_ = new_to_tensor;
     }
-}
-
-/**
- * @brief Get the type of the outer loop.
- * @return The loop type (AFFINE, SCF, or UNKNOW).
- */
-LoopType LoadingBlock::GetLoopType() {
-    if (std::holds_alternative<mlir::affine::AffineForOp>(outer_for_op_)) return LoopType::AFFINE;
-    if (std::holds_alternative<mlir::scf::ForOp>(outer_for_op_)) return LoopType::SCF;
-    return LoopType::UNKNOWN;
 }
 
 /**
@@ -658,7 +635,7 @@ void LoadingBlock::HoistLoadingBlock() {
     auto org_alloc = llvm::dyn_cast<mlir::memref::AllocOp>(op_block_[2]);
     auto org_copy = llvm::dyn_cast<mlir::memref::CopyOp>(op_block_[3]);
 
-    // Check if we need to modify memory access pattern
+    // Check if we need to modify memory access pattern (reshape when loop IV is present and block is multi-dimensional)
     bool need_reshape = loop_iv_index_opt.has_value() && 
                        loop_ub_as_const_.has_value() && 
                        block_size_.has_value() && block_size_.value().size() > 1;
@@ -668,7 +645,7 @@ void LoadingBlock::HoistLoadingBlock() {
 
     auto new_apply = CreateHoistedApply(builder, org_apply, loop_iv_index_opt);
     if (need_reshape) {
-        coeff_loop_iv_ = ExtractDimCoefficientRec(org_affine_expr,loop_iv_index_opt.value());
+        coeff_loop_iv_ = ExtractDimCoefficientRec(org_affine_expr, loop_iv_index_opt.value());
         CreateHoistedOpsWithReshape(builder, new_apply, org_reinterpret, org_alloc,
                                    new_reinterpret, new_alloc);
     } else {
@@ -676,11 +653,9 @@ void LoadingBlock::HoistLoadingBlock() {
                               new_reinterpret, new_alloc);
     }
 
-    // Create memref.copy
+    // Create memref.copy with attributes if present
     auto new_copy = builder.create<mlir::memref::CopyOp>(
-        org_copy.getLoc(),
-        new_reinterpret.getResult(),
-        new_alloc.getResult());
+        org_copy.getLoc(), new_reinterpret.getResult(), new_alloc.getResult());
     if (!org_copy->getAttrs().empty()) {
         new_copy->setAttrs(org_copy->getAttrs());
     }
@@ -716,18 +691,17 @@ LoadingBlock::LoadingBlock(llvm::SmallVector<mlir::Operation *> op_block, mlir::
  * @details This method recursively hoists the block until the termination condition is met.
  */
 void LoadingBlock::HoistRec(mlir::affine::AffineForOp new_outer_for) {
+    // Early return if we can't determine loop bounds and operation is not independent
     if (!loop_ub_as_const_.has_value() && !IsIndependent()) {
         return;
     }
 
+    // If operation depends on loop IV, update memory requirement
     if (!IsIndependent()) {
-        if (loop_ub_as_const_.has_value() && mem_req_bytes_as_const_.has_value()) {
-            auto mem = mem_req_bytes_as_const_.value();
-            auto ub = loop_ub_as_const_.value();
-            mem_req_bytes_as_const_ = mem * ub;
-        } else {
+        if (!loop_ub_as_const_.has_value() || !mem_req_bytes_as_const_.has_value()) {
             return;
         }
+        mem_req_bytes_as_const_ = mem_req_bytes_as_const_.value() * loop_ub_as_const_.value();
     }
 
     HoistLoadingBlock();
@@ -738,8 +712,7 @@ void LoadingBlock::HoistRec(mlir::affine::AffineForOp new_outer_for) {
 
     ResetLoopAttr(new_outer_for);
     
-    mlir::affine::AffineForOp next_outer_for = FindOuterAffineFor();
-    if (next_outer_for) {
+    if (auto next_outer_for = FindOuterAffineFor()) {
         HoistRec(next_outer_for);
     }
 }
@@ -762,71 +735,45 @@ void LoadingBlock::Hoist() {
  * @param block_vec Output vector to store the found loading blocks.
  * @return LogicalResult indicating success or failure.
  */
+/// @brief Helper function to get next operation of specific type, or nullptr if not found.
+template<typename OpType>
+static OpType getNextOpOfType(mlir::Block::iterator &it, mlir::Block::iterator end) {
+    it = std::next(it);
+    if (it == end) return nullptr;
+    return llvm::dyn_cast<OpType>(&*it);
+}
+
 mlir::LogicalResult BuildLoadingBlocks(mlir::scf::ForOp inner_most_for_op,
                                        llvm::SmallVector<LoadingBlock, 2> &block_vec) {
     mlir::Block *body = inner_most_for_op.getBody();
     if (!body)
         return mlir::failure();
 
-    bool foundAny = false;
-
     for (auto it = body->begin(); it != body->end(); ++it) {
-        mlir::Operation *op = &*it;
+        auto apply_op = llvm::dyn_cast<mlir::affine::AffineApplyOp>(&*it);
+        if (!apply_op) continue;
 
-        if (auto apply_op = llvm::dyn_cast<mlir::affine::AffineApplyOp>(op)) {
-            auto next_it = std::next(it);
-            if (next_it == body->end()) break;
+        auto current_it = it;
+        auto reinterpret_op = getNextOpOfType<mlir::memref::ReinterpretCastOp>(current_it, body->end());
+        if (!reinterpret_op) continue;
 
-            auto reinterpret_op =
-                llvm::dyn_cast<mlir::memref::ReinterpretCastOp>(&*next_it);
-            if (!reinterpret_op) continue;
+        auto alloc_op = getNextOpOfType<mlir::memref::AllocOp>(current_it, body->end());
+        if (!alloc_op) continue;
 
-            next_it = std::next(next_it);
-            if (next_it == body->end()) break;
-            auto alloc_op = llvm::dyn_cast<mlir::memref::AllocOp>(&*next_it);
-            if (!alloc_op) continue;
+        auto copy_op = getNextOpOfType<mlir::memref::CopyOp>(current_it, body->end());
+        if (!copy_op) continue;
 
-            next_it = std::next(next_it);
-            if (next_it == body->end()) break;
-            auto copy_op = llvm::dyn_cast<mlir::memref::CopyOp>(&*next_it);
-            if (!copy_op) continue;
+        auto to_tensor_op = getNextOpOfType<mlir::bufferization::ToTensorOp>(current_it, body->end());
+        if (!to_tensor_op) continue;
 
-            next_it = std::next(next_it);
-            if (next_it == body->end()) break;
-            auto to_tensor_op =
-                llvm::dyn_cast<mlir::bufferization::ToTensorOp>(&*next_it);
-            if (!to_tensor_op) continue;
+        llvm::SmallVector<mlir::Operation *> op_block = {
+            apply_op, reinterpret_op, alloc_op, copy_op, to_tensor_op
+        };
 
-            llvm::SmallVector<mlir::Operation *> op_block;
-            op_block.push_back(apply_op);
-            op_block.push_back(reinterpret_op);
-            op_block.push_back(alloc_op);
-            op_block.push_back(copy_op);
-            op_block.push_back(to_tensor_op);
-
-            LoadingBlock loading_block(std::move(op_block), inner_most_for_op);
-            block_vec.push_back(std::move(loading_block));
-            foundAny = true;
-        }
+        block_vec.emplace_back(std::move(op_block), inner_most_for_op);
     }
 
-    return foundAny ? mlir::success() : mlir::failure();
-}
-
-/**
- * @brief Match and hoist loading blocks for the innermost loop.
- * @param inner_most_loop The innermost scf.for loop operation.
- * @return LogicalResult indicating success or failure.
- */
-mlir::LogicalResult MatchAndHoist(mlir::scf::ForOp inner_most_loop) {
-    llvm::SmallVector<LoadingBlock, 2> loading_blocks;
-    BuildLoadingBlocks(inner_most_loop, loading_blocks);
-    auto& block_A = loading_blocks[0];
-    auto& block_B = loading_blocks[1];
-
-    block_B.Hoist();
-
-    return mlir::success();
+    return block_vec.empty() ? mlir::failure() : mlir::success();
 }
 
 /**
@@ -837,22 +784,15 @@ mlir::LogicalResult MatchAndHoist(mlir::scf::ForOp inner_most_loop) {
  */
 mlir::LogicalResult HoistSingleBlock(mlir::scf::ForOp inner_most_loop, size_t block_index) {
     llvm::SmallVector<LoadingBlock, 2> loading_blocks;
-    if (failed(BuildLoadingBlocks(inner_most_loop, loading_blocks))) {
-        return mlir::failure();
-    }
-    
-    if (block_index >= loading_blocks.size()) {
+    if (failed(BuildLoadingBlocks(inner_most_loop, loading_blocks)) ||
+        block_index >= loading_blocks.size()) {
         return mlir::failure();
     }
     
     loading_blocks[block_index].Hoist();
     
     // Check if the block is valid (has been hoisted using CreateHoistedOpsSimple at least once)
-    if (!loading_blocks[block_index].IsValid()) {
-        return mlir::failure();
-    }
-    
-    return mlir::success();
+    return loading_blocks[block_index].IsValid() ? mlir::success() : mlir::failure();
 }
 
 } // namespace tmd::affine
