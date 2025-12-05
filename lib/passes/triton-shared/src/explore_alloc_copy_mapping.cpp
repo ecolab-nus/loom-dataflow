@@ -102,68 +102,60 @@ static bool collectDFContext(ModuleOp module, DFContext &out) {
     };
     auto isDimPlusOne = [](AffineExpr e, unsigned p) -> bool {
       // Unwrap mod operations: ((d0 + 1) mod N) -> (d0 + 1)
-      AffineExpr toCheck = e;
       if (auto mod = llvm::dyn_cast<AffineBinaryOpExpr>(e)) {
-        if (mod.getKind() == AffineExprKind::Mod) {
-          toCheck = mod.getLHS();
-        }
+        if (mod.getKind() == AffineExprKind::Mod)
+          e = mod.getLHS();
       }
-      // Check for (dim + constant) or (constant + dim) pattern
-      if (auto add = llvm::dyn_cast<AffineBinaryOpExpr>(toCheck)) {
-        if (add.getKind() == AffineExprKind::Add) {
-          auto lhsD = llvm::dyn_cast<AffineDimExpr>(add.getLHS());
-          auto rhsC = llvm::dyn_cast<AffineConstantExpr>(add.getRHS());
-          if (lhsD && lhsD.getPosition() == p && rhsC &&
-              rhsC.getValue() == 1)
-            return true;
-          // Also check swapped: (constant + dim)
-          lhsD = llvm::dyn_cast<AffineDimExpr>(add.getRHS());
-          rhsC = llvm::dyn_cast<AffineConstantExpr>(add.getLHS());
-          if (lhsD && lhsD.getPosition() == p && rhsC &&
-              rhsC.getValue() == 1)
-            return true;
-        }
-      }
-      return false;
+      
+      // Check for (dim + 1) or (1 + dim) pattern
+      auto add = llvm::dyn_cast<AffineBinaryOpExpr>(e);
+      if (!add || add.getKind() != AffineExprKind::Add)
+        return false;
+      
+      auto checkPair = [p](AffineExpr dimExpr, AffineExpr constExpr) -> bool {
+        auto dim = llvm::dyn_cast<AffineDimExpr>(dimExpr);
+        auto c = llvm::dyn_cast<AffineConstantExpr>(constExpr);
+        return dim && dim.getPosition() == p && c && c.getValue() == 1;
+      };
+      
+      return checkPair(add.getLHS(), add.getRHS()) ||
+             checkPair(add.getRHS(), add.getLHS());
     };
 
     // Determine axis that advances by exactly +1.
     std::optional<unsigned> axis;
-    if (map.getNumDims() == 1 && results.size() >= 1) {
-      if (isDimPlusOne(results[0], 0))
+    unsigned numDims = map.getNumDims();
+    if (numDims == 1 && results.size() >= 1 && isDimPlusOne(results[0], 0)) {
+      axis = 0u;
+    } else if (numDims >= 2 && results.size() >= 2) {
+      if (isDimPlusOne(results[0], 0) && isDim(results[1], 1)) {
         axis = 0u;
-    } else if (map.getNumDims() >= 2 && results.size() >= 2) {
-      if (isDimPlusOne(results[0], 0) && isDim(results[1], 1))
-        axis = 0u;
-      else if (isDim(results[0], 0) && isDimPlusOne(results[1], 1))
+      } else if (isDim(results[0], 0) && isDimPlusOne(results[1], 1)) {
         axis = 1u;
+      }
     }
     if (!axis)
       return;
+    
+    // Get interconnect name (label or symbol name for backward compatibility).
     std::string name = "ic";
     if (auto label = ic.getLabelAttr()) {
       name = label.getValue().str();
     } else if (auto sym = ic->getAttrOfType<StringAttr>("sym_name")) {
-      // Backward-compat: fall back to symbol name if present.
       name = sym.getValue().str();
     }
+    
     // Infer dimension name from source memory's scaleout.
-    std::string dimName = ("d" + std::to_string(*axis));
+    std::string dimName = "d" + std::to_string(*axis);
     Value source = ic.getSource();
-    // Find the MemoryOp that produces the source handle.
-    module.walk([&](tmd::df::MemoryOp mem) {
-      if (mem.getResult() == source) {
-        auto scaleout = mem.getScaleout();
-        if (*axis < scaleout.size()) {
-          Value dimValue = scaleout[*axis];
-          if (Operation *def = dimValue.getDefiningOp()) {
-            if (auto sd = llvm::dyn_cast<tmd::df::SpatialDimOp>(def)) {
-              dimName = getStringOr(sd.getNameAttr(), dimName);
-            }
-          }
+    if (auto mem = source.getDefiningOp<tmd::df::MemoryOp>()) {
+      auto scaleout = mem.getScaleout();
+      if (*axis < scaleout.size()) {
+        if (auto sd = scaleout[*axis].getDefiningOp<tmd::df::SpatialDimOp>()) {
+          dimName = getStringOr(sd.getNameAttr(), dimName);
         }
       }
-    });
+    }
     out.icByDimName[dimName].emplace_back(ic.getResult(), name);
   });
 
@@ -173,50 +165,83 @@ static bool collectDFContext(ModuleOp module, DFContext &out) {
 static bool hasSpatialTotalReuse(DictionaryAttr reuse, StringRef dimName) {
   if (!reuse)
     return false;
-  auto spatialAny = reuse.get("spatial");
-  auto spatialArr =
-      spatialAny ? llvm::dyn_cast<ArrayAttr>(spatialAny) : ArrayAttr();
+  
+  auto spatialArr = reuse.getAs<ArrayAttr>("spatial");
   if (!spatialArr)
     return false;
+  
   for (Attribute a : spatialArr) {
     auto entry = llvm::dyn_cast<DictionaryAttr>(a);
     if (!entry)
       continue;
-    auto mappedAny = entry.get("mapped_to");
-    auto rtAny = entry.get("reuse_type");
-    auto mapped =
-        mappedAny ? llvm::dyn_cast<StringAttr>(mappedAny) : StringAttr();
-    auto rt = rtAny ? llvm::dyn_cast<StringAttr>(rtAny) : StringAttr();
-    if (!mapped || !rt)
-      continue;
-    if (mapped.getValue() == dimName && rt.getValue() == "total_reuse")
+    
+    auto mapped = entry.getAs<StringAttr>("mapped_to");
+    auto rt = entry.getAs<StringAttr>("reuse_type");
+    
+    if (mapped && rt && mapped.getValue() == dimName && 
+        rt.getValue() == "total_reuse")
       return true;
   }
   return false;
 }
 
+/// @brief Compute bytes from a memref type, or nullopt if not statically determinable.
+static std::optional<int64_t> computeBytesFromType(Type t) {
+  auto mr = llvm::dyn_cast<MemRefType>(t);
+  if (!mr || !mr.hasStaticShape())
+    return std::nullopt;
+  
+  int64_t numElems = 1;
+  for (int64_t d : mr.getShape())
+    numElems *= d;
+  
+  int64_t bitsPerElem = static_cast<int64_t>(mr.getElementTypeBitWidth());
+  if (bitsPerElem <= 0)
+    return std::nullopt;
+  
+  return numElems * ((bitsPerElem + 7) / 8);
+}
+
 // Try to compute the number of bytes copied for a given memref.copy.
 // Returns std::nullopt if the copy size cannot be statically determined.
 static std::optional<int64_t> getCopySizeBytes(memref::CopyOp cpy) {
-  auto computeFromType = [](Type t) -> std::optional<int64_t> {
-    auto mr = llvm::dyn_cast<MemRefType>(t);
-    if (!mr || !mr.hasStaticShape())
-      return std::nullopt;
-    int64_t numElems = 1;
-    for (int64_t d : mr.getShape())
-      numElems *= d;
-    // ShapedType::getElementTypeBitWidth returns total bit width of the element
-    // (including vector lanes if the element is a vector type).
-    int64_t bitsPerElem = static_cast<int64_t>(mr.getElementTypeBitWidth());
-    if (bitsPerElem <= 0)
-      return std::nullopt;
-    int64_t bytesPerElem = (bitsPerElem + 7) / 8;
-    return numElems * bytesPerElem;
-  };
-
-  if (auto sz = computeFromType(cpy.getSource().getType()))
+  if (auto sz = computeBytesFromType(cpy.getSource().getType()))
     return sz;
-  return computeFromType(cpy.getTarget().getType());
+  return computeBytesFromType(cpy.getTarget().getType());
+}
+
+/// @brief Helper to scan users of a value for copy operations and return max size.
+static std::optional<int64_t> scanUsersForCopies(Value v, bool asTarget) {
+  std::optional<int64_t> best;
+  for (Operation *user : v.getUsers()) {
+    if (auto c = llvm::dyn_cast<memref::CopyOp>(user)) {
+      bool match = asTarget ? (c.getTarget() == v) : (c.getSource() == v);
+      if (match) {
+        if (auto sz = getCopySizeBytes(c)) {
+          if (!best || *sz > *best)
+            best = *sz;
+        }
+      }
+    }
+  }
+  return best;
+}
+
+/// @brief Helper to scan cast-like operations (cast/reinterpret_cast) for copies.
+static std::optional<int64_t> scanCastUsersForCopies(Value base, bool asTarget) {
+  for (Operation *user : base.getUsers()) {
+    Value castResult;
+    if (auto castLike = llvm::dyn_cast<memref::CastOp>(user)) {
+      castResult = castLike.getResult();
+    } else if (auto rc = llvm::dyn_cast<memref::ReinterpretCastOp>(user)) {
+      castResult = rc.getResult();
+    } else {
+      continue;
+    }
+    if (auto sz = scanUsersForCopies(castResult, asTarget))
+      return sz;
+  }
+  return std::nullopt;
 }
 
 // Discover the copied size (in bytes) for a given memref.alloc by locating
@@ -229,53 +254,19 @@ static std::optional<int64_t> getCopySizeBytes(memref::CopyOp cpy) {
 static std::optional<int64_t> inferAllocCopiedSizeBytes(memref::AllocOp alloc) {
   Value base = alloc.getResult();
 
-  auto scanUsersForCopies = [&](Value v,
-                                bool asTarget) -> std::optional<int64_t> {
-    std::optional<int64_t> best;
-    for (Operation *user : v.getUsers()) {
-      if (auto c = llvm::dyn_cast<memref::CopyOp>(user)) {
-        bool match = asTarget ? (c.getTarget() == v) : (c.getSource() == v);
-        if (!match)
-          continue;
-        if (auto sz = getCopySizeBytes(c)) {
-          if (!best || *sz > *best)
-            best = *sz;
-        }
-      }
-    }
-    return best;
-  };
-
   // 1) Direct uses: alloc used as target of memref.copy
   if (auto sz = scanUsersForCopies(base, /*asTarget=*/true))
     return sz;
 
   // 1b) One-level cast/reinterpret_cast from alloc, then used as target
-  for (Operation *user : base.getUsers()) {
-    if (auto castLike = llvm::dyn_cast<memref::CastOp>(user)) {
-      if (auto sz = scanUsersForCopies(castLike.getResult(), /*asTarget=*/true))
-        return sz;
-    } else if (auto rc = llvm::dyn_cast<memref::ReinterpretCastOp>(user)) {
-      if (auto sz = scanUsersForCopies(rc.getResult(), /*asTarget=*/true))
-        return sz;
-    }
-  }
+  if (auto sz = scanCastUsersForCopies(base, /*asTarget=*/true))
+    return sz;
 
   // 2) Fallback: copies reading from the alloc
   if (auto sz = scanUsersForCopies(base, /*asTarget=*/false))
     return sz;
-  for (Operation *user : base.getUsers()) {
-    if (auto castLike = llvm::dyn_cast<memref::CastOp>(user)) {
-      if (auto sz =
-              scanUsersForCopies(castLike.getResult(), /*asTarget=*/false))
-        return sz;
-    } else if (auto rc = llvm::dyn_cast<memref::ReinterpretCastOp>(user)) {
-      if (auto sz = scanUsersForCopies(rc.getResult(), /*asTarget=*/false))
-        return sz;
-    }
-  }
 
-  return std::nullopt;
+  return scanCastUsersForCopies(base, /*asTarget=*/false);
 }
 
 /**
@@ -301,13 +292,13 @@ struct CopyCandidatesInfo {
  BuildCandidatesForCopy(memref::CopyOp cpy, const DFContext &df,
                         MLIRContext *ctx) {
    SmallVector<DictionaryAttr> cand;
-   // Always include memory copy.
-   {
-     NamedAttrList m;
-     m.append("kind", StringAttr::get(ctx, "mem"));
-     m.append("memory_name", StringAttr::get(ctx, df.singleMemoryName));
-     cand.push_back(DictionaryAttr::get(ctx, m));
-   }
+   
+   // Always include memory copy candidate.
+   NamedAttrList memAttrs;
+   memAttrs.append("kind", StringAttr::get(ctx, "mem"));
+   memAttrs.append("memory_name", StringAttr::get(ctx, df.singleMemoryName));
+   cand.push_back(DictionaryAttr::get(ctx, memAttrs));
+   
    // Try to find source reinterpret_cast and its reuse.
    DictionaryAttr reuse;
    if (auto srcDef = cpy.getSource().getDefiningOp()) {
@@ -315,41 +306,37 @@ struct CopyCandidatesInfo {
        reuse = rc->getAttrOfType<DictionaryAttr>("tmd.reuse");
    }
    
-   // Check which dimensions have total reuse.
+   // Build broadcast candidates for dimensions with total reuse.
    bool hasXReuse = false;
    bool hasYReuse = false;
    for (const auto &kv : df.icByDimName) {
      StringRef dimNameRef = kv.getKey();
-     if (hasSpatialTotalReuse(reuse, dimNameRef)) {
-       if (dimNameRef == "x")
-         hasXReuse = true;
-       else if (dimNameRef == "y")
-         hasYReuse = true;
-     }
-   }
-   
-   // Broadcast candidates for each inferred dimension name when reuse is total.
-   for (const auto &kv : df.icByDimName) {
-     StringRef dimNameRef = kv.getKey();
-     const auto &ics = kv.getValue();
      if (!hasSpatialTotalReuse(reuse, dimNameRef))
        continue;
-     for (const auto &p : ics) {
-       NamedAttrList b;
-       b.append("kind", StringAttr::get(ctx, "broadcast"));
-       b.append("dim", StringAttr::get(ctx, dimNameRef));
-       b.append("interconnect_name", StringAttr::get(ctx, p.second));
-       cand.push_back(DictionaryAttr::get(ctx, b));
+     
+     // Track x/y for all_links candidate
+     if (dimNameRef == "x")
+       hasXReuse = true;
+     else if (dimNameRef == "y")
+       hasYReuse = true;
+     
+     // Add broadcast candidates for each interconnect in this dimension
+     for (const auto &[icHandle, icName] : kv.getValue()) {
+       NamedAttrList broadcastAttrs;
+       broadcastAttrs.append("kind", StringAttr::get(ctx, "broadcast"));
+       broadcastAttrs.append("dim", StringAttr::get(ctx, dimNameRef));
+       broadcastAttrs.append("interconnect_name", StringAttr::get(ctx, icName));
+       cand.push_back(DictionaryAttr::get(ctx, broadcastAttrs));
      }
    }
    
    // If both x and y have total reuse, add all_links broadcast candidate.
    if (hasXReuse && hasYReuse) {
-     NamedAttrList allLinks;
-     allLinks.append("kind", StringAttr::get(ctx, "broadcast"));
-     allLinks.append("dim", StringAttr::get(ctx, "xy"));  // or "all" depending on your preference
-     allLinks.append("interconnect_name", StringAttr::get(ctx, "all_links"));
-     cand.push_back(DictionaryAttr::get(ctx, allLinks));
+     NamedAttrList allLinksAttrs;
+     allLinksAttrs.append("kind", StringAttr::get(ctx, "broadcast"));
+     allLinksAttrs.append("dim", StringAttr::get(ctx, "xy"));
+     allLinksAttrs.append("interconnect_name", StringAttr::get(ctx, "all_links"));
+     cand.push_back(DictionaryAttr::get(ctx, allLinksAttrs));
    }
    
    return cand;
@@ -370,9 +357,6 @@ static CopyCandidatesInfo CollectCopyCandidates(func::FuncOp f,
     info.copies.push_back(cpy);
     info.perCopyCands.push_back(BuildCandidatesForCopy(cpy, df, ctx));
   });
-  // If no copies, just add empty entry to keep behavior consistent.
-  if (info.copies.empty())
-    info.perCopyCands.push_back({});
   return info;
 }
 
@@ -387,29 +371,29 @@ BuildFunctionNameSuffix(const SmallVector<SmallVector<DictionaryAttr>> &perCopyC
                        const SmallVector<size_t> &idx) {
   std::string suffix;
   for (size_t i = 0; i < perCopyCands.size(); ++i) {
-    if (perCopyCands[i].empty())
+    if (perCopyCands[i].empty() || idx[i] >= perCopyCands[i].size())
       continue;
-    if (idx[i] >= perCopyCands[i].size())
-      continue;
+    
     DictionaryAttr choice = perCopyCands[i][idx[i]];
+    auto kind = choice.getAs<StringAttr>("kind");
+    
     if (!suffix.empty())
       suffix += "_";
-    auto kindAny = choice.get("kind");
-    auto kind =
-        kindAny ? llvm::dyn_cast<StringAttr>(kindAny) : StringAttr();
+    
     if (kind && kind.getValue() == "mem") {
       suffix += ("c" + std::to_string(i) + "mem");
     } else if (kind && kind.getValue() == "broadcast") {
-      auto dimAny = choice.get("dim");
-      auto dim =
-          dimAny ? llvm::dyn_cast<StringAttr>(dimAny) : StringAttr();
+      auto dim = choice.getAs<StringAttr>("dim");
       std::string tag = "b";
-      if (dim && dim.getValue() == "x")
-        tag += "x";
-      else if (dim && dim.getValue() == "y")
-        tag += "y";
-      else
-        tag += "d";
+      if (dim) {
+        StringRef dimVal = dim.getValue();
+        if (dimVal == "x")
+          tag += "x";
+        else if (dimVal == "y")
+          tag += "y";
+        else
+          tag += "d";
+      }
       suffix += ("c" + std::to_string(i) + tag);
     } else {
       suffix += ("c" + std::to_string(i) + "unk");
@@ -438,8 +422,7 @@ EnumerateAndCloneFunctions(func::FuncOp f, const CopyCandidatesInfo &info,
     for (size_t i = 0; i < idx.size(); ++i) {
       if (info.perCopyCands[i].empty())
         continue;
-      idx[i]++;
-      if (idx[i] < info.perCopyCands[i].size())
+      if (++idx[i] < info.perCopyCands[i].size())
         return true;
       idx[i] = 0;
     }
@@ -459,15 +442,10 @@ EnumerateAndCloneFunctions(func::FuncOp f, const CopyCandidatesInfo &info,
 
     // Attach choices and build suffix.
     std::string suffix = BuildFunctionNameSuffix(info.perCopyCands, idx);
-    for (size_t i = 0, k = 0;
-         i < info.perCopyCands.size() && k < cloneCopies.size(); ++i) {
-      if (info.perCopyCands[i].empty())
+    for (size_t i = 0, k = 0; i < info.perCopyCands.size() && k < cloneCopies.size(); ++i) {
+      if (info.perCopyCands[i].empty() || idx[i] >= info.perCopyCands[i].size())
         continue;
-      if (idx[i] >= info.perCopyCands[i].size())
-        continue;
-      DictionaryAttr choice = info.perCopyCands[i][idx[i]];
-      cloneCopies[k]->setAttr("tmd.copy.choice", choice);
-      ++k;
+      cloneCopies[k++]->setAttr("tmd.copy.choice", info.perCopyCands[i][idx[i]]);
     }
     if (!suffix.empty())
       clone.setName((f.getSymName().str() + "__" + suffix).c_str());
@@ -515,16 +493,15 @@ struct ExploreAllocCopyMappingPass
     };
 
     // Build list of target functions (all functions in the module).
-    llvm::SmallVector<func::FuncOp> funcs;
-    for (func::FuncOp f : module.getOps<func::FuncOp>())
-      funcs.push_back(f);
+    llvm::SmallVector<func::FuncOp> funcs(module.getOps<func::FuncOp>().begin(),
+                                           module.getOps<func::FuncOp>().end());
 
     // Analysis-only: attach candidates in-place and annotate allocs.
     if (analysisOnly) {
       for (func::FuncOp f : funcs) {
         f.walk([&](memref::AllocOp a) { annotateAlloc(a); });
         f.walk([&](memref::CopyOp cpy) {
-          SmallVector<DictionaryAttr> cand = BuildCandidatesForCopy(cpy, df, ctx);
+          auto cand = BuildCandidatesForCopy(cpy, df, ctx);
           SmallVector<Attribute> candidates(cand.begin(), cand.end());
           cpy->setAttr("tmd.copy.candidates", ArrayAttr::get(ctx, candidates));
         });
@@ -533,55 +510,49 @@ struct ExploreAllocCopyMappingPass
     }
 
     // Enumeration mode: clone per combination of choices (no limit).
-
     OpBuilder moduleBuilder(module.getBodyRegion());
     OwningOpRef<ModuleOp> out = ModuleOp::create(module.getLoc());
     OpBuilder outBuilder(out->getBodyRegion());
-    llvm::SmallVector<func::FuncOp> originals(funcs.begin(), funcs.end());
 
-    for (func::FuncOp f : originals) {
+    for (func::FuncOp f : funcs) {
       // Annotate allocs in the original function.
       f.walk([&](memref::AllocOp a) { annotateAlloc(a); });
 
-      // Collect copy operations and their candidates.
+      // Collect copy operations and their candidates, then enumerate all combinations.
       CopyCandidatesInfo info = CollectCopyCandidates(f, df, ctx);
-
-      // Enumerate all combinations and clone functions.
-      SmallVector<func::FuncOp> clones = EnumerateAndCloneFunctions(
-          f, info, outBuilder, annotateAlloc);
-      // Clones are already added to the output module by enumerateAndCloneFunctions.
-      (void)clones; // Suppress unused variable warning.
+      EnumerateAndCloneFunctions(f, info, outBuilder, annotateAlloc);
     }
 
     // Drop all non-DF top-level ops (old functions etc.), keep DF ops only.
     SmallVector<Operation *, 16> toErase;
     for (Operation &op : *module.getBody()) {
-      Dialect *dialect = op.getDialect();
-      if (dialect && dialect->getNamespace() == StringRef("df"))
-        continue; // keep df ops at the beginning
-      toErase.push_back(&op);
+      if (auto dialect = op.getDialect();
+          !dialect || dialect->getNamespace() != StringRef("df")) {
+        toErase.push_back(&op);
+      }
     }
-    for (auto it = toErase.rbegin(); it != toErase.rend(); ++it)
-      (*it)->erase();
+    for (auto *op : llvm::reverse(toErase))
+      op->erase();
 
     // Materialize all clones into the original module after DF ops.
-    // Ensure insertion happens after the last DF op so DF decls remain first.
-    {
-      Operation *after = nullptr;
-      for (Operation &op : *module.getBody()) {
-        Dialect *dialect = op.getDialect();
-        if (dialect && dialect->getNamespace() == StringRef("df"))
-          after = &op;
+    // Find the last DF op to insert after it, keeping DF decls first.
+    Operation *lastDFOp = nullptr;
+    for (Operation &op : *module.getBody()) {
+      if (auto dialect = op.getDialect();
+          dialect && dialect->getNamespace() == StringRef("df")) {
+        lastDFOp = &op;
       }
-      if (after)
-        moduleBuilder.setInsertionPointAfter(after);
-      else
-        moduleBuilder.setInsertionPointToStart(module.getBody());
-
-      for (Operation &op : *out->getBody()) {
-        IRMapping m;
-        moduleBuilder.clone(op, m);
-      }
+    }
+    
+    if (lastDFOp) {
+      moduleBuilder.setInsertionPointAfter(lastDFOp);
+    } else {
+      moduleBuilder.setInsertionPointToStart(module.getBody());
+    }
+    
+    for (Operation &op : *out->getBody()) {
+      IRMapping m;
+      moduleBuilder.clone(op, m);
     }
   }
 
