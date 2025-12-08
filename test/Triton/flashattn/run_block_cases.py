@@ -18,12 +18,12 @@ REPO_ROOT = SCRIPT_PATH.parents[3]
 FLASHATTN_SCRIPT = SCRIPT_DIR / "flashattn.py"
 RUNS_ROOT = SCRIPT_DIR / "runs"
 
-DEFAULT_LLVM_BINARY_DIR = Path("/mnt/fast/llvm-build/bin")
+DEFAULT_LLVM_BINARY_DIR = Path("/path/to/llvm-build/bin")
 DEFAULT_TRITON_SHARED_OPT = Path(
-    "/home/zhenyu/triton/build/cmake.linux-x86_64-cpython-3.12/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt"
+    "/path/to/triton/build/cmake.linux-x86_64-cpython-3.12/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt"
 )
 DEFAULT_TRITON_CACHE_DIR = REPO_ROOT / ".triton_cache"
-DEFAULT_PYTHON = Path(os.environ.get("TRITON_VENV_PYTHON", "/home/zhenyu/triton/.venv/bin/python"))
+DEFAULT_PYTHON = Path(os.environ.get("TRITON_VENV_PYTHON", "/path/to/triton/.venv/bin/python"))
 
 OUTPUT_FILES = ("tt.mlir", "ttshared.mlir", "ll.mlir", "ll.ir", "mlir_dump.txt")
 

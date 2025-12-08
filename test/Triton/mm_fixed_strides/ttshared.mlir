@@ -1,9 +1,9 @@
-#loc = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":8:0)
-#loc2 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":66:25)
+#loc = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":8:0)
+#loc2 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":66:25)
 #loc12 = loc("/tmp/tmpb43c4w8f/tt.mlir":29:70)
 #map = affine_map<(d0, d1) -> (d0, d1)>
 module {
-  func.func @matmul_kernel(%arg0: memref<*xf32> {tt.divisibility = 16 : i32} loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg1: memref<*xf32> {tt.divisibility = 16 : i32} loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg2: memref<*xf32> {tt.divisibility = 16 : i32} loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg3: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg4: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg5: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg6: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg7: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg8: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":8:0)) {
+  func.func @matmul_kernel(%arg0: memref<*xf32> {tt.divisibility = 16 : i32} loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg1: memref<*xf32> {tt.divisibility = 16 : i32} loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg2: memref<*xf32> {tt.divisibility = 16 : i32} loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg3: i32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg4: i32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg5: i32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg6: i32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg7: i32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":8:0), %arg8: i32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":8:0)) {
     %cst = arith.constant 0.000000e+00 : f32 loc(#loc1)
     %c1_i32 = arith.constant 1 : i32 loc(#loc1)
     %c16_i32 = arith.constant 16 : i32 loc(#loc1)
@@ -33,7 +33,7 @@ module {
       %16 = bufferization.to_tensor %alloc_2 restrict writable : memref<32x32xf32> to tensor<32x32xf32> loc(#loc10)
       %17 = linalg.matmul ins(%13, %16 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%1 : tensor<32x32xf32>) -> tensor<32x32xf32> loc(#loc2)
       %18 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins(%arg10, %17 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%arg10 : tensor<32x32xf32>) {
-      ^bb0(%in: f32 loc("/tmp/tmpb43c4w8f/tt.mlir":29:70), %in_3: f32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":66:25), %out: f32 loc("/tmp/tmpb43c4w8f/tt.mlir":29:70)):
+      ^bb0(%in: f32 loc("/tmp/tmpb43c4w8f/tt.mlir":29:70), %in_3: f32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":66:25), %out: f32 loc("/tmp/tmpb43c4w8f/tt.mlir":29:70)):
         %19 = arith.addf %in, %in_3 : f32 loc(#loc2)
         linalg.yield %19 : f32 loc(#loc2)
       } -> tensor<32x32xf32> loc(#loc2)
@@ -47,16 +47,16 @@ module {
   } loc(#loc)
 } loc(#loc)
 #loc1 = loc(unknown)
-#loc3 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":35:21)
-#loc4 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":36:21)
-#loc5 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":76:22)
-#loc6 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":49:12)
-#loc7 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":58:12)
-#loc8 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":40:23)
-#loc9 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":41:22)
-#loc10 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":65:20)
-#loc11 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":64:20)
-#loc13 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":66:8)
+#loc3 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":35:21)
+#loc4 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":36:21)
+#loc5 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":76:22)
+#loc6 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":49:12)
+#loc7 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":58:12)
+#loc8 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":40:23)
+#loc9 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":41:22)
+#loc10 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":65:20)
+#loc11 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":64:20)
+#loc13 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":66:8)
 #loc14 = loc(fused[#loc5, #loc6])
 #loc15 = loc(fused[#loc5, #loc7])
 #loc16 = loc(fused[#loc10, #loc6])

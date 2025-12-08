@@ -1,36 +1,36 @@
-#loc = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0)
+#loc = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0)
 #loc1 = loc(unknown)
-#loc2 = loc("/home/zhenyu/triton/python/triton/language/standard.py":188:40)
-#loc3 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":92:38)
-#loc4 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":101:24)
-#loc5 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":102:35)
-#loc6 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:29)
-#loc11 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":84:35)
-#loc13 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:40)
-#loc14 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":92:31)
+#loc2 = loc("/path/to/triton/python/triton/language/standard.py":188:40)
+#loc3 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":92:38)
+#loc4 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":101:24)
+#loc5 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":102:35)
+#loc6 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:29)
+#loc11 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":84:35)
+#loc13 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:40)
+#loc14 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":92:31)
 #loc15 = loc("/tmp/tmpmvp30i40/tt.mlir":44:108)
-#loc16 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":93:23)
-#loc17 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":93:18)
-#loc18 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":94:19)
-#loc19 = loc("/home/zhenyu/triton/python/triton/language/standard.py":290:36)
-#loc20 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":95:22)
-#loc21 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":96:29)
-#loc22 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":96:23)
-#loc23 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":97:20)
+#loc16 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":93:23)
+#loc17 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":93:18)
+#loc18 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":94:19)
+#loc19 = loc("/path/to/triton/python/triton/language/standard.py":290:36)
+#loc20 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":95:22)
+#loc21 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":96:29)
+#loc22 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":96:23)
+#loc23 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":97:20)
 #loc24 = loc("/tmp/tmpmvp30i40/tt.mlir":44:124)
-#loc27 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":100:17)
-#loc28 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":101:30)
+#loc27 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":100:17)
+#loc28 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":101:30)
 #loc29 = loc("/tmp/tmpmvp30i40/tt.mlir":44:140)
-#loc33 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":111:24)
-#loc34 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":111:20)
-#loc35 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":112:29)
+#loc33 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":111:24)
+#loc34 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":111:20)
+#loc35 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":112:29)
 #map = affine_map<(d0, d1) -> (d0, d1)>
 #map1 = affine_map<(d0) -> (d0)>
 #map2 = affine_map<(d0, d1) -> (d0, 0)>
 #loc36 = loc(callsite(#loc2 at #loc3))
 #loc38 = loc(callsite(#loc19 at #loc20))
 module {
-  func.func @flashattn_fwd(%arg0: memref<*xf16> {tt.divisibility = 16 : i32} loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg1: memref<*xf16> {tt.divisibility = 16 : i32} loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg2: memref<*xf16> {tt.divisibility = 16 : i32} loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg3: memref<*xf16> {tt.divisibility = 16 : i32} loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg4: i32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg5: i32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg6: i32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg7: i32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg8: i32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg9: i32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0)) {
+  func.func @flashattn_fwd(%arg0: memref<*xf16> {tt.divisibility = 16 : i32} loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg1: memref<*xf16> {tt.divisibility = 16 : i32} loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg2: memref<*xf16> {tt.divisibility = 16 : i32} loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg3: memref<*xf16> {tt.divisibility = 16 : i32} loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg4: i32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg5: i32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg6: i32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg7: i32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg8: i32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg9: i32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0)) {
     %cst = arith.constant 1.000000e+00 : f32 loc(#loc1)
     %c0_i64 = arith.constant 0 : i64 loc(#loc1)
     %c64_i64 = arith.constant 64 : i64 loc(#loc1)
@@ -64,7 +64,7 @@ module {
       %18 = linalg.fill ins(%cst_0 : f32) outs(%4 : tensor<64x64xf32>) -> tensor<64x64xf32> loc(#loc6)
       %19 = linalg.matmul ins(%10, %17 : tensor<64x128xf16>, tensor<128x64xf16>) outs(%18 : tensor<64x64xf32>) -> tensor<64x64xf32> loc(#loc6)
       %20 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins(%19, %5 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%19 : tensor<64x64xf32>) {
-      ^bb0(%in: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:29), %in_12: f32 loc(unknown), %out: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:29)):
+      ^bb0(%in: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:29), %in_12: f32 loc(unknown), %out: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:29)):
         %41 = arith.mulf %in, %in_12 : f32 loc(#loc13)
         linalg.yield %41 : f32 loc(#loc13)
       } -> tensor<64x64xf32> loc(#loc13)
@@ -81,16 +81,16 @@ module {
       } -> tensor<64xf32> loc(#loc14)
       %expanded_6 = tensor.expand_shape %21 [[0, 1]] output_shape [64, 1] : tensor<64xf32> into tensor<64x1xf32> loc(#loc16)
       %22 = linalg.generic {indexing_maps = [#map2, #map], iterator_types = ["parallel", "parallel"]} ins(%expanded_6 : tensor<64x1xf32>) outs(%4 : tensor<64x64xf32>) attrs =  {broadcastDims = array<i64: 1>} {
-      ^bb0(%in: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":93:23), %out: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":93:18)):
+      ^bb0(%in: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":93:23), %out: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":93:18)):
         linalg.yield %in : f32 loc(#loc17)
       } -> tensor<64x64xf32> loc(#loc17)
       %23 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins(%20, %22 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%20 : tensor<64x64xf32>) {
-      ^bb0(%in: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:40), %in_12: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":93:18), %out: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:40)):
+      ^bb0(%in: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:40), %in_12: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":93:18), %out: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:40)):
         %41 = arith.subf %in, %in_12 : f32 loc(#loc17)
         linalg.yield %41 : f32 loc(#loc17)
       } -> tensor<64x64xf32> loc(#loc17)
       %24 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel"]} ins(%23 : tensor<64x64xf32>) outs(%23 : tensor<64x64xf32>) {
-      ^bb0(%in: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":93:18), %out: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":93:18)):
+      ^bb0(%in: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":93:18), %out: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":93:18)):
         %41 = math.exp %in : f32 loc(#loc18)
         linalg.yield %41 : f32 loc(#loc18)
       } -> tensor<64x64xf32> loc(#loc18)
@@ -102,22 +102,22 @@ module {
           linalg.yield %41 : f32 loc(#loc38)
         } loc(#loc38)
       %26 = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel"]} ins(%arg13, %21 : tensor<64xf32>, tensor<64xf32>) outs(%arg13 : tensor<64xf32>) {
-      ^bb0(%in: f32 loc("/tmp/tmpmvp30i40/tt.mlir":44:108), %in_12: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":92:31), %out: f32 loc("/tmp/tmpmvp30i40/tt.mlir":44:108)):
+      ^bb0(%in: f32 loc("/tmp/tmpmvp30i40/tt.mlir":44:108), %in_12: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":92:31), %out: f32 loc("/tmp/tmpmvp30i40/tt.mlir":44:108)):
         %41 = arith.subf %in, %in_12 : f32 loc(#loc21)
         linalg.yield %41 : f32 loc(#loc21)
       } -> tensor<64xf32> loc(#loc21)
       %27 = linalg.generic {indexing_maps = [#map1, #map1], iterator_types = ["parallel"]} ins(%26 : tensor<64xf32>) outs(%26 : tensor<64xf32>) {
-      ^bb0(%in: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":96:29), %out: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":96:29)):
+      ^bb0(%in: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":96:29), %out: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":96:29)):
         %41 = math.exp %in : f32 loc(#loc22)
         linalg.yield %41 : f32 loc(#loc22)
       } -> tensor<64xf32> loc(#loc22)
       %28 = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel"]} ins(%arg14, %27 : tensor<64xf32>, tensor<64xf32>) outs(%arg14 : tensor<64xf32>) {
-      ^bb0(%in: f32 loc("/tmp/tmpmvp30i40/tt.mlir":44:124), %in_12: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":96:23), %out: f32 loc("/tmp/tmpmvp30i40/tt.mlir":44:124)):
+      ^bb0(%in: f32 loc("/tmp/tmpmvp30i40/tt.mlir":44:124), %in_12: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":96:23), %out: f32 loc("/tmp/tmpmvp30i40/tt.mlir":44:124)):
         %41 = arith.mulf %in, %in_12 : f32 loc(#loc23)
         linalg.yield %41 : f32 loc(#loc23)
       } -> tensor<64xf32> loc(#loc23)
       %29 = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel"]} ins(%28, %reduced_8 : tensor<64xf32>, tensor<64xf32>) outs(%28 : tensor<64xf32>) {
-      ^bb0(%in: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":97:20), %in_12: f32 loc(callsite(#loc19 at #loc20)), %out: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":97:20)):
+      ^bb0(%in: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":97:20), %in_12: f32 loc(callsite(#loc19 at #loc20)), %out: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":97:20)):
         %41 = arith.addf %in, %in_12 : f32 loc(#loc25)
         linalg.yield %41 : f32 loc(#loc25)
       } -> tensor<64xf32> loc(#loc25)
@@ -129,23 +129,23 @@ module {
       %32 = bufferization.to_tensor %alloc_10 restrict writable : memref<64x128xf16> to tensor<64x128xf16> loc(#loc26)
       %33 = tensor.empty() : tensor<64x64xf16> loc(#loc27)
       %34 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel"]} ins(%24 : tensor<64x64xf32>) outs(%33 : tensor<64x64xf16>) {
-      ^bb0(%in: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":94:19), %out: f16 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":100:17)):
+      ^bb0(%in: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":94:19), %out: f16 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":100:17)):
         %41 = arith.truncf %in : f32 to f16 loc(#loc27)
         linalg.yield %41 : f16 loc(#loc27)
       } -> tensor<64x64xf16> loc(#loc27)
       %expanded_11 = tensor.expand_shape %27 [[0, 1]] output_shape [64, 1] : tensor<64xf32> into tensor<64x1xf32> loc(#loc28)
       %35 = linalg.generic {indexing_maps = [#map2, #map], iterator_types = ["parallel", "parallel"]} ins(%expanded_11 : tensor<64x1xf32>) outs(%2 : tensor<64x128xf32>) attrs =  {broadcastDims = array<i64: 1>} {
-      ^bb0(%in: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":101:30), %out: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":101:24)):
+      ^bb0(%in: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":101:30), %out: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":101:24)):
         linalg.yield %in : f32 loc(#loc4)
       } -> tensor<64x128xf32> loc(#loc4)
       %36 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins(%arg15, %35 : tensor<64x128xf32>, tensor<64x128xf32>) outs(%arg15 : tensor<64x128xf32>) {
-      ^bb0(%in: f32 loc("/tmp/tmpmvp30i40/tt.mlir":44:140), %in_12: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":101:24), %out: f32 loc("/tmp/tmpmvp30i40/tt.mlir":44:140)):
+      ^bb0(%in: f32 loc("/tmp/tmpmvp30i40/tt.mlir":44:140), %in_12: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":101:24), %out: f32 loc("/tmp/tmpmvp30i40/tt.mlir":44:140)):
         %41 = arith.mulf %in, %in_12 : f32 loc(#loc4)
         linalg.yield %41 : f32 loc(#loc4)
       } -> tensor<64x128xf32> loc(#loc4)
       %37 = linalg.matmul ins(%34, %32 : tensor<64x64xf16>, tensor<64x128xf16>) outs(%3 : tensor<64x128xf32>) -> tensor<64x128xf32> loc(#loc5)
       %38 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins(%36, %37 : tensor<64x128xf32>, tensor<64x128xf32>) outs(%36 : tensor<64x128xf32>) {
-      ^bb0(%in: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":101:24), %in_12: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":102:35), %out: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":101:24)):
+      ^bb0(%in: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":101:24), %in_12: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":102:35), %out: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":101:24)):
         %41 = arith.addf %in, %in_12 : f32 loc(#loc5)
         linalg.yield %41 : f32 loc(#loc5)
       } -> tensor<64x128xf32> loc(#loc5)
@@ -155,17 +155,17 @@ module {
     } loc(#loc11)
     %expanded = tensor.expand_shape %11#3 [[0, 1]] output_shape [64, 1] : tensor<64xf32> into tensor<64x1xf32> loc(#loc33)
     %12 = linalg.generic {indexing_maps = [#map2, #map], iterator_types = ["parallel", "parallel"]} ins(%expanded : tensor<64x1xf32>) outs(%2 : tensor<64x128xf32>) attrs =  {broadcastDims = array<i64: 1>} {
-    ^bb0(%in: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":111:24), %out: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":111:20)):
+    ^bb0(%in: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":111:24), %out: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":111:20)):
       linalg.yield %in : f32 loc(#loc34)
     } -> tensor<64x128xf32> loc(#loc34)
     %13 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins(%11#4, %12 : tensor<64x128xf32>, tensor<64x128xf32>) outs(%11#4 : tensor<64x128xf32>) {
-    ^bb0(%in: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":84:35), %in_4: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":111:20), %out: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":84:35)):
+    ^bb0(%in: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":84:35), %in_4: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":111:20), %out: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":84:35)):
       %16 = arith.divf %in, %in_4 : f32 loc(#loc34)
       linalg.yield %16 : f32 loc(#loc34)
     } -> tensor<64x128xf32> loc(#loc34)
     %14 = tensor.empty() : tensor<64x128xf16> loc(#loc35)
     %15 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel"]} ins(%13 : tensor<64x128xf32>) outs(%14 : tensor<64x128xf16>) {
-    ^bb0(%in: f32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":111:20), %out: f16 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":112:29)):
+    ^bb0(%in: f32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":111:20), %out: f16 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":112:29)):
       %16 = arith.truncf %in : f32 to f16 loc(#loc35)
       linalg.yield %16 : f16 loc(#loc35)
     } -> tensor<64x128xf16> loc(#loc35)
@@ -174,15 +174,15 @@ module {
     return loc(#loc)
   } loc(#loc)
 } loc(#loc)
-#loc7 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":49:25)
-#loc8 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":112:20)
-#loc9 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":51:8)
-#loc10 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":76:22)
-#loc12 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":87:26)
-#loc25 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":97:28)
-#loc26 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":99:26)
-#loc30 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":107:34)
-#loc31 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":108:36)
-#loc32 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":108:8)
+#loc7 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":49:25)
+#loc8 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":112:20)
+#loc9 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":51:8)
+#loc10 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":76:22)
+#loc12 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":87:26)
+#loc25 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":97:28)
+#loc26 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":99:26)
+#loc30 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":107:34)
+#loc31 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":108:36)
+#loc32 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":108:8)
 #loc37 = loc(fused[#loc8, #loc9])
 

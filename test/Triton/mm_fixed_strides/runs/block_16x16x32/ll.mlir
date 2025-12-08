@@ -1,10 +1,10 @@
-#loc = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0)
-#loc2 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)
-#loc8 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":49:23)
+#loc = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":17:0)
+#loc2 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":75:25)
+#loc8 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":49:23)
 module {
   llvm.func @memrefCopy(i64, !llvm.ptr, !llvm.ptr) loc(#loc)
   llvm.func @malloc(i64) -> !llvm.ptr loc(#loc)
-  llvm.func @matmul_kernel(%arg0: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg1: !llvm.ptr loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg2: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg3: !llvm.ptr loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg4: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg5: !llvm.ptr loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg6: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg7: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg8: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg9: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg10: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg11: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0)) {
+  llvm.func @matmul_kernel(%arg0: i64 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg1: !llvm.ptr loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg2: i64 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg3: !llvm.ptr loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg4: i64 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg5: !llvm.ptr loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg6: i32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg7: i32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg8: i32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg9: i32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg10: i32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg11: i32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":17:0)) {
     %0 = llvm.mlir.poison : !llvm.struct<(i64, ptr)> loc(#loc)
     %1 = llvm.insertvalue %arg4, %0[0] : !llvm.struct<(i64, ptr)>  loc(#loc)
     %2 = llvm.insertvalue %arg5, %1[1] : !llvm.struct<(i64, ptr)>  loc(#loc)
@@ -51,12 +51,12 @@ module {
     %43 = llvm.insertvalue %20, %42[4, 0] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc2)
     %44 = llvm.insertvalue %21, %43[4, 1] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc2)
     llvm.br ^bb1(%18 : i64) loc(#loc2)
-  ^bb1(%45: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb0, ^bb5
+  ^bb1(%45: i64 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb0, ^bb5
     %46 = llvm.icmp "slt" %45, %17 : i64 loc(#loc2)
     llvm.cond_br %46, ^bb2, ^bb6 loc(#loc2)
   ^bb2:  // pred: ^bb1
     llvm.br ^bb3(%18 : i64) loc(#loc2)
-  ^bb3(%47: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb2, ^bb4
+  ^bb3(%47: i64 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb2, ^bb4
     %48 = llvm.icmp "slt" %47, %17 : i64 loc(#loc2)
     llvm.cond_br %48, ^bb4, ^bb5 loc(#loc2)
   ^bb4:  // pred: ^bb3
@@ -112,7 +112,7 @@ module {
     %93 = llvm.getelementptr %75[%79] : (!llvm.ptr, i64) -> !llvm.ptr, f32 loc(#loc8)
     "llvm.intr.memcpy"(%93, %92, %91) <{isVolatile = false}> : (!llvm.ptr, !llvm.ptr, i64) -> () loc(#loc8)
     llvm.br ^bb7(%11, %84 : i32, !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>) loc(#loc8)
-  ^bb7(%94: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":49:23), %95: !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)> loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":49:23)):  // 2 preds: ^bb6, ^bb23
+  ^bb7(%94: i32 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":49:23), %95: !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)> loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":49:23)):  // 2 preds: ^bb6, ^bb23
     %96 = llvm.icmp "slt" %94, %9 : i32 loc(#loc8)
     llvm.cond_br %96, ^bb8, ^bb24 loc(#loc8)
   ^bb8:  // pred: ^bb7
@@ -275,17 +275,17 @@ module {
     %241 = llvm.getelementptr %223[%227] : (!llvm.ptr, i64) -> !llvm.ptr, f32 loc(#loc2)
     "llvm.intr.memcpy"(%241, %240, %239) <{isVolatile = false}> : (!llvm.ptr, !llvm.ptr, i64) -> () loc(#loc2)
     llvm.br ^bb9(%18 : i64) loc(#loc2)
-  ^bb9(%242: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb8, ^bb16
+  ^bb9(%242: i64 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb8, ^bb16
     %243 = llvm.icmp "slt" %242, %17 : i64 loc(#loc2)
     llvm.cond_br %243, ^bb10, ^bb17 loc(#loc2)
   ^bb10:  // pred: ^bb9
     llvm.br ^bb11(%18 : i64) loc(#loc2)
-  ^bb11(%244: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb10, ^bb15
+  ^bb11(%244: i64 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb10, ^bb15
     %245 = llvm.icmp "slt" %244, %17 : i64 loc(#loc2)
     llvm.cond_br %245, ^bb12, ^bb16 loc(#loc2)
   ^bb12:  // pred: ^bb11
     llvm.br ^bb13(%18 : i64) loc(#loc2)
-  ^bb13(%246: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb12, ^bb14
+  ^bb13(%246: i64 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb12, ^bb14
     %247 = llvm.icmp "slt" %246, %15 : i64 loc(#loc2)
     llvm.cond_br %247, ^bb14, ^bb15 loc(#loc2)
   ^bb14:  // pred: ^bb13
@@ -321,12 +321,12 @@ module {
     llvm.br ^bb9(%271 : i64) loc(#loc2)
   ^bb17:  // pred: ^bb9
     llvm.br ^bb18(%18 : i64) loc(#loc2)
-  ^bb18(%272: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb17, ^bb22
+  ^bb18(%272: i64 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb17, ^bb22
     %273 = llvm.icmp "slt" %272, %17 : i64 loc(#loc2)
     llvm.cond_br %273, ^bb19, ^bb23 loc(#loc2)
   ^bb19:  // pred: ^bb18
     llvm.br ^bb20(%18 : i64) loc(#loc2)
-  ^bb20(%274: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb19, ^bb21
+  ^bb20(%274: i64 loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb19, ^bb21
     %275 = llvm.icmp "slt" %274, %17 : i64 loc(#loc2)
     llvm.cond_br %275, ^bb21, ^bb22 loc(#loc2)
   ^bb21:  // pred: ^bb20
@@ -404,14 +404,14 @@ module {
   } loc(#loc)
 } loc(#loc)
 #loc1 = loc(unknown)
-#loc3 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":44:21)
-#loc4 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":45:21)
-#loc5 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":85:22)
-#loc6 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":58:12)
-#loc7 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":67:12)
-#loc9 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":50:22)
-#loc10 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":74:20)
-#loc11 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":73:20)
+#loc3 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":44:21)
+#loc4 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":45:21)
+#loc5 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":85:22)
+#loc6 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":58:12)
+#loc7 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":67:12)
+#loc9 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":50:22)
+#loc10 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":74:20)
+#loc11 = loc("/path/to/loom/test/Triton/mm_fixed_strides/mm.py":73:20)
 #loc12 = loc(fused[#loc5, #loc6])
 #loc13 = loc(fused[#loc5, #loc7])
 #loc14 = loc(fused[#loc10, #loc6])

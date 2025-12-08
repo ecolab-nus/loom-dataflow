@@ -1,30 +1,30 @@
-#loc = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0)
+#loc = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0)
 #loc1 = loc(unknown)
-#loc2 = loc("/home/zhenyu/triton/python/triton/language/standard.py":188:40)
-#loc3 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":92:38)
-#loc4 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":101:24)
-#loc5 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":102:35)
-#loc6 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:29)
-#loc11 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":84:35)
-#loc13 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:40)
-#loc14 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":92:31)
-#loc16 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":93:18)
-#loc17 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":94:19)
-#loc18 = loc("/home/zhenyu/triton/python/triton/language/standard.py":290:36)
-#loc19 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":95:22)
-#loc20 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":96:29)
-#loc21 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":96:23)
-#loc22 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":97:20)
-#loc23 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":97:28)
-#loc25 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":100:17)
-#loc30 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":111:20)
-#loc31 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":112:29)
+#loc2 = loc("/path/to/triton/python/triton/language/standard.py":188:40)
+#loc3 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":92:38)
+#loc4 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":101:24)
+#loc5 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":102:35)
+#loc6 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:29)
+#loc11 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":84:35)
+#loc13 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:40)
+#loc14 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":92:31)
+#loc16 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":93:18)
+#loc17 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":94:19)
+#loc18 = loc("/path/to/triton/python/triton/language/standard.py":290:36)
+#loc19 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":95:22)
+#loc20 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":96:29)
+#loc21 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":96:23)
+#loc22 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":97:20)
+#loc23 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":97:28)
+#loc25 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":100:17)
+#loc30 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":111:20)
+#loc31 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":112:29)
 #loc32 = loc(callsite(#loc2 at #loc3))
 #loc34 = loc(callsite(#loc18 at #loc19))
 module {
   llvm.func @memrefCopy(i64, !llvm.ptr, !llvm.ptr) loc(#loc)
   llvm.func @malloc(i64) -> !llvm.ptr loc(#loc)
-  llvm.func @flashattn_fwd(%arg0: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg1: !llvm.ptr loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg2: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg3: !llvm.ptr loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg4: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg5: !llvm.ptr loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg6: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg7: !llvm.ptr loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg8: i32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg9: i32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg10: i32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg11: i32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg12: i32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0), %arg13: i32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":20:0)) {
+  llvm.func @flashattn_fwd(%arg0: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg1: !llvm.ptr loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg2: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg3: !llvm.ptr loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg4: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg5: !llvm.ptr loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg6: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg7: !llvm.ptr loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg8: i32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg9: i32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg10: i32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg11: i32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg12: i32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0), %arg13: i32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":20:0)) {
     %0 = llvm.mlir.poison : !llvm.struct<(i64, ptr)> loc(#loc)
     %1 = llvm.insertvalue %arg6, %0[0] : !llvm.struct<(i64, ptr)>  loc(#loc)
     %2 = llvm.insertvalue %arg7, %1[1] : !llvm.struct<(i64, ptr)>  loc(#loc)
@@ -158,12 +158,12 @@ module {
     %124 = llvm.insertvalue %101, %123[4, 0] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc5)
     %125 = llvm.insertvalue %102, %124[4, 1] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc5)
     llvm.br ^bb4(%25 : i64) loc(#loc5)
-  ^bb4(%126: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb3, ^bb8
+  ^bb4(%126: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb3, ^bb8
     %127 = llvm.icmp "slt" %126, %19 : i64 loc(#loc5)
     llvm.cond_br %127, ^bb5, ^bb9 loc(#loc5)
   ^bb5:  // pred: ^bb4
     llvm.br ^bb6(%25 : i64) loc(#loc5)
-  ^bb6(%128: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb5, ^bb7
+  ^bb6(%128: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb5, ^bb7
     %129 = llvm.icmp "slt" %128, %19 : i64 loc(#loc5)
     llvm.cond_br %129, ^bb7, ^bb8 loc(#loc5)
   ^bb7:  // pred: ^bb6
@@ -397,7 +397,7 @@ module {
     %333 = llvm.getelementptr %315[%319] : (!llvm.ptr, i64) -> !llvm.ptr, f32 loc(#loc11)
     "llvm.intr.memcpy"(%333, %332, %331) <{isVolatile = false}> : (!llvm.ptr, !llvm.ptr, i64) -> () loc(#loc11)
     llvm.br ^bb19(%18, %21, %21, %290, %69, %324 : i32, i64, i64, !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>, !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>, !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>) loc(#loc11)
-  ^bb19(%334: i32 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":84:35), %335: i64 loc(unknown), %336: i64 loc(unknown), %337: !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":84:35), %338: !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> loc(unknown), %339: !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)> loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":84:35)):  // 2 preds: ^bb18, ^bb134
+  ^bb19(%334: i32 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":84:35), %335: i64 loc(unknown), %336: i64 loc(unknown), %337: !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> loc("/path/to/loom/test/Triton/flashattn/flashattn.py":84:35), %338: !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> loc(unknown), %339: !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)> loc("/path/to/loom/test/Triton/flashattn/flashattn.py":84:35)):  // 2 preds: ^bb18, ^bb134
     %340 = llvm.icmp "slt" %334, %16 : i32 loc(#loc11)
     llvm.cond_br %340, ^bb20, ^bb135 loc(#loc11)
   ^bb20:  // pred: ^bb19
@@ -486,12 +486,12 @@ module {
     %417 = llvm.insertvalue %394, %416[4, 0] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc6)
     %418 = llvm.insertvalue %395, %417[4, 1] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc6)
     llvm.br ^bb21(%25 : i64) loc(#loc6)
-  ^bb21(%419: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:29)):  // 2 preds: ^bb20, ^bb25
+  ^bb21(%419: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:29)):  // 2 preds: ^bb20, ^bb25
     %420 = llvm.icmp "slt" %419, %19 : i64 loc(#loc6)
     llvm.cond_br %420, ^bb22, ^bb26 loc(#loc6)
   ^bb22:  // pred: ^bb21
     llvm.br ^bb23(%25 : i64) loc(#loc6)
-  ^bb23(%421: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:29)):  // 2 preds: ^bb22, ^bb24
+  ^bb23(%421: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:29)):  // 2 preds: ^bb22, ^bb24
     %422 = llvm.icmp "slt" %421, %23 : i64 loc(#loc6)
     llvm.cond_br %422, ^bb24, ^bb25 loc(#loc6)
   ^bb24:  // pred: ^bb23
@@ -507,17 +507,17 @@ module {
     llvm.br ^bb21(%428 : i64) loc(#loc6)
   ^bb26:  // pred: ^bb21
     llvm.br ^bb27(%25 : i64) loc(#loc6)
-  ^bb27(%429: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:29)):  // 2 preds: ^bb26, ^bb34
+  ^bb27(%429: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:29)):  // 2 preds: ^bb26, ^bb34
     %430 = llvm.icmp "slt" %429, %19 : i64 loc(#loc6)
     llvm.cond_br %430, ^bb28, ^bb35 loc(#loc6)
   ^bb28:  // pred: ^bb27
     llvm.br ^bb29(%25 : i64) loc(#loc6)
-  ^bb29(%431: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:29)):  // 2 preds: ^bb28, ^bb33
+  ^bb29(%431: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:29)):  // 2 preds: ^bb28, ^bb33
     %432 = llvm.icmp "slt" %431, %23 : i64 loc(#loc6)
     llvm.cond_br %432, ^bb30, ^bb34 loc(#loc6)
   ^bb30:  // pred: ^bb29
     llvm.br ^bb31(%25 : i64) loc(#loc6)
-  ^bb31(%433: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:29)):  // 2 preds: ^bb30, ^bb32
+  ^bb31(%433: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:29)):  // 2 preds: ^bb30, ^bb32
     %434 = llvm.icmp "slt" %433, %19 : i64 loc(#loc6)
     llvm.cond_br %434, ^bb32, ^bb33 loc(#loc6)
   ^bb32:  // pred: ^bb31
@@ -555,12 +555,12 @@ module {
     llvm.br ^bb27(%460 : i64) loc(#loc6)
   ^bb35:  // pred: ^bb27
     llvm.br ^bb36(%25 : i64) loc(#loc13)
-  ^bb36(%461: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:40)):  // 2 preds: ^bb35, ^bb40
+  ^bb36(%461: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:40)):  // 2 preds: ^bb35, ^bb40
     %462 = llvm.icmp "slt" %461, %19 : i64 loc(#loc13)
     llvm.cond_br %462, ^bb37, ^bb41 loc(#loc13)
   ^bb37:  // pred: ^bb36
     llvm.br ^bb38(%25 : i64) loc(#loc13)
-  ^bb38(%463: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":89:40)):  // 2 preds: ^bb37, ^bb39
+  ^bb38(%463: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":89:40)):  // 2 preds: ^bb37, ^bb39
     %464 = llvm.icmp "slt" %463, %23 : i64 loc(#loc13)
     llvm.cond_br %464, ^bb39, ^bb40 loc(#loc13)
   ^bb39:  // pred: ^bb38
@@ -718,7 +718,7 @@ module {
     %588 = llvm.insertvalue %568, %587[3, 0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>  loc(#loc14)
     %589 = llvm.insertvalue %569, %588[4, 0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>  loc(#loc14)
     llvm.br ^bb54(%25 : i64) loc(#loc14)
-  ^bb54(%590: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":92:31)):  // 2 preds: ^bb53, ^bb55
+  ^bb54(%590: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":92:31)):  // 2 preds: ^bb53, ^bb55
     %591 = llvm.icmp "slt" %590, %19 : i64 loc(#loc14)
     llvm.cond_br %591, ^bb55, ^bb56 loc(#loc14)
   ^bb55:  // pred: ^bb54
@@ -747,12 +747,12 @@ module {
     %611 = llvm.mlir.constant(1 : index) : i64 loc(#loc15)
     %612 = llvm.insertvalue %611, %610[4, 1] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc15)
     llvm.br ^bb57(%25 : i64) loc(#loc16)
-  ^bb57(%613: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":93:18)):  // 2 preds: ^bb56, ^bb61
+  ^bb57(%613: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":93:18)):  // 2 preds: ^bb56, ^bb61
     %614 = llvm.icmp "slt" %613, %19 : i64 loc(#loc16)
     llvm.cond_br %614, ^bb58, ^bb62 loc(#loc16)
   ^bb58:  // pred: ^bb57
     llvm.br ^bb59(%25 : i64) loc(#loc16)
-  ^bb59(%615: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":93:18)):  // 2 preds: ^bb58, ^bb60
+  ^bb59(%615: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":93:18)):  // 2 preds: ^bb58, ^bb60
     %616 = llvm.icmp "slt" %615, %23 : i64 loc(#loc16)
     llvm.cond_br %616, ^bb60, ^bb61 loc(#loc16)
   ^bb60:  // pred: ^bb59
@@ -771,12 +771,12 @@ module {
     llvm.br ^bb57(%625 : i64) loc(#loc16)
   ^bb62:  // pred: ^bb57
     llvm.br ^bb63(%25 : i64) loc(#loc16)
-  ^bb63(%626: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":93:18)):  // 2 preds: ^bb62, ^bb67
+  ^bb63(%626: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":93:18)):  // 2 preds: ^bb62, ^bb67
     %627 = llvm.icmp "slt" %626, %19 : i64 loc(#loc16)
     llvm.cond_br %627, ^bb64, ^bb68 loc(#loc16)
   ^bb64:  // pred: ^bb63
     llvm.br ^bb65(%25 : i64) loc(#loc16)
-  ^bb65(%628: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":93:18)):  // 2 preds: ^bb64, ^bb66
+  ^bb65(%628: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":93:18)):  // 2 preds: ^bb64, ^bb66
     %629 = llvm.icmp "slt" %628, %23 : i64 loc(#loc16)
     llvm.cond_br %629, ^bb66, ^bb67 loc(#loc16)
   ^bb66:  // pred: ^bb65
@@ -803,12 +803,12 @@ module {
     llvm.br ^bb63(%646 : i64) loc(#loc16)
   ^bb68:  // pred: ^bb63
     llvm.br ^bb69(%25 : i64) loc(#loc17)
-  ^bb69(%647: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":94:19)):  // 2 preds: ^bb68, ^bb73
+  ^bb69(%647: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":94:19)):  // 2 preds: ^bb68, ^bb73
     %648 = llvm.icmp "slt" %647, %19 : i64 loc(#loc17)
     llvm.cond_br %648, ^bb70, ^bb74 loc(#loc17)
   ^bb70:  // pred: ^bb69
     llvm.br ^bb71(%25 : i64) loc(#loc17)
-  ^bb71(%649: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":94:19)):  // 2 preds: ^bb70, ^bb72
+  ^bb71(%649: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":94:19)):  // 2 preds: ^bb70, ^bb72
     %650 = llvm.icmp "slt" %649, %23 : i64 loc(#loc17)
     llvm.cond_br %650, ^bb72, ^bb73 loc(#loc17)
   ^bb72:  // pred: ^bb71
@@ -892,7 +892,7 @@ module {
     llvm.br ^bb84(%696 : i64) loc(#loc34)
   ^bb89:  // pred: ^bb84
     llvm.br ^bb90(%25 : i64) loc(#loc20)
-  ^bb90(%697: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":96:29)):  // 2 preds: ^bb89, ^bb91
+  ^bb90(%697: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":96:29)):  // 2 preds: ^bb89, ^bb91
     %698 = llvm.icmp "slt" %697, %19 : i64 loc(#loc20)
     llvm.cond_br %698, ^bb91, ^bb92 loc(#loc20)
   ^bb91:  // pred: ^bb90
@@ -909,7 +909,7 @@ module {
     llvm.br ^bb90(%707 : i64) loc(#loc20)
   ^bb92:  // pred: ^bb90
     llvm.br ^bb93(%25 : i64) loc(#loc21)
-  ^bb93(%708: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":96:23)):  // 2 preds: ^bb92, ^bb94
+  ^bb93(%708: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":96:23)):  // 2 preds: ^bb92, ^bb94
     %709 = llvm.icmp "slt" %708, %19 : i64 loc(#loc21)
     llvm.cond_br %709, ^bb94, ^bb95 loc(#loc21)
   ^bb94:  // pred: ^bb93
@@ -924,7 +924,7 @@ module {
     llvm.br ^bb93(%716 : i64) loc(#loc21)
   ^bb95:  // pred: ^bb93
     llvm.br ^bb96(%25 : i64) loc(#loc22)
-  ^bb96(%717: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":97:20)):  // 2 preds: ^bb95, ^bb97
+  ^bb96(%717: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":97:20)):  // 2 preds: ^bb95, ^bb97
     %718 = llvm.icmp "slt" %717, %19 : i64 loc(#loc22)
     llvm.cond_br %718, ^bb97, ^bb98 loc(#loc22)
   ^bb97:  // pred: ^bb96
@@ -942,7 +942,7 @@ module {
     llvm.br ^bb96(%728 : i64) loc(#loc22)
   ^bb98:  // pred: ^bb96
     llvm.br ^bb99(%25 : i64) loc(#loc23)
-  ^bb99(%729: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":97:28)):  // 2 preds: ^bb98, ^bb100
+  ^bb99(%729: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":97:28)):  // 2 preds: ^bb98, ^bb100
     %730 = llvm.icmp "slt" %729, %19 : i64 loc(#loc23)
     llvm.cond_br %730, ^bb100, ^bb101 loc(#loc23)
   ^bb100:  // pred: ^bb99
@@ -1029,12 +1029,12 @@ module {
     %807 = llvm.insertvalue %784, %806[4, 0] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc25)
     %808 = llvm.insertvalue %785, %807[4, 1] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc25)
     llvm.br ^bb102(%25 : i64) loc(#loc25)
-  ^bb102(%809: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":100:17)):  // 2 preds: ^bb101, ^bb106
+  ^bb102(%809: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":100:17)):  // 2 preds: ^bb101, ^bb106
     %810 = llvm.icmp "slt" %809, %19 : i64 loc(#loc25)
     llvm.cond_br %810, ^bb103, ^bb107 loc(#loc25)
   ^bb103:  // pred: ^bb102
     llvm.br ^bb104(%25 : i64) loc(#loc25)
-  ^bb104(%811: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":100:17)):  // 2 preds: ^bb103, ^bb105
+  ^bb104(%811: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":100:17)):  // 2 preds: ^bb103, ^bb105
     %812 = llvm.icmp "slt" %811, %23 : i64 loc(#loc25)
     llvm.cond_br %812, ^bb105, ^bb106 loc(#loc25)
   ^bb105:  // pred: ^bb104
@@ -1079,12 +1079,12 @@ module {
     %846 = llvm.mlir.constant(1 : index) : i64 loc(#loc26)
     %847 = llvm.insertvalue %846, %845[4, 1] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc26)
     llvm.br ^bb108(%25 : i64) loc(#loc4)
-  ^bb108(%848: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":101:24)):  // 2 preds: ^bb107, ^bb112
+  ^bb108(%848: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":101:24)):  // 2 preds: ^bb107, ^bb112
     %849 = llvm.icmp "slt" %848, %19 : i64 loc(#loc4)
     llvm.cond_br %849, ^bb109, ^bb113 loc(#loc4)
   ^bb109:  // pred: ^bb108
     llvm.br ^bb110(%25 : i64) loc(#loc4)
-  ^bb110(%850: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":101:24)):  // 2 preds: ^bb109, ^bb111
+  ^bb110(%850: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":101:24)):  // 2 preds: ^bb109, ^bb111
     %851 = llvm.icmp "slt" %850, %19 : i64 loc(#loc4)
     llvm.cond_br %851, ^bb111, ^bb112 loc(#loc4)
   ^bb111:  // pred: ^bb110
@@ -1103,12 +1103,12 @@ module {
     llvm.br ^bb108(%860 : i64) loc(#loc4)
   ^bb113:  // pred: ^bb108
     llvm.br ^bb114(%25 : i64) loc(#loc4)
-  ^bb114(%861: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":101:24)):  // 2 preds: ^bb113, ^bb118
+  ^bb114(%861: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":101:24)):  // 2 preds: ^bb113, ^bb118
     %862 = llvm.icmp "slt" %861, %19 : i64 loc(#loc4)
     llvm.cond_br %862, ^bb115, ^bb119 loc(#loc4)
   ^bb115:  // pred: ^bb114
     llvm.br ^bb116(%25 : i64) loc(#loc4)
-  ^bb116(%863: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":101:24)):  // 2 preds: ^bb115, ^bb117
+  ^bb116(%863: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":101:24)):  // 2 preds: ^bb115, ^bb117
     %864 = llvm.icmp "slt" %863, %19 : i64 loc(#loc4)
     llvm.cond_br %864, ^bb117, ^bb118 loc(#loc4)
   ^bb117:  // pred: ^bb116
@@ -1173,17 +1173,17 @@ module {
     %918 = llvm.getelementptr %900[%904] : (!llvm.ptr, i64) -> !llvm.ptr, f32 loc(#loc5)
     "llvm.intr.memcpy"(%918, %917, %916) <{isVolatile = false}> : (!llvm.ptr, !llvm.ptr, i64) -> () loc(#loc5)
     llvm.br ^bb120(%25 : i64) loc(#loc5)
-  ^bb120(%919: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb119, ^bb127
+  ^bb120(%919: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb119, ^bb127
     %920 = llvm.icmp "slt" %919, %19 : i64 loc(#loc5)
     llvm.cond_br %920, ^bb121, ^bb128 loc(#loc5)
   ^bb121:  // pred: ^bb120
     llvm.br ^bb122(%25 : i64) loc(#loc5)
-  ^bb122(%921: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb121, ^bb126
+  ^bb122(%921: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb121, ^bb126
     %922 = llvm.icmp "slt" %921, %19 : i64 loc(#loc5)
     llvm.cond_br %922, ^bb123, ^bb127 loc(#loc5)
   ^bb123:  // pred: ^bb122
     llvm.br ^bb124(%25 : i64) loc(#loc5)
-  ^bb124(%923: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb123, ^bb125
+  ^bb124(%923: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb123, ^bb125
     %924 = llvm.icmp "slt" %923, %23 : i64 loc(#loc5)
     llvm.cond_br %924, ^bb125, ^bb126 loc(#loc5)
   ^bb125:  // pred: ^bb124
@@ -1221,12 +1221,12 @@ module {
     llvm.br ^bb120(%950 : i64) loc(#loc5)
   ^bb128:  // pred: ^bb120
     llvm.br ^bb129(%25 : i64) loc(#loc5)
-  ^bb129(%951: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb128, ^bb133
+  ^bb129(%951: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb128, ^bb133
     %952 = llvm.icmp "slt" %951, %19 : i64 loc(#loc5)
     llvm.cond_br %952, ^bb130, ^bb134 loc(#loc5)
   ^bb130:  // pred: ^bb129
     llvm.br ^bb131(%25 : i64) loc(#loc5)
-  ^bb131(%953: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb130, ^bb132
+  ^bb131(%953: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":102:35)):  // 2 preds: ^bb130, ^bb132
     %954 = llvm.icmp "slt" %953, %19 : i64 loc(#loc5)
     llvm.cond_br %954, ^bb132, ^bb133 loc(#loc5)
   ^bb132:  // pred: ^bb131
@@ -1283,12 +1283,12 @@ module {
     %998 = llvm.mlir.constant(1 : index) : i64 loc(#loc29)
     %999 = llvm.insertvalue %998, %997[4, 1] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc29)
     llvm.br ^bb136(%25 : i64) loc(#loc30)
-  ^bb136(%1000: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":111:20)):  // 2 preds: ^bb135, ^bb140
+  ^bb136(%1000: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":111:20)):  // 2 preds: ^bb135, ^bb140
     %1001 = llvm.icmp "slt" %1000, %19 : i64 loc(#loc30)
     llvm.cond_br %1001, ^bb137, ^bb141 loc(#loc30)
   ^bb137:  // pred: ^bb136
     llvm.br ^bb138(%25 : i64) loc(#loc30)
-  ^bb138(%1002: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":111:20)):  // 2 preds: ^bb137, ^bb139
+  ^bb138(%1002: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":111:20)):  // 2 preds: ^bb137, ^bb139
     %1003 = llvm.icmp "slt" %1002, %19 : i64 loc(#loc30)
     llvm.cond_br %1003, ^bb139, ^bb140 loc(#loc30)
   ^bb139:  // pred: ^bb138
@@ -1307,12 +1307,12 @@ module {
     llvm.br ^bb136(%1012 : i64) loc(#loc30)
   ^bb141:  // pred: ^bb136
     llvm.br ^bb142(%25 : i64) loc(#loc30)
-  ^bb142(%1013: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":111:20)):  // 2 preds: ^bb141, ^bb146
+  ^bb142(%1013: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":111:20)):  // 2 preds: ^bb141, ^bb146
     %1014 = llvm.icmp "slt" %1013, %19 : i64 loc(#loc30)
     llvm.cond_br %1014, ^bb143, ^bb147 loc(#loc30)
   ^bb143:  // pred: ^bb142
     llvm.br ^bb144(%25 : i64) loc(#loc30)
-  ^bb144(%1015: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":111:20)):  // 2 preds: ^bb143, ^bb145
+  ^bb144(%1015: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":111:20)):  // 2 preds: ^bb143, ^bb145
     %1016 = llvm.icmp "slt" %1015, %19 : i64 loc(#loc30)
     llvm.cond_br %1016, ^bb145, ^bb146 loc(#loc30)
   ^bb145:  // pred: ^bb144
@@ -1367,12 +1367,12 @@ module {
     %1060 = llvm.insertvalue %1037, %1059[4, 0] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc31)
     %1061 = llvm.insertvalue %1038, %1060[4, 1] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc31)
     llvm.br ^bb148(%25 : i64) loc(#loc31)
-  ^bb148(%1062: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":112:29)):  // 2 preds: ^bb147, ^bb152
+  ^bb148(%1062: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":112:29)):  // 2 preds: ^bb147, ^bb152
     %1063 = llvm.icmp "slt" %1062, %19 : i64 loc(#loc31)
     llvm.cond_br %1063, ^bb149, ^bb153 loc(#loc31)
   ^bb149:  // pred: ^bb148
     llvm.br ^bb150(%25 : i64) loc(#loc31)
-  ^bb150(%1064: i64 loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":112:29)):  // 2 preds: ^bb149, ^bb151
+  ^bb150(%1064: i64 loc("/path/to/loom/test/Triton/flashattn/flashattn.py":112:29)):  // 2 preds: ^bb149, ^bb151
     %1065 = llvm.icmp "slt" %1064, %19 : i64 loc(#loc31)
     llvm.cond_br %1065, ^bb151, ^bb152 loc(#loc31)
   ^bb151:  // pred: ^bb150
@@ -1423,16 +1423,16 @@ module {
     llvm.return loc(#loc)
   } loc(#loc)
 } loc(#loc)
-#loc7 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":49:25)
-#loc8 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":112:20)
-#loc9 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":51:8)
-#loc10 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":76:22)
-#loc12 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":87:26)
-#loc15 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":93:23)
-#loc24 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":99:26)
-#loc26 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":101:30)
-#loc27 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":107:34)
-#loc28 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":108:36)
-#loc29 = loc("/home/zhenyu/loom/test/Triton/flashattn/flashattn.py":111:24)
+#loc7 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":49:25)
+#loc8 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":112:20)
+#loc9 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":51:8)
+#loc10 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":76:22)
+#loc12 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":87:26)
+#loc15 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":93:23)
+#loc24 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":99:26)
+#loc26 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":101:30)
+#loc27 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":107:34)
+#loc28 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":108:36)
+#loc29 = loc("/path/to/loom/test/Triton/flashattn/flashattn.py":111:24)
 #loc33 = loc(fused[#loc8, #loc9])
 
