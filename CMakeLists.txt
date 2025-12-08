@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20.0)
 
 # Project name and version - MLIR requires both CXX and C languages
-project(tmd VERSION 1.0.0 LANGUAGES CXX C)
+project(loom VERSION 1.0.0 LANGUAGES CXX C)
 
 # MLIR Configuration
 # Set MLIR paths - these can be overridden via command line

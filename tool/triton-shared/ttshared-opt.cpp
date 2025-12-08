@@ -6,24 +6,29 @@
 // single 3-D `affine.parallel`. Exploration then matches those induction
 // variables against the declared hardware spatial dimensions, cloning the
 // kernel for every viable binding. Each clone tracks which hardware dimension
-// drives which loop through a `tmd.mapped_to` attribute, inserts `affine.for`
+// drives which loop through a `loom.mapped_to` attribute, inserts `affine.for`
 // nests when multiple "waves" are needed to time-multiplex the workload, and
 // leaves the inner `scf.for` loops untouched to model per-core tile sequencing.
 // The resulting module mirrors the structure of
 // `test/Dialect/Triton/mm_fixed_strides/after_exploration.mlir`.
 //
 // Usage:
-//   tmd_triton_shared_to_affine --ttshared <ttshared.mlir> --df <df.mlir>
+//   loom_triton_shared_to_affine --ttshared <ttshared.mlir> --df <df.mlir>
 //
+#include "const_dedup_cleanup.h"
 #include "explore_alloc_copy_mapping.h"
+#include "hoist_block_loading.h"
 #include "reinterpret_cast_reuse.h"
 #include "spatial_mapping.h"
+#include "tile_scf_for_to_l1.h"
 #include "triton_shared_affinize.h"
 #include "triton_shared_grid_to_parallel.h"
+#include "triton_shared_spatial_mapping_pass.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -33,12 +38,17 @@
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
+#include "mlir/InitAllDialects.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/FileUtilities.h"
 
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/WithColor.h"
 
 #include "DataflowDialect.h.inc"
@@ -57,24 +67,78 @@ static llvm::cl::opt<std::string>
 
 static llvm::cl::opt<bool> clMapAnalysisOnly(
     "map-analysis-only",
-    llvm::cl::desc("Only attach tmd.copy.candidates; do not clone functions"),
+    llvm::cl::desc("Only attach loom.copy.candidates; do not clone functions"),
     llvm::cl::init(false));
+
+static llvm::cl::opt<bool> clSkipTileScfForToL1("skip-tile-scf-for-to-l1",
+                      llvm::cl::desc("Skip the tile-scf-for-to-l1 pass"),
+                      llvm::cl::init(true));
+
+static llvm::cl::opt<bool>
+    clDumpIntermediate("dump-intermediate",
+                       llvm::cl::desc("Dump MLIR after each pass to stderr"),
+                       llvm::cl::init(false));
+
+static llvm::cl::opt<std::string> clDumpDir(
+    "dump-dir",
+    llvm::cl::desc("Directory to dump intermediate MLIR files (optional)"),
+    llvm::cl::value_desc("dir"), llvm::cl::init(""));
 
 // No max-variants flag; we enumerate all combinations.
 
+/// Dump the given module to a file within 'dirPath' with the specified
+/// 'fileName'. Creates the directory if it doesn't exist.
+static LogicalResult dumpModuleToFile(ModuleOp module, StringRef dirPath,
+                                      StringRef fileName) {
+  if (dirPath.empty())
+    return success();
+
+  // Ensure the directory exists.
+  if (std::error_code ec = llvm::sys::fs::create_directories(dirPath)) {
+    llvm::WithColor::error(llvm::errs())
+        << "Failed to create dump directory '" << dirPath
+        << "': " << ec.message() << "\n";
+    return failure();
+  }
+
+  llvm::SmallString<256> fullPath(dirPath);
+  llvm::sys::path::append(fullPath, fileName);
+
+  std::string errMsg;
+  auto out = mlir::openOutputFile(fullPath, &errMsg);
+  if (!out) {
+    llvm::WithColor::error(llvm::errs())
+        << "Failed to open dump file '" << fullPath << "': " << errMsg << "\n";
+    return failure();
+  }
+
+  mlir::OpPrintingFlags flags;
+  flags.useLocalScope();
+  module->print(out->os(), flags);
+  out->os() << "\n";
+  out->keep();
+  return success();
+}
+
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
-                                    "TMD Triton-shared to Affine pipeline\n");
+                                    "LOOM Triton-shared to Affine pipeline\n");
 
   // Setup context and register required dialects.
   mlir::DialectRegistry registry;
+  // Register all dialects and external models (e.g., BufferizableOpInterface
+  // implementations for Linalg/Tensor/SCF/etc.), then ensure our DF dialect is
+  // present.
+  mlir::registerAllDialects(registry);
   registry.insert<mlir::BuiltinDialect, mlir::func::FuncDialect,
                   mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
                   mlir::arith::ArithDialect, mlir::tensor::TensorDialect,
                   mlir::linalg::LinalgDialect, mlir::scf::SCFDialect,
                   mlir::bufferization::BufferizationDialect,
-                  tmd::df::DataflowDialect>();
-  MLIRContext context(registry);
+                  loom::df::DataflowDialect>();
+  MLIRContext context(registry, clDumpIntermediate
+                                    ? MLIRContext::Threading::DISABLED
+                                    : MLIRContext::Threading::ENABLED);
   context.loadAllAvailableDialects();
 
   // Parse DF module for spatial dimensions.
@@ -92,10 +156,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  llvm::SmallVector<tmd_affine::SpatialDimInfo, 8> spatialDims;
-  if (failed(tmd_affine::collectSpatialDims(*dfModule, spatialDims))) {
+  loom_affine::HardwareInfo hardwareInfo;
+  if (failed(loom_affine::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
     llvm::WithColor::error(llvm::errs())
-        << "No df.spatial_dim found or parse failure in DF module\n";
+        << "Failed to collect hardware information from DF module\n";
     return 1;
   }
 
@@ -115,51 +179,367 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Build and run the pipeline: affinize -> grid_to_parallel.
-  PassManager pm(&context);
-  pm.addPass(tmd::passes::createTritonSharedAffinizePass());
-  pm.addPass(tmd::passes::createTritonSharedGridToParallelPass());
-  if (failed(pm.run(*tsModule))) {
-    llvm::WithColor::error(llvm::errs())
-        << "Pipeline (affinize -> grid_to_parallel) failed\n";
+  // Run affinization, then dump if requested.
+  PassManager pmAff(&context);
+  if (clDumpIntermediate) {
+    pmAff.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
+  pmAff.addPass(loom::passes::createTritonSharedAffinizePass());
+  if (failed(pmAff.run(*tsModule))) {
+    llvm::WithColor::error(llvm::errs()) << "Affinization pass failed\n";
     return 2;
   }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
+  if (!clDumpDir.empty() &&
+      failed(dumpModuleToFile(*tsModule, clDumpDir, "01_after_affinization.mlir")))
+    return 5;
 
-  // Now explore spatial mappings over the outermost affine.parallel with DF.
-  OwningOpRef<ModuleOp> explored =
-      tmd_affine::enumerateSpatialMappingsWithOuterFors(*tsModule, spatialDims);
+  // Run grid-to-parallel, then dump if requested.
+  PassManager pmGrid(&context);
+  if (clDumpIntermediate) {
+    pmGrid.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
+  pmGrid.addPass(loom::passes::createTritonSharedGridToParallelPass());
+  if (failed(pmGrid.run(*tsModule))) {
+    llvm::WithColor::error(llvm::errs()) << "Grid-to-parallel pass failed\n";
+    return 2;
+  }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
+  if (!clDumpDir.empty() &&
+      failed(dumpModuleToFile(*tsModule, clDumpDir,
+                              "02_after_grid_to_parallel.mlir")))
+    return 5;
 
-  // Merge DF declarations and generated clones into a single module.
-  OwningOpRef<ModuleOp> merged = ModuleOp::create(UnknownLoc::get(&context));
-  OpBuilder builder(merged->getBodyRegion());
-  IRMapping mapping;
-  for (Operation &op : *dfModule->getBody())
-    builder.clone(op, mapping);
-  for (Operation &op : *explored->getBody())
-    builder.clone(op, mapping);
+  // Merge DF decls into the transformed tsModule so passes can see DF.
+  {
+    OpBuilder mb(tsModule->getBodyRegion());
+    IRMapping map;
+    for (Operation &op : *dfModule->getBody())
+      mb.clone(op, map);
+  }
 
-  // Annotate reinterpret_cast ops with reuse information relative to the
-  // surrounding spatial/temporal iterators.
-  PassManager annotatePM(&context);
-  annotatePM.addPass(tmd::passes::createAnnotateReinterpretCastReusePass());
-  if (failed(annotatePM.run(*merged))) {
-    llvm::WithColor::error(llvm::errs()) << "Reuse annotation pass failed\n";
+  // Run spatial mapping as a pass (with outer-for permutations).
+  PassManager spatialPM(&context);
+  if (clDumpIntermediate) {
+    spatialPM.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
+  spatialPM.addPass(loom::passes::createTritonSharedExploreSpatialMappingsPass(
+      /*withOuterFors=*/true));
+  if (failed(spatialPM.run(*tsModule))) {
+    llvm::WithColor::error(llvm::errs())
+        << "Spatial mapping exploration pass failed\n";
     return 3;
   }
 
-  // Explore alloc/copy mapping choices (default: enumerate and clone).
+  // Fallback: if no functions are present (unexpected), enumerate directly.
+  bool hasFuncs = false;
+  for (Operation &op : *tsModule->getBody())
+    if (isa<func::FuncOp>(&op)) {
+      hasFuncs = true;
+      break;
+    }
+  if (!hasFuncs) {
+    OwningOpRef<ModuleOp> explored =
+        loom_affine::EnumerateSpatialMappings(*tsModule,
+                                                          hardwareInfo);
+    // Replace non-DF ops with explored clones.
+    SmallVector<Operation *, 16> toErase;
+    for (Operation &op : *tsModule->getBody()) {
+      Dialect *dialect = op.getDialect();
+      if (dialect && dialect->getNamespace() == StringRef("df"))
+        continue;
+      toErase.push_back(&op);
+    }
+    for (auto it = toErase.rbegin(); it != toErase.rend(); ++it)
+      (*it)->erase();
+    OpBuilder rb(tsModule->getBodyRegion());
+    IRMapping m;
+    for (Operation &op : *explored->getBody())
+      rb.clone(op, m);
+  }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
+  if (!clDumpDir.empty() &&
+      failed(dumpModuleToFile(*tsModule, clDumpDir, "03_after_exploration.mlir")))
+    return 5;
+
+  // Run hoist block loading pass.
+  PassManager hoistPM(&context);
+  if (clDumpIntermediate) {
+    hoistPM.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
+  hoistPM.addPass(loom::passes::createHoistBlockLoadingPass());
+  if (failed(hoistPM.run(*tsModule))) {
+    llvm::WithColor::error(llvm::errs())
+        << "Hoist block loading pass failed\n";
+    return 9;
+  }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
+  if (!clDumpDir.empty() &&
+      failed(dumpModuleToFile(*tsModule, clDumpDir,
+                              "04_after_hoist_block_loading.mlir")))
+    return 5;
+
+  // Annotate reinterpret_cast ops with reuse information.
+  PassManager annotatePM(&context);
+  if (clDumpIntermediate) {
+    annotatePM.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
+  annotatePM.addPass(loom::passes::createAnnotateReinterpretCastReusePass());
+  if (failed(annotatePM.run(*tsModule))) {
+    llvm::WithColor::error(llvm::errs()) << "Reuse annotation pass failed\n";
+    return 3;
+  }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
+  if (!clDumpDir.empty() &&
+      failed(dumpModuleToFile(*tsModule, clDumpDir,
+                              "05_after_reuse_annotation.mlir")))
+    return 5;
+
+  // Explore alloc/copy mapping choices.
   PassManager mappingPM(&context);
-  mappingPM.addPass(tmd::passes::createExploreAllocCopyMappingPass(
+  if (clDumpIntermediate) {
+    mappingPM.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
+  mappingPM.addPass(loom::passes::createExploreAllocCopyMappingPass(
       /*analysisOnly=*/clMapAnalysisOnly));
-  if (failed(mappingPM.run(*merged))) {
+  if (failed(mappingPM.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs())
         << "Alloc/Copy mapping exploration failed\n";
     return 4;
   }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
+  if (!clDumpDir.empty() &&
+      failed(
+          dumpModuleToFile(*tsModule, clDumpDir, "06_after_memref_mapping.mlir")))
+    return 5;
 
-  mlir::OpPrintingFlags flags;
-  flags.useLocalScope();
-  merged->print(llvm::outs(), flags);
-  llvm::outs() << "\n";
+  // Run One-Shot Bufferize to convert tensors to memrefs, while allowing
+  // unknown ops (e.g., df.*) to be preserved.
+  {
+    PassManager bufPM(&context);
+    if (clDumpIntermediate) {
+      bufPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    mlir::bufferization::OneShotBufferizePassOptions bopts;
+    bopts.allowUnknownOps = true;
+    bopts.allowReturnAllocsFromLoops = true;
+    bufPM.addPass(mlir::bufferization::createOneShotBufferizePass(bopts));
+    if (failed(bufPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs())
+          << "One-Shot Bufferize pass failed\n";
+      return 8;
+    }
+  }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
+
+  if (!clDumpDir.empty() &&
+      failed(
+          dumpModuleToFile(*tsModule, clDumpDir, "07_after_bufferization.mlir")))
+    return 5;
+  
+  // Tile scf.for loops to fit L1, then dump if requested.
+  if (!clSkipTileScfForToL1) {
+    PassManager tilePM(&context);
+    if (clDumpIntermediate) {
+      tilePM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    tilePM.addPass(loom::passes::createTileScfForToL1Pass());
+    if (failed(tilePM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "SCF tiling to L1 pass failed\n";
+      return 6;
+    }
+    
+    // Cleanup after tiling pass.
+    {
+      PassManager cleanupPM(&context);
+      if (clDumpIntermediate) {
+        cleanupPM.enableIRPrinting(
+            [](mlir::Pass *, mlir::Operation *) { return false; },
+            [](mlir::Pass *, mlir::Operation *) { return true; },
+            /*printModuleScope=*/true,
+            /*printAfterOnlyOnChange=*/false,
+            /*printAfterOnlyOnFailure=*/false, llvm::errs());
+      }
+      cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
+      if (failed(cleanupPM.run(*tsModule))) {
+        llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+        return 7;
+      }
+    }
+    
+    // Dump after tiling only if tiling pass was executed.
+    if (!clDumpDir.empty() &&
+        failed(dumpModuleToFile(*tsModule, clDumpDir, "08_after_for_tiling.mlir")))
+      return 5;
+  }
+
+  // (Old merged-based path removed)
+
+  // Reorder DF ops to the front (stable order).
+  {
+    Block &body = *tsModule->getBody();
+    SmallVector<Operation *, 16> dfOps;
+    for (Operation &op : body) {
+      Dialect *dialect = op.getDialect();
+      if (dialect && dialect->getNamespace() == StringRef("df"))
+        dfOps.push_back(&op);
+    }
+    for (Operation *op : llvm::reverse(dfOps))
+      op->moveBefore(&body.front());
+  }
+  
+  // Print to stdout only if no dump directory was specified.
+  if (clDumpDir.empty()) {
+    mlir::OpPrintingFlags flags;
+    flags.useLocalScope();
+    tsModule->print(llvm::outs(), flags);
+    llvm::outs() << "\n";
+  }
+  
   return 0;
 }

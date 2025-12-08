@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::memref::MemRefDialect>();
   context.loadDialect<mlir::affine::AffineDialect>();
   context.loadDialect<mlir::arith::ArithDialect>();
-  context.loadDialect<tmd::df::DataflowDialect>();
+  context.loadDialect<loom::df::DataflowDialect>();
 
   const char *filename = nullptr;
   static std::string defaultPath;

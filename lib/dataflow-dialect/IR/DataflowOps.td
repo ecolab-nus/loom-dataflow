@@ -1,5 +1,5 @@
 //===- DataflowOps.td ------------------------------------------*- tablegen -*-===//
-// Operations for the TMD Dataflow dialect (df)
+// Operations for the LOOM Dataflow dialect (df)
 //===----------------------------------------------------------------------===//
 
 include "mlir/IR/OpBase.td"

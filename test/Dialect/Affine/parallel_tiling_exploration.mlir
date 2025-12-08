@@ -18,8 +18,8 @@ module {
             %8 = affine.load %arg2[%5, %arg7] : memref<?x?xf32>
             affine.store %8, %arg2[%5, %arg7] : memref<?x?xf32>
           }
-        } {tmd.mapped_to = "x"}
-      } {tmd.mapped_to = "y"}
+        } {loom.mapped_to = "x"}
+      } {loom.mapped_to = "y"}
     }
     return
   }
@@ -35,8 +35,8 @@ module {
             %8 = affine.load %arg2[%5, %arg7] : memref<?x?xf32>
             affine.store %8, %arg2[%5, %arg7] : memref<?x?xf32>
           }
-        } {tmd.mapped_to = "y"}
-      } {tmd.mapped_to = "x"}
+        } {loom.mapped_to = "y"}
+      } {loom.mapped_to = "x"}
     }
     return
   }
@@ -52,8 +52,8 @@ module {
             %8 = affine.load %arg2[%5, %4] : memref<?x?xf32>
             affine.store %8, %arg2[%5, %4] : memref<?x?xf32>
           }
-        } {tmd.mapped_to = "x"}
-      } {tmd.mapped_to = "y"}
+        } {loom.mapped_to = "x"}
+      } {loom.mapped_to = "y"}
     }
     return
   }
@@ -69,8 +69,8 @@ module {
             %8 = affine.load %arg2[%5, %4] : memref<?x?xf32>
             affine.store %8, %arg2[%5, %4] : memref<?x?xf32>
           }
-        } {tmd.mapped_to = "y"}
-      } {tmd.mapped_to = "x"}
+        } {loom.mapped_to = "y"}
+      } {loom.mapped_to = "x"}
     }
     return
   }
@@ -86,8 +86,8 @@ module {
             %8 = affine.load %arg2[%arg6, %5] : memref<?x?xf32>
             affine.store %8, %arg2[%arg6, %5] : memref<?x?xf32>
           }
-        } {tmd.mapped_to = "x"}
-      } {tmd.mapped_to = "y"}
+        } {loom.mapped_to = "x"}
+      } {loom.mapped_to = "y"}
     }
     return
   }
@@ -103,8 +103,8 @@ module {
             %8 = affine.load %arg2[%arg6, %5] : memref<?x?xf32>
             affine.store %8, %arg2[%arg6, %5] : memref<?x?xf32>
           }
-        } {tmd.mapped_to = "y"}
-      } {tmd.mapped_to = "x"}
+        } {loom.mapped_to = "y"}
+      } {loom.mapped_to = "x"}
     }
     return
   }

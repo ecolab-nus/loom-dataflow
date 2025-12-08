@@ -1,5 +1,5 @@
 //===- DataflowHwDeclOps.td ----------------------------------*- tablegen -*-===//
-// Hardware declaration operations for the TMD Dataflow dialect (df)
+// Hardware declaration operations for the LOOM Dataflow dialect (df)
 //===----------------------------------------------------------------------===//
 
 include "mlir/IR/OpBase.td"
@@ -10,8 +10,8 @@ include "mlir/IR/CommonTypeConstraints.td"
 // defines the helper `DF_Op` class and sets up codegen for the df dialect ops.
 
 def HandleLike : TypeConstraint<CPred<
-  "::llvm::isa<::tmd::df::ComputeHandleType>($_self) || " #
-  "::llvm::isa<::tmd::df::MemoryHandleType>($_self)">>;
+  "::llvm::isa<::loom::df::ComputeHandleType>($_self) || " #
+  "::llvm::isa<::loom::df::MemoryHandleType>($_self)">>;
 
 // df.spatial_dim : declare a spatial dimension with a name and a given size
 // Example:
@@ -63,41 +63,94 @@ def InterconnectsOp : DF_Op<"interconnects"> {
           {map = affine_map<(d0) -> (d0 + 1)>} : !df.interconnect`
   }];
 
-  let arguments = (ins StrAttr:$label,
+  let arguments = (ins OptionalAttr<StrAttr>:$label,
                        HandleLike:$source,
                        HandleLike:$target,
                        Variadic<Index>:$indices,
-                       AffineMapAttr:$map);
+                       AffineMapAttr:$map,
+                       OptionalAttr<I64Attr>:$bandwidth);
   let results = (outs InterconnectHandleType:$handle);
 
-  let assemblyFormat = "$label $source `:` type($source) `,` $target `:` type($target) `,` $indices attr-dict `:` type($handle)";
+  let hasCustomAssemblyFormat = 1;
 }
 
-// df.compute : declare compute resources derived from spatial dimensions.
-// Example (matches current custom assembly):
-//   %cores = df.compute "cluster_cores", %x, %y
-//       {map = affine_map<(d0, d1) -> (d0, d1)>}
-def ComputeOp : DF_Op<"compute"> {
-  let summary = "Declare compute resources via an affine map";
+// df.mat : declare a matrix functional unit with a name and shape
+// Example:
+//   %mat_unit = df.mat "FPU" {shape = [32, 32, 32]}
+def MatOp : DF_Op<"mat"> {
+  let summary = "Declare a matrix functional unit with a name and shape";
   let description = [{
-    `df.compute` declares compute tiles derived from previously defined spatial
-    dimensions. The operation records an affine map that specifies how the
-    spatial dimensions index into the compute fabric.
+    `df.mat` declares a matrix functional unit (e.g., a matrix multiplication
+    unit) with a user-facing name and a shape attribute that describes the
+    dimensions of the functional unit. The result is an opaque
+    `!df.functional_unit` handle that can be referenced in core declarations
+    to describe the compute components available within each core.
+
+    Example:
+      `%mat_unit = df.mat "FPU" {shape = [32, 32, 32]}`
+  }];
+
+  let arguments = (ins StrAttr:$name, DenseI64ArrayAttr:$shape);
+  let results = (outs FunctionalUnitHandleType:$handle);
+
+  let hasCustomAssemblyFormat = 1;
+}
+
+// df.vec : declare a vector functional unit with a name and shape
+// Example:
+//   %vec_unit = df.vec "SFPU" {shape = [32]}
+def VecOp : DF_Op<"vec"> {
+  let summary = "Declare a vector functional unit with a name and shape";
+  let description = [{
+    `df.vec` declares a vector functional unit (e.g., a vector ALU) with a
+    user-facing name and a shape attribute that describes the dimensions of
+    the functional unit. The result is an opaque `!df.functional_unit` handle
+    that can be referenced in core declarations to describe the compute
+    components available within each core.
+
+    Example:
+      `%vec_unit = df.vec "SFPU" {shape = [32]}`
+  }];
+
+  let arguments = (ins StrAttr:$name, DenseI64ArrayAttr:$shape);
+  let results = (outs FunctionalUnitHandleType:$handle);
+
+  let hasCustomAssemblyFormat = 1;
+}
+
+def CoreOp : DF_Op<"core", [AttrSizedOperandSegments]> {
+  let summary = "Declare core resources with scaleout and scalein";
+  let description = [{
+    `df.core` declares core tiles derived from previously defined spatial
+    dimensions. A core tile is a group of compute components. The operation
+    specifies scaleout dimensions (spatial dimensions that tile the cores) and
+    scalein components (functional units within each core and their counts).
 
     The result is an opaque `!df.compute` handle that can be consumed by other
     operations such as `df.mux` when describing connectivity.
 
     Example:
-      `%cores = df.compute "cluster_cores", %x, %y
-          {map = affine_map<(d0, d1) -> (d0, d1)>}`
+      `%cores = df.core "core" {scaleout=(%x, %y), scalein=(mat_unit, vec_unit, [8,1])}`
+      
+    The `scalein` syntax combines functional unit handles and their counts:
+    - Functional unit handles (e.g., `mat_unit, vec_unit`) are parsed as operands
+    - Count array (e.g., `[8,1]`) is parsed as an attribute, where each count
+      corresponds to the unit at the same position in the handles list
+    This operation uses a custom parser/printer to handle the mixed syntax.
   }];
 
+  // Syntax: scalein=(mat_unit, vec_unit, [8,1])
+  // Internally stored as two separate parameters:
+  // - scalein_units: variadic list of functional unit handles (mat_unit, vec_unit)
+  // - scalein_counts: optional array of counts corresponding to each unit ([8,1])
   let arguments = (ins StrAttr:$label,
-                       Variadic<Index>:$indices,
-                       AffineMapAttr:$map);
+                       Variadic<Index>:$scaleout,
+                       Variadic<FunctionalUnitHandleType>:$scalein_units,
+                       OptionalAttr<DenseI64ArrayAttr>:$scalein_counts);
   let results = (outs ComputeHandleType:$handle);
 
-  let assemblyFormat = "$label `,` $indices attr-dict";
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
 }
 
 // df.memory : declare memory resources derived from spatial dimensions.
@@ -108,20 +161,23 @@ def MemoryOp : DF_Op<"memory"> {
   let summary = "Declare memory resources via an affine map";
   let description = [{
     `df.memory` declares memory tiles associated with spatial dimensions and
-    records their layout via an affine map. The resulting `!df.memory` handle
-    is an opaque reference to those resources.
+    records their layout via an affine map. In addition, each memory tile
+    carries a required `size` (in bytes) and `bandwidth` (in bits, i.e. port
+    width). The resulting `!df.memory` handle is an opaque reference to those
+    resources.
 
     Example:
       `%memories = df.memory "cluster_mem", %x
-          {map = affine_map<(d0) -> (d0)>}`
+          {map = affine_map<(d0) -> (d0)>, size = 65536 : i64, bandwidth = 64 : i64}`
   }];
 
   let arguments = (ins StrAttr:$label,
-                       Variadic<Index>:$indices,
-                       AffineMapAttr:$map);
+                       Variadic<Index>:$scaleout,
+                       I64Attr:$size,
+                       I64Attr:$bandwidth);
   let results = (outs MemoryHandleType:$handle);
 
-  let assemblyFormat = "$label `,` $indices attr-dict";
+  let hasCustomAssemblyFormat = 1;
 }
 
 // df.mux : declare multiplexing between computes and memories (or other
@@ -150,7 +206,7 @@ def MuxOp : DF_Op<"mux"> {
                        AffineMapAttr:$map);
   let results = (outs MuxHandleType:$handle);
 
-  let assemblyFormat = "$source `:` type($source) `,` $target `:` type($target) `,` $indices attr-dict";
+  let hasCustomAssemblyFormat = 1;
 }
 
 

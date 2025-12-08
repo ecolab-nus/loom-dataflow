@@ -1,0 +1,8 @@
+{
+  "SEQ_LEN": 128,
+  "HEAD_DIM": 32,
+  "BLOCK_Q": 32,
+  "BLOCK_KV": 32,
+  "seed": 0,
+  "description": "Baseline 128-token head32 problem with 32x32 tiling."
+}

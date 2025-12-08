@@ -8,26 +8,26 @@ foreach(inc ${MLIR_INCLUDE_DIRS})
 endforeach()
 mlir_tablegen(DataflowOps.h.inc -gen-op-decls ${TBLGEN_INCLUDES})
 mlir_tablegen(DataflowOps.cpp.inc -gen-op-defs ${TBLGEN_INCLUDES})
-add_public_tablegen_target(TMDDataflowOpsIncGen)
+add_public_tablegen_target(LOOMDataflowOpsIncGen)
 
 set(LLVM_TARGET_DEFINITIONS DataflowDialect.td)
 mlir_tablegen(DataflowDialect.h.inc -gen-dialect-decls -dialect=df ${TBLGEN_INCLUDES})
 mlir_tablegen(DataflowDialect.cpp.inc -gen-dialect-defs -dialect=df ${TBLGEN_INCLUDES})
-add_public_tablegen_target(TMDDataflowDialectIncGen)
+add_public_tablegen_target(LOOMDataflowDialectIncGen)
 
 # Types
 set(LLVM_TARGET_DEFINITIONS DataflowTypes.td)
 mlir_tablegen(DataflowTypes.h.inc -gen-typedef-decls -typedefs-dialect=df ${TBLGEN_INCLUDES})
 mlir_tablegen(DataflowTypes.cpp.inc -gen-typedef-defs -typedefs-dialect=df ${TBLGEN_INCLUDES})
-add_public_tablegen_target(TMDDataflowTypesIncGen)
+add_public_tablegen_target(LOOMDataflowTypesIncGen)
 
-add_mlir_dialect_library(tmdDataflowDialect
+add_mlir_dialect_library(loomDataflowDialect
   DataflowDialect.cpp
 
   DEPENDS
-  TMDDataflowOpsIncGen
-  TMDDataflowDialectIncGen
-  TMDDataflowTypesIncGen
+  LOOMDataflowOpsIncGen
+  LOOMDataflowDialectIncGen
+  LOOMDataflowTypesIncGen
 
   LINK_LIBS PUBLIC
   MLIRIR
@@ -35,5 +35,5 @@ add_mlir_dialect_library(tmdDataflowDialect
   MLIRAffineDialect
 )
 
-target_include_directories(tmdDataflowDialect PUBLIC ${MLIR_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(loomDataflowDialect PUBLIC ${MLIR_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
 

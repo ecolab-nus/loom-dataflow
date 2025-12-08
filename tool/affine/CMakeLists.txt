@@ -2,14 +2,12 @@
 
 add_executable(affine_explore
   ${CMAKE_CURRENT_LIST_DIR}/affine_explore_main.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/spatial_mapping.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_tile.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_parallel_to_for.cpp
 )
 
-target_include_directories(affine_explore PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
+target_include_directories(affine_explore PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
 
 target_link_libraries(affine_explore PRIVATE
+  loomTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -22,7 +20,7 @@ target_link_libraries(affine_explore PRIVATE
   MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader
-  tmdDataflowDialect
+  loomDataflowDialect
 )
 mlir_check_all_link_libraries(affine_explore)
 
@@ -34,13 +32,12 @@ set_target_properties(affine_explore PROPERTIES
 
 add_executable(affine_tile
   ${CMAKE_CURRENT_LIST_DIR}/affine_tile_main.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_tile.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_tile_pass.cpp
 )
 
-target_include_directories(affine_tile PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
+target_include_directories(affine_tile PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
 
 target_link_libraries(affine_tile PRIVATE
+  loomAffinePasses
   MLIRIR
   MLIRPass
   MLIRAsmParser
@@ -63,15 +60,12 @@ set_target_properties(affine_tile PROPERTIES
 
 add_executable(affine_analyze
   ${CMAKE_CURRENT_LIST_DIR}/affine_analyze_main.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/spatial_mapping.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/triton-shared/input_sharing_analysis.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_tile.cpp
-  ${CMAKE_SOURCE_DIR}/lib/passes/affine/affine_parallel_to_for.cpp
 )
 
-target_include_directories(affine_analyze PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
+target_include_directories(affine_analyze PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
 
 target_link_libraries(affine_analyze PRIVATE
+  loomTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -81,7 +75,7 @@ target_link_libraries(affine_analyze PRIVATE
   MLIRArithDialect
   MLIRSCFDialect
   MLIRPass
-  tmdDataflowDialect
+  loomDataflowDialect
 )
 mlir_check_all_link_libraries(affine_analyze)
 

@@ -1,12 +1,11 @@
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/MLIRContext.h"
-#include "modules/chain.h"
-#include "modules/mesh2d.h"
-#include "modules/torus.h"
-#include "resources/chain.h"
-#include "resources/memory.h"
-#include "resources/ring.h"
+#include "chain.h"  // modules::Chain (includes resources::Chain)
+#include "mesh2d.h"
+#include "torus.h"
+#include "memory.h"
+#include "ring.h"
 #include <iostream>
 #include <memory>
 #include <vector>

@@ -1,5 +1,5 @@
-#include "resources/memory.h"
-#include "resources/resource_manager.h"
+#include "memory.h"
+#include "resource_manager.h"
 #include <exception>
 #include <iostream>
 #include <memory>
@@ -167,7 +167,7 @@ void demonstrateAdvancedUsage() {
 
 int main() {
   std::cout << "======================================" << std::endl;
-  std::cout << "  TMD Resource Management Demo" << std::endl;
+  std::cout << "  LOOM Resource Management Demo" << std::endl;
   std::cout << "======================================" << std::endl;
   std::cout << std::endl;
 

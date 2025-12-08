@@ -9,6 +9,8 @@ target_link_libraries(resource_module_demo PRIVATE
 )
 
 target_include_directories(resource_module_demo PRIVATE
+  ${CMAKE_CURRENT_LIST_DIR}/../../lib/resources/inc
+  ${CMAKE_CURRENT_LIST_DIR}/../../lib/modules/inc
   ${CMAKE_CURRENT_LIST_DIR}/../../lib
 )
 
@@ -25,7 +27,10 @@ target_link_libraries(resource_demo PRIVATE
 )
 
 target_include_directories(resource_demo PRIVATE
+  ${CMAKE_CURRENT_LIST_DIR}/../../lib/resources/inc
+  ${CMAKE_CURRENT_LIST_DIR}/../../lib/modules/inc
   ${CMAKE_CURRENT_LIST_DIR}/../../lib
+  ${MLIR_INCLUDE_DIRS}
 )
 
 set_target_properties(resource_demo PROPERTIES

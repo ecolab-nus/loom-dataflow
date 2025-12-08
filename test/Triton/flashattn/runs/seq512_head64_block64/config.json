@@ -1,0 +1,8 @@
+{
+  "SEQ_LEN": 512,
+  "HEAD_DIM": 64,
+  "BLOCK_Q": 64,
+  "BLOCK_KV": 64,
+  "seed": 0,
+  "description": "Matches the default example but head_dim doubled."
+}

@@ -1,6 +1,6 @@
 //===- DataflowDialect.td ---------------------------------------*- tablegen -*-===//
 //
-// TMD Dataflow dialect (short name: df)
+// LOOM Dataflow dialect (short name: df)
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,7 +17,7 @@ def Dataflow_Dialect : Dialect {
   }];
 
   let name = "df";
-  let cppNamespace = "::tmd::df";
+  let cppNamespace = "::loom::df";
   // Use generated default type printer/parser from types .inc
   let useDefaultTypePrinterParser = 1;
 

@@ -6,11 +6,11 @@ add_executable(df_example_parse
 
 target_include_directories(df_example_parse PRIVATE
   ${MLIR_INCLUDE_DIRS}
-  ${TMD_PASSES_INC}
+  ${LOOM_PASSES_INC}
 )
 
 target_link_libraries(df_example_parse PRIVATE
-  tmdDataflowDialect
+  loomDataflowDialect
   MLIRIR
   MLIRParser
   MLIRSupport

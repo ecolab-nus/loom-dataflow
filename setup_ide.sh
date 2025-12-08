@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# IDE Setup Script for TMD C++ Project
+# IDE Setup Script for LOOM C++ Project
 # This script configures the development environment for better IDE support
 
 set -e

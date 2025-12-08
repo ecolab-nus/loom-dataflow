@@ -1,6 +1,6 @@
 # `lib/`
 
-The `lib` directory hosts the C++ side of TMD: hardware resource models, higher-level modules, the custom MLIR `df` dialect, and compiler pass implementations. The `scaleout` library defined in `lib/CMakeLists.txt` aggregates these components and links against MLIR.
+The `lib` directory hosts the C++ side of LOOM: hardware resource models, higher-level modules, the custom MLIR `df` dialect, and compiler pass implementations. The `scaleout` library defined in `lib/CMakeLists.txt` aggregates these components and links against MLIR.
 
 ## Layout
 - `resources/` – primitive building blocks such as SRAM capacities/ports, ring and chain interconnects, and a global `ResourceManager` for lifecycle tracking.
