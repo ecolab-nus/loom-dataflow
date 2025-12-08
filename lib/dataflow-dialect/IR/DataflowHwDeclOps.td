@@ -1,5 +1,5 @@
 //===- DataflowHwDeclOps.td ----------------------------------*- tablegen -*-===//
-// Hardware declaration operations for the TMD Dataflow dialect (df)
+// Hardware declaration operations for the LOOM Dataflow dialect (df)
 //===----------------------------------------------------------------------===//
 
 include "mlir/IR/OpBase.td"
@@ -10,8 +10,8 @@ include "mlir/IR/CommonTypeConstraints.td"
 // defines the helper `DF_Op` class and sets up codegen for the df dialect ops.
 
 def HandleLike : TypeConstraint<CPred<
-  "::llvm::isa<::tmd::df::ComputeHandleType>($_self) || " #
-  "::llvm::isa<::tmd::df::MemoryHandleType>($_self)">>;
+  "::llvm::isa<::loom::df::ComputeHandleType>($_self) || " #
+  "::llvm::isa<::loom::df::MemoryHandleType>($_self)">>;
 
 // df.spatial_dim : declare a spatial dimension with a name and a given size
 // Example:

@@ -49,6 +49,6 @@ The custom `df` dialect captures hardware scale-out descriptions that can be pai
 
 ## Dialect implementation
 - TableGen files (`DataflowDialect.td`, `DataflowOps.td`, `DataflowTypes.td`) live beside the C++ dialect implementation (`DataflowDialect.cpp`).
-- The generated headers are exposed through the `tmdDataflowDialect` library, which is linked by both the passes and the command-line tools.
+- The generated headers are exposed through the `loomDataflowDialect` library, which is linked by both the passes and the command-line tools.
 
 Additional design notes and examples live in `test/Dialect/DataflowDialect` and the higher-level READMEs under `lib/` and `tool/`.

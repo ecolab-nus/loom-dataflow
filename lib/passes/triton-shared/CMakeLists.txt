@@ -1,7 +1,7 @@
 # Triton-shared passes library
 # Provides passes for Triton-shared optimization pipeline
 
-add_library(tmdTritonSharedPasses STATIC
+add_library(loomTritonSharedPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/block_loading_pattern.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/const_dedup_cleanup.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/explore_alloc_copy_mapping.cpp
@@ -15,14 +15,14 @@ add_library(tmdTritonSharedPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/triton_shared_spatial_mapping_pass.cpp
 )
 
-target_include_directories(tmdTritonSharedPasses PUBLIC
+target_include_directories(loomTritonSharedPasses PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${MLIR_INCLUDE_DIRS}
 )
 
 # Triton-shared passes depend on affine passes
-target_link_libraries(tmdTritonSharedPasses PUBLIC
-    tmdAffinePasses
+target_link_libraries(loomTritonSharedPasses PUBLIC
+    loomAffinePasses
     MLIRIR
     MLIRPass
     MLIRParser
@@ -39,8 +39,8 @@ target_link_libraries(tmdTritonSharedPasses PUBLIC
     MLIRBufferizationTransforms
     MLIRAsmParser
     MLIRBytecodeReader
-    tmdDataflowDialect
+    loomDataflowDialect
 )
-mlir_check_all_link_libraries(tmdTritonSharedPasses)
+mlir_check_all_link_libraries(loomTritonSharedPasses)
 
-target_compile_options(tmdTritonSharedPasses PRIVATE -fno-rtti)
+target_compile_options(loomTritonSharedPasses PRIVATE -fno-rtti)

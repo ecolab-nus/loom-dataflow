@@ -9,7 +9,7 @@
 #include <cstddef>
 
 
-namespace tmd {
+namespace loom {
 namespace passes {
 
 class HoistBlockLoadingPass : public mlir::PassWrapper<HoistBlockLoadingPass, mlir::OperationPass<mlir::ModuleOp>> {
@@ -31,7 +31,7 @@ public:
             // Check if this forOp is the innermost (no nested loops in its body)
             bool hasNestedLoop = false;
             forOp.getBody()->walk([&](mlir::Operation *op) {
-                if (tmd::affine::isInWhitelist(op) && op != forOp.getOperation()) {
+                if (loom::affine::isInWhitelist(op) && op != forOp.getOperation()) {
                     hasNestedLoop = true;
                     return mlir::WalkResult::interrupt();
                 }
@@ -69,8 +69,8 @@ public:
             }
             
             // Build loading blocks to determine how many variants we need
-            llvm::SmallVector<tmd::affine::LoadingBlock, 2> loading_blocks;
-            if (failed(tmd::affine::BuildLoadingBlocks(innermostForOp, loading_blocks))) {
+            llvm::SmallVector<loom::affine::LoadingBlock, 2> loading_blocks;
+            if (failed(loom::affine::BuildLoadingBlocks(innermostForOp, loading_blocks))) {
                 continue;
             }
             
@@ -92,7 +92,7 @@ public:
                 // Find the innermost loop in the cloned function and hoist the block
                 mlir::scf::ForOp clonedInnermostForOp = findInnermostForOp(clonedFunc);
                 bool isValid = clonedInnermostForOp && 
-                              succeeded(tmd::affine::HoistSingleBlock(clonedInnermostForOp, block_idx));
+                              succeeded(loom::affine::HoistSingleBlock(clonedInnermostForOp, block_idx));
                 
                 if (!isValid) {
                     // Block is invalid (never used CreateHoistedOpsSimple), erase the cloned function
@@ -109,17 +109,17 @@ public:
 };
 
 } // namespace passes
-} // namespace tmd
+} // namespace loom
 
 
 /// @brief Create the hoist block loading pass.
 /// @return A unique pointer to the created pass.
 std::unique_ptr<mlir::Pass>
-tmd::passes::createHoistBlockLoadingPass() {
+loom::passes::createHoistBlockLoadingPass() {
   return std::make_unique<HoistBlockLoadingPass>();
 }
 
 /// @brief Register the hoist block loading pass with MLIR.
-void tmd::passes::registerHoistBlockLoadingPass() {
+void loom::passes::registerHoistBlockLoadingPass() {
   mlir::PassRegistration<HoistBlockLoadingPass>();
 }

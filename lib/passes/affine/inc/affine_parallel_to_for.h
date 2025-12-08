@@ -2,7 +2,7 @@
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 
-namespace tmd_affine {
+namespace loom_affine {
 
 /**
  * \brief Convert an outermost `affine.parallel` to a perfectly nested chain of
@@ -31,4 +31,4 @@ mlir::LogicalResult
 ConvertParallelToNested(mlir::affine::AffineParallelOp par,
                                      llvm::ArrayRef<unsigned> order);
 
-} // namespace tmd_affine
+} // namespace loom_affine

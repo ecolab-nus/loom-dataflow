@@ -14,7 +14,7 @@
 #include <variant>
 
 
-namespace tmd::affine {
+namespace loom::affine {
 
 class LoadingBlock {
 private:
@@ -108,4 +108,4 @@ static inline bool isInBlacklist(mlir::Operation *op) {
 /// @param block_index The index of the block to hoist.
 /// @return LogicalResult indicating success or failure.
 mlir::LogicalResult HoistSingleBlock(mlir::scf::ForOp inner_most_loop, size_t block_index);
-} // namespace tmd::affine
+} // namespace loom::affine

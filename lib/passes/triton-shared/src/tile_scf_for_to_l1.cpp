@@ -16,7 +16,7 @@
  * - For each function, visit `scf.for` loops and compute per-iteration memory
  *   by summing byte sizes of all static `memref.alloc` inside the loop body
  *   that are explicitly annotated as local to the single `df.memory` (i.e.,
- *   `tmd.alloc = {local=true, memory_name = <label>}`). Other allocs are
+ *   `loom.alloc = {local=true, memory_name = <label>}`). Other allocs are
  *   ignored for the L1 capacity check.
  * - Pick the largest power-of-two tile factor `t` such that
  *     `t * perIterBytes <= L1SizeBytes`.
@@ -60,7 +60,7 @@
 
 using namespace mlir;
 
-namespace tmd {
+namespace loom {
 namespace passes {
 
 struct SingleMemoryInfo {
@@ -70,8 +70,8 @@ struct SingleMemoryInfo {
 
 static FailureOr<SingleMemoryInfo> requireSingleMemory(ModuleOp module) {
   int memCount = 0;
-  tmd::df::MemoryOp first;
-  module.walk([&](tmd::df::MemoryOp m) {
+  loom::df::MemoryOp first;
+  module.walk([&](loom::df::MemoryOp m) {
     if (memCount == 0)
       first = m;
     ++memCount;
@@ -142,7 +142,7 @@ static FailureOr<uint64_t> getStaticMemrefByteSize(MemRefType mt) {
 }
 
 static bool hasAllocOnMemory(memref::AllocOp alloc, StringRef label) {
-  if (auto dict = alloc->getAttrOfType<DictionaryAttr>("tmd.alloc")) {
+  if (auto dict = alloc->getAttrOfType<DictionaryAttr>("loom.alloc")) {
     auto local = dict.get("local");
     auto memName = dict.get("memory_name");
     auto b = llvm::dyn_cast_or_null<BoolAttr>(local);
@@ -164,7 +164,7 @@ static FailureOr<uint64_t> ComputePerIterMemoryBytes(scf::ForOp forOp, StringRef
 
   // Prefer the annotated size in bytes if present.
   uint64_t bytes = 0;
-  if (auto dict = allocOp->getAttrOfType<DictionaryAttr>("tmd.alloc")) {
+  if (auto dict = allocOp->getAttrOfType<DictionaryAttr>("loom.alloc")) {
     if (auto sizeAttr = dict.get("size"))
       if (auto intAttr = llvm::dyn_cast<IntegerAttr>(sizeAttr))
         bytes = static_cast<uint64_t>(intAttr.getInt());
@@ -490,7 +490,7 @@ class TileScfForToL1Pass
     : public PassWrapper<TileScfForToL1Pass, OperationPass<ModuleOp>> {
 private:
   template <typename T>
-  void TMD_RETURN_ON_FAILURE(const T& result, StringRef reason) {
+  void LOOM_RETURN_ON_FAILURE(const T& result, StringRef reason) {
     if (!result) {
       llvm::WithColor::error(llvm::errs()) << "[Error] " << reason << "\n";
       signalPassFailure();
@@ -499,7 +499,7 @@ private:
   }
 
   template <typename T>
-  void TMD_RETURN_ON_FAILURE(const FailureOr<T>& result, StringRef reason) {
+  void LOOM_RETURN_ON_FAILURE(const FailureOr<T>& result, StringRef reason) {
     if (failed(result)) {
       llvm::WithColor::error(llvm::errs()) << "[Error] " << reason << "\n";
       signalPassFailure();
@@ -509,7 +509,7 @@ private:
 public:
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(TileScfForToL1Pass)
 
-  StringRef getArgument() const override { return "tmd-tile-scf-for-to-l1"; }
+  StringRef getArgument() const override { return "loom-tile-scf-for-to-l1"; }
   StringRef getDescription() const override {
     return "Tile scf.for loops with an outer affine.for so each tile fits in "
            "L1";
@@ -525,11 +525,11 @@ public:
     ModuleOp module = getOperation();
 
     auto memInfoOr = requireSingleMemory(module);
-    TMD_RETURN_ON_FAILURE(memInfoOr, "Failed to require single memory");
+    LOOM_RETURN_ON_FAILURE(memInfoOr, "Failed to require single memory");
     SingleMemoryInfo memInfo = *memInfoOr;
 
     // Enforce fully bufferized IR: no tensor types anywhere.
-    TMD_RETURN_ON_FAILURE(IsFullyBufferized(module), "IR is not fully bufferized");
+    LOOM_RETURN_ON_FAILURE(IsFullyBufferized(module), "IR is not fully bufferized");
 
     bool changedAny = false;
 
@@ -539,24 +539,24 @@ public:
 
       for (auto& forOp : loops) {
         auto perIterBytes = ComputePerIterMemoryBytes(forOp, memInfo.label);
-        TMD_RETURN_ON_FAILURE(perIterBytes, "Failed to compute per-iteration memory bytes");
+        LOOM_RETURN_ON_FAILURE(perIterBytes, "Failed to compute per-iteration memory bytes");
         uint64_t perIterBytesVal = *perIterBytes;
 
         if (perIterBytesVal == 0)
           continue; // nothing to tile
 
         uint64_t maxTiles = memInfo.sizeBytes / perIterBytesVal;
-        TMD_RETURN_ON_FAILURE(maxTiles, (Twine("Per-iteration memory exceeds L1 size in function '") + 
+        LOOM_RETURN_ON_FAILURE(maxTiles, (Twine("Per-iteration memory exceeds L1 size in function '") + 
         func.getSymName() + "'").str());
         
         uint64_t tileFactor = largestPowerOfTwoLE(maxTiles);
-        TMD_RETURN_ON_FAILURE(tileFactor, (Twine("Failed to compute tile factor in function '") + 
+        LOOM_RETURN_ON_FAILURE(tileFactor, (Twine("Failed to compute tile factor in function '") + 
         func.getSymName() + "'").str());
 
         // Prove trip count and divisibility.
         auto trip = getTripCount(forOp);
-        TMD_RETURN_ON_FAILURE(trip, (Twine("Trip count is not statically provable for scf.for in function '") + func.getSymName() + "'").str());
-        TMD_RETURN_ON_FAILURE(!(*trip % static_cast<int64_t>(tileFactor)), (Twine("Trip count not divisible by tile factor in function '") + func.getSymName() + "'").str());
+        LOOM_RETURN_ON_FAILURE(trip, (Twine("Trip count is not statically provable for scf.for in function '") + func.getSymName() + "'").str());
+        LOOM_RETURN_ON_FAILURE(!(*trip % static_cast<int64_t>(tileFactor)), (Twine("Trip count not divisible by tile factor in function '") + func.getSymName() + "'").str());
 
         // Start rewriting
         TillingManager manager(forOp, *trip, tileFactor);
@@ -580,4 +580,4 @@ std::unique_ptr<mlir::Pass> createTileScfForToL1Pass() {
 void registerTileScfForToL1Pass() { PassRegistration<TileScfForToL1Pass>(); }
 
 } // namespace passes
-} // namespace tmd
+} // namespace loom

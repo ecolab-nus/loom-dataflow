@@ -10,7 +10,7 @@
  *   directions formed by +1 along any subset of enclosing iterators (excluding
  *   all-zero), grouped per nearest enclosing `affine.parallel` region.
  * - `annotateSpatialInvariance`: attach fast boolean invariance summaries
- *   (`tmd.invariant.{x,y}`) based on `tmd.mapped_to` loop annotations.
+ *   (`loom.invariant.{x,y}`) based on `loom.mapped_to` loop annotations.
  *
  * Limitations
  * - The reuse basis uses syntactic affine deltas; non-affine or symbol-coupled
@@ -35,7 +35,7 @@
 
 using namespace mlir;
 
-namespace tmd_affine_analysis {
+namespace loom_affine_analysis {
 
 /**
  * Run a basic syntax check on the function. Currently acts as a stub that
@@ -299,7 +299,7 @@ static SmallVector<SmallVector<int64_t, 8>, 4> computePrimitiveIntegerNullspace(
  * @brief Attach primitive reuse vectors attribute to each `affine.load`.
  *
  * @param funcOp Function to analyze; annotates loads with
- *        `tmd.reuse.primitive_vectors` as an array<array<index>>.
+ *        `loom.reuse.primitive_vectors` as an array<array<index>>.
  */
 void attachPrimitiveReuseVectors(func::FuncOp funcOp) {
   MLIRContext *ctx = funcOp.getContext();
@@ -387,7 +387,7 @@ void attachPrimitiveReuseVectors(func::FuncOp funcOp) {
     }
 
     // Convert to attribute: array<array<index>> named
-    // tmd.reuse.primitive_vectors
+    // loom.reuse.primitive_vectors
     SmallVector<Attribute, 4> vecAttrs;
     vecAttrs.reserve(expanded.size());
     for (auto &vec : expanded) {
@@ -397,7 +397,7 @@ void attachPrimitiveReuseVectors(func::FuncOp funcOp) {
         ints.push_back(IntegerAttr::get(IndexType::get(ctx), v));
       vecAttrs.push_back(ArrayAttr::get(ctx, ints));
     }
-    loadOp->setAttr("tmd.reuse.primitive_vectors",
+    loadOp->setAttr("loom.reuse.primitive_vectors",
                     ArrayAttr::get(ctx, vecAttrs));
   });
 }
@@ -594,7 +594,7 @@ void runInputSharingReuseAnalysis(func::FuncOp funcOp, llvm::raw_ostream &os) {
  * \brief Annotate each affine.load with invariance w.r.t. spatial dimensions.
  *
  * This analysis inspects enclosing affine.parallel loops annotated with
- * `tmd.mapped_to = "x" | "y"`. For each affine.load, it composes and
+ * `loom.mapped_to = "x" | "y"`. For each affine.load, it composes and
  * canonicalizes the access map and determines whether the access is invariant
  * with respect to variations of any IVs belonging to spatial dimension `x` or
  * `y`.
@@ -606,13 +606,13 @@ void runInputSharingReuseAnalysis(func::FuncOp funcOp, llvm::raw_ostream &os) {
  * affine-linear expressions.
  *
  * Attributes attached on each affine.load:
- * - `tmd.invariant.x` : i1
- * - `tmd.invariant.y` : i1
+ * - `loom.invariant.x` : i1
+ * - `loom.invariant.y` : i1
  */
 /**
  * @brief Annotate each `affine.load` with boolean invariance along x/y.
  *
- * @param funcOp Function to analyze; attaches `tmd.invariant.{x,y}`.
+ * @param funcOp Function to analyze; attaches `loom.invariant.{x,y}`.
  */
 void annotateSpatialInvariance(func::FuncOp funcOp) {
   MLIRContext *ctx = funcOp.getContext();
@@ -637,7 +637,7 @@ void annotateSpatialInvariance(func::FuncOp funcOp) {
       if (!dimVal)
         continue;
       if (auto par = mlir::affine::getAffineParallelInductionVarOwner(dimVal)) {
-        if (auto attr = par->getAttrOfType<StringAttr>("tmd.mapped_to")) {
+        if (auto attr = par->getAttrOfType<StringAttr>("loom.mapped_to")) {
           StringRef tag = attr.getValue();
           if (tag == "x")
             xDimPositions.push_back(d);
@@ -684,9 +684,9 @@ void annotateSpatialInvariance(func::FuncOp funcOp) {
     bool invX = allResultsIndependentOfDims(xDimPositions);
     bool invY = allResultsIndependentOfDims(yDimPositions);
 
-    loadOp->setAttr("tmd.invariant.x", BoolAttr::get(ctx, invX));
-    loadOp->setAttr("tmd.invariant.y", BoolAttr::get(ctx, invY));
+    loadOp->setAttr("loom.invariant.x", BoolAttr::get(ctx, invX));
+    loadOp->setAttr("loom.invariant.y", BoolAttr::get(ctx, invY));
   });
 }
 
-} // namespace tmd_affine_analysis
+} // namespace loom_affine_analysis

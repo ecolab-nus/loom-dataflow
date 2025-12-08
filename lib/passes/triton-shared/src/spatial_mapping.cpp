@@ -7,7 +7,7 @@
  *   module into simple name/size pairs.
  * - `mapSpatialDimsToAffine`: greedily tile outermost `affine.parallel` loops
  *   with factors derived from spatial dimension sizes and mark inner loops with
- *   `tmd.mapped_to`.
+ *   `loom.mapped_to`.
  * - `enumerateSpatialMappings`: produce clones for all unique bucketings and
  *   per-iterator permutations of spatial dims over the first outermost
  *   `affine.parallel` in each function.
@@ -49,10 +49,10 @@
 
 using namespace mlir;
 
-namespace tmd_affine {
+namespace loom_affine {
 
-static LogicalResult GetSpatialDimInfo(tmd::df::SpatialDimOp sdOp, llvm::SmallVector<tmd_affine::SpatialDimInfo>& dimVec) {
-  tmd_affine::SpatialDimInfo info;
+static LogicalResult GetSpatialDimInfo(loom::df::SpatialDimOp sdOp, llvm::SmallVector<loom_affine::SpatialDimInfo>& dimVec) {
+  loom_affine::SpatialDimInfo info;
   // Read declared name and size from the op properties.
   if (auto nameAttr = sdOp.getNameAttr())
     info.name = nameAttr.getValue().str();
@@ -90,10 +90,10 @@ LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp dfModule,
   bool d0Connected = false;
   bool d1Connected = false;
   dfModule.walk([&](Operation *op) {
-    if (auto sd = dyn_cast<tmd::df::SpatialDimOp>(op)) {
+    if (auto sd = dyn_cast<loom::df::SpatialDimOp>(op)) {
       res = res || failed(GetSpatialDimInfo(sd, hardwareInfo.spatialDimInfoVec));
     }
-    else if (auto ic = dyn_cast<tmd::df::InterconnectsOp>(op)) {
+    else if (auto ic = dyn_cast<loom::df::InterconnectsOp>(op)) {
       AffineMap map = ic.getMapAttr().getValue();
       auto [x, y] = AnalyzeInterconnectDirection(map);
       if (x && !y) {
@@ -164,7 +164,7 @@ static void composeAndCanonicalizeAffineApplies(func::FuncOp func) {
  * @param out The result.
  */
 static void EnumerateBucketingRec(unsigned dimIdx, unsigned numDims,
-  tmd_affine::DimBuckets& currentBuckets, llvm::SmallVector<tmd_affine::DimBuckets>& out) {
+  loom_affine::DimBuckets& currentBuckets, llvm::SmallVector<loom_affine::DimBuckets>& out) {
   // If we have assigned all dimensions, add the current bucketing to the result.
   if (dimIdx == numDims) {
     out.push_back(currentBuckets);
@@ -186,9 +186,9 @@ static void EnumerateBucketingRec(unsigned dimIdx, unsigned numDims,
  * @param numDims The total number of dimensions.
  * @return The result.
  */
-static llvm::SmallVector<tmd_affine::DimBuckets> GenerateAllPossibleParallelBuckets(unsigned numParelleIter, unsigned numDims) {
-  llvm::SmallVector<tmd_affine::DimBuckets> bucketing_results;
-  tmd_affine::DimBuckets currentBuckets(numParelleIter);
+static llvm::SmallVector<loom_affine::DimBuckets> GenerateAllPossibleParallelBuckets(unsigned numParelleIter, unsigned numDims) {
+  llvm::SmallVector<loom_affine::DimBuckets> bucketing_results;
+  loom_affine::DimBuckets currentBuckets(numParelleIter);
   EnumerateBucketingRec(0, numDims, currentBuckets, bucketing_results);
   return bucketing_results;
 }
@@ -203,9 +203,9 @@ static llvm::SmallVector<tmd_affine::DimBuckets> GenerateAllPossibleParallelBuck
  * @param out The result.
  */
 static void CartesianProductOfBuckets(unsigned iterIdx,
-  tmd_affine::DimBuckets &current,
-  const llvm::SmallVector<tmd_affine::DimBuckets> &bucketsPerIter,
-  llvm::SmallVector<tmd_affine::DimBuckets> &out) {
+  loom_affine::DimBuckets &current,
+  const llvm::SmallVector<loom_affine::DimBuckets> &bucketsPerIter,
+  llvm::SmallVector<loom_affine::DimBuckets> &out) {
   // If we have processed all iterators, add the current bucketing to the result.
   if (iterIdx == current.size()) {
       out.push_back(current);
@@ -237,9 +237,9 @@ static void CartesianProductOfBuckets(unsigned iterIdx,
  * @param permutedBucketsPerIter The permuted bucketing for each iterator.
  * @return The result.
  */
-static llvm::SmallVector<tmd_affine::DimBuckets> GenerateAllPossibleMappings(const llvm::SmallVector<tmd_affine::DimBuckets>& permutedBucketsPerIter) {
-  llvm::SmallVector<tmd_affine::DimBuckets> result;
-  tmd_affine::DimBuckets currentBuckets(permutedBucketsPerIter.size());
+static llvm::SmallVector<loom_affine::DimBuckets> GenerateAllPossibleMappings(const llvm::SmallVector<loom_affine::DimBuckets>& permutedBucketsPerIter) {
+  llvm::SmallVector<loom_affine::DimBuckets> result;
+  loom_affine::DimBuckets currentBuckets(permutedBucketsPerIter.size());
   CartesianProductOfBuckets(0, currentBuckets, permutedBucketsPerIter, result);
   return result;
 }
@@ -252,9 +252,9 @@ static llvm::SmallVector<tmd_affine::DimBuckets> GenerateAllPossibleMappings(con
  * @param skipPermutation Whether to skip permutation if the number of dimensions is 2 and there is a bidirectional interconnect.
  * @return The complete mappings.
  */
-static llvm::SmallVector<tmd_affine::DimBuckets> PermuteBucket(const tmd_affine::DimBuckets& baseBuckets, const HardwareInfo& hardwareInfo) {
+static llvm::SmallVector<loom_affine::DimBuckets> PermuteBucket(const loom_affine::DimBuckets& baseBuckets, const HardwareInfo& hardwareInfo) {
   const unsigned numIters = static_cast<unsigned>(baseBuckets.size());
-  llvm::SmallVector<tmd_affine::DimBuckets> permutedBucketsPerIter(numIters);
+  llvm::SmallVector<loom_affine::DimBuckets> permutedBucketsPerIter(numIters);
 
   for (unsigned it = 0; it < numIters; ++it) {
     SmallVector<unsigned> dims = baseBuckets[it];
@@ -299,8 +299,8 @@ static affine::AffineParallelOp getOutermostParallel(func::FuncOp func) {
  * @return success if the mapping is applied successfully, failure otherwise.
  */
 static LogicalResult applyMappingToFunction(func::FuncOp func,
-                                            const tmd_affine::DimBuckets &mapping,
-                                            const llvm::SmallVector<tmd_affine::SpatialDimInfo>& dims,
+                                            const loom_affine::DimBuckets &mapping,
+                                            const llvm::SmallVector<loom_affine::SpatialDimInfo>& dims,
                                             affine::AffineParallelOp &tar_forOp, std::string &suffix) {
   suffix.clear();
 
@@ -310,10 +310,10 @@ static LogicalResult applyMappingToFunction(func::FuncOp func,
     for (unsigned dimIdx : mapping[iterIdx]) {
       const auto &sd = dims[dimIdx];
       int64_t factor = sd.size.value_or(1);
-      tmd_affine::TiledParallels tiled_parallels{};
+      loom_affine::TiledParallels tiled_parallels{};
       if (failed(tileAffineParallel(tar_forOp, factor, iterIdx, tiled_parallels)))
         return failure();
-      tiled_parallels.tiled_new_->setAttr("tmd.mapped_to",
+      tiled_parallels.tiled_new_->setAttr("loom.mapped_to",
                         StringAttr::get(ctx, sd.name.empty() ? "dim" : sd.name));
       if (!suffix.empty())
         suffix += "_";
@@ -329,7 +329,7 @@ static LogicalResult applyMappingToFunction(func::FuncOp func,
 
 
 /**
- * @copydoc tmd_affine::EnumerateSpatialMappings
+ * @copydoc loom_affine::EnumerateSpatialMappings
  */
 OwningOpRef<ModuleOp>
 EnumerateSpatialMappings(ModuleOp affineModule,
@@ -382,7 +382,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
 
     // Generate partitions of D dims into P buckets, then permutations within
     // each bucket, as before.
-    llvm::SmallVector<tmd_affine::DimBuckets> allBuckets =
+    llvm::SmallVector<loom_affine::DimBuckets> allBuckets =
         GenerateAllPossibleParallelBuckets(P, D);
 
     for (auto &bucketing : allBuckets) {
@@ -435,4 +435,4 @@ EnumerateSpatialMappings(ModuleOp affineModule,
   return out;
 }
 
-} // namespace tmd_affine
+} // namespace loom_affine

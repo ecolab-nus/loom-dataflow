@@ -167,7 +167,7 @@ void demonstrateAdvancedUsage() {
 
 int main() {
   std::cout << "======================================" << std::endl;
-  std::cout << "  TMD Resource Management Demo" << std::endl;
+  std::cout << "  LOOM Resource Management Demo" << std::endl;
   std::cout << "======================================" << std::endl;
   std::cout << std::endl;
 

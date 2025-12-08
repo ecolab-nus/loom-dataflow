@@ -6,14 +6,14 @@
 // single 3-D `affine.parallel`. Exploration then matches those induction
 // variables against the declared hardware spatial dimensions, cloning the
 // kernel for every viable binding. Each clone tracks which hardware dimension
-// drives which loop through a `tmd.mapped_to` attribute, inserts `affine.for`
+// drives which loop through a `loom.mapped_to` attribute, inserts `affine.for`
 // nests when multiple "waves" are needed to time-multiplex the workload, and
 // leaves the inner `scf.for` loops untouched to model per-core tile sequencing.
 // The resulting module mirrors the structure of
 // `test/Dialect/Triton/mm_fixed_strides/after_exploration.mlir`.
 //
 // Usage:
-//   tmd_triton_shared_to_affine --ttshared <ttshared.mlir> --df <df.mlir>
+//   loom_triton_shared_to_affine --ttshared <ttshared.mlir> --df <df.mlir>
 //
 #include "const_dedup_cleanup.h"
 #include "explore_alloc_copy_mapping.h"
@@ -67,7 +67,7 @@ static llvm::cl::opt<std::string>
 
 static llvm::cl::opt<bool> clMapAnalysisOnly(
     "map-analysis-only",
-    llvm::cl::desc("Only attach tmd.copy.candidates; do not clone functions"),
+    llvm::cl::desc("Only attach loom.copy.candidates; do not clone functions"),
     llvm::cl::init(false));
 
 static llvm::cl::opt<bool> clSkipTileScfForToL1("skip-tile-scf-for-to-l1",
@@ -122,7 +122,7 @@ static LogicalResult dumpModuleToFile(ModuleOp module, StringRef dirPath,
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
-                                    "TMD Triton-shared to Affine pipeline\n");
+                                    "LOOM Triton-shared to Affine pipeline\n");
 
   // Setup context and register required dialects.
   mlir::DialectRegistry registry;
@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
                   mlir::arith::ArithDialect, mlir::tensor::TensorDialect,
                   mlir::linalg::LinalgDialect, mlir::scf::SCFDialect,
                   mlir::bufferization::BufferizationDialect,
-                  tmd::df::DataflowDialect>();
+                  loom::df::DataflowDialect>();
   MLIRContext context(registry, clDumpIntermediate
                                     ? MLIRContext::Threading::DISABLED
                                     : MLIRContext::Threading::ENABLED);
@@ -156,8 +156,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  tmd_affine::HardwareInfo hardwareInfo;
-  if (failed(tmd_affine::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
+  loom_affine::HardwareInfo hardwareInfo;
+  if (failed(loom_affine::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
     llvm::WithColor::error(llvm::errs())
         << "Failed to collect hardware information from DF module\n";
     return 1;
@@ -189,7 +189,7 @@ int main(int argc, char **argv) {
         /*printAfterOnlyOnChange=*/false,
         /*printAfterOnlyOnFailure=*/false, llvm::errs());
   }
-  pmAff.addPass(tmd::passes::createTritonSharedAffinizePass());
+  pmAff.addPass(loom::passes::createTritonSharedAffinizePass());
   if (failed(pmAff.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs()) << "Affinization pass failed\n";
     return 2;
@@ -204,7 +204,7 @@ int main(int argc, char **argv) {
           /*printAfterOnlyOnChange=*/false,
           /*printAfterOnlyOnFailure=*/false, llvm::errs());
     }
-    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
     if (failed(cleanupPM.run(*tsModule))) {
       llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
       return 7;
@@ -224,7 +224,7 @@ int main(int argc, char **argv) {
         /*printAfterOnlyOnChange=*/false,
         /*printAfterOnlyOnFailure=*/false, llvm::errs());
   }
-  pmGrid.addPass(tmd::passes::createTritonSharedGridToParallelPass());
+  pmGrid.addPass(loom::passes::createTritonSharedGridToParallelPass());
   if (failed(pmGrid.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs()) << "Grid-to-parallel pass failed\n";
     return 2;
@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
           /*printAfterOnlyOnChange=*/false,
           /*printAfterOnlyOnFailure=*/false, llvm::errs());
     }
-    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
     if (failed(cleanupPM.run(*tsModule))) {
       llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
       return 7;
@@ -268,7 +268,7 @@ int main(int argc, char **argv) {
         /*printAfterOnlyOnChange=*/false,
         /*printAfterOnlyOnFailure=*/false, llvm::errs());
   }
-  spatialPM.addPass(tmd::passes::createTritonSharedExploreSpatialMappingsPass(
+  spatialPM.addPass(loom::passes::createTritonSharedExploreSpatialMappingsPass(
       /*withOuterFors=*/true));
   if (failed(spatialPM.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs())
@@ -285,7 +285,7 @@ int main(int argc, char **argv) {
     }
   if (!hasFuncs) {
     OwningOpRef<ModuleOp> explored =
-        tmd_affine::EnumerateSpatialMappings(*tsModule,
+        loom_affine::EnumerateSpatialMappings(*tsModule,
                                                           hardwareInfo);
     // Replace non-DF ops with explored clones.
     SmallVector<Operation *, 16> toErase;
@@ -312,7 +312,7 @@ int main(int argc, char **argv) {
           /*printAfterOnlyOnChange=*/false,
           /*printAfterOnlyOnFailure=*/false, llvm::errs());
     }
-    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
     if (failed(cleanupPM.run(*tsModule))) {
       llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
       return 7;
@@ -332,7 +332,7 @@ int main(int argc, char **argv) {
         /*printAfterOnlyOnChange=*/false,
         /*printAfterOnlyOnFailure=*/false, llvm::errs());
   }
-  hoistPM.addPass(tmd::passes::createHoistBlockLoadingPass());
+  hoistPM.addPass(loom::passes::createHoistBlockLoadingPass());
   if (failed(hoistPM.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs())
         << "Hoist block loading pass failed\n";
@@ -348,7 +348,7 @@ int main(int argc, char **argv) {
           /*printAfterOnlyOnChange=*/false,
           /*printAfterOnlyOnFailure=*/false, llvm::errs());
     }
-    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
     if (failed(cleanupPM.run(*tsModule))) {
       llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
       return 7;
@@ -369,7 +369,7 @@ int main(int argc, char **argv) {
         /*printAfterOnlyOnChange=*/false,
         /*printAfterOnlyOnFailure=*/false, llvm::errs());
   }
-  annotatePM.addPass(tmd::passes::createAnnotateReinterpretCastReusePass());
+  annotatePM.addPass(loom::passes::createAnnotateReinterpretCastReusePass());
   if (failed(annotatePM.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs()) << "Reuse annotation pass failed\n";
     return 3;
@@ -384,7 +384,7 @@ int main(int argc, char **argv) {
           /*printAfterOnlyOnChange=*/false,
           /*printAfterOnlyOnFailure=*/false, llvm::errs());
     }
-    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
     if (failed(cleanupPM.run(*tsModule))) {
       llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
       return 7;
@@ -405,7 +405,7 @@ int main(int argc, char **argv) {
         /*printAfterOnlyOnChange=*/false,
         /*printAfterOnlyOnFailure=*/false, llvm::errs());
   }
-  mappingPM.addPass(tmd::passes::createExploreAllocCopyMappingPass(
+  mappingPM.addPass(loom::passes::createExploreAllocCopyMappingPass(
       /*analysisOnly=*/clMapAnalysisOnly));
   if (failed(mappingPM.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs())
@@ -422,7 +422,7 @@ int main(int argc, char **argv) {
           /*printAfterOnlyOnChange=*/false,
           /*printAfterOnlyOnFailure=*/false, llvm::errs());
     }
-    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
     if (failed(cleanupPM.run(*tsModule))) {
       llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
       return 7;
@@ -465,7 +465,7 @@ int main(int argc, char **argv) {
           /*printAfterOnlyOnChange=*/false,
           /*printAfterOnlyOnFailure=*/false, llvm::errs());
     }
-    cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
     if (failed(cleanupPM.run(*tsModule))) {
       llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
       return 7;
@@ -488,7 +488,7 @@ int main(int argc, char **argv) {
           /*printAfterOnlyOnChange=*/false,
           /*printAfterOnlyOnFailure=*/false, llvm::errs());
     }
-    tilePM.addPass(tmd::passes::createTileScfForToL1Pass());
+    tilePM.addPass(loom::passes::createTileScfForToL1Pass());
     if (failed(tilePM.run(*tsModule))) {
       llvm::WithColor::error(llvm::errs()) << "SCF tiling to L1 pass failed\n";
       return 6;
@@ -505,7 +505,7 @@ int main(int argc, char **argv) {
             /*printAfterOnlyOnChange=*/false,
             /*printAfterOnlyOnFailure=*/false, llvm::errs());
       }
-      cleanupPM.addPass(tmd::passes::createConstDedupCleanupPass());
+      cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
       if (failed(cleanupPM.run(*tsModule))) {
         llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
         return 7;

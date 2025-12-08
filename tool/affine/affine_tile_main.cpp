@@ -23,7 +23,7 @@ using namespace mlir;
  * default 8), and prints the transformed module.
  *
  * Usage:
- *   tmd_affine_tile <input.mlir> [tiling_factor]
+ *   loom_affine_tile <input.mlir> [tiling_factor]
  */
 int main(int argc, char **argv) {
   MLIRContext context;
@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
 
   PassManager pm(&context);
   pm.addNestedPass<func::FuncOp>(
-      tmd_affine::createAffineTilePass(tilingFactor, tileDimIndex));
+      loom_affine::createAffineTilePass(tilingFactor, tileDimIndex));
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Tiling failed\n";
     return 2;

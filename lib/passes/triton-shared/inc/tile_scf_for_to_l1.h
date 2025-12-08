@@ -3,7 +3,7 @@
  * @brief Tiling of scf.for loops to fit within the single df.memory (L1).
  * @details
  * The pass verifies that the module declares exactly one `df.memory` and that
- * all `memref.alloc` operations are annotated with `tmd.alloc = { local=true,
+ * all `memref.alloc` operations are annotated with `loom.alloc = { local=true,
  * memory_name = <that memory's label> }`. For each `scf.for` loop, it estimates
  * the per-iteration memory footprint as the sum of byte sizes of all static
  * `memref.alloc` inside the loop body. It then picks the largest power-of-two
@@ -34,7 +34,7 @@
 
 #include "mlir/Pass/Pass.h"
 
-namespace tmd {
+namespace loom {
 namespace passes {
 
 /**
@@ -48,4 +48,4 @@ std::unique_ptr<mlir::Pass> createTileScfForToL1Pass();
 void registerTileScfForToL1Pass();
 
 } // namespace passes
-} // namespace tmd
+} // namespace loom

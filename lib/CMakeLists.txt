@@ -8,11 +8,11 @@ add_subdirectory(passes)
 add_subdirectory(dataflow-dialect)
 
 # Aggregate library that combines resources and modules
-# This is an interface library that aggregates tmdResources and tmdModules
+# This is an interface library that aggregates loomResources and loomModules
 add_library(scaleout INTERFACE)
 
 # Link submodule libraries
 target_link_libraries(scaleout INTERFACE
-    tmdResources
-    tmdModules
+    loomResources
+    loomModules
 )

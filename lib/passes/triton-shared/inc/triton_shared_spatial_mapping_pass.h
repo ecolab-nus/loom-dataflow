@@ -14,7 +14,7 @@
 
 #include "mlir/Pass/Pass.h"
 
-namespace tmd {
+namespace loom {
 namespace passes {
 
 /**
@@ -39,4 +39,4 @@ createTritonSharedExploreSpatialMappingsPass(bool withOuterFors = true);
 void registerTritonSharedExploreSpatialMappingsPass();
 
 } // namespace passes
-} // namespace tmd
+} // namespace loom

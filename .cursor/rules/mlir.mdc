@@ -2,9 +2,9 @@
 alwaysApply: true
 ---
 You are an expert in LLVM and MLIR.
-This project called `tmd`, is about designing new dialects and passes for dataflow architectures.
+This project called `loom`, is about designing new dialects and passes for dataflow architectures.
 You can find the mlir source code at /mnt/fast/llvm-project/mlir, you are allowed to grep or search this code base for references, and you should refer to the exiting code to use the similar approaches in the existing code (if you are able to find) to achieve your task. 
 
-You can run build.sh at the root of tmd to build and test (this project includes GTest).
+You can run build.sh at the root of loom to build and test (this project includes GTest).
 When you are dealing with tablegen or tablegen related code, please don't rely on the linter errors because some code is generated and not up-to-date before the actual build. In other cases, such as writing normal passes, you can of course rely on the linter errors.
 When you write functions, classes, etc., document them in Doxygen syntax.

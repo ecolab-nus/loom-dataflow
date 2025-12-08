@@ -6,7 +6,7 @@
 
 using namespace mlir;
 
-namespace tmd_affine {
+namespace loom_affine {
 
 namespace {
 struct AffineTilePass
@@ -21,7 +21,7 @@ struct AffineTilePass
     registry.insert<mlir::affine::AffineDialect>();
   }
 
-  StringRef getArgument() const override { return "tmd-affine-tile"; }
+  StringRef getArgument() const override { return "loom-affine-tile"; }
   StringRef getDescription() const override {
     return "Tile the first affine.parallel in the function by a fixed factor";
   }
@@ -38,14 +38,14 @@ struct AffineTilePass
     });
     if (!firstPar) {
       func.emitError()
-          << "tmd-affine-tile: no outermost affine.parallel op found to tile";
+          << "loom-affine-tile: no outermost affine.parallel op found to tile";
       signalPassFailure();
       return;
     }
 
     if (tilingFactor <= 0) {
       func.emitError()
-          << "tmd-affine-tile: tiling-factor must be positive, got "
+          << "loom-affine-tile: tiling-factor must be positive, got "
           << tilingFactor;
       signalPassFailure();
       return;
@@ -54,14 +54,14 @@ struct AffineTilePass
     unsigned numDims = firstPar.getNumDims();
     if (tileDimIndex >= numDims) {
       firstPar.emitOpError()
-          << "tmd-affine-tile: tile-dim index out of range: " << tileDimIndex
+          << "loom-affine-tile: tile-dim index out of range: " << tileDimIndex
           << " >= " << numDims;
       signalPassFailure();
       return;
     }
 
     if (failed(tileAffineParallel(firstPar, tilingFactor, tileDimIndex))) {
-      firstPar.emitOpError() << "tmd-affine-tile: tiling failed with factor "
+      firstPar.emitOpError() << "loom-affine-tile: tiling failed with factor "
                              << tilingFactor << " on dimension " << tileDimIndex
                              << "; see previous diagnostics for details";
       signalPassFailure();
@@ -78,4 +78,4 @@ std::unique_ptr<mlir::Pass> createAffineTilePass(int64_t tilingFactor,
   return std::make_unique<AffineTilePass>(tilingFactor, tileDimIndex);
 }
 
-} // namespace tmd_affine
+} // namespace loom_affine

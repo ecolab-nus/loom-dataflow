@@ -17,20 +17,20 @@ using namespace mlir;
 #include "DataflowDialect.h.inc"
 #include "DataflowOps.h.inc"
 
-namespace tmd_affine_analysis {
+namespace loom_affine_analysis {
 
 LogicalResult runSyntaxCheck(func::FuncOp funcOp);
 void attachPrimitiveReuseVectors(func::FuncOp funcOp);
 void annotateSpatialInvariance(func::FuncOp funcOp);
 
-} // namespace tmd_affine_analysis
+} // namespace loom_affine_analysis
 
 int main(int argc, char **argv) {
   MLIRContext context;
   (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
   context.loadDialect<mlir::func::FuncDialect, mlir::affine::AffineDialect,
                       mlir::memref::MemRefDialect, mlir::arith::ArithDialect>();
-  context.loadDialect<tmd::df::DataflowDialect>();
+  context.loadDialect<loom::df::DataflowDialect>();
 
   llvm::SourceMgr sourceMgr;
   const char *filename = argc > 1 ? argv[1] : "-";
@@ -52,12 +52,12 @@ int main(int argc, char **argv) {
 
   bool hadError = false;
   module->walk([&](func::FuncOp funcOp) {
-    if (failed(tmd_affine_analysis::runSyntaxCheck(funcOp))) {
+    if (failed(loom_affine_analysis::runSyntaxCheck(funcOp))) {
       hadError = true;
       return;
     }
-    tmd_affine_analysis::attachPrimitiveReuseVectors(funcOp);
-    tmd_affine_analysis::annotateSpatialInvariance(funcOp);
+    loom_affine_analysis::attachPrimitiveReuseVectors(funcOp);
+    loom_affine_analysis::annotateSpatialInvariance(funcOp);
   });
 
   if (hadError)

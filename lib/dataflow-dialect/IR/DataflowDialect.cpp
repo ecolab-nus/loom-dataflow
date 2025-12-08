@@ -18,7 +18,7 @@
 #include "DataflowTypes.cpp.inc"
 
 using namespace mlir;
-using namespace tmd::df;
+using namespace loom::df;
 
 #include "DataflowDialect.cpp.inc"
 // Bring in op class declarations for registration below.

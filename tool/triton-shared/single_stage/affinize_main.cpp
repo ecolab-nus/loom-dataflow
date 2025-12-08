@@ -1,7 +1,7 @@
 // Standalone driver to run the Triton-shared affinization pass.
 //
 // Usage:
-//   tmd_triton_shared_affinize --ttshared <input.mlir>
+//   loom_triton_shared_affinize --ttshared <input.mlir>
 
 #include "triton_shared_affinize.h"
 
@@ -36,7 +36,7 @@ static llvm::cl::opt<std::string>
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
-                                    "TMD Triton-shared affinization\n");
+                                    "LOOM Triton-shared affinization\n");
 
   MLIRContext context;
   (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::scf::SCFDialect>();
   context.loadDialect<mlir::bufferization::BufferizationDialect>();
   context.loadDialect<mlir::affine::AffineDialect>();
-  context.loadDialect<tmd::df::DataflowDialect>();
+  context.loadDialect<loom::df::DataflowDialect>();
 
   llvm::SourceMgr sm;
   auto file = mlir::openInputFile(clTTSharedInput);
@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
   }
 
   PassManager pm(&context);
-  pm.addPass(tmd::passes::createTritonSharedAffinizePass());
+  pm.addPass(loom::passes::createTritonSharedAffinizePass());
 
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Affinization pass failed\n";

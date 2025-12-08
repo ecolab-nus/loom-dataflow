@@ -9,9 +9,9 @@
  * mapping passes.
  *
  * Usage
- * - Register: `tmd::passes::registerTritonSharedAffinizePass()`
- * - CLI pipeline: `--tmd-triton-shared-affinize`
- * - Intended to run before `tmd-triton-shared-grid-to-parallel`.
+ * - Register: `loom::passes::registerTritonSharedAffinizePass()`
+ * - CLI pipeline: `--loom-triton-shared-affinize`
+ * - Intended to run before `loom-triton-shared-grid-to-parallel`.
  *
  * Preconditions
  * - Functions follow the Triton-shared ABI where the last 6 block arguments
@@ -39,7 +39,7 @@
 
 #include "mlir/Pass/Pass.h"
 
-namespace tmd {
+namespace loom {
 namespace passes {
 
 /**
@@ -65,4 +65,4 @@ std::unique_ptr<mlir::Pass> createTritonSharedAffinizePass();
 void registerTritonSharedAffinizePass();
 
 } // namespace passes
-} // namespace tmd
+} // namespace loom

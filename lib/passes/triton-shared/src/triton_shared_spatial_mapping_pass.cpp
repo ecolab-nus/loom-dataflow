@@ -37,7 +37,7 @@ struct TritonSharedExploreSpatialMappingsPass
       : withOuterFors(withOuterFors) {}
 
   StringRef getArgument() const override {
-    return "tmd-triton-shared-explore-spatial-mappings";
+    return "loom-triton-shared-explore-spatial-mappings";
   }
   StringRef getDescription() const override {
     return "Enumerate spatial mappings for Triton-shared kernels using DF dims";
@@ -52,12 +52,12 @@ struct TritonSharedExploreSpatialMappingsPass
     (void)module.getContext();
 
     // Collect spatial dimensions from DF ops in this module.
-    tmd_affine::HardwareInfo hardwareInfo;
-    if (failed(tmd_affine::GetHardwareInfoForExploration(module, hardwareInfo)))
+    loom_affine::HardwareInfo hardwareInfo;
+    if (failed(loom_affine::GetHardwareInfoForExploration(module, hardwareInfo)))
       return; // Failed to collect hardware information from DF module; silently no-op
 
 
-    OwningOpRef<ModuleOp> enumerated = tmd_affine::EnumerateSpatialMappings(module, hardwareInfo);
+    OwningOpRef<ModuleOp> enumerated = loom_affine::EnumerateSpatialMappings(module, hardwareInfo);
 
     // If enumeration produced no functions, keep the original functions.
     bool producedAnyFunc = false;
@@ -108,11 +108,11 @@ struct TritonSharedExploreSpatialMappingsPass
 } // namespace
 
 std::unique_ptr<mlir::Pass>
-tmd::passes::createTritonSharedExploreSpatialMappingsPass(bool withOuterFors) {
+loom::passes::createTritonSharedExploreSpatialMappingsPass(bool withOuterFors) {
   return std::make_unique<TritonSharedExploreSpatialMappingsPass>(
       withOuterFors);
 }
 
-void tmd::passes::registerTritonSharedExploreSpatialMappingsPass() {
+void loom::passes::registerTritonSharedExploreSpatialMappingsPass() {
   PassRegistration<TritonSharedExploreSpatialMappingsPass>();
 }

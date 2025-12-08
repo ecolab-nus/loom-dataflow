@@ -1,7 +1,7 @@
 // Standalone driver to run the Triton-shared grid-to-parallel pass.
 //
 // Usage:
-//   tmd_triton_shared_grid_to_parallel --input <input.mlir>
+//   loom_triton_shared_grid_to_parallel --input <input.mlir>
 
 #include "triton_shared_grid_to_parallel.h"
 
@@ -32,7 +32,7 @@ static llvm::cl::opt<std::string>
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
-                                    "TMD Triton-shared grid-to-parallel\n");
+                                    "LOOM Triton-shared grid-to-parallel\n");
 
   MLIRContext context;
   (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
   }
 
   PassManager pm(&context);
-  pm.addPass(tmd::passes::createTritonSharedGridToParallelPass());
+  pm.addPass(loom::passes::createTritonSharedGridToParallelPass());
 
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Grid-to-parallel pass failed\n";

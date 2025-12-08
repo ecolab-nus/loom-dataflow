@@ -2,7 +2,7 @@
 
 #include <mlir/Pass/Pass.h>
 
-namespace tmd {
+namespace loom {
 namespace passes {
 
 /** Create the reuse-annotation pass. */
@@ -12,4 +12,4 @@ std::unique_ptr<mlir::Pass> createHoistBlockLoadingPass();
 void registerHoistBlockLoadingPass();
 
 } // namespace passes
-} // namespace tmd
+} // namespace loom

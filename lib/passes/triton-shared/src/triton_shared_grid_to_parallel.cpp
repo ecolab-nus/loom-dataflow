@@ -21,7 +21,7 @@
 //   Subsequent spatial exploration interprets those induction variables as the
 //   handles that can be matched to hardware spatial dimensions declared in the
 //   `df` dialect; when a dimension is assigned, the inner loop is annotated
-//   with `tmd.mapped_to` to record the binding.
+//   with `loom.mapped_to` to record the binding.
 // - Signature change: The three index arguments are no longer needed and are
 //   erased from the function type and entry block. The three size arguments are
 //   preserved as function parameters and used as dynamic upper bounds of the
@@ -91,7 +91,7 @@
 
 using namespace mlir;
 
-namespace tmd {
+namespace loom {
 namespace passes {
 
 namespace {
@@ -113,7 +113,7 @@ public:
 
   /// Command-line flag name.
   StringRef getArgument() const override {
-    return "tmd-triton-shared-grid-to-parallel";
+    return "loom-triton-shared-grid-to-parallel";
   }
   /// Short pass description.
   StringRef getDescription() const override {
@@ -309,4 +309,4 @@ void registerTritonSharedGridToParallelPass() {
 }
 
 } // namespace passes
-} // namespace tmd
+} // namespace loom

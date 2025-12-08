@@ -6,19 +6,19 @@
  * - Exactly one `df.memory` declares the local memory pool (`memory_name`).
  * - Optional `df.interconnects` define broadcast-capable links between tiles.
  *   We classify simple maps as horizontal (x) or vertical (y) heuristically.
- * - Prior reuse analysis must have attached `tmd.reuse` on relevant
+ * - Prior reuse analysis must have attached `loom.reuse` on relevant
  *   `memref.reinterpret_cast` ops to expose spatial total-reuse.
  *
  * Behavior
- * - Always annotate `memref.alloc` with `tmd.alloc = { local=true,
+ * - Always annotate `memref.alloc` with `loom.alloc = { local=true,
  *   memory_name=..., size=(bytes copied) }`.
  * - For each `memref.copy`, build a candidate set:
  *   - `kind=mem`: local memory copy into the single `df.memory`.
  *   - `kind=broadcast`, `dim=x|y`, `interconnect_name=...` for each eligible
  *     interconnect along a dimension with total-reuse.
- * - Analysis-only mode attaches `tmd.copy.candidates` per site.
+ * - Analysis-only mode attaches `loom.copy.candidates` per site.
  * - Enumeration mode clones per cross-product of site candidates and attaches
- *   `tmd.copy.choice` in each clone; function names are suffixed accordingly.
+ *   `loom.copy.choice` in each clone; function names are suffixed accordingly.
  */
 
 #include "explore_alloc_copy_mapping.h"
@@ -68,8 +68,8 @@ static std::string getStringOr(mlir::StringAttr a, StringRef fallback) {
 
 static bool collectDFContext(ModuleOp module, DFContext &out) {
   // Find single df.memory and record its name.
-  tmd::df::MemoryOp singleMem;
-  module.walk([&](tmd::df::MemoryOp m) {
+  loom::df::MemoryOp singleMem;
+  module.walk([&](loom::df::MemoryOp m) {
     if (!singleMem)
       singleMem = m;
   });
@@ -80,15 +80,15 @@ static bool collectDFContext(ModuleOp module, DFContext &out) {
   out.singleMemoryName = getStringOr(singleMem.getLabelAttr(), "mem0");
 
   // Collect spatial dim names.
-  module.walk([&](tmd::df::SpatialDimOp sd) {
+  module.walk([&](loom::df::SpatialDimOp sd) {
     out.spatialDimNames.push_back(getStringOr(sd.getNameAttr(), "dim"));
   });
 
   // Collect memory-to-memory interconnects and classify by simple map shape.
-  module.walk([&](tmd::df::InterconnectsOp ic) {
+  module.walk([&](loom::df::InterconnectsOp ic) {
     // Only consider memory-to-memory ICs.
-    if (!llvm::isa<tmd::df::MemoryHandleType>(ic.getSource().getType()) ||
-        !llvm::isa<tmd::df::MemoryHandleType>(ic.getTarget().getType()))
+    if (!llvm::isa<loom::df::MemoryHandleType>(ic.getSource().getType()) ||
+        !llvm::isa<loom::df::MemoryHandleType>(ic.getTarget().getType()))
       return;
     // Heuristic: strictly accept +1 on exactly one axis.
     AffineMap map = ic.getMap();
@@ -148,10 +148,10 @@ static bool collectDFContext(ModuleOp module, DFContext &out) {
     // Infer dimension name from source memory's scaleout.
     std::string dimName = "d" + std::to_string(*axis);
     Value source = ic.getSource();
-    if (auto mem = source.getDefiningOp<tmd::df::MemoryOp>()) {
+    if (auto mem = source.getDefiningOp<loom::df::MemoryOp>()) {
       auto scaleout = mem.getScaleout();
       if (*axis < scaleout.size()) {
-        if (auto sd = scaleout[*axis].getDefiningOp<tmd::df::SpatialDimOp>()) {
+        if (auto sd = scaleout[*axis].getDefiningOp<loom::df::SpatialDimOp>()) {
           dimName = getStringOr(sd.getNameAttr(), dimName);
         }
       }
@@ -303,7 +303,7 @@ struct CopyCandidatesInfo {
    DictionaryAttr reuse;
    if (auto srcDef = cpy.getSource().getDefiningOp()) {
      if (auto rc = dyn_cast<memref::ReinterpretCastOp>(srcDef))
-       reuse = rc->getAttrOfType<DictionaryAttr>("tmd.reuse");
+       reuse = rc->getAttrOfType<DictionaryAttr>("loom.reuse");
    }
    
    // Build broadcast candidates for dimensions with total reuse.
@@ -445,7 +445,7 @@ EnumerateAndCloneFunctions(func::FuncOp f, const CopyCandidatesInfo &info,
     for (size_t i = 0, k = 0; i < info.perCopyCands.size() && k < cloneCopies.size(); ++i) {
       if (info.perCopyCands[i].empty() || idx[i] >= info.perCopyCands[i].size())
         continue;
-      cloneCopies[k++]->setAttr("tmd.copy.choice", info.perCopyCands[i][idx[i]]);
+      cloneCopies[k++]->setAttr("loom.copy.choice", info.perCopyCands[i][idx[i]]);
     }
     if (!suffix.empty())
       clone.setName((f.getSymName().str() + "__" + suffix).c_str());
@@ -463,7 +463,7 @@ struct ExploreAllocCopyMappingPass
   ExploreAllocCopyMappingPass(bool analysisOnly) : analysisOnly(analysisOnly) {}
 
   StringRef getArgument() const override {
-    return "tmd-explore-alloc-copy-mapping";
+    return "loom-explore-alloc-copy-mapping";
   }
   StringRef getDescription() const override {
     return "Enumerate mapping choices for memref.alloc/copy using DF + reuse";
@@ -489,7 +489,7 @@ struct ExploreAllocCopyMappingPass
       if (auto sz = inferAllocCopiedSizeBytes(alloc)) {
         nl.append("size", IntegerAttr::get(IntegerType::get(ctx, 64), *sz));
       }
-      alloc->setAttr("tmd.alloc", DictionaryAttr::get(ctx, nl));
+      alloc->setAttr("loom.alloc", DictionaryAttr::get(ctx, nl));
     };
 
     // Build list of target functions (all functions in the module).
@@ -503,7 +503,7 @@ struct ExploreAllocCopyMappingPass
         f.walk([&](memref::CopyOp cpy) {
           auto cand = BuildCandidatesForCopy(cpy, df, ctx);
           SmallVector<Attribute> candidates(cand.begin(), cand.end());
-          cpy->setAttr("tmd.copy.candidates", ArrayAttr::get(ctx, candidates));
+          cpy->setAttr("loom.copy.candidates", ArrayAttr::get(ctx, candidates));
         });
       }
       return;
@@ -562,10 +562,10 @@ struct ExploreAllocCopyMappingPass
 } // namespace
 
 std::unique_ptr<mlir::Pass>
-tmd::passes::createExploreAllocCopyMappingPass(bool analysisOnly) {
+loom::passes::createExploreAllocCopyMappingPass(bool analysisOnly) {
   return std::make_unique<ExploreAllocCopyMappingPass>(analysisOnly);
 }
 
-void tmd::passes::registerExploreAllocCopyMappingPass() {
+void loom::passes::registerExploreAllocCopyMappingPass() {
   PassRegistration<ExploreAllocCopyMappingPass>();
 }

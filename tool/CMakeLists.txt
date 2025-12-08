@@ -1,7 +1,7 @@
 # Root tools for affine and triton-shared
 
 # Common include dirs for all tools
-set(TMD_PASSES_INC
+set(LOOM_PASSES_INC
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/inc
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared/inc
@@ -19,10 +19,10 @@ add_executable(ttshared-opt
   ${CMAKE_CURRENT_LIST_DIR}/triton-shared/ttshared-opt.cpp
 )
 
-target_include_directories(ttshared-opt PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
+target_include_directories(ttshared-opt PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
 
 target_link_libraries(ttshared-opt PRIVATE
-  tmdTritonSharedPasses
+  loomTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -40,7 +40,7 @@ target_link_libraries(ttshared-opt PRIVATE
   MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader
-  tmdDataflowDialect
+  loomDataflowDialect
 )
 mlir_check_all_link_libraries(ttshared-opt)
 

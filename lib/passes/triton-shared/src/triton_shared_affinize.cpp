@@ -53,8 +53,8 @@
  *   unchanged (soundness over completeness).
  *
  * Usage
- * - Register the pass via `tmd::passes::registerTritonSharedAffinizePass()`
- * - Invoke with `--tmd-triton-shared-affinize` early in the pipeline before
+ * - Register the pass via `loom::passes::registerTritonSharedAffinizePass()`
+ * - Invoke with `--loom-triton-shared-affinize` early in the pipeline before
  *   grid-to-parallel and spatial mapping passes.
  */
 
@@ -82,7 +82,7 @@
 
 using namespace mlir;
 
-namespace tmd {
+namespace loom {
 namespace passes {
 
 namespace {
@@ -659,7 +659,7 @@ public:
 
   /// Return the command-line argument to invoke this pass.
   StringRef getArgument() const override {
-    return "tmd-triton-shared-affinize";
+    return "loom-triton-shared-affinize";
   }
   /// Return a human-readable description of the pass.
   StringRef getDescription() const override {
@@ -1763,11 +1763,11 @@ std::unique_ptr<mlir::Pass> createTritonSharedAffinizePass() {
  * @brief Register the Triton-shared affinization pass with MLIR.
  *
  * @details After registration, the pass can be invoked by name
- * `--tmd-triton-shared-affinize` in pass pipelines.
+ * `--loom-triton-shared-affinize` in pass pipelines.
  */
 void registerTritonSharedAffinizePass() {
   PassRegistration<TritonSharedAffinizePass>();
 }
 
 } // namespace passes
-} // namespace tmd
+} // namespace loom

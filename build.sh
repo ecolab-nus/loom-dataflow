@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Build script for the TMD project with MLIR support
+# Build script for the LOOM project with MLIR support
 
 set -e
 

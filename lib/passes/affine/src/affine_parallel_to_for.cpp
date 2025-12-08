@@ -35,8 +35,8 @@
 
 using namespace mlir;
 
-namespace tmd_affine {
-/// Affine structural transformations used within TMD passes.
+namespace loom_affine {
+/// Affine structural transformations used within LOOM passes.
 
 /**
  * @brief Remap dimension expressions to symbol expressions in an AffineExpr.
@@ -295,4 +295,4 @@ LogicalResult ConvertParallelToNested(affine::AffineParallelOp par,
   return success();
 }
 
-} // namespace tmd_affine
+} // namespace loom_affine

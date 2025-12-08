@@ -11,7 +11,7 @@ namespace mlir {
 class Pass;
 }
 
-namespace tmd {
+namespace loom {
 namespace passes {
 
 /**
@@ -23,4 +23,4 @@ namespace passes {
 std::unique_ptr<mlir::Pass> createConstDedupCleanupPass();
 
 } // namespace passes
-} // namespace tmd
+} // namespace loom

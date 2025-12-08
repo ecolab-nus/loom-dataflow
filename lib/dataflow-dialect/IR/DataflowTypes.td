@@ -1,5 +1,5 @@
 //===- DataflowTypes.td -------------------------------------*- tablegen -*-===//
-// Types for the TMD Dataflow dialect (df)
+// Types for the LOOM Dataflow dialect (df)
 //===----------------------------------------------------------------------===//
 
 include "mlir/IR/AttrTypeBase.td"

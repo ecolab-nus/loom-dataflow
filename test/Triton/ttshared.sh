@@ -5,8 +5,8 @@ export TRITON_PLUGIN_DIRES=<path-to-triton-shared>
 
 /opt/llvm-mlir/bin/mlir-opt \
   -one-shot-bufferize="bufferize-function-boundaries" \
-  tmd/test/Dialect/Triton/mm_fixed_strides/ttshared.mlir \
-  -o tmd/test/Dialect/Triton/mm_fixed_strides/ttshared.bufferized.mlir
+  loom/test/Dialect/Triton/mm_fixed_strides/ttshared.mlir \
+  -o loom/test/Dialect/Triton/mm_fixed_strides/ttshared.bufferized.mlir
 
 
 rm -rf ~/.triton/cache/*

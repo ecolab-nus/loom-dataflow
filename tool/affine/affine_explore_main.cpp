@@ -1,13 +1,13 @@
 // Driver for enumerating spatial mappings and printing a combined module.
 //
 // Usage:
-//   tmd_affine_explore --affine <affine.mlir> --df <df.mlir>
+//   loom_affine_explore --affine <affine.mlir> --df <df.mlir>
 //
 // The driver loads both modules, collects spatial dimensions from the DF
 // module, enumerates all unique mappings of these dimensions to the iterators
 // of each function's first outermost `affine.parallel`, and prints a new
 // module containing a clone of the function for each mapping. Each created
-// inner loop is annotated with `tmd.mapped_to` and function names are suffixed
+// inner loop is annotated with `loom.mapped_to` and function names are suffixed
 // to encode the mapping.
 #include "spatial_mapping.h"
 
@@ -46,7 +46,7 @@ static llvm::cl::opt<std::string>
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
-                                    "TMD Affine spatial explorer\n");
+                                    "LOOM Affine spatial explorer\n");
 
   MLIRContext context;
   (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::memref::MemRefDialect>();
   context.loadDialect<mlir::affine::AffineDialect>();
   context.loadDialect<mlir::arith::ArithDialect>();
-  context.loadDialect<tmd::df::DataflowDialect>();
+  context.loadDialect<loom::df::DataflowDialect>();
 
   // Parse DF module containing spatial dimensions.
   llvm::SourceMgr dfSm;
@@ -72,8 +72,8 @@ int main(int argc, char **argv) {
   }
 
   // Collect spatial dimensions.
-  tmd_affine::HardwareInfo hardwareInfo;
-  if (failed(tmd_affine::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
+  loom_affine::HardwareInfo hardwareInfo;
+  if (failed(loom_affine::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
     llvm::WithColor::error(llvm::errs())
         << "Failed to collect hardware information from DF module\n";
     return 1;
@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
 
   // Enumerate all mapping combinations for the Affine module.
   OwningOpRef<ModuleOp> out =
-      tmd_affine::EnumerateSpatialMappings(*affineModule, hardwareInfo);
+      loom_affine::EnumerateSpatialMappings(*affineModule, hardwareInfo);
 
   // Merge DF declarations and generated Affine clones into a single module to
   // avoid duplicate alias ids and produce a single well-formed module.

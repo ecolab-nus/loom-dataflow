@@ -1,10 +1,10 @@
-#loc = loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":17:0)
-#loc2 = loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":75:25)
-#loc8 = loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":49:23)
+#loc = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0)
+#loc2 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)
+#loc8 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":49:23)
 module {
   llvm.func @memrefCopy(i64, !llvm.ptr, !llvm.ptr) loc(#loc)
   llvm.func @malloc(i64) -> !llvm.ptr loc(#loc)
-  llvm.func @matmul_kernel(%arg0: i64 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":17:0), %arg1: !llvm.ptr loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":17:0), %arg2: i64 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":17:0), %arg3: !llvm.ptr loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":17:0), %arg4: i64 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":17:0), %arg5: !llvm.ptr loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":17:0), %arg6: i32 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":17:0), %arg7: i32 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":17:0), %arg8: i32 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":17:0), %arg9: i32 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":17:0), %arg10: i32 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":17:0), %arg11: i32 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":17:0)) {
+  llvm.func @matmul_kernel(%arg0: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg1: !llvm.ptr loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg2: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg3: !llvm.ptr loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg4: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg5: !llvm.ptr loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg6: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg7: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg8: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg9: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg10: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0), %arg11: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":17:0)) {
     %0 = llvm.mlir.poison : !llvm.struct<(i64, ptr)> loc(#loc)
     %1 = llvm.insertvalue %arg4, %0[0] : !llvm.struct<(i64, ptr)>  loc(#loc)
     %2 = llvm.insertvalue %arg5, %1[1] : !llvm.struct<(i64, ptr)>  loc(#loc)
@@ -52,12 +52,12 @@ module {
     %44 = llvm.insertvalue %21, %43[4, 0] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc2)
     %45 = llvm.insertvalue %22, %44[4, 1] : !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>  loc(#loc2)
     llvm.br ^bb1(%19 : i64) loc(#loc2)
-  ^bb1(%46: i64 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb0, ^bb5
+  ^bb1(%46: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb0, ^bb5
     %47 = llvm.icmp "slt" %46, %18 : i64 loc(#loc2)
     llvm.cond_br %47, ^bb2, ^bb6 loc(#loc2)
   ^bb2:  // pred: ^bb1
     llvm.br ^bb3(%19 : i64) loc(#loc2)
-  ^bb3(%48: i64 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb2, ^bb4
+  ^bb3(%48: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb2, ^bb4
     %49 = llvm.icmp "slt" %48, %18 : i64 loc(#loc2)
     llvm.cond_br %49, ^bb4, ^bb5 loc(#loc2)
   ^bb4:  // pred: ^bb3
@@ -113,7 +113,7 @@ module {
     %94 = llvm.getelementptr %76[%80] : (!llvm.ptr, i64) -> !llvm.ptr, f32 loc(#loc8)
     "llvm.intr.memcpy"(%94, %93, %92) <{isVolatile = false}> : (!llvm.ptr, !llvm.ptr, i64) -> () loc(#loc8)
     llvm.br ^bb7(%11, %85 : i32, !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)>) loc(#loc8)
-  ^bb7(%95: i32 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":49:23), %96: !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)> loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":49:23)):  // 2 preds: ^bb6, ^bb23
+  ^bb7(%95: i32 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":49:23), %96: !llvm.struct<(ptr, ptr, i64, array<2 x i64>, array<2 x i64>)> loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":49:23)):  // 2 preds: ^bb6, ^bb23
     %97 = llvm.icmp "slt" %95, %13 : i32 loc(#loc8)
     llvm.cond_br %97, ^bb8, ^bb24 loc(#loc8)
   ^bb8:  // pred: ^bb7
@@ -276,17 +276,17 @@ module {
     %242 = llvm.getelementptr %224[%228] : (!llvm.ptr, i64) -> !llvm.ptr, f32 loc(#loc2)
     "llvm.intr.memcpy"(%242, %241, %240) <{isVolatile = false}> : (!llvm.ptr, !llvm.ptr, i64) -> () loc(#loc2)
     llvm.br ^bb9(%19 : i64) loc(#loc2)
-  ^bb9(%243: i64 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb8, ^bb16
+  ^bb9(%243: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb8, ^bb16
     %244 = llvm.icmp "slt" %243, %18 : i64 loc(#loc2)
     llvm.cond_br %244, ^bb10, ^bb17 loc(#loc2)
   ^bb10:  // pred: ^bb9
     llvm.br ^bb11(%19 : i64) loc(#loc2)
-  ^bb11(%245: i64 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb10, ^bb15
+  ^bb11(%245: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb10, ^bb15
     %246 = llvm.icmp "slt" %245, %18 : i64 loc(#loc2)
     llvm.cond_br %246, ^bb12, ^bb16 loc(#loc2)
   ^bb12:  // pred: ^bb11
     llvm.br ^bb13(%19 : i64) loc(#loc2)
-  ^bb13(%247: i64 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb12, ^bb14
+  ^bb13(%247: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb12, ^bb14
     %248 = llvm.icmp "slt" %247, %16 : i64 loc(#loc2)
     llvm.cond_br %248, ^bb14, ^bb15 loc(#loc2)
   ^bb14:  // pred: ^bb13
@@ -322,12 +322,12 @@ module {
     llvm.br ^bb9(%272 : i64) loc(#loc2)
   ^bb17:  // pred: ^bb9
     llvm.br ^bb18(%19 : i64) loc(#loc2)
-  ^bb18(%273: i64 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb17, ^bb22
+  ^bb18(%273: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb17, ^bb22
     %274 = llvm.icmp "slt" %273, %18 : i64 loc(#loc2)
     llvm.cond_br %274, ^bb19, ^bb23 loc(#loc2)
   ^bb19:  // pred: ^bb18
     llvm.br ^bb20(%19 : i64) loc(#loc2)
-  ^bb20(%275: i64 loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb19, ^bb21
+  ^bb20(%275: i64 loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":75:25)):  // 2 preds: ^bb19, ^bb21
     %276 = llvm.icmp "slt" %275, %18 : i64 loc(#loc2)
     llvm.cond_br %276, ^bb21, ^bb22 loc(#loc2)
   ^bb21:  // pred: ^bb20
@@ -405,14 +405,14 @@ module {
   } loc(#loc)
 } loc(#loc)
 #loc1 = loc(unknown)
-#loc3 = loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":44:21)
-#loc4 = loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":45:21)
-#loc5 = loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":85:22)
-#loc6 = loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":58:12)
-#loc7 = loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":67:12)
-#loc9 = loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":50:22)
-#loc10 = loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":74:20)
-#loc11 = loc("/home/zhenyu/tmd/test/Triton/mm_fixed_strides/mm.py":73:20)
+#loc3 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":44:21)
+#loc4 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":45:21)
+#loc5 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":85:22)
+#loc6 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":58:12)
+#loc7 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":67:12)
+#loc9 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":50:22)
+#loc10 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":74:20)
+#loc11 = loc("/home/zhenyu/loom/test/Triton/mm_fixed_strides/mm.py":73:20)
 #loc12 = loc(fused[#loc5, #loc6])
 #loc13 = loc(fused[#loc5, #loc7])
 #loc14 = loc(fused[#loc10, #loc6])

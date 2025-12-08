@@ -8,9 +8,9 @@
  * index arguments from the function signature.
  *
  * Usage
- * - Register: `tmd::passes::registerTritonSharedGridToParallelPass()`
- * - CLI: `--tmd-triton-shared-grid-to-parallel`
- * - Run after `--tmd-triton-shared-affinize`.
+ * - Register: `loom::passes::registerTritonSharedGridToParallelPass()`
+ * - CLI: `--loom-triton-shared-grid-to-parallel`
+ * - Run after `--loom-triton-shared-affinize`.
  *
  * Constraints
  * - Function must have at least 6 arguments; the last six are interpreted as
@@ -26,7 +26,7 @@
 
 #include "mlir/Pass/Pass.h"
 
-namespace tmd {
+namespace loom {
 namespace passes {
 
 /**
@@ -50,4 +50,4 @@ std::unique_ptr<mlir::Pass> createTritonSharedGridToParallelPass();
 void registerTritonSharedGridToParallelPass();
 
 } // namespace passes
-} // namespace tmd
+} // namespace loom

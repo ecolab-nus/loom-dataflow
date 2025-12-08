@@ -2,7 +2,7 @@
 // combined module.
 //
 // Usage:
-//   tmd_triton_shared_explore --ttshared <ttshared.mlir> --df <df.mlir>
+//   loom_triton_shared_explore --ttshared <ttshared.mlir> --df <df.mlir>
 //   [--grid-dims N]
 //
 // The driver loads both modules, collects spatial dimensions from the DF
@@ -57,7 +57,7 @@ static llvm::cl::opt<unsigned> clNumGridDims(
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
-                                    "TMD Triton-shared spatial explorer\n");
+                                    "LOOM Triton-shared spatial explorer\n");
 
   // Legacy option retained for compatibility of CLI; ignored in the new format.
   (void)clNumGridDims;
@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
                   mlir::arith::ArithDialect, mlir::tensor::TensorDialect,
                   mlir::linalg::LinalgDialect, mlir::scf::SCFDialect,
                   mlir::bufferization::BufferizationDialect,
-                  tmd::df::DataflowDialect>();
+                  loom::df::DataflowDialect>();
   MLIRContext context(registry);
   context.loadAllAvailableDialects();
 
@@ -88,8 +88,8 @@ int main(int argc, char **argv) {
   }
 
   // Collect spatial dimensions.
-  tmd_affine::HardwareInfo hardwareInfo;
-  if (failed(tmd_affine::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
+  loom_affine::HardwareInfo hardwareInfo;
+  if (failed(loom_affine::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
     llvm::WithColor::error(llvm::errs())
         << "Failed to collect hardware information from DF module\n";
     return 1;
@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
   // and rely purely on the number of iterators in the parallel op.
   // Enumerate mappings and also explore outer-for loop orderings.
   OwningOpRef<ModuleOp> out =
-      tmd_affine::EnumerateSpatialMappings(*tsModule, hardwareInfo);
+      loom_affine::EnumerateSpatialMappings(*tsModule, hardwareInfo);
 
   // Merge DF declarations and generated clones into a single module.
   OwningOpRef<ModuleOp> merged = ModuleOp::create(UnknownLoc::get(&context));

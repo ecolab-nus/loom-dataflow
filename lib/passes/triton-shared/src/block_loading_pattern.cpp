@@ -17,7 +17,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 
-namespace tmd::affine {
+namespace loom::affine {
 
 /**
  * @brief Get the allocation size as a constant from the alloc operation.
@@ -25,7 +25,7 @@ namespace tmd::affine {
  * @return The size in bytes as a constant, or 0 if not found.
  */
 int64_t LoadingBlock::GetAllocSizeAsConst(mlir::memref::AllocOp alloc_op) {
-    if (auto dict = alloc_op->getAttrOfType<mlir::DictionaryAttr>("tmd.alloc")) {
+    if (auto dict = alloc_op->getAttrOfType<mlir::DictionaryAttr>("loom.alloc")) {
         if (auto sizeAttr = dict.get("size")) {
             if (auto intAttr = llvm::dyn_cast<mlir::IntegerAttr>(sizeAttr)) {
                 return static_cast<int64_t>(intAttr.getInt());
@@ -521,15 +521,15 @@ void LoadingBlock::CreateHoistedOpsWithReshape(
         auto org_attrs = org_alloc->getAttrs();
         mlir::NamedAttrList new_attrs;
         
-        // Copy all attributes except tmd.alloc
+        // Copy all attributes except loom.alloc
         for (auto attr : org_attrs) {
-            if (attr.getName() != "tmd.alloc") {
+            if (attr.getName() != "loom.alloc") {
                 new_attrs.append(attr);
             }
         }
         
-        // Update tmd.alloc with new size
-        if (auto org_dict = org_alloc->getAttrOfType<mlir::DictionaryAttr>("tmd.alloc")) {
+        // Update loom.alloc with new size
+        if (auto org_dict = org_alloc->getAttrOfType<mlir::DictionaryAttr>("loom.alloc")) {
             mlir::NamedAttrList alloc_dict_attrs;
             for (auto attr : org_dict) {
                 if (attr.getName() == "size") {
@@ -552,7 +552,7 @@ void LoadingBlock::CreateHoistedOpsWithReshape(
                         mlir::IntegerType::get(builder.getContext(), 64),
                         mem_req_bytes_as_const_.value()));
             }
-            new_attrs.append("tmd.alloc", 
+            new_attrs.append("loom.alloc", 
                 mlir::DictionaryAttr::get(builder.getContext(), alloc_dict_attrs));
         }
         
@@ -566,7 +566,7 @@ void LoadingBlock::CreateHoistedOpsWithReshape(
                 mem_req_bytes_as_const_.value()));
         
         mlir::NamedAttrList new_attrs;
-        new_attrs.append("tmd.alloc",
+        new_attrs.append("loom.alloc",
             mlir::DictionaryAttr::get(builder.getContext(), alloc_dict_attrs));
         new_alloc->setAttrs(mlir::DictionaryAttr::get(builder.getContext(), new_attrs));
     }
@@ -795,4 +795,4 @@ mlir::LogicalResult HoistSingleBlock(mlir::scf::ForOp inner_most_loop, size_t bl
     return loading_blocks[block_index].IsValid() ? mlir::success() : mlir::failure();
 }
 
-} // namespace tmd::affine
+} // namespace loom::affine

@@ -1,6 +1,6 @@
-# TMD
+# LOOM
 
-TMD is an MLIR-backed sandbox for exploring hardware scale-out models, a custom `df` (dataflow) dialect, and compiler passes that bridge Triton-style GPU kernels with affine IR. The repository combines C++ libraries that model hardware resources, MLIR dialect definitions, analysis/transform passes, and command-line tools for experimenting with mappings.
+LOOM is an MLIR-backed sandbox for exploring hardware scale-out models, a custom `df` (dataflow) dialect, and compiler passes that bridge Triton-style GPU kernels with affine IR. The repository combines C++ libraries that model hardware resources, MLIR dialect definitions, analysis/transform passes, and command-line tools for experimenting with mappings.
 
 ## Highlights
 - Custom MLIR dialect `df` to describe spatial dimensions and interconnect topologies.
@@ -96,7 +96,7 @@ All binaries live under `build/tool/` after a build. Useful entry points include
 - `triton-shared/single_stage/affinize` – run the Triton-shared affinization pass.
 - `triton-shared/single_stage/grid_to_parallel` – replace grid indices with a 3-D `affine.parallel`.
 - `triton-shared/single_stage/explore_mapping` – enumerate spatial mappings and merge a DF module.
-- `triton-shared/single_stage/annotate_reuse` – attach `tmd.reuse` on `memref.reinterpret_cast`.
+- `triton-shared/single_stage/annotate_reuse` – attach `loom.reuse` on `memref.reinterpret_cast`.
 - `triton-shared/single_stage/explore_alloc_copy_mapping` – enumerate `memref.alloc`/`memref.copy` mapping choices.
 - `ttshared-opt` – end-to-end Triton-shared → Affine/Dataflow pipeline driver.
 - `affine_explore`, `affine_tile`, `affine_analyze` – affine-only exploration, tiling, and reuse analysis utilities.
@@ -165,32 +165,32 @@ build/tool/triton-shared/single_stage/tile_scf_for_to_l1 \
 ``` 
 
 Notes:
-- The end-to-end driver accepts `--map-analysis-only` to attach `tmd.copy.candidates` without cloning functions.
+- The end-to-end driver accepts `--map-analysis-only` to attach `loom.copy.candidates` without cloning functions.
 - The single-stage alloc/copy explorer accepts `--analysis-only` with the same effect.
 
 ### Pass reference (purpose, limitations, implementation)
-- Affinize Triton-shared indices (`tmd-triton-shared-affinize`)
+- Affinize Triton-shared indices (`loom-triton-shared-affinize`)
   - Purpose: Rewrite arithmetic index expressions into `affine.apply`, convert eligible loads/stores to affine form, and express `memref.reinterpret_cast` offsets via affine maps. Treats trailing grid/thread arguments as dims/symbols to expose GPU-style indexing to affine.
   - Limitations: Conservative—only provably affine expressions are converted. Assumes the last 6 function arguments encode grid sizes/indices; nonconforming kernels are left unchanged. Some `memref` ops remain non-affine if indices are not proven affine.
-  - Implementation: See `lib/passes/triton-shared/triton_shared_affinize.{h,cpp}`; pass argument is `tmd-triton-shared-affinize`.
+  - Implementation: See `lib/passes/triton-shared/triton_shared_affinize.{h,cpp}`; pass argument is `loom-triton-shared-affinize`.
 
-- Grid-to-parallel (`tmd-triton-shared-grid-to-parallel`)
+- Grid-to-parallel (`loom-triton-shared-grid-to-parallel`)
   - Purpose: Replace the last three grid index arguments with a 3-D `affine.parallel` with dynamic uppers `(sizeX,sizeY,sizeZ)`; erase index args from the signature and replace their uses by the parallel IVs.
   - Limitations: Requires ≥ 6 function args following `(sizeX,sizeY,sizeZ, idxX,idxY,idxZ)`; otherwise no-op. Expects sizes to be of `index` (affinization establishes this in typical flows).
   - Implementation: See `lib/passes/triton-shared/triton_shared_grid_to_parallel.{h,cpp}`.
 
 - Spatial mapping exploration
-  - Purpose: Enumerate mappings from hardware `df.spatial_dim` declarations to the outermost `affine.parallel` iterators; clone per mapping, annotate inner loops with `tmd.mapped_to`, and insert outer `affine.for` “waves” when the mesh cannot cover the grid in one shot.
+  - Purpose: Enumerate mappings from hardware `df.spatial_dim` declarations to the outermost `affine.parallel` iterators; clone per mapping, annotate inner loops with `loom.mapped_to`, and insert outer `affine.for` “waves” when the mesh cannot cover the grid in one shot.
   - Limitations: Combinatorial growth in clones due to partitioning/permutation of dims and outer-for orderings. Exploration is structural (not resource-capacity aware) in this prototype.
   - Implementation: `lib/passes/triton-shared/spatial_mapping.{h,cpp}` (`EnumerateSpatialMappings`). CLI: `build/tool/triton-shared/single_stage/explore_mapping`.
 
-- Reuse annotation on reinterpret-cast (`tmd-annotate-reinterpret-cast-reuse`)
-  - Purpose: Attach a `tmd.reuse` dictionary to each `memref.reinterpret_cast` describing how its offset varies with surrounding iterators, grouped by `spatial` (`affine.parallel`), `temporal` (`affine.for`), and `sequential` (`scf.for`). Each entry records `iterator` (SSA name), `depth`, `reuse_type` (`no_reuse`/`total_reuse`), `volume` (bytes; 0, full block, or -1 unknown), and `mapped_to` for spatial entries.
+- Reuse annotation on reinterpret-cast (`loom-annotate-reinterpret-cast-reuse`)
+  - Purpose: Attach a `loom.reuse` dictionary to each `memref.reinterpret_cast` describing how its offset varies with surrounding iterators, grouped by `spatial` (`affine.parallel`), `temporal` (`affine.for`), and `sequential` (`scf.for`). Each entry records `iterator` (SSA name), `depth`, `reuse_type` (`no_reuse`/`total_reuse`), `volume` (bytes; 0, full block, or -1 unknown), and `mapped_to` for spatial entries.
   - Limitations: Binary reuse classification only (no partial reuse yet). Volumes require known block sizes.
   - Implementation: `lib/passes/triton-shared/reinterpret_cast_reuse.{h,cpp}`. CLI: `build/tool/triton-shared/single_stage/annotate_reuse`.
 
-- Alloc/Copy mapping exploration (`tmd-explore-alloc-copy-mapping`)
-  - Purpose: Annotate `memref.alloc` with `{tmd.alloc={local=true, memory_name=…}}` and enumerate per-`memref.copy` mapping choices: local memory copies and broadcasts along dimensions with spatial total-reuse. Merge the DF module to discover one `df.memory` and classify `df.interconnects` as x/y based on affine maps.
+- Alloc/Copy mapping exploration (`loom-explore-alloc-copy-mapping`)
+  - Purpose: Annotate `memref.alloc` with `{loom.alloc={local=true, memory_name=…}}` and enumerate per-`memref.copy` mapping choices: local memory copies and broadcasts along dimensions with spatial total-reuse. Merge the DF module to discover one `df.memory` and classify `df.interconnects` as x/y based on affine maps.
   - Limitations: Assumes a single `df.memory`; interconnect classification is heuristic (e.g., `(d0+1,d1)`→x, `(d0,d1+1)`→y). Enumerating the cross-product of candidates can explode; use analysis-only when needed.
   - Implementation: `lib/passes/triton-shared/explore_alloc_copy_mapping.{h,cpp}` and notes in `lib/passes/triton-shared/README.alloc_copy_mapping.md`. CLI: `build/tool/triton-shared/single_stage/explore_alloc_copy_mapping` (or end-to-end via `build/tool/ttshared-opt`).
 

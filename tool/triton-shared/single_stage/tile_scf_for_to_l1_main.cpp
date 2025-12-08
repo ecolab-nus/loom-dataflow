@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::memref::MemRefDialect>();
   context.loadDialect<mlir::linalg::LinalgDialect>();
   context.loadDialect<mlir::scf::SCFDialect>();
-  context.loadDialect<tmd::df::DataflowDialect>();
+  context.loadDialect<loom::df::DataflowDialect>();
 
   const char *filename = argc > 1 ? argv[1] : "-";
   llvm::SourceMgr sm;
@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
   }
 
   PassManager pm(&context);
-  pm.addPass(tmd::passes::createTileScfForToL1Pass());
+  pm.addPass(loom::passes::createTileScfForToL1Pass());
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Tile scf.for to L1 pass failed\n";
     return 2;

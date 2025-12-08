@@ -37,8 +37,8 @@
 
 using namespace mlir;
 
-namespace tmd_affine {
-/// Affine utilities and transformations specific to TMD.
+namespace loom_affine {
+/// Affine utilities and transformations specific to LOOM.
 
 /**
  * @brief Tile an `affine.parallel` along one dimension, producing outer/inner
@@ -228,4 +228,4 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp op,
   return tileAffineParallel(op, tilingFactor, tileDimIndex, tmp);
 }
 
-} // namespace tmd_affine
+} // namespace loom_affine

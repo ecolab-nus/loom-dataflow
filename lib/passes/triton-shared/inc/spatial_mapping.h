@@ -6,12 +6,12 @@
  * - Discovery of hardware spatial dimensions from the DF module.
  * - Greedy mapping of discovered dims to `affine.parallel` loops by tiling.
  * - Exhaustive enumeration of unique mappings, cloning functions per mapping
- *   and annotating loops with `tmd.mapped_to`.
+ *   and annotating loops with `loom.mapped_to`.
  * - A Triton-shared specific enumerator that maps program grid dims {x,y,z} to
  *   hardware spatial dims and records the association as function attributes.
  *
  * Intended usage
- * - After `tmd-triton-shared-grid-to-parallel` introduced an outer
+ * - After `loom-triton-shared-grid-to-parallel` introduced an outer
  *   `affine.parallel`, use these APIs to explore valid hardware placements and
  *   downstream loop-linearization options.
  */
@@ -23,7 +23,7 @@
 #include <optional>
 #include <string>
 
-namespace tmd_affine {
+namespace loom_affine {
 
 /**
  * \brief Hardware spatial dimension description parsed from the DF module.
@@ -41,7 +41,7 @@ struct SpatialDimInfo {
 };
 
 struct HardwareInfo {
-  llvm::SmallVector<tmd_affine::SpatialDimInfo> spatialDimInfoVec;
+  llvm::SmallVector<loom_affine::SpatialDimInfo> spatialDimInfoVec;
   bool hasBidirInterconnect = false;
 
   bool skipPermutation() const {
@@ -83,7 +83,7 @@ GetHardwareInfoForExploration(mlir::ModuleOp dfModule,
  *    size or 1 if dynamic.
  *
  * Each mapping yields a clone of the original function in a new output module;
- * every created inner loop is annotated with `tmd.mapped_to`, and the function
+ * every created inner loop is annotated with `loom.mapped_to`, and the function
  * name is suffixed to encode the mapping.
  *
  * After mapping spatial dims (tiling), this function also replaces the
@@ -120,10 +120,10 @@ EnumerateSpatialMappings(mlir::ModuleOp affineModule,
  *   dynamic, a value of -1 is recorded.
  *
  * Function attributes set on each clone:
- * - `tmd.spatial_dim_names`: ArrayAttr<StringAttr> of spatial dim names.
- * - `tmd.spatial_dim_sizes`: ArrayAttr<IntegerAttr i64> (size or -1 if
+ * - `loom.spatial_dim_names`: ArrayAttr<StringAttr> of spatial dim names.
+ * - `loom.spatial_dim_sizes`: ArrayAttr<IntegerAttr i64> (size or -1 if
  * dynamic).
- * - `tmd.grid_to_spatial_buckets`: ArrayAttr of ArrayAttr<IntegerAttr> where
+ * - `loom.grid_to_spatial_buckets`: ArrayAttr of ArrayAttr<IntegerAttr> where
  *    the outer index is the spatial dimension index, and the inner array lists
  *    the grid dim indices (0:x, 1:y, 2:z) assigned to that spatial dimension
  *    in order.
@@ -136,4 +136,4 @@ enumerateTritonSharedSpatialMappings(mlir::ModuleOp module,
                                      const HardwareInfo& hardwareInfo,
                                      unsigned numGridDims = 3);
 
-} // namespace tmd_affine
+} // namespace loom_affine

@@ -16,7 +16,7 @@
 
 using namespace mlir;
 
-namespace tmd {
+namespace loom {
 namespace passes {
 
 namespace {
@@ -50,7 +50,7 @@ class ConstDedupCleanupPass
 public:
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ConstDedupCleanupPass)
 
-  StringRef getArgument() const override { return "tmd-const-cleanup"; }
+  StringRef getArgument() const override { return "loom-const-cleanup"; }
   StringRef getDescription() const override {
     return "Deduplicate and remove unused arith.constant and fold constants "
            "into affine.apply";
@@ -212,4 +212,4 @@ std::unique_ptr<mlir::Pass> createConstDedupCleanupPass() {
 }
 
 } // namespace passes
-} // namespace tmd
+} // namespace loom

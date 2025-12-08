@@ -2,8 +2,8 @@
 // information relative to surrounding affine/scf iterators.
 //
 // Usage:
-//   tmd_triton_shared_annotate_reuse --input <input.mlir>
-//   tmd_triton_shared_annotate_reuse --input -  (reads from stdin)
+//   loom_triton_shared_annotate_reuse --input <input.mlir>
+//   loom_triton_shared_annotate_reuse --input -  (reads from stdin)
 
 #include "reinterpret_cast_reuse.h"
 
@@ -37,7 +37,7 @@ static llvm::cl::opt<std::string>
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
-                                    "TMD Triton-shared reuse annotation\n");
+                                    "LOOM Triton-shared reuse annotation\n");
 
   MLIRContext context;
   context.loadDialect<mlir::BuiltinDialect>();
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::linalg::LinalgDialect>();
   context.loadDialect<mlir::scf::SCFDialect>();
   context.loadDialect<mlir::bufferization::BufferizationDialect>();
-  context.loadDialect<tmd::df::DataflowDialect>();
+  context.loadDialect<loom::df::DataflowDialect>();
 
   llvm::SourceMgr sm;
   auto file = mlir::openInputFile(clInput);
@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
   }
 
   PassManager pm(&context);
-  pm.addPass(tmd::passes::createAnnotateReinterpretCastReusePass());
+  pm.addPass(loom::passes::createAnnotateReinterpretCastReusePass());
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Reuse annotation pass failed\n";
     return 2;

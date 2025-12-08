@@ -143,8 +143,8 @@ module {
           %20 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 1024 + d1 * 65536 + d2 * 8192)>(%arg9, %arg7, %arg8)
           %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%20], sizes: [32, 32], strides: [32, 1] : memref<*xf16> to memref<32x32xf16, strided<[32, 1], offset: ?>>
           bufferization.materialize_in_destination %19 in writable %reinterpret_cast_3 : (tensor<32x32xf16>, memref<32x32xf16, strided<[32, 1], offset: ?>>) -> ()
-        } {tmd.mapped_to = "x"}
-      } {tmd.mapped_to = "y"}
+        } {loom.mapped_to = "x"}
+      } {loom.mapped_to = "y"}
     }
     return
   }
@@ -285,8 +285,8 @@ module {
           %20 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 1024 + d1 * 65536 + d2 * 8192)>(%arg9, %arg7, %arg8)
           %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%20], sizes: [32, 32], strides: [32, 1] : memref<*xf16> to memref<32x32xf16, strided<[32, 1], offset: ?>>
           bufferization.materialize_in_destination %19 in writable %reinterpret_cast_3 : (tensor<32x32xf16>, memref<32x32xf16, strided<[32, 1], offset: ?>>) -> ()
-        } {tmd.mapped_to = "y"}
-      } {tmd.mapped_to = "x"}
+        } {loom.mapped_to = "y"}
+      } {loom.mapped_to = "x"}
     }
     return
   }

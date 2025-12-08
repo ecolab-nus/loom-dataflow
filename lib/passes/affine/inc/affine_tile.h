@@ -3,7 +3,7 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Pass/Pass.h"
 
-namespace tmd_affine {
+namespace loom_affine {
 
 /**
  * Tile a single `affine.parallel` operation along a chosen iterator by a
@@ -67,4 +67,4 @@ struct TileChoice {
 std::unique_ptr<mlir::Pass> createAffineTilePass(int64_t tilingFactor,
                                                  unsigned tileDimIndex);
 
-} // namespace tmd_affine
+} // namespace loom_affine

@@ -5,10 +5,10 @@ add_executable(explore_mapping
   ${CMAKE_CURRENT_LIST_DIR}/explore_mapping_main.cpp
 )
 
-target_include_directories(explore_mapping PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
+target_include_directories(explore_mapping PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
 
 target_link_libraries(explore_mapping PRIVATE
-  tmdTritonSharedPasses
+  loomTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -23,7 +23,7 @@ target_link_libraries(explore_mapping PRIVATE
   MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader
-  tmdDataflowDialect
+  loomDataflowDialect
 )
 mlir_check_all_link_libraries(explore_mapping)
 
@@ -37,10 +37,10 @@ add_executable(affinize
   ${CMAKE_CURRENT_LIST_DIR}/affinize_main.cpp
 )
 
-target_include_directories(affinize PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
+target_include_directories(affinize PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
 
 target_link_libraries(affinize PRIVATE
-  tmdTritonSharedPasses
+  loomTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -56,7 +56,7 @@ target_link_libraries(affinize PRIVATE
   MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader
-  tmdDataflowDialect
+  loomDataflowDialect
 )
 mlir_check_all_link_libraries(affinize)
 
@@ -70,10 +70,10 @@ add_executable(grid_to_parallel
   ${CMAKE_CURRENT_LIST_DIR}/grid_to_parallel_main.cpp
 )
 
-target_include_directories(grid_to_parallel PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
+target_include_directories(grid_to_parallel PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
 
 target_link_libraries(grid_to_parallel PRIVATE
-  tmdTritonSharedPasses
+  loomTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -104,11 +104,11 @@ add_executable(annotate_reuse
 
 target_include_directories(annotate_reuse PRIVATE
   ${MLIR_INCLUDE_DIRS}
-  ${TMD_PASSES_INC}
+  ${LOOM_PASSES_INC}
 )
 
 target_link_libraries(annotate_reuse PRIVATE
-  tmdTritonSharedPasses
+  loomTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -124,7 +124,7 @@ target_link_libraries(annotate_reuse PRIVATE
   MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader
-  tmdDataflowDialect
+  loomDataflowDialect
 )
 mlir_check_all_link_libraries(annotate_reuse)
 
@@ -142,11 +142,11 @@ add_executable(explore_alloc_copy_mapping
 
 target_include_directories(explore_alloc_copy_mapping PRIVATE
   ${MLIR_INCLUDE_DIRS}
-  ${TMD_PASSES_INC}
+  ${LOOM_PASSES_INC}
 )
 
 target_link_libraries(explore_alloc_copy_mapping PRIVATE
-  tmdTritonSharedPasses
+  loomTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -162,7 +162,7 @@ target_link_libraries(explore_alloc_copy_mapping PRIVATE
   MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader
-  tmdDataflowDialect
+  loomDataflowDialect
 )
 mlir_check_all_link_libraries(explore_alloc_copy_mapping)
 
@@ -179,11 +179,11 @@ add_executable(tile_scf_for_to_l1
 
 target_include_directories(tile_scf_for_to_l1 PRIVATE
   ${MLIR_INCLUDE_DIRS}
-  ${TMD_PASSES_INC}
+  ${LOOM_PASSES_INC}
 )
 
 target_link_libraries(tile_scf_for_to_l1 PRIVATE
-  tmdTritonSharedPasses
+  loomTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -197,7 +197,7 @@ target_link_libraries(tile_scf_for_to_l1 PRIVATE
   MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader
-  tmdDataflowDialect
+  loomDataflowDialect
 )
 mlir_check_all_link_libraries(tile_scf_for_to_l1)
 

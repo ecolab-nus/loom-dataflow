@@ -1,6 +1,6 @@
 /**
  * @file reinterpret_cast_reuse.cpp
- * @brief Implementation: annotate `memref.reinterpret_cast` with `tmd.reuse`.
+ * @brief Implementation: annotate `memref.reinterpret_cast` with `loom.reuse`.
  * @details
  * Strategy
  * - For each `memref.reinterpret_cast`, collect its dynamic offsets.
@@ -11,7 +11,7 @@
  *   dependency walk. If yes, mark `reuse_type = no_reuse`; otherwise
  *   `total_reuse` and estimate `volume` by the result memref block size in
  *   bytes (or -1 when unknown).
- * - Emit `tmd.reuse` as a nested dictionary with three arrays: `spatial`,
+ * - Emit `loom.reuse` as a nested dictionary with three arrays: `spatial`,
  *   `temporal`, `sequential`. Each element carries `iterator`, `depth`,
  *   `reuse_type`, `volume`, and optional `mapped_to`.
  */
@@ -78,14 +78,14 @@ public:
    * @details For each cast, the pass identifies surrounding iterator variables
    * (spatial `affine.parallel`, temporal `affine.for`, sequential `scf.for`),
    * determines whether the cast's dynamic offsets vary with each iterator, and
-   * attaches the summary as a `tmd.reuse` dictionary grouped by iterator
+   * attaches the summary as a `loom.reuse` dictionary grouped by iterator
    * classes.
    */
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(AnnotateReinterpretCastReusePass)
 
   /// Command-line flag name.
   StringRef getArgument() const override {
-    return "tmd-annotate-reinterpret-cast-reuse";
+    return "loom-annotate-reinterpret-cast-reuse";
   }
   /// Short pass description for diagnostics and help.
   StringRef getDescription() const override {
@@ -97,7 +97,7 @@ public:
    *
    * @details Walk all `memref.reinterpret_cast` ops, collect dynamic offsets,
    * derive enclosing iterators, classify reuse (`no_reuse` vs `total_reuse`),
-   * estimate reuse volume (bytes or -1), and attach a `tmd.reuse` dictionary
+   * estimate reuse volume (bytes or -1), and attach a `loom.reuse` dictionary
    * with arrays for `spatial`, `temporal`, and `sequential` iterators.
    */
   void runOnOperation() override {
@@ -108,7 +108,7 @@ public:
     printingFlags.useLocalScope();
     AsmState asmState(module, printingFlags);
 
-    // The pass tags every `memref.reinterpret_cast` with a `tmd.reuse`
+    // The pass tags every `memref.reinterpret_cast` with a `loom.reuse`
     // dictionary summarising how its offset varies with surrounding loop
     // iterators. The dictionary is grouped by iterator class:
     //   - `spatial`    : innermost-to-outermost `affine.parallel` loops.
@@ -129,7 +129,7 @@ public:
     //                    for `no_reuse` and the full block size for
     //                    `total_reuse`; values become -1 when the block shape
     //                    is dynamic.
-    //   * `mapped_to` – spatial dimension name taken from `tmd.mapped_to`.
+    //   * `mapped_to` – spatial dimension name taken from `loom.mapped_to`.
     module.walk([&](memref::ReinterpretCastOp op) {
       // Collect dynamic offsets (non-constant ones).
       SmallVector<Value, 4> dynamicOffsets;
@@ -211,7 +211,7 @@ public:
 
       for (auto [depth, loop] : llvm::enumerate(loopStack)) {
         if (auto par = dyn_cast<affine::AffineParallelOp>(loop)) {
-          auto mapped = loop->getAttrOfType<StringAttr>("tmd.mapped_to");
+          auto mapped = loop->getAttrOfType<StringAttr>("loom.mapped_to");
           for (Value iv : par.getIVs())
             annotateIterator(iv, spatialEntries, mapped, depth);
         } else if (auto affFor = dyn_cast<affine::AffineForOp>(loop)) {
@@ -233,7 +233,7 @@ public:
         reuseAttrs.append("sequential", ArrayAttr::get(ctx, sequentialEntries));
 
       if (!reuseAttrs.empty())
-        op->setAttr("tmd.reuse", DictionaryAttr::get(ctx, reuseAttrs));
+        op->setAttr("loom.reuse", DictionaryAttr::get(ctx, reuseAttrs));
     });
   }
 };
@@ -241,14 +241,14 @@ public:
 } // namespace
 
 std::unique_ptr<mlir::Pass>
-tmd::passes::createAnnotateReinterpretCastReusePass() {
+loom::passes::createAnnotateReinterpretCastReusePass() {
   /**
    * @brief Create the reinterpret_cast reuse annotation pass.
    */
   return std::make_unique<AnnotateReinterpretCastReusePass>();
 }
 
-void tmd::passes::registerAnnotateReinterpretCastReusePass() {
+void loom::passes::registerAnnotateReinterpretCastReusePass() {
   /**
    * @brief Register the reinterpret_cast reuse annotation pass.
    */

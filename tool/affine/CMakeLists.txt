@@ -4,10 +4,10 @@ add_executable(affine_explore
   ${CMAKE_CURRENT_LIST_DIR}/affine_explore_main.cpp
 )
 
-target_include_directories(affine_explore PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
+target_include_directories(affine_explore PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
 
 target_link_libraries(affine_explore PRIVATE
-  tmdTritonSharedPasses
+  loomTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -20,7 +20,7 @@ target_link_libraries(affine_explore PRIVATE
   MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader
-  tmdDataflowDialect
+  loomDataflowDialect
 )
 mlir_check_all_link_libraries(affine_explore)
 
@@ -34,10 +34,10 @@ add_executable(affine_tile
   ${CMAKE_CURRENT_LIST_DIR}/affine_tile_main.cpp
 )
 
-target_include_directories(affine_tile PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
+target_include_directories(affine_tile PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
 
 target_link_libraries(affine_tile PRIVATE
-  tmdAffinePasses
+  loomAffinePasses
   MLIRIR
   MLIRPass
   MLIRAsmParser
@@ -62,10 +62,10 @@ add_executable(affine_analyze
   ${CMAKE_CURRENT_LIST_DIR}/affine_analyze_main.cpp
 )
 
-target_include_directories(affine_analyze PRIVATE ${MLIR_INCLUDE_DIRS} ${TMD_PASSES_INC})
+target_include_directories(affine_analyze PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
 
 target_link_libraries(affine_analyze PRIVATE
-  tmdTritonSharedPasses
+  loomTritonSharedPasses
   MLIRIR
   MLIRParser
   MLIRSupport
@@ -75,7 +75,7 @@ target_link_libraries(affine_analyze PRIVATE
   MLIRArithDialect
   MLIRSCFDialect
   MLIRPass
-  tmdDataflowDialect
+  loomDataflowDialect
 )
 mlir_check_all_link_libraries(affine_analyze)
 

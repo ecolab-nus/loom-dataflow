@@ -33,7 +33,7 @@ static llvm::cl::opt<std::string>
 
 static llvm::cl::opt<bool> clAnalysisOnly(
     "analysis-only",
-    llvm::cl::desc("Only attach tmd.copy.candidates; do not clone"),
+    llvm::cl::desc("Only attach loom.copy.candidates; do not clone"),
     llvm::cl::init(false));
 
 // No max-variants: we always enumerate all combinations.
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
                   mlir::arith::ArithDialect, mlir::tensor::TensorDialect,
                   mlir::linalg::LinalgDialect, mlir::scf::SCFDialect,
                   mlir::bufferization::BufferizationDialect,
-                  tmd::df::DataflowDialect>();
+                  loom::df::DataflowDialect>();
   MLIRContext context(registry);
   context.loadAllAvailableDialects();
 
@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
 
   // 1) Annotate reuse on reinterpret_cast.
   PassManager pm(&context);
-  pm.addPass(tmd::passes::createAnnotateReinterpretCastReusePass());
+  pm.addPass(loom::passes::createAnnotateReinterpretCastReusePass());
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Reuse annotation failed\n";
     return 2;
@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
 
   // 2) Explore alloc/copy mappings.
   PassManager pm2(&context);
-  pm2.addPass(tmd::passes::createExploreAllocCopyMappingPass(clAnalysisOnly));
+  pm2.addPass(loom::passes::createExploreAllocCopyMappingPass(clAnalysisOnly));
   if (failed(pm2.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Mapping exploration failed\n";
     return 3;
