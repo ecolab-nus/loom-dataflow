@@ -1,6 +1,6 @@
 module {
-  %0 = df.mat "PT" {shape = [128, 128, 128]}
-  %1 = df.vec "SFP" {shape = [32]}
+  %0 = df.mat "PT" {shape = [128, 128, 128], throughput = 2}
+  %1 = df.vec "SFP" {shape = [32], throughput = 2}
   %2 = df.spatial_dim "x", 32
   %3 = df.spatial_dim "y", 2
   %4 = df.core "cores" {scaleout=(%2, %3) , scalein=(%0, %1, [1, 1])}

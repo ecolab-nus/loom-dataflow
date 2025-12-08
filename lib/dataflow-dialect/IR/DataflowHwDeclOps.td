@@ -90,7 +90,8 @@ def MatOp : DF_Op<"mat"> {
       `%mat_unit = df.mat "FPU" {shape = [32, 32, 32]}`
   }];
 
-  let arguments = (ins StrAttr:$name, DenseI64ArrayAttr:$shape);
+  let arguments = (ins StrAttr:$name, DenseI64ArrayAttr:$shape,
+                       OptionalAttr<I64Attr>:$throughput);
   let results = (outs FunctionalUnitHandleType:$handle);
 
   let hasCustomAssemblyFormat = 1;
@@ -112,7 +113,8 @@ def VecOp : DF_Op<"vec"> {
       `%vec_unit = df.vec "SFPU" {shape = [32]}`
   }];
 
-  let arguments = (ins StrAttr:$name, DenseI64ArrayAttr:$shape);
+  let arguments = (ins StrAttr:$name, DenseI64ArrayAttr:$shape,
+                       OptionalAttr<I64Attr>:$throughput);
   let results = (outs FunctionalUnitHandleType:$handle);
 
   let hasCustomAssemblyFormat = 1;

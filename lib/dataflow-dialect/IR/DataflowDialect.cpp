@@ -278,7 +278,23 @@ ParseResult MatOp::parse(OpAsmParser &parser, OperationState &result) {
       result.addAttribute("shape", 
                          parser.getBuilder().getDenseI64ArrayAttr(shape));
     }
-    
+
+    // Optional comma before throughput if both are present.
+    (void)parser.parseOptionalComma();
+
+    // Optional throughput attribute: throughput = <int>
+    if (succeeded(parser.parseOptionalKeyword("throughput"))) {
+      if (parser.parseEqual())
+        return failure();
+
+      int64_t throughputValue;
+      if (parser.parseInteger(throughputValue))
+        return failure();
+
+      result.addAttribute("throughput",
+                          parser.getBuilder().getI64IntegerAttr(throughputValue));
+    }
+
     if (parser.parseRBrace())
       return failure();
   }
@@ -301,7 +317,11 @@ void MatOp::print(OpAsmPrinter &p) {
       p << ", ";
     p << values[i];
   }
-  p << "]}";
+  p << "]";
+  if (auto throughput = getThroughput()) {
+    p << ", throughput = " << throughput.value();
+  }
+  p << "}";
 }
 
 //===----------------------------------------------------------------------===//
@@ -342,7 +362,23 @@ ParseResult VecOp::parse(OpAsmParser &parser, OperationState &result) {
       result.addAttribute("shape", 
                          parser.getBuilder().getDenseI64ArrayAttr(shape));
     }
-    
+
+    // Optional comma before throughput if both are present.
+    (void)parser.parseOptionalComma();
+
+    // Optional throughput attribute: throughput = <int>
+    if (succeeded(parser.parseOptionalKeyword("throughput"))) {
+      if (parser.parseEqual())
+        return failure();
+
+      int64_t throughputValue;
+      if (parser.parseInteger(throughputValue))
+        return failure();
+
+      result.addAttribute("throughput",
+                          parser.getBuilder().getI64IntegerAttr(throughputValue));
+    }
+
     if (parser.parseRBrace())
       return failure();
   }
@@ -365,7 +401,11 @@ void VecOp::print(OpAsmPrinter &p) {
       p << ", ";
     p << values[i];
   }
-  p << "]}";
+  p << "]";
+  if (auto throughput = getThroughput()) {
+    p << ", throughput = " << throughput.value();
+  }
+  p << "}";
 }
 
 //===----------------------------------------------------------------------===//
