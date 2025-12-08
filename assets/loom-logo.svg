@@ -16,11 +16,11 @@
      transform="translate(-105.05001,-348.54999)">
     <path
        style="fill:#000000;stroke:#000000;stroke-width:0.5;stroke-dasharray:none"
-       d="m 105.3,350.25002 h 4.60001"
+       d="m 105.3,350.25002 h 4.5"
        id="path10" />
     <path
        style="fill:#000000;stroke:#000000;stroke-width:0.5;stroke-dasharray:none"
-       d="m 105.3,352.00001 h 2.85065"
+       d="m 105.3,352.00001 h 2.8"
        id="path10-2" />
     <path
        style="fill:#000000;stroke:#000000;stroke-width:0.5;stroke-dasharray:none"
@@ -56,7 +56,7 @@
        r="0.24999769" />
     <path
        style="fill:#000000;stroke:#000000;stroke-width:0.5;stroke-dasharray:none"
-       d="M 107.10001,353.75001 H 111.7"
+       d="m 107.2,353.75001 h 4.5"
        id="path10-1-0" />
     <path
        style="fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-dasharray:none"
@@ -76,7 +76,7 @@
        r="0.24999769" />
     <path
        style="fill:#000000;stroke:#000000;stroke-width:0.5;stroke-dasharray:none"
-       d="m 110.24999,348.80001 v 4.6"
+       d="m 110.24999,348.80001 v 4.5"
        id="path10-9" />
     <path
        style="fill:#000000;stroke:#000000;stroke-width:0.5;stroke-dasharray:none"
@@ -98,7 +98,7 @@
        transform="rotate(90)" />
     <path
        style="fill:#000000;stroke:#000000;stroke-width:0.5;stroke-dasharray:none"
-       d="m 108.50001,350.60002 -1e-5,2.8"
+       d="M 108.50001,350.70002 108.5,353.3"
        id="path10-1-3" />
     <path
        style="fill:#000000;stroke:#000000;stroke-width:0.5;stroke-dasharray:none"
@@ -120,7 +120,7 @@
        transform="rotate(90)" />
     <path
        style="fill:#000000;stroke:#000000;stroke-width:0.5;stroke-dasharray:none"
-       d="m 106.75,350.6 v 4.60002"
+       d="m 106.75,350.70001 v 4.50001"
        id="path10-1-0-9" />
     <path
        style="fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-dasharray:none"
