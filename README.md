@@ -1,4 +1,5 @@
-# LOOM
+<img src="assets/loom-logo.svg" alt="Loom Logi" width="250">
+
 
 LOOM is an MLIR-backed sandbox for exploring hardware scale-out models, a custom `df` (dataflow) dialect, and compiler passes that bridge Triton-style GPU kernels with affine IR. The repository combines C++ libraries that model hardware resources, MLIR dialect definitions, analysis/transform passes, and command-line tools for experimenting with mappings.
 
