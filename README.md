@@ -20,6 +20,7 @@ LOOM is an MLIR-backed sandbox for exploring hardware scale-out models, a custom
 - `test/` – GoogleTest unit tests and MLIR inputs covering dialects and passes.
 - `build.sh` – release build helper that configures MLIR paths and invokes Ninja.
 - `setup_ide.sh` – debug build + `compile_commands.json` generator for IDEs.
+- `benchmark.sh` – performance benchmarking script that measures command execution time with statistical analysis.
 - `Testing/` – generated CTest metadata (appears after running CMake).
 
 Detailed documentation for each subsystem lives alongside the code (see the READMEs under `lib/`, `tool/`, and `test/Passes/…`).
@@ -180,6 +181,26 @@ build/tool/triton-shared/single_stage/tile_scf_for_to_l1 \
 Notes:
 - The end-to-end driver accepts `--map-analysis-only` to attach `loom.copy.candidates` without cloning functions.
 - The single-stage alloc/copy explorer accepts `--analysis-only` with the same effect.
+
+### Performance Benchmarking
+The `benchmark.sh` script measures command execution time with statistical analysis. It performs warmup runs to reduce cold-start effects, then runs multiple benchmark iterations and reports mean, median, min, max, and standard deviation (all in milliseconds).
+
+```bash
+# Basic usage
+./benchmark.sh -- build/tool/ttshared-opt \
+  --ttshared test/Triton/mm_fixed_strides/runs/block_64x64x64/ttshared.mlir \
+  --df test/Dialect/DataflowDialect/2D_mesh.mlir \
+  --dump-dir test/Passes/mm_2Dmesh/ \
+  --skip-tile-scf-for-to-l1
+
+# Customize warmup and benchmark runs
+./benchmark.sh --warmup=5 --runs=20 -- build/tool/ttshared-opt ...
+
+# Quiet mode (suppress command output)
+./benchmark.sh -q -- build/tool/ttshared-opt ...
+```
+
+Options: `--warmup=N` (default: 3), `--runs=N` (default: 10), `-q/--quiet`, `-h/--help`.
 
 ### Pass reference (purpose, limitations, implementation)
 
