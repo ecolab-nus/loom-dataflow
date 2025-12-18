@@ -24,6 +24,7 @@ target_link_libraries(explore_mapping PRIVATE
   MLIRAsmParser
   MLIRBytecodeReader
   loomDataflowDialect
+  loomDialect
 )
 mlir_check_all_link_libraries(explore_mapping)
 

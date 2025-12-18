@@ -125,15 +125,15 @@ build/tool/triton-shared/single_stage/grid_to_parallel \
   > test/Passes/mm_2Dmesh/01_after_grid_to_parallel.mlir
 ```
 
-<!-- 3) Enumerate spatial mappings and merge DF declarations
+2) Enumerate spatial mappings and merge DF declarations
 ```bash
 build/tool/triton-shared/single_stage/explore_mapping \
-  --input test/Passes/mm_2Dmesh/02_after_grid_to_parallel.mlir \
+  --input test/Passes/mm_2Dmesh/01_after_grid_to_parallel.mlir \
   --df test/Dialect/DataflowDialect/2D_mesh.mlir \
-  > test/Passes/mm_2Dmesh/03_after_exploration.mlir
+  > test/Passes/mm_2Dmesh/02_after_exploration.mlir
 ```
 
-4) Hoist block loading operations
+<!-- 4) Hoist block loading operations
 **Note:** This pass does not have a standalone command-line tool. Use `mlir-opt` with the pass name:
 ```bash
 mlir-opt \
