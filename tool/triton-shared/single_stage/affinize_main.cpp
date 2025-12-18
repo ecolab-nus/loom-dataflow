@@ -27,6 +27,9 @@
 // Dataflow dialect for parsing df module sections (if present in file).
 #include "DataflowDialect.h.inc"
 #include "DataflowOps.h.inc"
+// Loom dialect for parsing loom operations
+#include "LoomDialect.h.inc"
+#include "LoomOps.h.inc"
 
 using namespace mlir;
 
@@ -49,6 +52,7 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::bufferization::BufferizationDialect>();
   context.loadDialect<mlir::affine::AffineDialect>();
   context.loadDialect<loom::df::DataflowDialect>();
+  context.loadDialect<loom::LoomDialect>();
 
   llvm::SourceMgr sm;
   auto file = mlir::openInputFile(clTTSharedInput);

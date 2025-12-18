@@ -24,6 +24,7 @@
 #include "llvm/Support/WithColor.h"
 
 #include "DataflowDialect.h.inc"
+#include "LoomDialect.h.inc"
 
 using namespace mlir;
 
