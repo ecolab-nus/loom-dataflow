@@ -6,6 +6,7 @@ set(LOOM_PASSES_INC
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/inc
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared/inc
   ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
+  ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
 )
 
 # Affine tools
@@ -41,6 +42,7 @@ target_link_libraries(ttshared-opt PRIVATE
   MLIRAsmParser
   MLIRBytecodeReader
   loomDataflowDialect
+  loomDialect
 )
 mlir_check_all_link_libraries(ttshared-opt)
 

@@ -57,6 +57,7 @@ target_link_libraries(affinize PRIVATE
   MLIRAsmParser
   MLIRBytecodeReader
   loomDataflowDialect
+  loomDialect
 )
 mlir_check_all_link_libraries(affinize)
 
@@ -89,6 +90,8 @@ target_link_libraries(grid_to_parallel PRIVATE
   MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader
+  loomDataflowDialect
+  loomDialect
 )
 mlir_check_all_link_libraries(grid_to_parallel)
 
@@ -163,6 +166,7 @@ target_link_libraries(explore_alloc_copy_mapping PRIVATE
   MLIRAsmParser
   MLIRBytecodeReader
   loomDataflowDialect
+  loomDialect
 )
 mlir_check_all_link_libraries(explore_alloc_copy_mapping)
 

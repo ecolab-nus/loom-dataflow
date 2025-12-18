@@ -148,12 +148,12 @@ public:
         return; // Not our calling convention.
 
       // Identify the last six args as (sizeX, sizeY, sizeZ, idxX, idxY, idxZ).
-      Value sizeX = entry.getArgument(numArgs - 6 - 3);
-      Value sizeY = entry.getArgument(numArgs - 5 - 3);
-      Value sizeZ = entry.getArgument(numArgs - 4 - 3);
-      Value idxX = entry.getArgument(numArgs - 3 - 3);
-      Value idxY = entry.getArgument(numArgs - 2 - 3);
-      Value idxZ = entry.getArgument(numArgs - 1 - 3);
+      Value sizeX = entry.getArgument(numArgs - 6);
+      Value sizeY = entry.getArgument(numArgs - 5);
+      Value sizeZ = entry.getArgument(numArgs - 4);
+      Value idxX = entry.getArgument(numArgs - 3);
+      Value idxY = entry.getArgument(numArgs - 2);
+      Value idxZ = entry.getArgument(numArgs - 1);
 
       // Builder set up.
       OpBuilder b(func);

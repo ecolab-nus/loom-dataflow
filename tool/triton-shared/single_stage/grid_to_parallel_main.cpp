@@ -20,6 +20,10 @@
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/FileUtilities.h"
+
+// Loom dialects for parsing loom operations
+#include "DataflowDialect.h.inc"
+#include "LoomDialect.h.inc"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
@@ -44,6 +48,8 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::memref::MemRefDialect>();
   context.loadDialect<mlir::scf::SCFDialect>();
   context.loadDialect<mlir::bufferization::BufferizationDialect>();
+  context.loadDialect<loom::df::DataflowDialect>();
+  context.loadDialect<loom::LoomDialect>();
 
   llvm::SourceMgr sm;
   auto file = mlir::openInputFile(clInput);

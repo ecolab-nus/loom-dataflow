@@ -109,30 +109,23 @@ All binaries live under `build/tool/` after a build. Useful entry points include
 ### Triton-shared → Dataflow pipeline (step-by-step)
 The repository includes a runnable pipeline that lowers a Triton-shared kernel (already bufferized) into a custom Affine/Dataflow form. The examples under `test/Passes/mm_2Dmesh/` can be reproduced with the following commands executed from the repo root after a build.
 
-#### Option A E2E(Recommended)
+<!-- #### Option A E2E(Recommended)
 ```bash
 build/tool/ttshared-opt \
   --ttshared test/Triton/mm_fixed_strides/runs/block_64x64x64/ttshared.mlir \
   --df test/Dialect/DataflowDialect/2D_mesh.mlir \
   --dump-dir test/Passes/mm_2Dmesh/ \
   --skip-tile-scf-for-to-l1
-```
+``` -->
 #### Option B step-by-step
-1) Affinize Triton-shared indices
-```bash
-build/tool/triton-shared/single_stage/affinize \
-  --ttshared test/Triton/mm_fixed_strides/runs/block_64x64x64/ttshared.mlir \
-  > test/Passes/mm_2Dmesh/01_after_affinization.mlir
-```
-
-2) Replace grid indices with a 3-D `affine.parallel`
+1) Replace grid indices with a 3-D `affine.parallel`
 ```bash
 build/tool/triton-shared/single_stage/grid_to_parallel \
-  --input test/Passes/mm_2Dmesh/01_after_affinization.mlir \
-  > test/Passes/mm_2Dmesh/02_after_grid_to_parallel.mlir
+  --input test/Passes/mm_2Dmesh/00_temp_manual_symbolic.mlir  \
+  > test/Passes/mm_2Dmesh/01_after_grid_to_parallel.mlir
 ```
 
-3) Enumerate spatial mappings and merge DF declarations
+<!-- 3) Enumerate spatial mappings and merge DF declarations
 ```bash
 build/tool/triton-shared/single_stage/explore_mapping \
   --input test/Passes/mm_2Dmesh/02_after_grid_to_parallel.mlir \
@@ -175,7 +168,7 @@ mlir-opt \
 ```bash
 build/tool/triton-shared/single_stage/tile_scf_for_to_l1 \
   test/Passes/mm_2Dmesh/07_after_bufferization.mlir \
-  > test/Passes/mm_2Dmesh/08_after_for_tiling.mlir
+  > test/Passes/mm_2Dmesh/08_after_for_tiling.mlir -->
 ``` 
 
 Notes:
