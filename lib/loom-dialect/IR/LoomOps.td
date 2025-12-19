@@ -93,3 +93,29 @@ def GetBlockSizeOp : Loom_Op<"get_block_size", [Pure]> {
     $dimension `:` type($result) attr-dict
   }];
 }
+
+def CopyOp : Loom_Op<"copy", [
+    Pure, 
+    AttrSizedOperandSegments
+]> {
+    let summary = "带有溯源和互联信息的副本操作。";
+
+    let arguments = (ins 
+        AnyMemRef:$src,
+        AnyMemRef:$dst,
+        // provenance: 0 或 1 个 SSA 值
+        Optional<Index>:$provenance,
+        // interconnect: 0 到 2 个 SSA 值
+        Variadic<Index>:$interconnect,
+        // broadcast: 静态数组属性
+        DefaultValuedAttr<I64ArrayAttr, "{1, 1}">:$broadcast
+    );
+
+    let assemblyFormat = [{
+        $src `,` $dst 
+        ( `provenance` `:` $provenance^ )? 
+        `,` `interconnect` `:` `[` $interconnect `]` 
+        `,` `broadcast` `:` $broadcast 
+        attr-dict `:` type($src) `to` type($dst)
+    }];
+}
