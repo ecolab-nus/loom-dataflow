@@ -129,6 +129,7 @@ target_link_libraries(annotate_reuse PRIVATE
   MLIRAsmParser
   MLIRBytecodeReader
   loomDataflowDialect
+  loomDialect
 )
 mlir_check_all_link_libraries(annotate_reuse)
 

@@ -27,7 +27,7 @@ func.func @matmul_kernel (
       %9 = arith.muli %arg9, %blkK_idx : index loc(#loc9)
       %11 = arith.muli %2, %c512 : index loc(#loc11)
       %12 = arith.addi %11, %9 : index loc(#loc11)
-      %reinterpret_cast_0 = loom.reinterpret_cast %arg0 to offset: [%12], sizes: [%blkM_idx, %blkK_idx], strides: [%K_idx, %c1_idx], reuse: [seq = false, spat = false, temp =false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>> loc(#loc11)
+      %reinterpret_cast_0 = loom.reinterpret_cast %arg0 to offset: [%12], sizes: [%blkM_idx, %blkK_idx], strides: [%K_idx, %c1_idx], reuse: [spat = false, temp =false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>> loc(#loc11)
       %alloc = memref.alloc(%blkM_idx, %blkK_idx) : memref<?x?xf32> loc(#loc11)
       memref.copy %reinterpret_cast_0, %alloc : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<?x?xf32> loc(#loc11)
       %13 = bufferization.to_tensor %alloc restrict writable : memref<?x?xf32> to tensor<?x?xf32> loc(#loc11)
