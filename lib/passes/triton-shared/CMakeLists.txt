@@ -40,6 +40,7 @@ target_link_libraries(loomTritonSharedPasses PUBLIC
     MLIRAsmParser
     MLIRBytecodeReader
     loomDataflowDialect
+    loomDialect
 )
 mlir_check_all_link_libraries(loomTritonSharedPasses)
 

@@ -133,6 +133,13 @@ build/tool/triton-shared/single_stage/explore_mapping \
   > test/Passes/mm_2Dmesh/02_after_exploration.mlir
 ```
 
+3) Annotate reuse on `memref.reinterpret_cast`
+```bash
+build/tool/triton-shared/single_stage/annotate_reuse \
+  --input test/Passes/mm_2Dmesh/02_after_exploration.mlir \
+  > test/Passes/mm_2Dmesh/03_after_reuse_annotation.mlir
+```
+
 <!-- 4) Hoist block loading operations
 **Note:** This pass does not have a standalone command-line tool. Use `mlir-opt` with the pass name:
 ```bash
@@ -140,13 +147,6 @@ mlir-opt \
   --loom-hoist-block-loading \
   test/Passes/mm_2Dmesh/03_after_exploration.mlir \
   > test/Passes/mm_2Dmesh/04_after_hoist_block_loading.mlir
-```
-
-5) Annotate reuse on `memref.reinterpret_cast`
-```bash
-build/tool/triton-shared/single_stage/annotate_reuse \
-  --input test/Passes/mm_2Dmesh/04_after_hoist_block_loading.mlir \
-  > test/Passes/mm_2Dmesh/05_after_reuse_annotation.mlir
 ```
 
 6) Explore alloc/copy mapping choices
