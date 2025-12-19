@@ -22,13 +22,13 @@ module attributes {loom.block_k = 64 : index, loom.block_m = 64 : index, loom.bl
         %13 = arith.addi %12, %11 : index
         %14 = loom.reinterpret_cast %arg0 to offset : [%13], sizes : [%0, %2], strides : [%c512_1, %c1], reuse : [seq = false, spat = false, temp = false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
         %alloc = memref.alloc(%0, %2) : memref<?x?xf32>
-        memref.copy %14, %alloc : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<?x?xf32>
+        loom.copy %14, %alloc, interconnect : [], broadcast : [1, 1] : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<?x?xf32>
         %15 = bufferization.to_tensor %alloc restrict writable : memref<?x?xf32> to tensor<?x?xf32>
         %16 = arith.muli %11, %c512_2 : index
         %17 = arith.addi %16, %6 : index
         %18 = loom.reinterpret_cast %arg1 to offset : [%17], sizes : [%2, %1], strides : [%c512_0, %c1], reuse : [seq = false, spat = false, temp = false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
         %alloc_3 = memref.alloc(%2, %1) : memref<?x?xf32>
-        memref.copy %18, %alloc_3 : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<?x?xf32>
+        loom.copy %18, %alloc_3, interconnect : [], broadcast : [1, 1] : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<?x?xf32>
         %19 = bufferization.to_tensor %alloc_3 restrict writable : memref<?x?xf32> to tensor<?x?xf32>
         %20 = linalg.matmul ins(%15, %19 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%4 : tensor<?x?xf32>) -> tensor<?x?xf32>
         %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg12, %20 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%arg12 : tensor<?x?xf32>) {
