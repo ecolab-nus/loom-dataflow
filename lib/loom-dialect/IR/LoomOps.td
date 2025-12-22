@@ -95,19 +95,15 @@ def GetBlockSizeOp : Loom_Op<"get_block_size", [Pure]> {
 }
 
 def CopyOp : Loom_Op<"copy", [
-    Pure, 
-    AttrSizedOperandSegments
+  AttrSizedOperandSegments
 ]> {
-    let summary = "带有溯源和互联信息的副本操作。";
+    let summary = "A wrapper of memref.copy with provenance and dataflow hardware properties";
 
     let arguments = (ins 
         AnyMemRef:$src,
         AnyMemRef:$dst,
-        // provenance: 0 或 1 个 SSA 值
         Optional<Index>:$provenance,
-        // interconnect: 0 到 2 个 SSA 值
         Variadic<Index>:$interconnect,
-        // broadcast: 静态数组属性
         DefaultValuedAttr<I64ArrayAttr, "{1, 1}">:$broadcast
     );
 
