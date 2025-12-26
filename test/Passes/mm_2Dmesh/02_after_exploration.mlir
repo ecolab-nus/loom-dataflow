@@ -6,8 +6,8 @@ module {
   %4 = df.core "core" {scaleout=(%2, %3) , scalein=(%0, %1, [8, 1])}
   %5 = df.memory "L1" {scaleout=(%2, %3) , size = 32768, bandwidth = 64}
   %6 = df.mux %4 : !df.compute, %5 : !df.memory  {map = affine_map<(d0, d1) -> (d0, d1)>}
-  %7 = df.interconnects "horizontal_links" %5 : !df.memory, %5 : !df.memory  {bandwidth = 128 : i64, map = affine_map<(d0, d1) -> ((d0 + 1) mod 8, d1)>} : !df.interconnect
-  %8 = df.interconnects "vertical_links" %5 : !df.memory, %5 : !df.memory  {bandwidth = 128 : i64, map = affine_map<(d0, d1) -> (d0, (d1 + 1) mod 8)>} : !df.interconnect
+  %7 = df.interconnects "horizontal_links" %5 : !df.memory, %5 : !df.memory  {bandwidth = 128 : i64, map = affine_map<(d0, d1) -> ((d0 + 1) mod 8, d1)>, spatial_dims = [@x]} : !df.interconnect
+  %8 = df.interconnects "vertical_links" %5 : !df.memory, %5 : !df.memory  {bandwidth = 128 : i64, map = affine_map<(d0, d1) -> (d0, (d1 + 1) mod 8)>, spatial_dims = [@y]} : !df.interconnect
   %9 = df.spatial_dim "d", 4
   %10 = df.memory "DRAM" {scaleout=(%9) , size = 34359738368, bandwidth = 512}
   %11 = df.interconnects %5 : !df.memory, %10 : !df.memory  {map = affine_map<(d0, d1) -> (d0 ceildiv 4 + (d1 ceildiv 4) * 2)>} : !df.interconnect
@@ -59,8 +59,8 @@ module {
             bufferization.materialize_in_destination %20 in writable %23 : (tensor<?x?xf32>, memref<?x?xf32, strided<[?, ?], offset: ?>>) -> ()
           }
         }
-      } {loom.mapped_to = "y"}
-    } {loom.mapped_to = "x"}
+      } {loom.mapped_to = @y}
+    } {loom.mapped_to = @x}
     return
   }
   func.func @matmul_kernel__d0i0_d1i0__f10(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -111,8 +111,8 @@ module {
             bufferization.materialize_in_destination %20 in writable %23 : (tensor<?x?xf32>, memref<?x?xf32, strided<[?, ?], offset: ?>>) -> ()
           }
         }
-      } {loom.mapped_to = "y"}
-    } {loom.mapped_to = "x"}
+      } {loom.mapped_to = @y}
+    } {loom.mapped_to = @x}
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f01(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -164,8 +164,8 @@ module {
             bufferization.materialize_in_destination %21 in writable %24 : (tensor<?x?xf32>, memref<?x?xf32, strided<[?, ?], offset: ?>>) -> ()
           }
         }
-      } {loom.mapped_to = "y"}
-    } {loom.mapped_to = "x"}
+      } {loom.mapped_to = @y}
+    } {loom.mapped_to = @x}
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f10(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -217,8 +217,8 @@ module {
             bufferization.materialize_in_destination %21 in writable %24 : (tensor<?x?xf32>, memref<?x?xf32, strided<[?, ?], offset: ?>>) -> ()
           }
         }
-      } {loom.mapped_to = "y"}
-    } {loom.mapped_to = "x"}
+      } {loom.mapped_to = @y}
+    } {loom.mapped_to = @x}
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f01(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -270,8 +270,8 @@ module {
             bufferization.materialize_in_destination %21 in writable %24 : (tensor<?x?xf32>, memref<?x?xf32, strided<[?, ?], offset: ?>>) -> ()
           }
         }
-      } {loom.mapped_to = "x"}
-    } {loom.mapped_to = "y"}
+      } {loom.mapped_to = @x}
+    } {loom.mapped_to = @y}
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f10(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -323,8 +323,8 @@ module {
             bufferization.materialize_in_destination %21 in writable %24 : (tensor<?x?xf32>, memref<?x?xf32, strided<[?, ?], offset: ?>>) -> ()
           }
         }
-      } {loom.mapped_to = "x"}
-    } {loom.mapped_to = "y"}
+      } {loom.mapped_to = @x}
+    } {loom.mapped_to = @y}
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f01(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -375,8 +375,8 @@ module {
             bufferization.materialize_in_destination %20 in writable %23 : (tensor<?x?xf32>, memref<?x?xf32, strided<[?, ?], offset: ?>>) -> ()
           }
         }
-      } {loom.mapped_to = "y"}
-    } {loom.mapped_to = "x"}
+      } {loom.mapped_to = @y}
+    } {loom.mapped_to = @x}
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f10(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -427,8 +427,8 @@ module {
             bufferization.materialize_in_destination %20 in writable %23 : (tensor<?x?xf32>, memref<?x?xf32, strided<[?, ?], offset: ?>>) -> ()
           }
         }
-      } {loom.mapped_to = "y"}
-    } {loom.mapped_to = "x"}
+      } {loom.mapped_to = @y}
+    } {loom.mapped_to = @x}
     return
   }
 }
