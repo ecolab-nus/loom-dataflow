@@ -813,6 +813,8 @@ void InterconnectsOp::print(OpAsmPrinter &p) {
   }
   
   p << " ";
+  // Elide label from attribute dict since it's printed separately
+  // spatial_dims will be printed in the attribute dict automatically
   SmallVector<StringRef> elidedAttrs = {"label"};
   p.printOptionalAttrDict((*this)->getAttrs(), elidedAttrs);
   

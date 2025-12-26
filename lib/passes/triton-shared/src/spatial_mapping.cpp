@@ -54,10 +54,15 @@ namespace loom_affine {
 static LogicalResult GetSpatialDimInfo(loom::df::SpatialDimOp sdOp, llvm::SmallVector<loom_affine::SpatialDimInfo>& dimVec) {
   loom_affine::SpatialDimInfo info;
   // Read declared name and size from the op properties.
-  if (auto nameAttr = sdOp.getNameAttr())
+  // Use getSymNameAttr() since we changed the attribute to sym_name for Symbol trait
+  if (auto nameAttr = sdOp.getSymNameAttr()) {
     info.name = nameAttr.getValue().str();
-  else
+    // Use the symbol name for SymbolRefAttr
+    info.symbolName = nameAttr.getValue().str();
+  } else {
     info.name = "dim";
+    info.symbolName = "dim";
+  }
   uint64_t sz = sdOp.getSize();
   if (sz > 0)
     info.size = static_cast<int64_t>(sz);
@@ -313,8 +318,11 @@ static LogicalResult applyMappingToFunction(func::FuncOp func,
       loom_affine::TiledParallels tiled_parallels{};
       if (failed(tileAffineParallel(tar_forOp, factor, iterIdx, tiled_parallels)))
         return failure();
+      // Use SymbolRefAttr to reference the df.spatial_dim operation
+      // Use the symbolName from SpatialDimInfo, defaulting to "dim" if empty
+      StringRef symbolName = sd.symbolName.empty() ? StringRef("dim") : StringRef(sd.symbolName);
       tiled_parallels.tiled_new_->setAttr("loom.mapped_to",
-                        StringAttr::get(ctx, sd.name.empty() ? "dim" : sd.name));
+                        SymbolRefAttr::get(ctx, symbolName));
       if (!suffix.empty())
         suffix += "_";
       suffix += "d" + std::to_string(dimIdx) + "i" + std::to_string(iterIdx);

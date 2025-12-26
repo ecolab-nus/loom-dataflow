@@ -5,6 +5,7 @@
 include "mlir/IR/OpBase.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
+include "mlir/IR/SymbolInterfaces.td"
 
 // NOTE: This file is intended to be included from `DataflowOps.td`, which
 // defines the helper `DF_Op` class and sets up codegen for the df dialect ops.
@@ -17,21 +18,30 @@ def HandleLike : TypeConstraint<CPred<
 // Example:
 //   %x = df.spatial_dim "x", 8
 // The result is an index-typed SSA value that can participate in affine maps.
-def SpatialDimOp : DF_Op<"spatial_dim"> {
+def SpatialDimOp : DF_Op<"spatial_dim", [Symbol]> {
   let summary = "Declare a spatial dimension with a name and a fixed size";
   let description = [{
     `df.spatial_dim` declares a hardware spatial dimension with a user-facing
     name and a constant size. The result is an index-typed SSA value intended
     to be referenced in affine expressions (e.g., in `df.interconnects`).
+    The operation is a symbol and can be referenced via SymbolRefAttr.
+    The `name` attribute is used as both the display name and the symbol name.
 
     Example:
       `%x = df.spatial_dim "x", 8`
   }];
 
-  let arguments = (ins StrAttr:$name, I64Attr:$size);
+  let arguments = (ins StrAttr:$sym_name, I64Attr:$size);
   let results = (outs Index:$dim);
 
-  let assemblyFormat = "$name `,` $size attr-dict";
+  let assemblyFormat = "$sym_name `,` $size attr-dict";
+  
+  // Provide a getter for 'name' to maintain backward compatibility
+  let extraClassDeclaration = [{
+    // Alias for sym_name to maintain backward compatibility
+    ::mlir::StringAttr getNameAttr() { return getSymNameAttr(); }
+    ::llvm::StringRef getName() { return getSymName(); }
+  }];
 }
 
 // df.interconnects : declare chain interconnects between handles using an affine
@@ -68,7 +78,8 @@ def InterconnectsOp : DF_Op<"interconnects"> {
                        HandleLike:$target,
                        Variadic<Index>:$indices,
                        AffineMapAttr:$map,
-                       OptionalAttr<I64Attr>:$bandwidth);
+                       OptionalAttr<I64Attr>:$bandwidth,
+                       OptionalAttr<ArrayAttr>:$spatial_dims);
   let results = (outs InterconnectHandleType:$handle);
 
   let hasCustomAssemblyFormat = 1;

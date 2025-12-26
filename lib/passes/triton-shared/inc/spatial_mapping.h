@@ -29,15 +29,18 @@ namespace loom_affine {
  * \brief Hardware spatial dimension description parsed from the DF module.
  *
  * A spatial dimension is declared by `df.spatial_dim` in the dataflow (DF)
- * module. This structure captures a display name for diagnostics and an
- * optional static size.
+ * module. This structure captures a display name for diagnostics, an
+ * optional static size, and the symbol name for SymbolRefAttr references.
  *
  * - When the dimension size is not statically known (dynamic), `size` is
  *   set to `std::nullopt` to approximate an unbounded capacity.
+ * - The `symbolName` is used to create SymbolRefAttr references to the
+ *   `df.spatial_dim` operation.
  */
 struct SpatialDimInfo {
   std::string name;
   std::optional<int64_t> size;
+  std::string symbolName;  // Symbol name for SymbolRefAttr references
 };
 
 struct HardwareInfo {
