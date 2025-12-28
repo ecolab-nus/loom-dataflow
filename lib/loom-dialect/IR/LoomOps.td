@@ -94,23 +94,21 @@ def GetBlockSizeOp : Loom_Op<"get_block_size", [Pure]> {
   }];
 }
 
-def CopyOp : Loom_Op<"copy", [
-  AttrSizedOperandSegments
-]> {
+def CopyOp : Loom_Op<"copy"> {
     let summary = "A wrapper of memref.copy with provenance and dataflow hardware properties";
 
     let arguments = (ins 
         AnyMemRef:$src,
         AnyMemRef:$dst,
         Optional<Index>:$provenance,
-        Variadic<Index>:$interconnect,
+        OptionalAttr<ArrayAttr>:$interconnect,
         DefaultValuedAttr<I64ArrayAttr, "{1, 1}">:$broadcast
     );
 
     let assemblyFormat = [{
         $src `,` $dst 
         ( `provenance` `:` $provenance^ )? 
-        `,` `interconnect` `:` `[` $interconnect `]` 
+        `,` `interconnect` `:` $interconnect 
         `,` `broadcast` `:` $broadcast 
         attr-dict `:` type($src) `to` type($dst)
     }];

@@ -52,7 +52,7 @@ def SpatialDimOp : DF_Op<"spatial_dim", [Symbol]> {
 //       {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : !df.interconnect
 //   %mems_to_mems = df.interconnects "ring" %memories : !df.memory, %memories: !df.memory, %x
 //       {map = affine_map<(d0) -> (d0 + 1)>} : !df.interconnect
-def InterconnectsOp : DF_Op<"interconnects"> {
+def InterconnectsOp : DF_Op<"interconnects", [Symbol]> {
   let summary = "Declare interconnects via an affine expression";
   let description = [{
     `df.interconnects` declares chain-like interconnects among the spatial
@@ -63,8 +63,8 @@ def InterconnectsOp : DF_Op<"interconnects"> {
     other affine maps) alongside the SSA operands used to materialize the
     expression.
 
-    The operation also carries an optional user-facing string label that is
-    printed first in the custom assembly (e.g., `"horizontal_links"`).
+    The operation is a symbol and can be referenced via SymbolRefAttr.
+    The `sym_name` attribute is used as both the display name and the symbol name.
 
     Examples (compute-to-compute and memory-to-memory):
       `%cores_to_cores = df.interconnects "horizontal_links" %cores : !df.compute, %cores: !df.compute, %x, %y
@@ -73,7 +73,7 @@ def InterconnectsOp : DF_Op<"interconnects"> {
           {map = affine_map<(d0) -> (d0 + 1)>} : !df.interconnect`
   }];
 
-  let arguments = (ins OptionalAttr<StrAttr>:$label,
+  let arguments = (ins StrAttr:$sym_name,
                        HandleLike:$source,
                        HandleLike:$target,
                        Variadic<Index>:$indices,
@@ -83,6 +83,13 @@ def InterconnectsOp : DF_Op<"interconnects"> {
   let results = (outs InterconnectHandleType:$handle);
 
   let hasCustomAssemblyFormat = 1;
+  
+  // Provide a getter for 'label' to maintain backward compatibility
+  let extraClassDeclaration = [{
+    // Alias for sym_name to maintain backward compatibility
+    ::mlir::StringAttr getLabelAttr() { return getSymNameAttr(); }
+    ::llvm::StringRef getLabel() { return getSymName(); }
+  }];
 }
 
 // df.mat : declare a matrix functional unit with a name and shape

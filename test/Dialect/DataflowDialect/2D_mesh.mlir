@@ -13,5 +13,5 @@ module {
     // dram
     %dram_idx = df.spatial_dim "d", 4
     %drams = df.memory "DRAM" {scaleout=(%dram_idx) , size = 34359738368, bandwidth = 512}
-    %to_dram = df.interconnects %L1: !df.memory, %drams : !df.memory, {map = affine_map<(d0, d1) -> (d0 ceildiv 4 + 2 * (d1 ceildiv 4))>}
+    %to_dram = df.interconnects "NoC" %L1: !df.memory, %drams : !df.memory, {map = affine_map<(d0, d1) -> (d0 ceildiv 4 + 2 * (d1 ceildiv 4))>}
 }
