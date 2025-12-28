@@ -283,8 +283,30 @@ public:
         Block &oldBody = *par.getBody();
         OpBuilder nb(&newBody, newBody.begin());
         for (Operation &op :
-             llvm::make_early_inc_range(oldBody.without_terminator()))
-          nb.clone(op, mapper);
+             llvm::make_early_inc_range(oldBody.without_terminator())) {
+          // Special handling for loom.copy to preserve empty interconnect attribute
+          if (op.getName().getStringRef() == "loom.copy") {
+            // Get the interconnect attribute before cloning
+            auto interconnectAttr = op.getAttrOfType<ArrayAttr>("interconnect");
+            
+            // Clone the operation
+            Operation *clonedOp = nb.clone(op, mapper);
+            
+            // Ensure interconnect attribute is preserved
+            // If it was an empty array, preserve it as an empty array
+            // If it was NULL, create an empty array to match expected format
+            if (interconnectAttr) {
+              clonedOp->setAttr("interconnect", interconnectAttr);
+            } else {
+              // Create an empty array attribute to match the format: interconnect: []
+              auto emptyInterconnect = ArrayAttr::get(nb.getContext(), {});
+              clonedOp->setAttr("interconnect", emptyInterconnect);
+            }
+          } else {
+            // For other operations, use normal cloning
+            nb.clone(op, mapper);
+          }
+        }
 
         par.erase();
       }

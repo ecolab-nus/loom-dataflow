@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
                   mlir::arith::ArithDialect, mlir::tensor::TensorDialect,
                   mlir::linalg::LinalgDialect, mlir::scf::SCFDialect,
                   mlir::bufferization::BufferizationDialect,
-                  loom::df::DataflowDialect>();
+                  loom::df::DataflowDialect, loom::LoomDialect>();
   MLIRContext context(registry);
   context.loadAllAvailableDialects();
 

@@ -664,20 +664,23 @@ void MuxOp::print(OpAsmPrinter &p) {
 ///   or: df.interconnects %memories: !df.memory, %drams : !df.memory, {map = ...}
 /// 
 /// This parser uses a flexible function-object based approach to handle various
-/// format combinations (with/without label, type annotations, indices, etc.)
+/// format combinations (with/without sym_name, type annotations, indices, etc.)
 ParseResult InterconnectsOp::parse(OpAsmParser &parser, OperationState &result) {
   Builder &builder = parser.getBuilder();
   MLIRContext *context = builder.getContext();
 
-  // Helper function to parse optional label (string attribute)
-  auto parseLabel = [&]() -> ParseResult {
-    std::string labelStr;
-    if (succeeded(parser.parseOptionalString(&labelStr))) {
-      StringAttr label = builder.getStringAttr(labelStr);
-      result.addAttribute("label", label);
-    }
-    return success();
-  };
+  // Parse symbol name (required for Symbol trait, but allow optional for backward compatibility)
+  StringAttr symName;
+  std::string symNameStr;
+  if (succeeded(parser.parseOptionalString(&symNameStr))) {
+    symName = builder.getStringAttr(symNameStr);
+  } else {
+    // Generate a default name if not provided (for backward compatibility)
+    // Use a simple default name - if there are conflicts, MLIR's Symbol system will report an error
+    // In practice, users should provide explicit names for interconnects
+    symName = builder.getStringAttr("interconnect");
+  }
+  result.addAttribute("sym_name", symName);
 
   // Helper function to parse an operand with optional type annotation
   // Returns the operand and whether a type was provided
@@ -700,10 +703,6 @@ ParseResult InterconnectsOp::parse(OpAsmParser &parser, OperationState &result) 
     return llvm::isa<ComputeHandleType>(type) ||
            llvm::isa<MemoryHandleType>(type);
   };
-
-  // Parse optional label
-  if (parseLabel().failed())
-    return failure();
 
   // Parse source operand with optional type
   OpAsmParser::UnresolvedOperand source;
@@ -792,12 +791,10 @@ ParseResult InterconnectsOp::parse(OpAsmParser &parser, OperationState &result) 
 void InterconnectsOp::print(OpAsmPrinter &p) {
   p << " ";
   
-  // Print label if present
-  if (auto label = getLabelAttr()) {
-    p << "\"";
-    p << label.getValue();
-    p << "\" ";
-  }
+  // Print symbol name
+  p << "\"";
+  p << getSymName();
+  p << "\" ";
   
   p.printOperand(getSource());
   p << " : ";
@@ -813,9 +810,9 @@ void InterconnectsOp::print(OpAsmPrinter &p) {
   }
   
   p << " ";
-  // Elide label from attribute dict since it's printed separately
+  // Elide sym_name from attribute dict since it's printed separately
   // spatial_dims will be printed in the attribute dict automatically
-  SmallVector<StringRef> elidedAttrs = {"label"};
+  SmallVector<StringRef> elidedAttrs = {"sym_name"};
   p.printOptionalAttrDict((*this)->getAttrs(), elidedAttrs);
   
   p << " : ";
