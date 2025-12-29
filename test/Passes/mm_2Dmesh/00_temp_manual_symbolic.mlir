@@ -12,9 +12,9 @@ func.func @matmul_kernel (
     %N_idx = arith.constant 512 : index
     %K_idx = arith.constant 512 : index
     %c1_idx = arith.constant 1 : index
-    %blkM_idx = loom.get_block_size "m" : index
-    %blkN_idx = loom.get_block_size "n" : index
-    %blkK_idx = loom.get_block_size "k" : index
+    %blkM_idx = loom.get_module_attribute "loom.block_m" : index
+    %blkN_idx = loom.get_module_attribute "loom.block_n" : index
+    %blkK_idx = loom.get_module_attribute "loom.block_k" : index
     %cst = arith.constant 0.000000e+00 : f32 loc(#loc1)
     %c8_idx = arith.constant 8 : index loc(#loc1)
     %c512 = arith.constant 512 : index loc(#loc1)

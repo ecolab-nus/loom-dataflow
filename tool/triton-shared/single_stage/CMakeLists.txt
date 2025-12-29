@@ -213,4 +213,42 @@ set_target_properties(tile_scf_for_to_l1 PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# materialize: Materialize and canonicalize IR
+add_executable(materialize
+  ${CMAKE_CURRENT_LIST_DIR}/materialize_main.cpp
+)
+
+target_include_directories(materialize PRIVATE
+  ${MLIR_INCLUDE_DIRS}
+  ${LOOM_PASSES_INC}
+)
+
+target_link_libraries(materialize PRIVATE
+  loomTritonSharedPasses
+  MLIRIR
+  MLIRParser
+  MLIRSupport
+  LLVMSupport
+  MLIRFuncDialect
+  MLIRAffineDialect
+  MLIRMemRefDialect
+  MLIRArithDialect
+  MLIRTensorDialect
+  MLIRLinalgDialect
+  MLIRSCFDialect
+  MLIRBufferizationDialect
+  MLIRPass
+  MLIRAsmParser
+  MLIRBytecodeReader
+  loomDataflowDialect
+  loomDialect
+)
+mlir_check_all_link_libraries(materialize)
+
+target_compile_options(materialize PRIVATE -fno-rtti)
+
+set_target_properties(materialize PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 
