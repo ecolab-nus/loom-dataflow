@@ -56,7 +56,15 @@ struct TritonSharedExploreSpatialMappingsPass
     if (failed(loom_affine::GetHardwareInfoForExploration(module, hardwareInfo)))
       return; // Failed to collect hardware information from DF module; silently no-op
 
+    // Collect all functions first to avoid iterator invalidation
+    SmallVector<func::FuncOp> funcs(module.getOps<func::FuncOp>().begin(),
+                                     module.getOps<func::FuncOp>().end());
+    
+    if (funcs.empty())
+      return;
 
+    // Use EnumerateSpatialMappings to generate the enumerated functions,
+    // then insert them directly into the original module.
     OwningOpRef<ModuleOp> enumerated = loom_affine::EnumerateSpatialMappings(module, hardwareInfo);
 
     // If enumeration produced no functions, keep the original functions.
@@ -81,6 +89,8 @@ struct TritonSharedExploreSpatialMappingsPass
       (*it)->erase();
 
     // Insert enumerated clones after the last DF op to keep DF at the top.
+    // Note: Module attributes are automatically preserved since we operate
+    // directly on the existing module without creating a new one.
     OpBuilder builder(module.getBodyRegion());
     Operation *after = nullptr;
     for (Operation &op : *module.getBody()) {

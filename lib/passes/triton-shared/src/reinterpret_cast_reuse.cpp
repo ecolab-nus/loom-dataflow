@@ -90,6 +90,9 @@ public:
    * @details Walk all `loom.reinterpret_cast` ops, collect dynamic offsets,
    * derive enclosing iterators, and update reuse attributes based on whether
    * offsets depend on iterators of each type.
+   * 
+   * Note: This pass operates directly on the existing module without creating
+   * a new one, so module-level attributes are automatically preserved.
    */
   void runOnOperation() override {
     ModuleOp module = getOperation();

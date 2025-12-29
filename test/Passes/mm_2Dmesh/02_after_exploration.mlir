@@ -1,4 +1,4 @@
-module {
+module attributes {loom.block_k = 64 : index, loom.block_m = 64 : index, loom.block_n = 64 : index} {
   %0 = df.mat "FPU" {shape = [32, 32, 32]}
   %1 = df.vec "SFPU" {shape = [32]}
   %2 = df.spatial_dim "x", 8

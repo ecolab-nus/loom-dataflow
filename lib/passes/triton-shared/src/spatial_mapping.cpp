@@ -345,6 +345,10 @@ EnumerateSpatialMappings(ModuleOp affineModule,
   MLIRContext *ctx = affineModule.getContext();
   OpBuilder builder(ctx);
   auto out = ModuleOp::create(affineModule.getLoc());
+  // 复制原始 module 的 attributes
+  if (!affineModule->getAttrs().empty()) {
+    out->setAttrs(affineModule->getAttrs());
+  }
 
   for (func::FuncOp func : affineModule.getOps<func::FuncOp>()) {
     SmallVector<affine::AffineParallelOp> roots;
