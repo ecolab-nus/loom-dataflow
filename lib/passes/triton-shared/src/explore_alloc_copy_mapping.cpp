@@ -359,9 +359,9 @@ static void updateBroadcastForInterconnect(SmallVector<int64_t> &broadcastValues
   
   int64_t size = static_cast<int64_t>(sizeOpt.value());
   if (interconnectName == kHorizontalLinks) {
-    broadcastValues[0] = size;
-  } else if (interconnectName == kVerticalLinks) {
     broadcastValues[1] = size;
+  } else if (interconnectName == kVerticalLinks) {
+    broadcastValues[0] = size;
   }
 }
 
