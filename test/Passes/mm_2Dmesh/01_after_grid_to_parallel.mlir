@@ -5,9 +5,9 @@ module attributes {loom.block_k = 64 : index, loom.block_m = 64 : index, loom.bl
       %c512_0 = arith.constant 512 : index
       %c512_1 = arith.constant 512 : index
       %c1 = arith.constant 1 : index
-      %0 = loom.get_block_size "m" : index
-      %1 = loom.get_block_size "n" : index
-      %2 = loom.get_block_size "k" : index
+      %0 = loom.get_module_attribute "loom.block_m" : index
+      %1 = loom.get_module_attribute "loom.block_n" : index
+      %2 = loom.get_module_attribute "loom.block_k" : index
       %cst = arith.constant 0.000000e+00 : f32
       %c8 = arith.constant 8 : index
       %c512_2 = arith.constant 512 : index

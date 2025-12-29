@@ -213,17 +213,17 @@ set_target_properties(tile_scf_for_to_l1 PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-# hoist_block_loading: Hoist block loading operations
-add_executable(hoist_block_loading
-  ${CMAKE_CURRENT_LIST_DIR}/hoist_block_loading_main.cpp
+# materialize: Materialize and canonicalize IR
+add_executable(materialize
+  ${CMAKE_CURRENT_LIST_DIR}/materialize_main.cpp
 )
 
-target_include_directories(hoist_block_loading PRIVATE
+target_include_directories(materialize PRIVATE
   ${MLIR_INCLUDE_DIRS}
   ${LOOM_PASSES_INC}
 )
 
-target_link_libraries(hoist_block_loading PRIVATE
+target_link_libraries(materialize PRIVATE
   loomTritonSharedPasses
   MLIRIR
   MLIRParser
@@ -241,12 +241,13 @@ target_link_libraries(hoist_block_loading PRIVATE
   MLIRAsmParser
   MLIRBytecodeReader
   loomDataflowDialect
+  loomDialect
 )
-mlir_check_all_link_libraries(hoist_block_loading)
+mlir_check_all_link_libraries(materialize)
 
-target_compile_options(hoist_block_loading PRIVATE -fno-rtti)
+target_compile_options(materialize PRIVATE -fno-rtti)
 
-set_target_properties(hoist_block_loading PROPERTIES
+set_target_properties(materialize PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 

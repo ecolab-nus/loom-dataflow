@@ -73,7 +73,7 @@ let assemblyFormat = [{
 }];
 }
 
-def GetBlockSizeOp : Loom_Op<"get_block_size", [Pure]> {
+def GetBlockSizeOp : Loom_Op<"get_module_attribute", [Pure]> {
   let summary = "Get block size from module attributes";
   let description = [{
     This operation extracts block size values (m, n, k) from the module's
@@ -84,13 +84,13 @@ def GetBlockSizeOp : Loom_Op<"get_block_size", [Pure]> {
   }];
   
   let arguments = (ins
-    StrAttr:$dimension  // "m", "n", or "k"
+    StrAttr:$attr
   );
   
   let results = (outs Index:$result);
   
   let assemblyFormat = [{
-    $dimension `:` type($result) attr-dict
+    $attr `:` type($result) attr-dict
   }];
 }
 
