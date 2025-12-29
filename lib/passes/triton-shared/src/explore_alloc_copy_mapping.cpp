@@ -458,6 +458,9 @@ struct ExploreAllocCopyMappingPass
    * @details For each function with exactly two loom.copy operations, finds candidate
    * interconnects for each copy and generates function clones for all combinations
    * (Cartesian product of candidates1 × candidates2).
+   * 
+   * Note: This pass operates directly on the existing module without creating
+   * a new one, so module-level attributes are automatically preserved.
    */
   void runOnOperation() override {
     ModuleOp module = getOperation();
