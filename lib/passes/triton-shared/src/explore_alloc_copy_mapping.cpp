@@ -18,9 +18,23 @@
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/SmallVector.h"
 
+// Include Loom dialect headers for CopyOp and ReinterpretCastOp
+#define GET_OP_CLASSES
+#include "LoomOps.h.inc"
+
+// Include Dataflow dialect headers for SpatialDimOp and InterconnectsOp
+#define GET_TYPEDEF_CLASSES
+#include "DataflowTypes.h.inc"
+#define GET_OP_CLASSES
+#include "DataflowOps.h.inc"
+
 using namespace mlir;
 
 namespace {
+
+// Constants for interconnect symbol names (used to identify specific interconnect types)
+constexpr StringLiteral kHorizontalLinks = "horizontal_links";
+constexpr StringLiteral kVerticalLinks = "vertical_links";
 
 /**
  * @brief Check whether a value depends (transitively) on a target value.
@@ -56,6 +70,171 @@ static bool dependsOn(Value value, Value target) {
   return false;
 }
 
+
+/**
+ * @brief Get the broadcast attribute from a loom.copy operation.
+ * @details Reads the broadcast attribute and converts it to a vector of int64_t values.
+ * Supports both DenseI64ArrayAttr and ArrayAttr formats. Defaults to [1, 1] if not found.
+ * @param copyOp The copy operation to read the attribute from.
+ * @return A vector of broadcast values with at least 2 elements.
+ */
+static SmallVector<int64_t> getBroadcastAttribute(Operation *copyOp) {
+  SmallVector<int64_t> broadcastValues;
+  
+  if (auto broadcastAttr = copyOp->getAttrOfType<DenseI64ArrayAttr>("broadcast")) {
+    broadcastValues.assign(broadcastAttr.asArrayRef().begin(), 
+                           broadcastAttr.asArrayRef().end());
+  } else if (auto broadcastArrayAttr = copyOp->getAttrOfType<ArrayAttr>("broadcast")) {
+    for (Attribute elem : broadcastArrayAttr) {
+      if (auto intAttr = llvm::dyn_cast<IntegerAttr>(elem)) {
+        broadcastValues.push_back(intAttr.getInt());
+      } else {
+        broadcastValues.push_back(1);
+      }
+    }
+  } else {
+    broadcastValues = {1, 1};
+  }
+  
+  // Ensure we have at least 2 elements for 2D broadcast
+  while (broadcastValues.size() < 2) {
+    broadcastValues.push_back(1);
+  }
+  
+  return broadcastValues;
+}
+
+/**
+ * @brief Set the broadcast attribute on a loom.copy operation.
+ * @details Creates an ArrayAttr of IntegerAttr from the broadcast values and sets it on the operation.
+ * @param copyOp The copy operation to set the attribute on.
+ * @param broadcastValues The broadcast values to set.
+ */
+static void setBroadcastAttribute(Operation *copyOp, ArrayRef<int64_t> broadcastValues) {
+  MLIRContext *ctx = copyOp->getContext();
+  SmallVector<Attribute> broadcastAttrs;
+  for (int64_t val : broadcastValues) {
+    broadcastAttrs.push_back(IntegerAttr::get(IntegerType::get(ctx, 64), val));
+  }
+  auto finalBroadcastAttr = ArrayAttr::get(ctx, broadcastAttrs);
+  copyOp->setAttr("broadcast", finalBroadcastAttr);
+}
+
+/**
+ * @brief Get the symbol name from an interconnect operation.
+ * @param interconnectOp The interconnect operation to get the symbol name from.
+ * @return The symbol name as a StringRef, or empty if not found.
+ */
+static StringRef getInterconnectSymbolName(loom::df::InterconnectsOp interconnectOp) {
+  if (!interconnectOp)
+    return StringRef();
+  
+  return interconnectOp.getSymName();
+}
+
+/**
+ * @brief Get a short label for an interconnect operation.
+ * @details Returns a single character label based on interconnect type:
+ *   - "d" for DRAM (nullptr)
+ *   - "h" for horizontal_links
+ *   - "v" for vertical_links
+ *   - "i" for other interconnects (fallback)
+ * @param interconnectOp The interconnect operation (nullptr for DRAM).
+ * @return The short label string.
+ */
+static std::string getInterconnectShortLabel(loom::df::InterconnectsOp interconnectOp) {
+  if (!interconnectOp)
+    return "d";
+  StringRef name = getInterconnectSymbolName(interconnectOp);
+  if (name == kHorizontalLinks)
+    return "h";
+  if (name == kVerticalLinks)
+    return "v";
+  return "i";
+}
+
+/**
+ * @brief Collect all enclosing affine.parallel loops for an operation.
+ * @details Walks up the parent chain to find all affine.parallel operations that enclose the given operation.
+ * @param op The operation to find enclosing loops for.
+ * @return A vector of enclosing affine.parallel operations in order from outermost to innermost.
+ */
+static SmallVector<affine::AffineParallelOp> collectEnclosingParallelLoops(Operation *op) {
+  SmallVector<affine::AffineParallelOp> parallelLoops;
+  for (Operation *parent = op->getParentOp(); parent;
+       parent = parent->getParentOp()) {
+    if (auto par = dyn_cast<affine::AffineParallelOp>(parent))
+      parallelLoops.push_back(par);
+  }
+  return parallelLoops;
+}
+
+/**
+ * @brief Check if any offset value depends on any of the given induction variables.
+ * @param offsets The offset values to check.
+ * @param ivs The induction variables to check dependency against.
+ * @return true if any offset depends on any IV, false otherwise.
+ */
+static bool checkOffsetDependencyOnIVs(ArrayRef<Value> offsets, ValueRange ivs) {
+  for (Value iv : ivs) {
+    for (Value offset : offsets) {
+      if (dependsOn(offset, iv)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * @brief Find and verify the reinterpret_cast source operation for a copy operation.
+ * @details Checks if the copy operation's source operand is defined by a loom.reinterpret_cast
+ * with spatial_reuse enabled. Returns the reinterpret_cast operation if valid.
+ * @param copyOp The loom.copy operation to analyze.
+ * @return The reinterpret_cast operation if found and valid, nullptr otherwise.
+ */
+static loom::ReinterpretCastOp findReinterpretCastSource(loom::CopyOp copyOp) {
+  if (!copyOp)
+    return nullptr;
+  
+  Value src = copyOp.getSrc();
+  auto reinterpretCastOp = src.getDefiningOp<loom::ReinterpretCastOp>();
+  if (!reinterpretCastOp)
+    return nullptr;
+  
+  if (!reinterpretCastOp.getSpatialReuse())
+    return nullptr;
+  
+  return reinterpretCastOp;
+}
+
+/**
+ * @brief Find all interconnect operations in the module that match the given spatial dimension.
+ * @param module The module containing the interconnect operations.
+ * @param spatialDimRef The symbol reference to the spatial dimension to match.
+ * @return A vector of matching interconnect operations.
+ */
+static SmallVector<loom::df::InterconnectsOp> findMatchingInterconnects(ModuleOp module, 
+                                                                         SymbolRefAttr spatialDimRef) {
+  SmallVector<loom::df::InterconnectsOp> matches;
+  
+  module.walk([&](loom::df::InterconnectsOp interconnectOp) {
+    auto spatialDimsAttr = interconnectOp.getSpatialDimsAttr();
+    if (!spatialDimsAttr)
+      return;
+    
+    for (Attribute attr : spatialDimsAttr) {
+      auto symbolRef = llvm::dyn_cast<SymbolRefAttr>(attr);
+      if (symbolRef && symbolRef == spatialDimRef) {
+        matches.push_back(interconnectOp);
+        return; // Found match, no need to check further
+      }
+    }
+  });
+  
+  return matches;
+}
+
 /**
  * @brief Find all candidate df.interconnects operations for a loom.copy operation.
  * @details This function checks if the copy operation's source has spatial reuse,
@@ -63,182 +242,154 @@ static bool dependsOn(Value value, Value target) {
  * that the reinterpret_cast depends on.
  * @param copyOp The loom.copy operation to analyze.
  * @param module The module containing the df.interconnects operations.
- * @return A vector of candidate df.interconnects operations (empty if no matches).
+ * @return A vector of candidate df.interconnects operations (always includes nullptr for DRAM option).
  */
-static SmallVector<Operation *> findCandidateInterconnects(Operation *copyOp,
-                                                            ModuleOp module) {
-  // Add nullptr to list to represent DRAM option (no interconnect)
-  SmallVector<Operation *> candidates;
-  candidates.push_back(nullptr); // DRAM option
+static SmallVector<loom::df::InterconnectsOp> findCandidateInterconnects(loom::CopyOp copyOp,
+                                                                          ModuleOp module) {
+  SmallVector<loom::df::InterconnectsOp> candidates;
+  candidates.push_back(nullptr); // Always include DRAM option (nullptr)
 
-  // Verify this is a loom.copy operation
-  if (copyOp->getName().getStringRef() != "loom.copy")
+  auto reinterpretCastOp = findReinterpretCastSource(copyOp);
+  if (!reinterpretCastOp)
+    return candidates;
+  
+  // Get dynamic offsets from the reinterpret_cast operation
+  SmallVector<Value> dynamicOffsets(reinterpretCastOp.getOffsets().begin(),
+                                     reinterpretCastOp.getOffsets().end());
+  if (dynamicOffsets.empty())
     return candidates;
 
-  // Get the source operand (first operand)
-  if (copyOp->getNumOperands() < 1)
-    return candidates;
-  
-  Value src = copyOp->getOperand(0);
-  
-  // Check if the source is defined by a loom.reinterpret_cast
-  Operation *srcDef = src.getDefiningOp();
-  if (!srcDef)
-    return candidates;
-  
-  if (srcDef->getName().getStringRef() != "loom.reinterpret_cast")
-    return candidates;
-  
-  // Get the spatial_reuse attribute
-  auto spatialReuseAttr = srcDef->getAttrOfType<BoolAttr>("spatial_reuse");
-  if (!spatialReuseAttr || !spatialReuseAttr.getValue())
-    return candidates;
-  
-  // Get offsets from reinterpret_cast (similar to reinterpret_cast_reuse.cpp)
-  auto segmentSizes = srcDef->getAttrOfType<DenseI32ArrayAttr>("operand_segment_sizes");
-  if (!segmentSizes || segmentSizes.size() < 4)
-    return candidates;
-  
-  unsigned sourceSize = segmentSizes[0];
-  unsigned offsetsSize = segmentSizes[1];
-  unsigned offsetsStart = sourceSize;
-  
-  // Collect dynamic offsets
-  SmallVector<Value, 4> dynamicOffsets;
-  for (unsigned i = 0; i < offsetsSize; ++i) {
-    Value offsetVal = srcDef->getOperand(offsetsStart + i);
-    dynamicOffsets.push_back(offsetVal);
-  }
+  SmallVector<affine::AffineParallelOp> parallelLoops = 
+      collectEnclosingParallelLoops(copyOp);
 
-  // Collect enclosing affine.parallel loops
-  SmallVector<affine::AffineParallelOp, 4> parallelLoops;
-  for (Operation *parent = copyOp->getParentOp(); parent;
-       parent = parent->getParentOp()) {
-    if (auto par = dyn_cast<affine::AffineParallelOp>(parent))
-      parallelLoops.push_back(par);
-  }
-
-  // For each parallel loop, check if offsets depend on its IVs
   for (auto par : parallelLoops) {
-    // Get loom.mapped_to attribute
     auto mappedToAttr = par->getAttrOfType<SymbolRefAttr>("loom.mapped_to");
     if (!mappedToAttr)
       continue;
     
-    // Check if any dynamic offset depends on any IV of this parallel loop
-    bool hasDependency = false;
-    for (Value iv : par.getIVs()) {
-      for (Value offset : dynamicOffsets) {
-        if (dependsOn(offset, iv)) {
-          hasDependency = true;
-          break;
-        }
-      }
-      if (hasDependency)
-        break;
-    }
-    
-    if (!hasDependency)
+    // If offset depends on this loop's IV, different cores need different data,
+    // so we cannot use this interconnect for broadcast. Skip it.
+    if (checkOffsetDependencyOnIVs(dynamicOffsets, par.getIVs()))
       continue;
 
-    // Find df.interconnects operations in module with matching spatial_dims
-    module.walk([&](Operation *op) {
-      if (op->getName().getStringRef() != "df.interconnects")
-        return;
-      
-      // Get spatial_dims attribute (ArrayAttr of SymbolRefAttr)
-      auto spatialDimsAttr = op->getAttrOfType<ArrayAttr>("spatial_dims");
-      if (!spatialDimsAttr)
-        return;
-      
-      // Check if spatial_dims contains the mapped_to symbol
-      for (Attribute attr : spatialDimsAttr) {
-        auto symbolRef = llvm::dyn_cast<SymbolRefAttr>(attr);
-        if (symbolRef && symbolRef == mappedToAttr) {
-          candidates.push_back(op);
-          return; // Found match, no need to check further
-        }
-      }
-    });
+    auto matches = findMatchingInterconnects(module, mappedToAttr);
+    candidates.append(matches.begin(), matches.end());
   }
 
   return candidates;
 }
 
 /**
- * @brief Apply an interconnect to a loom.copy operation.
- * @details Adds the interconnect operation's result to the copy operation's
- * interconnect operands. If interconnectOp is nullptr, leaves interconnect empty
- * (indicating DRAM access).
+ * @brief Get the size value of a spatial_dim operation by its symbol reference.
+ * @details Looks up the df.spatial_dim operation in the module using the symbol reference
+ * and returns its size attribute value.
+ * @param module The module containing the df.spatial_dim operations.
+ * @param symbolRef The symbol reference to the spatial_dim operation.
+ * @return The size value if found, or std::nullopt if not found.
+ */
+static std::optional<uint64_t> getSpatialDimSize(ModuleOp module, SymbolRefAttr symbolRef) {
+  if (!symbolRef)
+    return std::nullopt;
+
+  // Look up the spatial_dim operation by symbol name
+  auto spatialDimOp = module.lookupSymbol<loom::df::SpatialDimOp>(symbolRef);
+  if (!spatialDimOp)
+    return std::nullopt;
+
+  return spatialDimOp.getSize();
+}
+
+/**
+ * @brief Set the interconnect attribute on a loom.copy operation.
+ * @details Creates and sets the interconnect attribute with either the interconnect symbol
+ * reference or an empty array for DRAM access.
+ * @param copyOp The copy operation to set the attribute on.
+ * @param interconnectOp The interconnect operation (nullptr for DRAM).
+ * @param builder OpBuilder for creating attributes.
+ * @return true if successfully set, false if interconnectOp is non-null but has no symbol name.
+ */
+static bool setInterconnectAttribute(loom::CopyOp copyOp, 
+                                     loom::df::InterconnectsOp interconnectOp,
+                                     OpBuilder &builder) {
+  if (interconnectOp) {
+    StringRef interconnectName = getInterconnectSymbolName(interconnectOp);
+    if (interconnectName.empty())
+      return false;
+    
+    auto symbolRef = SymbolRefAttr::get(builder.getContext(), interconnectName);
+    auto interconnectAttr = ArrayAttr::get(builder.getContext(), {symbolRef});
+    copyOp->setAttr("interconnect", interconnectAttr);
+  } else {
+    auto emptyInterconnect = ArrayAttr::get(builder.getContext(), {});
+    copyOp->setAttr("interconnect", emptyInterconnect);
+  }
+  
+  return true;
+}
+
+/**
+ * @brief Update broadcast attribute based on interconnect type.
+ * @details If the interconnect is horizontal_links or vertical_links, updates the corresponding
+ * broadcast dimension with the spatial_dim size.
+ * @param broadcastValues The broadcast values to update (modified in place).
+ * @param interconnectOp The interconnect operation to check.
+ * @param module The module containing df.spatial_dim operations.
+ */
+static void updateBroadcastForInterconnect(SmallVector<int64_t> &broadcastValues,
+                                           loom::df::InterconnectsOp interconnectOp,
+                                           ModuleOp module) {
+  if (!interconnectOp)
+    return;
+  
+  StringRef interconnectName = getInterconnectSymbolName(interconnectOp);
+  if (interconnectName != kHorizontalLinks && interconnectName != kVerticalLinks)
+    return;
+  
+  auto spatialDimsAttr = interconnectOp.getSpatialDimsAttr();
+  if (!spatialDimsAttr || spatialDimsAttr.empty())
+    return;
+  
+  auto firstSpatialDim = llvm::dyn_cast<SymbolRefAttr>(spatialDimsAttr[0]);
+  if (!firstSpatialDim)
+    return;
+  
+  auto sizeOpt = getSpatialDimSize(module, firstSpatialDim);
+  if (!sizeOpt.has_value())
+    return;
+  
+  int64_t size = static_cast<int64_t>(sizeOpt.value());
+  if (interconnectName == kHorizontalLinks) {
+    broadcastValues[0] = size;
+  } else if (interconnectName == kVerticalLinks) {
+    broadcastValues[1] = size;
+  }
+}
+
+/**
+ * @brief Apply an interconnect and update broadcast attribute to a loom.copy operation.
+ * @details Sets the interconnect attribute and updates the broadcast attribute if needed.
+ * If interconnectOp is nullptr (indicating DRAM access), creates an empty array attribute.
  * 
- * Note: There's a type mismatch between df.interconnects (returns InterconnectHandleType)
- * and loom.copy's interconnect operands (expects Variadic<Index>). We handle this by
- * attempting to cast the interconnect result to Index type, or using it directly if
- * the type system allows.
+ * For horizontal_links or vertical_links interconnects, updates the corresponding
+ * broadcast dimension with the spatial_dim size:
+ * - horizontal_links -> updates broadcast[0]
+ * - vertical_links -> updates broadcast[1]
  * 
  * @param copyOp The loom.copy operation to modify.
  * @param interconnectOp The interconnect operation to apply (can be nullptr for DRAM).
+ * @param module The module containing df.spatial_dim operations.
  * @param builder OpBuilder for creating new operations.
  * @return true if successfully applied, false otherwise.
  */
-static bool applyInterconnectToCopy(Operation *copyOp, Operation *interconnectOp,
-                                    OpBuilder &builder) {
-  // Precondition: copyOp is loom.copy with format:
-  // loom.copy %src, %dst, interconnect : [], broadcast : [1, 1]
-  // interconnect is now an attribute (ArrayAttr of SymbolRefAttr), not an operand
-  // Since CopyOp no longer uses AttrSizedOperandSegments, operands are just: src, dst, optional provenance
-
-  // Extract current operands: src and dst are always the first two operands
-  Value src = copyOp->getOperand(0);
-  Value dst = copyOp->getOperand(1);
+static bool applyInterconnectAndBroadcastToCopy(loom::CopyOp copyOp, 
+                                                loom::df::InterconnectsOp interconnectOp,
+                                                ModuleOp module, OpBuilder &builder) {
+  if (!setInterconnectAttribute(copyOp, interconnectOp, builder))
+    return false;
   
-  // Check if provenance exists (it would be the third operand if present)
-  Value provenance = (copyOp->getNumOperands() > 2) ? copyOp->getOperand(2) : Value();
-  
-  // Get broadcast attribute
-  auto broadcastAttr = copyOp->getAttrOfType<DenseI64ArrayAttr>("broadcast");
-
-  // Build new operands: src, dst, optional provenance (no interconnect operands)
-  SmallVector<Value, 3> newOperands;
-  newOperands.push_back(src);
-  newOperands.push_back(dst);
-  if (provenance)
-    newOperands.push_back(provenance);
-
-  // Rebuild the operation
-  builder.setInsertionPoint(copyOp);
-  OperationState state(copyOp->getLoc(), "loom.copy");
-  state.addOperands(newOperands);
-  if (broadcastAttr)
-    state.addAttribute("broadcast", broadcastAttr);
-
-  // Add interconnect attribute if provided
-  if (interconnectOp) {
-    // Get the symbol name from the interconnect operation
-    auto symNameAttr = interconnectOp->getAttrOfType<StringAttr>("sym_name");
-    if (symNameAttr) {
-      // Create a SymbolRefAttr pointing to the interconnect symbol
-      auto symbolRef = SymbolRefAttr::get(builder.getContext(), symNameAttr.getValue());
-      // Create ArrayAttr with the symbol reference
-      auto interconnectAttr = ArrayAttr::get(builder.getContext(), {symbolRef});
-      state.addAttribute("interconnect", interconnectAttr);
-    } else {
-      // Cannot get symbol name, skip interconnect
-      return false;
-    }
-  }
-  // If interconnectOp is nullptr (DRAM), we don't add the interconnect attribute
-
-  // Copy other attributes (excluding broadcast and interconnect, which we handle separately)
-  for (auto &attr : copyOp->getAttrs()) {
-    if (attr.getName() != "broadcast" && attr.getName() != "interconnect") {
-      state.addAttribute(attr.getName(), attr.getValue());
-    }
-  }
-
-  builder.create(state);
-  // Note: loom.copy has no results, so we don't need replaceAllUsesWith
-  copyOp->erase();
+  SmallVector<int64_t> broadcastValues = getBroadcastAttribute(copyOp);
+  updateBroadcastForInterconnect(broadcastValues, interconnectOp, module);
+  setBroadcastAttribute(copyOp, broadcastValues);
   
   return true;
 }
@@ -246,47 +397,39 @@ static bool applyInterconnectToCopy(Operation *copyOp, Operation *interconnectOp
 /**
  * @brief Find all loom.copy operations in a function.
  * @param func The function to search.
- * @return A vector of loom.copy operations.
+ * @return A vector of loom.copy operations found in the function.
  */
-static SmallVector<Operation *> findCopyOpsInFunc(func::FuncOp func) {
-  SmallVector<Operation *> copyOps;
-  func.walk([&](Operation *op) {
-    if (op->getName().getStringRef() == "loom.copy")
-      copyOps.push_back(op);
+static SmallVector<loom::CopyOp> findCopyOpsInFunc(func::FuncOp func) {
+  SmallVector<loom::CopyOp> copyOps;
+  func.walk([&](loom::CopyOp copyOp) {
+    copyOps.push_back(copyOp);
   });
   return copyOps;
 }
 
 /**
  * @brief Generate a function name based on interconnect choices.
+ * @details Creates a new function name by appending short interconnect labels to the base name.
+ * Uses labels: "d" for DRAM, "h" for horizontal, "v" for vertical.
  * @param baseName The base function name.
  * @param interconnect1 The first interconnect operation (can be nullptr for DRAM).
  * @param interconnect2 The second interconnect operation (can be nullptr for DRAM).
- * @return The new function name.
+ * @return The new function name with interconnect labels appended.
  */
 static std::string generateFunctionName(StringRef baseName,
-                                        Operation *interconnect1,
-                                        Operation *interconnect2) {
-  std::string newName = baseName.str();
-  
-  // Get interconnect labels if available
-  auto getInterconnectLabel = [](Operation *op) -> std::string {
-    if (!op)
-      return "dram";
-    auto labelAttr = op->getAttrOfType<StringAttr>("label");
-    if (labelAttr)
-      return labelAttr.getValue().str();
-    return "interconnect";
-  };
-  
-  std::string label1 = getInterconnectLabel(interconnect1);
-  std::string label2 = getInterconnectLabel(interconnect2);
-  
-  newName += "__" + label1 + "_" + label2;
-  
-  return newName;
+                                        loom::df::InterconnectsOp interconnect1,
+                                        loom::df::InterconnectsOp interconnect2) {
+  std::string label1 = getInterconnectShortLabel(interconnect1);
+  std::string label2 = getInterconnectShortLabel(interconnect2);
+  return baseName.str() + "__" + label1 + "_" + label2;
 }
 
+/**
+ * @brief Pass to explore alloc/copy mapping choices.
+ * @details Analyzes loom.copy operations and generates function variants for different
+ * interconnect mapping choices. For functions with exactly two copy operations, creates
+ * clones for each combination of interconnect candidates (including DRAM option).
+ */
 struct ExploreAllocCopyMappingPass
     : public PassWrapper<ExploreAllocCopyMappingPass, OperationPass<ModuleOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ExploreAllocCopyMappingPass)
@@ -294,85 +437,87 @@ struct ExploreAllocCopyMappingPass
   ExploreAllocCopyMappingPass() = default;
   ExploreAllocCopyMappingPass(bool analysisOnly) : analysisOnly(analysisOnly) {}
 
+  /**
+   * @brief Get the command-line argument name for this pass.
+   * @return The argument name string.
+   */
   StringRef getArgument() const override {
     return "loom-explore-alloc-copy-mapping";
   }
+
+  /**
+   * @brief Get the description of this pass.
+   * @return The description string.
+   */
   StringRef getDescription() const override {
-    return "Check spatial reuse for loom.copy operations";
+    return "Explore interconnect mapping choices for loom.copy operations";
   }
 
+  /**
+   * @brief Execute the pass over the module.
+   * @details For each function with exactly two loom.copy operations, finds candidate
+   * interconnects for each copy and generates function clones for all combinations
+   * (Cartesian product of candidates1 × candidates2).
+   */
   void runOnOperation() override {
     ModuleOp module = getOperation();
     OpBuilder moduleBuilder(module.getBodyRegion());
 
-    // Collect all functions first to avoid iterator invalidation
     SmallVector<func::FuncOp> funcs(module.getOps<func::FuncOp>().begin(),
                                      module.getOps<func::FuncOp>().end());
 
     for (func::FuncOp originalFunc : funcs) {
-      // Find the two loom.copy operations in this function
-      SmallVector<Operation *> copyOps = findCopyOpsInFunc(originalFunc);
-      if (copyOps.size() != 2) {
-        // Skip if not exactly 2 copy operations
+      auto copyOps = findCopyOpsInFunc(originalFunc);
+      if (copyOps.size() != 2)
         continue;
-      }
 
-      Operation *copyOp1 = copyOps[0];
-      Operation *copyOp2 = copyOps[1];
+      loom::CopyOp copyOp1 = copyOps[0];
+      loom::CopyOp copyOp2 = copyOps[1];
 
-      // Find candidates for each copy (empty list means DRAM option)
-      SmallVector<Operation *> candidates1 = findCandidateInterconnects(copyOp1, module);
-      SmallVector<Operation *> candidates2 = findCandidateInterconnects(copyOp2, module);
+      auto candidates1 = findCandidateInterconnects(copyOp1, module);
+      auto candidates2 = findCandidateInterconnects(copyOp2, module);
 
-      // Generate cross product of all combinations
       Operation *insertAfter = originalFunc;
-      for (Operation *interconnect1 : candidates1) {
-        for (Operation *interconnect2 : candidates2) {
-          // Clone the function
+      for (loom::df::InterconnectsOp interconnect1 : candidates1) {
+        for (loom::df::InterconnectsOp interconnect2 : candidates2) {
           moduleBuilder.setInsertionPointAfter(insertAfter);
           IRMapping map;
           func::FuncOp clonedFunc = cast<func::FuncOp>(
               moduleBuilder.clone(*originalFunc, map));
 
-          // Find the corresponding copy operations in the cloned function
-          // Since clone preserves structure, walk order should match
-          SmallVector<Operation *> clonedCopyOps = findCopyOpsInFunc(clonedFunc);
+          auto clonedCopyOps = findCopyOpsInFunc(clonedFunc);
           if (clonedCopyOps.size() != 2) {
             clonedFunc.erase();
             continue;
           }
           
-          Operation *clonedCopyOp1 = clonedCopyOps[0];
-
-          // Apply interconnects to the cloned copies
-          // Create builder with proper insertion point in the cloned function
+          loom::CopyOp clonedCopyOp1 = clonedCopyOps[0];
           OpBuilder builder(clonedCopyOp1);
           
-          // Apply to first copy
-          if (!applyInterconnectToCopy(clonedCopyOp1, interconnect1, builder)) {
+          if (!applyInterconnectAndBroadcastToCopy(clonedCopyOp1, interconnect1, module, builder)) {
             clonedFunc.erase();
             continue;
           }
 
-          Operation *clonedCopyOp2After = clonedCopyOps[1];
-          builder.setInsertionPoint(clonedCopyOp2After);
-          if (!applyInterconnectToCopy(clonedCopyOp2After, interconnect2, builder)) {
+          loom::CopyOp clonedCopyOp2 = clonedCopyOps[1];
+          builder.setInsertionPoint(clonedCopyOp2);
+          if (!applyInterconnectAndBroadcastToCopy(clonedCopyOp2, interconnect2, module, builder)) {
             clonedFunc.erase();
             continue;
           }
 
-          // Generate and set new function name
           std::string newName = generateFunctionName(originalFunc.getSymName(),
                                                       interconnect1, interconnect2);
           clonedFunc.setName(newName);
-
-          // Update insertion point for next clone
           insertAfter = clonedFunc;
         }
       }
+      
+      originalFunc.erase();
     }
   }
 
+  /// Flag indicating whether this pass should only perform analysis (currently unused).
   bool analysisOnly = false;
 };
 
