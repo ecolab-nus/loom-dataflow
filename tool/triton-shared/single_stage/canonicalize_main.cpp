@@ -1,8 +1,8 @@
 // Standalone driver that materializes and canonicalizes IR operations.
 //
 // Usage:
-//   loom_triton_shared_materialize --input <input.mlir>
-//   loom_triton_shared_materialize --input -  (reads from stdin)
+//   loom_triton_shared_canonicalize --input <input.mlir>
+//   loom_triton_shared_canonicalize --input -  (reads from stdin)
 
 #include "materialize.h"
 
@@ -37,7 +37,7 @@ static llvm::cl::opt<std::string>
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
-                                    "LOOM Triton-shared materialize pass\n");
+                                    "LOOM Triton-shared canonicalize pass\n");
 
   MLIRContext context;
   context.loadDialect<mlir::BuiltinDialect>();
@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
   PassManager pm(&context);
   pm.addPass(loom::passes::createMaterializePass());
   if (failed(pm.run(*module))) {
-    llvm::WithColor::error(llvm::errs()) << "Materialize pass failed\n";
+    llvm::WithColor::error(llvm::errs()) << "Canonicalize pass failed\n";
     return 2;
   }
 
