@@ -147,9 +147,9 @@ build/tool/triton-shared/single_stage/explore_alloc_copy_mapping \
   > test/Passes/mm_2Dmesh/04_after_memref_mapping.mlir
 ```
 
-5) Materialize 
+5) Canonicalize 
 ```bash
-build/tool/triton-shared/single_stage/materialize \
+build/tool/triton-shared/single_stage/canonicalize \
   --input test/Passes/mm_2Dmesh/04_after_memref_mapping.mlir \
   > test/Passes/mm_2Dmesh/05_after_materialization_.mlir
 ```
