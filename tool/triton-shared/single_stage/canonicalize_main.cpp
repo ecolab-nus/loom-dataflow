@@ -4,7 +4,9 @@
 //   loom_triton_shared_canonicalize --input <input.mlir>
 //   loom_triton_shared_canonicalize --input -  (reads from stdin)
 
+#include "loom_to_memref.h"
 #include "materialize.h"
+#include "staticize_types.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -28,6 +30,7 @@
 #include "DataflowDialect.h.inc"
 #include "DataflowOps.h.inc"
 #include "LoomDialect.h.inc"
+#include "triton_shared_affinize.h"
 
 using namespace mlir;
 
@@ -67,7 +70,14 @@ int main(int argc, char **argv) {
   }
 
   PassManager pm(&context);
+  // 1. Materialize: Replace loom.get_module_attribute with arith.constant
   pm.addPass(loom::passes::createMaterializePass());
+  // 2. Staticize: Convert dynamic memref/tensor types to static types
+  pm.addPass(loom::passes::createStaticizeTypesPass());
+  // 3. Lower: Lower loom operations to memref dialect
+  pm.addPass(loom::passes::createLoomToMemRefLoweringPass());
+  // 4. Affinize
+  // pm.addPass(loom::passes::createTritonSharedAffinizePass());
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Canonicalize pass failed\n";
     return 2;
