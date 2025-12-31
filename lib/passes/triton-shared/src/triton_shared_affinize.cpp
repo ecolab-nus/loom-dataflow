@@ -194,6 +194,71 @@ public:
     if (auto castOp = dyn_cast_or_null<arith::IndexCastOp>(v.getDefiningOp()))
       return cache[v] = build(castOp.getIn());
 
+    // Handle affine.apply by expanding it using current dims/symbols.
+    if (auto applyOp = dyn_cast_or_null<affine::AffineApplyOp>(v.getDefiningOp())) {
+      AffineMap map = applyOp.getAffineMap();
+      SmallVector<AffineExpr, 4> subExprs;
+      bool allOk = true;
+      for (Value operand : applyOp.getOperands()) {
+        AffineExpr sub = build(operand);
+        if (!sub) {
+          allOk = false;
+          break;
+        }
+        subExprs.push_back(sub);
+      }
+      if (allOk && subExprs.size() == map.getNumInputs()) {
+        // Replace dims and symbols in the map with the computed sub-expressions.
+        AffineExpr result = map.getResult(0);
+        // The map's dims correspond to the first N operands, symbols to the rest.
+        unsigned numDims = map.getNumDims();
+        unsigned numSymbols = map.getNumSymbols();
+        // We need to substitute: map's dims/symbols -> our subExprs
+        // But our subExprs might mix dims and symbols, so we need to be careful.
+        // For now, treat all operands as potentially mixed and substitute directly.
+        // This is a simplification - a full implementation would need to
+        // properly remap dims and symbols.
+        // For correctness, we'll just try to substitute if the counts match.
+        if (subExprs.size() == numDims + numSymbols) {
+          // Simple substitution: replace dim#i with subExprs[i], symbol#i with subExprs[numDims+i]
+          std::function<AffineExpr(AffineExpr)> substitute = [&](AffineExpr e) -> AffineExpr {
+            if (auto dim = dyn_cast<AffineDimExpr>(e)) {
+              unsigned pos = dim.getPosition();
+              if (pos < numDims && pos < subExprs.size())
+                return subExprs[pos];
+            } else if (auto sym = dyn_cast<AffineSymbolExpr>(e)) {
+              unsigned pos = sym.getPosition();
+              if (pos < numSymbols && numDims + pos < subExprs.size())
+                return subExprs[numDims + pos];
+            } else if (auto bin = dyn_cast<AffineBinaryOpExpr>(e)) {
+              AffineExpr lhs = substitute(bin.getLHS());
+              AffineExpr rhs = substitute(bin.getRHS());
+              switch (e.getKind()) {
+              case AffineExprKind::Add:
+                return lhs + rhs;
+              case AffineExprKind::Mul:
+                return lhs * rhs;
+              case AffineExprKind::FloorDiv:
+                return lhs.floorDiv(rhs);
+              case AffineExprKind::CeilDiv:
+                return lhs.ceilDiv(rhs);
+              case AffineExprKind::Mod:
+                return lhs % rhs;
+              default:
+                break;
+              }
+            }
+            return e;
+          };
+          AffineExpr expanded = substitute(result);
+          if (expanded)
+            return cache[v] = expanded;
+        }
+      }
+      // If expansion failed, treat as symbol.
+      return cache[v] = getOrAddSymbol(v);
+    }
+
     // Constants.
     if (auto cidx = dyn_cast_or_null<arith::ConstantIndexOp>(v.getDefiningOp()))
       return cache[v] = getAffineConstantExpr(cidx.value(), ctx);
@@ -277,6 +342,10 @@ private:
   /// index type when necessary and recording `v` in the symbol list if it is
   /// new.
   AffineExpr getOrAddSymbol(Value v) {
+    // First check if this value is already a dim - if so, return dim expression
+    if (auto it2 = dimIndex.find(v); it2 != dimIndex.end())
+      return getAffineDimExpr(it2->second, ctx);
+    
     auto it = symIndex.find(v);
     if (it != symIndex.end())
       return getAffineSymbolExpr(it->second, ctx);
@@ -1033,6 +1102,12 @@ public:
                par = par->getParentOp()) {
             if (auto loop = dyn_cast<scf::ForOp>(par))
               dimsAll.push_back(loop.getInductionVar());
+            else if (auto affine_for = dyn_cast<affine::AffineForOp>(par))
+              dimsAll.push_back(affine_for.getInductionVar());
+            else if (auto affine_par = dyn_cast<affine::AffineParallelOp>(par)) {
+              for (Value iv : affine_par.getIVs())
+                dimsAll.push_back(iv);
+            }
             if (isa<func::FuncOp>(par))
               break;
           }

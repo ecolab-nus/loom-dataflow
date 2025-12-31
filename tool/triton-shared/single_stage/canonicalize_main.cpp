@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
   // 3. Lower: Lower loom operations to memref dialect
   pm.addPass(loom::passes::createLoomToMemRefLoweringPass());
   // 4. Affinize
-  // pm.addPass(loom::passes::createTritonSharedAffinizePass());
+  pm.addPass(loom::passes::createTritonSharedAffinizePass());
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Canonicalize pass failed\n";
     return 2;
