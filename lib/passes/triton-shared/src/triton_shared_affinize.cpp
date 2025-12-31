@@ -386,7 +386,6 @@ private:
   bool *errorFlag = nullptr;
 };
 
-/// Collect symbol indices used by an affine expression.
 /// Collect the set of symbol positions referenced by an affine expression.
 ///
 /// @param expr Affine expression to inspect.
@@ -414,9 +413,6 @@ static void collectUsedSymbolPositions(AffineExpr expr,
   }
 }
 
-/// Remap symbol ids in `expr` to a compact 0..k-1 set in first-use order,
-/// returning the remapped expression and filling `orderedSymbolValues` with the
-/// corresponding Values from `allSymbolValues`.
 /// Remap symbol ids in `expr` to a compact 0..k-1 domain in first-use order.
 ///
 /// @param expr Expression whose symbols will be remapped.
@@ -621,8 +617,6 @@ remapDimsWithMapping(AffineExpr expr,
   return remap(expr);
 }
 
-/// Remap both dims and symbols to 0..k-1 sequential, returning the remapped
-/// expression and filling ordered dims/symbols in first-use order.
 /// Remap both dims and symbols to compact 0..k-1 domains in first-use order.
 ///
 /// @param expr Expression whose dims and symbols will be remapped.
@@ -775,109 +769,8 @@ public:
 
       OpBuilder b(ctx);
 
-      // Step 0: Convert all i32 function arguments to index type to eliminate
-      // index_cast in the body and enable direct use in affine.apply.
-      {
-        FunctionType fty = func.getFunctionType();
-        SmallVector<Type, 8> inputs(fty.getInputs().begin(),
-                                    fty.getInputs().end());
-        SmallVector<Type, 8> results(fty.getResults().begin(),
-                                     fty.getResults().end());
-        bool changed = false;
-        for (unsigned i = 0, e = inputs.size(); i < e; ++i) {
-          if (auto intTy = dyn_cast<IntegerType>(inputs[i])) {
-            if (intTy.getWidth() == 32) {
-              inputs[i] = IndexType::get(ctx);
-              changed = true;
-            }
-          }
-        }
-        if (changed) {
-          auto newTy = FunctionType::get(ctx, inputs, results);
-          func.setType(newTy);
-          // Update entry block argument types to match.
-          Block &entry = func.getBody().front();
-          for (unsigned i = 0, e = inputs.size(); i < e; ++i)
-            entry.getArgument(i).setType(inputs[i]);
-
-          // Canonicalize redundant index_cast (same src/dst type) after type
-          // change.
-          bool removed;
-          int castIterGuard = 64;
-          do {
-            removed = false;
-            SmallVector<Operation *, 32> casts;
-            func.walk([&](arith::IndexCastOp ic) {
-              if (ic.getIn().getType() == ic.getType())
-                casts.push_back(ic.getOperation());
-            });
-            for (Operation *opCast : casts) {
-              auto ic = cast<arith::IndexCastOp>(opCast);
-              ic.getResult().replaceAllUsesWith(ic.getIn());
-              ic.erase();
-              removed = true;
-            }
-          } while (removed && --castIterGuard > 0);
-
-          // Ensure integer arithmetic directly using grid args operates on
-          // index type (promote constants and operands to index, rebuild ops).
-          auto ensureIndex2 = [&](OpBuilder &rb, Operation *anchor,
-                                  Value v) -> Value {
-            if (v.getType().isIndex())
-              return v;
-            if (auto cint = v.getDefiningOp<arith::ConstantIntOp>()) {
-              rb.setInsertionPoint(anchor);
-              return rb.create<arith::ConstantIndexOp>(cint.getLoc(),
-                                                       cint.value());
-            }
-            rb.setInsertionPoint(anchor);
-            return rb.create<arith::IndexCastOp>(v.getLoc(),
-                                                 IndexType::get(ctx), v);
-          };
-
-          bool changedArith;
-          do {
-            changedArith = false;
-            SmallVector<Operation *, 64> arithToFix;
-            func.walk([&](Operation *o) {
-              if (isa<arith::AddIOp, arith::SubIOp, arith::MulIOp,
-                      arith::DivSIOp, arith::MinSIOp, arith::MaxSIOp>(o)) {
-                Type t0 = o->getOperand(0).getType();
-                Type t1 = o->getOperand(1).getType();
-                Type tr = o->getResult(0).getType();
-                if (t0 != t1 || t0 != tr || !t0.isIndex() || !t1.isIndex() ||
-                    !tr.isIndex())
-                  arithToFix.push_back(o);
-              }
-            });
-            for (Operation *o : arithToFix) {
-              OpBuilder rb(o);
-              Value a = o->getOperand(0);
-              Value b = o->getOperand(1);
-              Value ai = ensureIndex2(rb, o, a);
-              Value bi = ensureIndex2(rb, o, b);
-              Value newVal;
-              if (auto addi = dyn_cast<arith::AddIOp>(o))
-                newVal = rb.create<arith::AddIOp>(addi.getLoc(), ai, bi);
-              else if (auto subi = dyn_cast<arith::SubIOp>(o))
-                newVal = rb.create<arith::SubIOp>(subi.getLoc(), ai, bi);
-              else if (auto muli = dyn_cast<arith::MulIOp>(o))
-                newVal = rb.create<arith::MulIOp>(muli.getLoc(), ai, bi);
-              else if (auto divi = dyn_cast<arith::DivSIOp>(o))
-                newVal = rb.create<arith::DivSIOp>(divi.getLoc(), ai, bi);
-              else if (auto mini = dyn_cast<arith::MinSIOp>(o))
-                newVal = rb.create<arith::MinSIOp>(mini.getLoc(), ai, bi);
-              else if (auto maxi = dyn_cast<arith::MaxSIOp>(o))
-                newVal = rb.create<arith::MaxSIOp>(maxi.getLoc(), ai, bi);
-              if (!newVal)
-                continue;
-              o->getResult(0).replaceAllUsesWith(newVal);
-              o->erase();
-              changedArith = true;
-            }
-          } while (changedArith);
-        }
-      }
+      // Step 0: Convert all i32 function arguments to index type.
+      promoteI32ArgsToIndex(func, ctx);
 
       // Use exactly the last three function arguments as dims.
       SmallVector<Value, 3> spatialDims;
@@ -1003,19 +896,19 @@ public:
             return b.create<arith::IndexCastOp>(v.getLoc(), IndexType::get(ctx),
                                                 v);
           };
-          bool needIndex = !loop.getInductionVar().getType().isIndex() ||
-                           !loop.getLowerBound().getType().isIndex() ||
-                           !loop.getUpperBound().getType().isIndex() ||
-                           !loop.getStep().getType().isIndex();
-          bool needIterArgIndex = false;
+          bool needsIndexTypeConversion = !loop.getInductionVar().getType().isIndex() ||
+                                          !loop.getLowerBound().getType().isIndex() ||
+                                          !loop.getUpperBound().getType().isIndex() ||
+                                          !loop.getStep().getType().isIndex();
+          bool needsIterArgTypeConversion = false;
           for (Value iterArg : loop.getRegionIterArgs()) {
             Type t = iterArg.getType();
             if (!t.isIndex() && llvm::isa<IntegerType>(t)) {
-              needIterArgIndex = true;
+              needsIterArgTypeConversion = true;
               break;
             }
           }
-          if (!needIndex && !needIterArgIndex)
+          if (!needsIndexTypeConversion && !needsIterArgTypeConversion)
             return;
           Value lbIdx = toIndex(loop.getLowerBound());
           Value ubIdx = toIndex(loop.getUpperBound());
@@ -1781,44 +1674,171 @@ public:
         }
       });
 
-      // General dead-code elimination: remove any trivially-dead operations.
-      // Iterate to a fixed point because erasing may unlock more DCE.
-      bool erased;
-      int dceIterGuard = 1024;
-      do {
-        erased = false;
-        SmallVector<Operation *, 64> toErase;
-        func.walk([&](Operation *o) {
-          if (isOpTriviallyDead(o))
-            toErase.push_back(o);
-        });
-        if (!toErase.empty()) {
-          for (Operation *o : toErase)
-            o->erase();
-          erased = true;
-        }
-      } while (erased && --dceIterGuard > 0);
-
-      // Remove redundant index_cast (same src/dst types) that may remain.
-      bool removedCasts;
-      int finalCastIterGuard = 64;
-      do {
-        removedCasts = false;
-        SmallVector<Operation *, 64> redCasts;
-        func.walk([&](arith::IndexCastOp ic) {
-          if (ic.getIn().getType() == ic.getType())
-            redCasts.push_back(ic.getOperation());
-        });
-        for (Operation *opCast : redCasts) {
-          auto ic = cast<arith::IndexCastOp>(opCast);
-          ic.getResult().replaceAllUsesWith(ic.getIn());
-          ic.erase();
-          removedCasts = true;
-        }
-      } while (removedCasts && --finalCastIterGuard > 0);
+      // Perform dead-code elimination and remove redundant casts.
+      performDeadCodeElimination(func);
+      removeRedundantCasts(func);
     });
     if (hadError)
       signalPassFailure();
+  }
+
+private:
+  /// Cast a value to index type at the given insertion point.
+  static Value castToIndexAt(OpBuilder &builder, Location loc, Value v,
+                              MLIRContext *ctx) {
+    if (v.getType().isIndex())
+      return v;
+    return builder.create<arith::IndexCastOp>(loc, IndexType::get(ctx), v)
+        .getResult();
+  }
+
+  /// Cast a value to index type, inserting before the given operation.
+  static Value castToIndexBefore(OpBuilder &builder, Operation *beforeOp,
+                                   Value v, MLIRContext *ctx) {
+    if (v.getType().isIndex())
+      return v;
+    OpBuilder::InsertionGuard g(builder);
+    builder.setInsertionPoint(beforeOp);
+    return builder
+        .create<arith::IndexCastOp>(beforeOp->getLoc(), IndexType::get(ctx), v)
+        .getResult();
+  }
+
+  /// Promote i32 function arguments to index type and canonicalize arithmetic.
+  void promoteI32ArgsToIndex(func::FuncOp func, MLIRContext *ctx) {
+    FunctionType fty = func.getFunctionType();
+    SmallVector<Type, 8> inputs(fty.getInputs().begin(), fty.getInputs().end());
+    SmallVector<Type, 8> results(fty.getResults().begin(),
+                                 fty.getResults().end());
+    bool changed = false;
+    for (unsigned i = 0, e = inputs.size(); i < e; ++i) {
+      if (auto intTy = dyn_cast<IntegerType>(inputs[i])) {
+        if (intTy.getWidth() == 32) {
+          inputs[i] = IndexType::get(ctx);
+          changed = true;
+        }
+      }
+    }
+    if (!changed)
+      return;
+
+    auto newTy = FunctionType::get(ctx, inputs, results);
+    func.setType(newTy);
+    Block &entry = func.getBody().front();
+    for (unsigned i = 0, e = inputs.size(); i < e; ++i)
+      entry.getArgument(i).setType(inputs[i]);
+
+    // Remove redundant index_cast operations.
+    bool removed;
+    int maxCastIterations = 64;
+    do {
+      removed = false;
+      SmallVector<Operation *, 32> casts;
+      func.walk([&](arith::IndexCastOp ic) {
+        if (ic.getIn().getType() == ic.getType())
+          casts.push_back(ic.getOperation());
+      });
+      for (Operation *opCast : casts) {
+        auto ic = cast<arith::IndexCastOp>(opCast);
+        ic.getResult().replaceAllUsesWith(ic.getIn());
+        ic.erase();
+        removed = true;
+      }
+    } while (removed && --maxCastIterations > 0);
+
+    // Ensure integer arithmetic operates on index type.
+    auto ensureIndex = [&](OpBuilder &rb, Operation *anchor,
+                          Value v) -> Value {
+      if (v.getType().isIndex())
+        return v;
+      if (auto cint = v.getDefiningOp<arith::ConstantIntOp>()) {
+        rb.setInsertionPoint(anchor);
+        return rb.create<arith::ConstantIndexOp>(cint.getLoc(), cint.value());
+      }
+      rb.setInsertionPoint(anchor);
+      return rb.create<arith::IndexCastOp>(v.getLoc(), IndexType::get(ctx), v);
+    };
+
+    bool changedArith;
+    do {
+      changedArith = false;
+      SmallVector<Operation *, 64> arithToFix;
+      func.walk([&](Operation *o) {
+        if (isa<arith::AddIOp, arith::SubIOp, arith::MulIOp, arith::DivSIOp,
+                arith::MinSIOp, arith::MaxSIOp>(o)) {
+          Type t0 = o->getOperand(0).getType();
+          Type t1 = o->getOperand(1).getType();
+          Type tr = o->getResult(0).getType();
+          if (t0 != t1 || t0 != tr || !t0.isIndex() || !t1.isIndex() ||
+              !tr.isIndex())
+            arithToFix.push_back(o);
+        }
+      });
+      for (Operation *o : arithToFix) {
+        OpBuilder rb(o);
+        Value a = o->getOperand(0);
+        Value b = o->getOperand(1);
+        Value ai = ensureIndex(rb, o, a);
+        Value bi = ensureIndex(rb, o, b);
+        Value newVal;
+        if (auto addi = dyn_cast<arith::AddIOp>(o))
+          newVal = rb.create<arith::AddIOp>(addi.getLoc(), ai, bi);
+        else if (auto subi = dyn_cast<arith::SubIOp>(o))
+          newVal = rb.create<arith::SubIOp>(subi.getLoc(), ai, bi);
+        else if (auto muli = dyn_cast<arith::MulIOp>(o))
+          newVal = rb.create<arith::MulIOp>(muli.getLoc(), ai, bi);
+        else if (auto divi = dyn_cast<arith::DivSIOp>(o))
+          newVal = rb.create<arith::DivSIOp>(divi.getLoc(), ai, bi);
+        else if (auto mini = dyn_cast<arith::MinSIOp>(o))
+          newVal = rb.create<arith::MinSIOp>(mini.getLoc(), ai, bi);
+        else if (auto maxi = dyn_cast<arith::MaxSIOp>(o))
+          newVal = rb.create<arith::MaxSIOp>(maxi.getLoc(), ai, bi);
+        if (!newVal)
+          continue;
+        o->getResult(0).replaceAllUsesWith(newVal);
+        o->erase();
+        changedArith = true;
+      }
+    } while (changedArith);
+  }
+
+  /// Perform dead code elimination on a function.
+  static void performDeadCodeElimination(func::FuncOp func) {
+    bool erased;
+    int maxDceIterations = 1024;
+    do {
+      erased = false;
+      SmallVector<Operation *, 64> toErase;
+      func.walk([&](Operation *o) {
+        if (isOpTriviallyDead(o))
+          toErase.push_back(o);
+      });
+      if (!toErase.empty()) {
+        for (Operation *o : toErase)
+          o->erase();
+        erased = true;
+      }
+    } while (erased && --maxDceIterations > 0);
+  }
+
+  /// Remove redundant index_cast operations.
+  static void removeRedundantCasts(func::FuncOp func) {
+    bool removedCasts;
+    int maxFinalCastIterations = 64;
+    do {
+      removedCasts = false;
+      SmallVector<Operation *, 64> redCasts;
+      func.walk([&](arith::IndexCastOp ic) {
+        if (ic.getIn().getType() == ic.getType())
+          redCasts.push_back(ic.getOperation());
+      });
+      for (Operation *opCast : redCasts) {
+        auto ic = cast<arith::IndexCastOp>(opCast);
+        ic.getResult().replaceAllUsesWith(ic.getIn());
+        ic.erase();
+        removedCasts = true;
+      }
+    } while (removedCasts && --maxFinalCastIterations > 0);
   }
 };
 

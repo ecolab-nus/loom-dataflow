@@ -126,16 +126,10 @@ public:
 } // namespace
 
 std::unique_ptr<mlir::Pass> loom::passes::createMaterializePass() {
-  /**
-   * @brief Create the materialize pass.
-   */
   return std::make_unique<MaterializePass>();
 }
 
 void loom::passes::registerMaterializePass() {
-  /**
-   * @brief Register the materialize pass.
-   */
   PassRegistration<MaterializePass>();
 }
 
