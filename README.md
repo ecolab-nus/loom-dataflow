@@ -151,7 +151,7 @@ build/tool/triton-shared/single_stage/explore_alloc_copy_mapping \
 ```bash
 build/tool/triton-shared/single_stage/canonicalize \
   --input test/Passes/mm_2Dmesh/04_after_memref_mapping.mlir \
-  > test/Passes/mm_2Dmesh/05_after_materialization_.mlir
+  > test/Passes/mm_2Dmesh/05_after_canonicalization_.mlir
 ```
 <!-- 4) Hoist block loading operations
 **Note:** This pass does not have a standalone command-line tool. Use `mlir-opt` with the pass name:

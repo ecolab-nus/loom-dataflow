@@ -26,9 +26,9 @@ using namespace mlir;
 namespace {
 
 /// Extract static values from constant operands, mark others as dynamic.
-void ProcessOperands(ValueRange operands,
-                     SmallVectorImpl<int64_t> &staticVals,
-                     SmallVectorImpl<Value> &dynamicVals) {
+static void processOperands(ValueRange operands,
+                             SmallVectorImpl<int64_t> &staticVals,
+                             SmallVectorImpl<Value> &dynamicVals) {
   for (Value v : operands) {
     APInt value;
     if (matchPattern(v, m_ConstantInt(&value))) {
@@ -50,9 +50,9 @@ struct LoomReinterpretCastLowering
     SmallVector<int64_t> staticOffsets, staticSizes, staticStrides;
     SmallVector<Value> dynamicOffsets, dynamicSizes, dynamicStrides;
 
-    ProcessOperands(op.getOffsets(), staticOffsets, dynamicOffsets);
-    ProcessOperands(op.getSizes(), staticSizes, dynamicSizes);
-    ProcessOperands(op.getStrides(), staticStrides, dynamicStrides);
+    processOperands(op.getOffsets(), staticOffsets, dynamicOffsets);
+    processOperands(op.getSizes(), staticSizes, dynamicSizes);
+    processOperands(op.getStrides(), staticStrides, dynamicStrides);
 
     auto sourceType = llvm::cast<BaseMemRefType>(op.getSource().getType());
     auto elementType = sourceType.getElementType();
