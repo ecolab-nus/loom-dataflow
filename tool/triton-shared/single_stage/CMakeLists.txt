@@ -241,6 +241,7 @@ target_link_libraries(hoist_block_loading PRIVATE
   MLIRAsmParser
   MLIRBytecodeReader
   loomDataflowDialect
+  loomDialect
 )
 mlir_check_all_link_libraries(hoist_block_loading)
 
