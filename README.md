@@ -98,13 +98,13 @@ All binaries live under `build/tool/` after a build. Useful entry points include
 - `triton-shared/single_stage/affinize` – run the Triton-shared affinization pass.
 - `triton-shared/single_stage/grid_to_parallel` – replace grid indices with a 3-D `affine.parallel`.
 - `triton-shared/single_stage/explore_mapping` – enumerate spatial mappings and merge a DF module.
+- `triton-shared/single_stage/hoist_block_loading` – hoist block loading operations from innermost loops.
 - `triton-shared/single_stage/annotate_reuse` – attach `loom.reuse` on `memref.reinterpret_cast`.
 - `triton-shared/single_stage/explore_alloc_copy_mapping` – enumerate `memref.alloc`/`memref.copy` mapping choices.
 - `triton-shared/single_stage/tile_scf_for_to_l1` – tile `scf.for` loops to fit L1 memory capacity.
 - `ttshared-opt` – end-to-end Triton-shared → Affine/Dataflow pipeline driver.
 - `affine_explore`, `affine_tile`, `affine_analyze` – affine-only exploration, tiling, and reuse analysis utilities.
 
-**Note:** The `loom-hoist-block-loading` pass does not have a standalone tool; use `mlir-opt --loom-hoist-block-loading` or the end-to-end `ttshared-opt` driver.
 
 ### Triton-shared → Dataflow pipeline (step-by-step)
 The repository includes a runnable pipeline that lowers a Triton-shared kernel (already bufferized) into a custom Affine/Dataflow form. The examples under `test/Passes/mm_2Dmesh/` can be reproduced with the following commands executed from the repo root after a build.
@@ -141,11 +141,9 @@ build/tool/triton-shared/single_stage/explore_mapping \
 ```
 
 4) Hoist block loading operations
-**Note:** This pass does not have a standalone command-line tool. Use `mlir-opt` with the pass name:
 ```bash
-mlir-opt \
-  --loom-hoist-block-loading \
-  test/Passes/mm_2Dmesh/03_after_exploration.mlir \
+build/tool/triton-shared/single_stage/hoist_block_loading \
+  --input test/Passes/mm_2Dmesh/03_after_exploration.mlir \
   > test/Passes/mm_2Dmesh/04_after_hoist_block_loading.mlir
 ```
 
@@ -227,7 +225,7 @@ Options: `--warmup=N` (default: 3), `--runs=N` (default: 10), `-q/--quiet`, `-h/
 - Hoist block loading (`loom-hoist-block-loading`)
   - Purpose: Hoist block loading operations from innermost `scf.for` loops to outer loop levels. For each function, identifies loading blocks (patterns of operations that load data blocks), clones the function per loading block, and hoists each block to reduce redundant memory accesses.
   - Limitations: Only processes innermost `scf.for` loops that contain recognized loading block patterns. Functions without valid loading blocks are skipped. Block identification may miss non-standard patterns.
-  - Implementation: `lib/passes/triton-shared/hoist_block_loading.{h,cpp}` and `block_loading_pattern.{h,cpp}`. **No standalone CLI tool available**; use `mlir-opt --loom-hoist-block-loading` or the end-to-end `ttshared-opt` driver.
+  - Implementation: `lib/passes/triton-shared/hoist_block_loading.{h,cpp}` and `block_loading_pattern.{h,cpp}`. CLI: `build/tool/triton-shared/single_stage/hoist_block_loading` (or `mlir-opt --loom-hoist-block-loading` or the end-to-end `ttshared-opt` driver).
 
 - Reuse annotation on reinterpret-cast (`loom-annotate-reinterpret-cast-reuse`)
   - Purpose: Attach a `loom.reuse` dictionary to each `memref.reinterpret_cast` describing how its offset varies with surrounding iterators, grouped by `spatial` (`affine.parallel`), `temporal` (`affine.for`), and `sequential` (`scf.for`). Each entry records `iterator` (SSA name), `depth`, `reuse_type` (`no_reuse`/`total_reuse`), `volume` (bytes; 0, full block, or -1 unknown), and `mapped_to` for spatial entries.
