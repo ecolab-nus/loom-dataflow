@@ -12,8 +12,8 @@ module {
   %10 = df.memory "DRAM" {scaleout=(%9) , size = 34359738368, bandwidth = 512}
   %11 = df.interconnects "NoC" %5 : !df.memory, %10 : !df.memory  {map = affine_map<(d0, d1) -> (d0 ceildiv 4 + (d1 ceildiv 4) * 2)>} : !df.interconnect
   func.func @matmul_kernel__d0i0_d1i0__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -51,8 +51,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i0__f01__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -90,8 +90,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i0__f01__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -129,8 +129,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i0__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -168,8 +168,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i0__f10__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -207,8 +207,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i0__f10__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -246,8 +246,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -285,8 +285,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f01__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -324,8 +324,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f01__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -363,8 +363,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f01__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -402,8 +402,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -441,8 +441,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f10__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -480,8 +480,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f10__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -519,8 +519,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i0_d1i1__f10__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -558,8 +558,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -597,8 +597,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f01__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -636,8 +636,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f01__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -675,8 +675,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f01__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -714,8 +714,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -753,8 +753,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f10__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -792,8 +792,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f10__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -831,8 +831,8 @@ module {
     return
   }
   func.func @matmul_kernel__d1i0_d0i1__f10__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -870,8 +870,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -909,8 +909,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f01__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -948,8 +948,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f01__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -987,8 +987,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -1026,8 +1026,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f10__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {
@@ -1065,8 +1065,8 @@ module {
     return
   }
   func.func @matmul_kernel__d0i1_d1i1__f10__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
+    %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
     %c1 = arith.constant 1 : index
     affine.parallel (%arg9) = (0) to (8) {

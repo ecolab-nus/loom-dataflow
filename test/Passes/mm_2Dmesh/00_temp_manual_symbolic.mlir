@@ -15,6 +15,7 @@ func.func @matmul_kernel (
     %blkM_idx = loom.get_module_attribute "loom.block_m" : index
     %blkN_idx = loom.get_module_attribute "loom.block_n" : index
     %blkK_idx = loom.get_module_attribute "loom.block_k" : index
+    %Kblk_idx = arith.ceildivsi %K_idx, %blkK_idx : index
     %cst = arith.constant 0.000000e+00 : f32 loc(#loc1)
     %c8_idx = arith.constant 8 : index loc(#loc1)
     %c512 = arith.constant 512 : index loc(#loc1)
@@ -23,7 +24,7 @@ func.func @matmul_kernel (
     %1 = linalg.fill ins(%cst : f32) outs(%0 : tensor<?x?xf32>) -> tensor<?x?xf32> loc(#loc2)
     %2 = arith.muli %arg6, %blkM_idx : index loc(#loc3)
     %3 = arith.muli %arg7, %blkN_idx : index loc(#loc4)
-    %6 = scf.for %arg9 = %c0_idx to %c8_idx step %c1_idx iter_args(%arg10 = %1) -> (tensor<?x?xf32>) {
+    %6 = scf.for %arg9 = %c0_idx to %Kblk_idx step %c1_idx iter_args(%arg10 = %1) -> (tensor<?x?xf32>) {
       %9 = arith.muli %arg9, %blkK_idx : index loc(#loc9)
       %11 = arith.muli %2, %c512 : index loc(#loc11)
       %12 = arith.addi %11, %9 : index loc(#loc11)
