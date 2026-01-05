@@ -6,7 +6,14 @@
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/SCF/IR/SCF.h>
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Debug.h"
 #include <cstddef>
+
+// Include Loom dialect headers for CopyOp
+#define GET_OP_CLASSES
+#include "LoomOps.h.inc"
+
+#define DEBUG_TYPE "hoist-block-loading"
 
 
 namespace loom {
