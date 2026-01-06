@@ -99,7 +99,7 @@ All binaries live under `build/tool/` after a build. Useful entry points include
 - `triton-shared/single_stage/grid_to_parallel` – replace grid indices with a 3-D `affine.parallel`.
 - `triton-shared/single_stage/enumerate_hw_mapping` – enumerate spatial mappings and merge a DF module.
 - `triton-shared/single_stage/hoist_block_loading` – hoist block loading operations from innermost loops.
-- `triton-shared/single_stage/annotate_reuse` – attach `loom.reuse` on `memref.reinterpret_cast`.
+- `triton-shared/single_stage/analyze_reuse` – analyze and attach `loom.reuse` on `memref.reinterpret_cast`.
 - `triton-shared/single_stage/explore_alloc_copy_mapping` – enumerate `memref.alloc`/`memref.copy` mapping choices.
 - `triton-shared/single_stage/tile_scf_for_to_l1` – tile `scf.for` loops to fit L1 memory capacity.
 - `ttshared-opt` – end-to-end Triton-shared → Affine/Dataflow pipeline driver.
@@ -142,9 +142,9 @@ build/tool/triton-shared/single_stage/hoist_block_loading \
 
 3) Annotate reuse on `memref.reinterpret_cast`
 ```bash
-build/tool/triton-shared/single_stage/annotate_reuse \
+build/tool/triton-shared/single_stage/analyze_reuse \
   --input test/Passes/mm_2Dmesh/03_after_block_hoisting.mlir \
-  > test/Passes/mm_2Dmesh/04_after_reuse_annotation.mlir
+  > test/Passes/mm_2Dmesh/04_after_reuse_analyzation.mlir
 ```
 
 4) Explore alloc/copy mapping choices
@@ -239,7 +239,7 @@ Options: `--warmup=N` (default: 3), `--runs=N` (default: 10), `-q/--quiet`, `-h/
 - Reuse annotation on reinterpret-cast (`loom-annotate-reinterpret-cast-reuse`)
   - Purpose: Attach a `loom.reuse` dictionary to each `memref.reinterpret_cast` describing how its offset varies with surrounding iterators, grouped by `spatial` (`affine.parallel`), `temporal` (`affine.for`), and `sequential` (`scf.for`). Each entry records `iterator` (SSA name), `depth`, `reuse_type` (`no_reuse`/`total_reuse`), `volume` (bytes; 0, full block, or -1 unknown), and `mapped_to` for spatial entries.
   - Limitations: Binary reuse classification only (no partial reuse yet). Volumes require known block sizes. Dependency analysis is conservative and may miss some reuse opportunities.
-  - Implementation: `lib/passes/triton-shared/reinterpret_cast_reuse.{h,cpp}`. CLI: `build/tool/triton-shared/single_stage/annotate_reuse`.
+  - Implementation: `lib/passes/triton-shared/analyze_reuse.{h,cpp}`. CLI: `build/tool/triton-shared/single_stage/analyze_reuse`.
 
 - Alloc/Copy mapping exploration (`loom-explore-alloc-copy-mapping`)
   - Purpose: Annotate `memref.alloc` with `{loom.alloc={local=true, memory_name=…}}` and enumerate per-`memref.copy` mapping choices: local memory copies and broadcasts along dimensions with spatial total-reuse. Merge the DF module to discover one `df.memory` and classify `df.interconnects` as x/y based on affine maps. Supports analysis-only mode via `--analysis-only` flag.

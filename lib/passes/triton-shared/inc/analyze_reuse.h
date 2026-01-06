@@ -1,5 +1,5 @@
 /**
- * @file reinterpret_cast_reuse.h
+ * @file analyze_reuse.h
  * @brief Annotate `memref.reinterpret_cast` with reuse metadata.
  * @details
  * The pass walks `memref.reinterpret_cast` and attaches a `loom.reuse`
