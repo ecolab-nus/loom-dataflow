@@ -97,7 +97,7 @@ cmake --build . --config Release
 All binaries live under `build/tool/` after a build. Useful entry points include:
 - `triton-shared/single_stage/affinize` – run the Triton-shared affinization pass.
 - `triton-shared/single_stage/grid_to_parallel` – replace grid indices with a 3-D `affine.parallel`.
-- `triton-shared/single_stage/explore_mapping` – enumerate spatial mappings and merge a DF module.
+- `triton-shared/single_stage/enumerate_hw_mapping` – enumerate spatial mappings and merge a DF module.
 - `triton-shared/single_stage/hoist_block_loading` – hoist block loading operations from innermost loops.
 - `triton-shared/single_stage/annotate_reuse` – attach `loom.reuse` on `memref.reinterpret_cast`.
 - `triton-shared/single_stage/explore_alloc_copy_mapping` – enumerate `memref.alloc`/`memref.copy` mapping choices.
@@ -127,16 +127,16 @@ build/tool/triton-shared/single_stage/grid_to_parallel \
 
 2) Enumerate spatial mappings and merge DF declarations
 ```bash
-build/tool/triton-shared/single_stage/explore_mapping \
+build/tool/triton-shared/single_stage/enumerate_hw_mapping \
   --input test/Passes/mm_2Dmesh/01_after_grid_to_parallel.mlir \
   --df test/Dialect/DataflowDialect/2D_mesh.mlir \
-  > test/Passes/mm_2Dmesh/02_after_exploration.mlir
+  > test/Passes/mm_2Dmesh/02_after_hardware_mapping.mlir
 ```
 
 3) Hoist loading A, B blocks
 ```bash
 build/tool/triton-shared/single_stage/hoist_block_loading \
-  --input test/Passes/mm_2Dmesh/02_after_exploration.mlir \
+  --input test/Passes/mm_2Dmesh/02_after_hardware_mapping.mlir \
   > test/Passes/mm_2Dmesh/03_after_block_hoisting.mlir
 ```
 
@@ -229,7 +229,7 @@ Options: `--warmup=N` (default: 3), `--runs=N` (default: 10), `-q/--quiet`, `-h/
 - Spatial mapping exploration (`loom-triton-shared-explore-spatial-mappings`)
   - Purpose: Enumerate mappings from hardware `df.spatial_dim` declarations to the outermost `affine.parallel` iterators; clone per mapping, annotate inner loops with `loom.mapped_to`, and insert outer `affine.for` "waves" when the mesh cannot cover the grid in one shot. Merges DF declarations into the module.
   - Limitations: Combinatorial growth in clones due to partitioning/permutation of dims and outer-for orderings. Exploration is structural (not resource-capacity aware) in this prototype. Only enumerates the first outermost `affine.parallel` per function.
-  - Implementation: `lib/passes/triton-shared/spatial_mapping.{h,cpp}` (`EnumerateSpatialMappings`) and `triton_shared_spatial_mapping_pass.cpp`. CLI: `build/tool/triton-shared/single_stage/explore_mapping`.
+  - Implementation: `lib/passes/triton-shared/enumerate_hw_mapping.{h,cpp}` (`EnumerateSpatialMappings`) and `triton_shared_spatial_mapping_pass.cpp`. CLI: `build/tool/triton-shared/single_stage/enumerate_hw_mapping`.
 
 - Hoist block loading (`loom-hoist-block-loading`)
   - Purpose: Hoist block loading operations from innermost `scf.for` loops to outer loop levels. For each function, identifies loading blocks (patterns of operations that load data blocks), clones the function per loading block, and hoists each block to reduce redundant memory accesses.

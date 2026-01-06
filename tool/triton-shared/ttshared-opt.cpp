@@ -19,7 +19,7 @@
 #include "explore_alloc_copy_mapping.h"
 #include "hoist_block_loading.h"
 #include "reinterpret_cast_reuse.h"
-#include "spatial_mapping.h"
+#include "enumerate_hw_mapping.h"
 #include "tile_scf_for_to_l1.h"
 #include "triton_shared_affinize.h"
 #include "triton_shared_grid_to_parallel.h"

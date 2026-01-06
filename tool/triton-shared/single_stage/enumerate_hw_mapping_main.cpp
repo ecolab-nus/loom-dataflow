@@ -13,7 +13,7 @@
 // inserts outer `affine.for` loops to model sequential "waves" while leaving
 // the inner `scf.for` loops to represent per-core tile sequencing.
 
-#include "spatial_mapping.h"
+#include "enumerate_hw_mapping.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -122,7 +122,6 @@ int main(int argc, char **argv) {
 
   // Merge DF declarations and generated clones into a single module.
   OwningOpRef<ModuleOp> merged = ModuleOp::create(UnknownLoc::get(&context));
-  // 复制 module 的 attributes（从 out module，它已经包含了从输入 module 复制的 attributes）
   if (!(*out)->getAttrs().empty()) {
     (*merged)->setAttrs((*out)->getAttrs());
   }
