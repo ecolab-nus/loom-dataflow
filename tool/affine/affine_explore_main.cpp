@@ -9,7 +9,7 @@
 // module containing a clone of the function for each mapping. Each created
 // inner loop is annotated with `loom.mapped_to` and function names are suffixed
 // to encode the mapping.
-#include "spatial_mapping.h"
+#include "enumerate_hw_mapping.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"

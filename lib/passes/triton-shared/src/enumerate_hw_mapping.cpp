@@ -1,5 +1,5 @@
 /**
- * @file spatial_mapping.cpp
+ * @file enumerate_hw_mapping.cpp
  * @brief Implementation for spatial mapping discovery and enumeration.
  * @details
  * Provided functionality
@@ -22,7 +22,7 @@
  * - Dynamic spatial sizes are treated as factor=1 during tiling.
  */
 
-#include "spatial_mapping.h"
+#include "enumerate_hw_mapping.h"
 #include "affine_tile.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"

@@ -5,7 +5,7 @@
 
 #include "triton_shared_spatial_mapping_pass.h"
 
-#include "spatial_mapping.h"
+#include "enumerate_hw_mapping.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"

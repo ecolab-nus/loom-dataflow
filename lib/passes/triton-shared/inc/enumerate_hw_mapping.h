@@ -1,5 +1,5 @@
 /**
- * @file spatial_mapping.h
+ * @file enumerate_hw_mapping.h
  * @brief Query and enumerate mappings between hardware spatial dims and IR.
  * @details
  * This utility layer provides:

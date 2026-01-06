@@ -11,7 +11,7 @@ add_library(loomTritonSharedPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/materialize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/reinterpret_cast_reuse.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/staticize_types.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/spatial_mapping.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/enumerate_hw_mapping.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/tile_scf_for_to_l1.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/triton_shared_affinize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/triton_shared_grid_to_parallel.cpp

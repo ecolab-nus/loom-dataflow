@@ -19,12 +19,12 @@ Triton emits `tt.shared` kernels that expect to run on a GPU grid; the last six 
 the pass pipeline `build/tool/ttshared-opt` convert this `ttshared.mlir` through 5 stages: 
 - **affinization**: try to convert the arith operations in the ttshared into affine formulas
 - **grid_to_parallel**: convert the grid representation in the orginal ttshared into `afffine.parallel` representations, where the used grid dimensions become the parallel for loop
-- **explore_mapping**: tile and reorder the `affine.parallel` loops
+- **enumerate_hw_mapping**: tile and reorder the `affine.parallel` loops
 - **annotate_reuse**: calculate the data reuse among spatial cores and annotate the reuse volume
     
 
 ## Common utilities (`common/`)
-- `spatial_mapping.{h,cpp}` – parse DF modules (`df.spatial_dim`), enumerate spatial mappings for affine loops or Triton kernels, and stitch results back together (including helpers for affine canonicalization). Cloned functions are suffixed with tokens `d<dimIndex>i<iterIndex>` (mapping dimension `dimIndex` to iterator `iterIndex`) and, when iterator orders are permuted, additional `_f<pos>` tokens to record the chosen order. This mirrors the notation visible in examples such as `@matmul_kernel__d0i0_d1i0_f0_f1`.
+- `enumerate_hw_mapping.{h,cpp}` – parse DF modules (`df.spatial_dim`), enumerate spatial mappings for affine loops or Triton kernels, and stitch results back together (including helpers for affine canonicalization). Cloned functions are suffixed with tokens `d<dimIndex>i<iterIndex>` (mapping dimension `dimIndex` to iterator `iterIndex`) and, when iterator orders are permuted, additional `_f<pos>` tokens to record the chosen order. This mirrors the notation visible in examples such as `@matmul_kernel__d0i0_d1i0_f0_f1`.
 - `reinterpret_cast_reuse.{h,cpp}` – annotate `memref.reinterpret_cast` ops with a `loom.reuse` attribute that captures whether the slice offset varies with each surrounding spatial (`affine.parallel` ↦ dataflow-parallel cores), temporal (`affine.for` ↦ wave sequencing across the fabric), or sequential (`scf.for` ↦ per-core tile loop) iterator. Each entry records the iterator SSA name, nesting depth, a `reuse_type` (`no_reuse` or `total_reuse`, with partial reuse reserved for future work), and the amount of data reused (`volume`, currently 0 or the entire block size, or -1 when unknown). A `mapped_to` field is kept for spatial iterators so the hardware dimension is explicit.
 - `input_sharing_analysis.cpp` – textual analysis that reports reuse opportunities for `affine.load`s relative to enclosing loops. The `affine_analyze` tool links it together with tiling utilities and prints annotated IR plus reuse statistics.
 

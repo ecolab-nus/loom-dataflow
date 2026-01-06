@@ -1,13 +1,13 @@
 # Single-stage Triton-shared tools
 
-# explore_mapping
-add_executable(explore_mapping
-  ${CMAKE_CURRENT_LIST_DIR}/explore_mapping_main.cpp
+# enumerate_hw_mapping
+add_executable(enumerate_hw_mapping
+  ${CMAKE_CURRENT_LIST_DIR}/enumerate_hw_mapping_main.cpp
 )
 
-target_include_directories(explore_mapping PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
+target_include_directories(enumerate_hw_mapping PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
 
-target_link_libraries(explore_mapping PRIVATE
+target_link_libraries(enumerate_hw_mapping PRIVATE
   loomTritonSharedPasses
   MLIRIR
   MLIRParser
@@ -26,11 +26,11 @@ target_link_libraries(explore_mapping PRIVATE
   loomDataflowDialect
   loomDialect
 )
-mlir_check_all_link_libraries(explore_mapping)
+mlir_check_all_link_libraries(enumerate_hw_mapping)
 
-target_compile_options(explore_mapping PRIVATE -fno-rtti)
+target_compile_options(enumerate_hw_mapping PRIVATE -fno-rtti)
 
-set_target_properties(explore_mapping PROPERTIES
+set_target_properties(enumerate_hw_mapping PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
