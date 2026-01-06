@@ -1,5 +1,5 @@
 /**
- * @file reinterpret_cast_reuse.cpp
+ * @file analyze_reuse.cpp
  * @brief Implementation: update reuse attributes of `loom.reinterpret_cast`.
  * @details
  * Strategy
@@ -14,7 +14,7 @@
  *   attributes of the operation.
  */
 
-#include "reinterpret_cast_reuse.h"
+#include "analyze_reuse.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"

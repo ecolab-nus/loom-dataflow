@@ -1,7 +1,7 @@
 // Single-stage: annotate reuse and explore alloc/copy mapping choices.
 
 #include "explore_alloc_copy_mapping.h"
-#include "reinterpret_cast_reuse.h"
+#include "analyze_reuse.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"

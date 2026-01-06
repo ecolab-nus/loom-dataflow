@@ -9,7 +9,7 @@ add_library(loomTritonSharedPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/input_sharing_analysis.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/loom_to_memref.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/materialize.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/reinterpret_cast_reuse.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/analyze_reuse.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/staticize_types.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/enumerate_hw_mapping.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/tile_scf_for_to_l1.cpp

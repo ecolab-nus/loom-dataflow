@@ -102,16 +102,16 @@ set_target_properties(grid_to_parallel PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-add_executable(annotate_reuse
-  ${CMAKE_CURRENT_LIST_DIR}/annotate_reuse_main.cpp
+add_executable(analyze_reuse
+  ${CMAKE_CURRENT_LIST_DIR}/analyze_reuse_main.cpp
 )
 
-target_include_directories(annotate_reuse PRIVATE
+target_include_directories(analyze_reuse PRIVATE
   ${MLIR_INCLUDE_DIRS}
   ${LOOM_PASSES_INC}
 )
 
-target_link_libraries(annotate_reuse PRIVATE
+target_link_libraries(analyze_reuse PRIVATE
   loomTritonSharedPasses
   MLIRIR
   MLIRParser
@@ -131,11 +131,11 @@ target_link_libraries(annotate_reuse PRIVATE
   loomDataflowDialect
   loomDialect
 )
-mlir_check_all_link_libraries(annotate_reuse)
+mlir_check_all_link_libraries(analyze_reuse)
 
-target_compile_options(annotate_reuse PRIVATE -fno-rtti)
+target_compile_options(analyze_reuse PRIVATE -fno-rtti)
 
-set_target_properties(annotate_reuse PROPERTIES
+set_target_properties(analyze_reuse PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 

@@ -2,10 +2,10 @@
 // information relative to surrounding affine/scf iterators.
 //
 // Usage:
-//   loom_triton_shared_annotate_reuse --input <input.mlir>
-//   loom_triton_shared_annotate_reuse --input -  (reads from stdin)
+//   loom_triton_shared_analyze_reuse --input <input.mlir>
+//   loom_triton_shared_analyze_reuse --input -  (reads from stdin)
 
-#include "reinterpret_cast_reuse.h"
+#include "analyze_reuse.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
