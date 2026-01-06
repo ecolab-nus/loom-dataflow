@@ -100,7 +100,7 @@ All binaries live under `build/tool/` after a build. Useful entry points include
 - `triton-shared/single_stage/enumerate_hw_mapping` – enumerate spatial mappings and merge a DF module.
 - `triton-shared/single_stage/hoist_block_loading` – hoist block loading operations from innermost loops.
 - `triton-shared/single_stage/analyze_reuse` – analyze and attach `loom.reuse` on `memref.reinterpret_cast`.
-- `triton-shared/single_stage/explore_alloc_copy_mapping` – enumerate `memref.alloc`/`memref.copy` mapping choices.
+- `triton-shared/single_stage/enumerate_copy_broadcast` – enumerate interconnect broadcast choices for copy operations.
 - `triton-shared/single_stage/tile_scf_for_to_l1` – tile `scf.for` loops to fit L1 memory capacity.
 - `ttshared-opt` – end-to-end Triton-shared → Affine/Dataflow pipeline driver.
 - `affine_explore`, `affine_tile`, `affine_analyze` – affine-only exploration, tiling, and reuse analysis utilities.
@@ -147,17 +147,17 @@ build/tool/triton-shared/single_stage/analyze_reuse \
   > test/Passes/mm_2Dmesh/04_after_reuse_analyzation.mlir
 ```
 
-4) Explore alloc/copy mapping choices
+4) Enumerate copy interconnect broadcast choices
 ```bash
-build/tool/triton-shared/single_stage/explore_alloc_copy_mapping \
-  --input test/Passes/mm_2Dmesh/04_after_reuse_annotation.mlir \
-  > test/Passes/mm_2Dmesh/05_after_memref_mapping.mlir
+build/tool/triton-shared/single_stage/enumerate_copy_broadcast \
+  --input test/Passes/mm_2Dmesh/04_after_reuse_analyzation.mlir \
+  > test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir
 ```
 
 5) Canonicalize 
 ```bash
 build/tool/triton-shared/single_stage/canonicalize \
-  --input test/Passes/mm_2Dmesh/05_after_memref_mapping.mlir \
+  --input test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir \
   > test/Passes/mm_2Dmesh/06_after_canonicalization_.mlir
 ```
 <!-- 4) Hoist block loading operations
@@ -241,10 +241,10 @@ Options: `--warmup=N` (default: 3), `--runs=N` (default: 10), `-q/--quiet`, `-h/
   - Limitations: Binary reuse classification only (no partial reuse yet). Volumes require known block sizes. Dependency analysis is conservative and may miss some reuse opportunities.
   - Implementation: `lib/passes/triton-shared/analyze_reuse.{h,cpp}`. CLI: `build/tool/triton-shared/single_stage/analyze_reuse`.
 
-- Alloc/Copy mapping exploration (`loom-explore-alloc-copy-mapping`)
+- Copy interconnect broadcast enumeration (`loom-enumerate-copy-broadcast`)
   - Purpose: Annotate `memref.alloc` with `{loom.alloc={local=true, memory_name=…}}` and enumerate per-`memref.copy` mapping choices: local memory copies and broadcasts along dimensions with spatial total-reuse. Merge the DF module to discover one `df.memory` and classify `df.interconnects` as x/y based on affine maps. Supports analysis-only mode via `--analysis-only` flag.
   - Limitations: Assumes a single `df.memory`; interconnect classification is heuristic (e.g., `(d0+1,d1)`→x, `(d0,d1+1)`→y). Enumerating the cross-product of candidates can explode; use analysis-only when needed. Requires prior reuse analysis to identify total-reuse dimensions.
-  - Implementation: `lib/passes/triton-shared/explore_alloc_copy_mapping.{h,cpp}` and notes in `lib/passes/triton-shared/README.alloc_copy_mapping.md`. CLI: `build/tool/triton-shared/single_stage/explore_alloc_copy_mapping` (or end-to-end via `build/tool/ttshared-opt`).
+  - Implementation: `lib/passes/triton-shared/enumerate_copy_broadcast.{h,cpp}` and notes in `lib/passes/triton-shared/README.alloc_copy_mapping.md`. CLI: `build/tool/triton-shared/single_stage/enumerate_copy_broadcast` (or end-to-end via `build/tool/ttshared-opt`).
 
 - Tile scf.for loops to L1 (`loom-tile-scf-for-to-l1`)
   - Purpose: Tile `scf.for` loops so that per-tile memory fits within the single `df.memory` (L1) capacity. Computes per-iteration memory from `memref.alloc` operations annotated with `loom.alloc`, picks the largest power-of-two tile factor that fits, and rewrites loops into outer/inner tile structure.
