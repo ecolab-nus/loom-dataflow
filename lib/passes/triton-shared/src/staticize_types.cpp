@@ -5,11 +5,13 @@
  * This pass converts operations with dynamic shapes to use static shapes
  * when the dynamic sizes can be resolved to constants. It handles:
  * - memref.alloc: Converts dynamic allocations to static when sizes are constants
+ * - memref.subview: Updates result type when source and sizes are staticized
  * - tensor.empty: Converts dynamic tensor creation to static when sizes are constants
  * - bufferization.to_tensor: Updates output type to match staticized memref input
  * - linalg.fill: Updates output type to match staticized tensor
  * - linalg.matmul: Updates output type to match staticized operand types
  * - linalg.generic: Updates output type to match staticized operand types
+ * - scf.for: Updates iter_args and results when operand types change
  */
 
 #include "staticize_types.h"
@@ -356,6 +358,149 @@ struct StaticizeGenericPattern : public OpRewritePattern<linalg::GenericOp> {
   }
 };
 
+/// Helper to resolve mixed static/dynamic values to all static constants.
+/// Returns true if all values could be resolved to constants.
+/// For each entry in mixedValues:
+///   - If it's an Attribute (static value), extract the integer
+///   - If it's a Value (dynamic), try to match against arith.constant
+static bool resolveMixedToStatic(ArrayRef<OpFoldResult> mixedValues,
+                                 SmallVectorImpl<int64_t> &staticValues) {
+  for (OpFoldResult ofr : mixedValues) {
+    if (auto attr = llvm::dyn_cast<Attribute>(ofr)) {
+      // Static value stored as attribute
+      if (auto intAttr = llvm::dyn_cast<IntegerAttr>(attr)) {
+        staticValues.push_back(intAttr.getInt());
+      } else {
+        return false;
+      }
+    } else {
+      // Dynamic value - try to extract constant
+      Value v = llvm::cast<Value>(ofr);
+      auto constVal = getConstantIntValue(v);
+      if (!constVal) {
+        return false;
+      }
+      staticValues.push_back(*constVal);
+    }
+  }
+  return true;
+}
+
+/// Pattern to staticize memref.subview when source and sizes are static.
+/// Converts:
+///   %subview = memref.subview %alloc[%idx, 0, 0] [1, %sz1, %sz2] [1, 1, 1]
+///       : memref<?x?x?xf32> to memref<?x?xf32, strided<[?, 1], offset: ?>>
+/// To (after alloc and sizes are staticized):
+///   %subview = memref.subview %alloc[%idx, 0, 0] [1, 64, 64] [1, 1, 1]
+///       : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+struct StaticizeSubviewPattern : public OpRewritePattern<memref::SubViewOp> {
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(memref::SubViewOp op,
+                                PatternRewriter &rewriter) const override {
+    // Get source memref type
+    auto sourceType = op.getSourceType();
+    auto resultType = op.getType();
+
+    // Check if source is static
+    if (!sourceType.hasStaticShape()) {
+      return failure();
+    }
+
+    // Try to resolve all sizes to static constants
+    SmallVector<int64_t> staticSizes;
+    if (!resolveMixedToStatic(op.getMixedSizes(), staticSizes)) {
+      return failure();
+    }
+
+    // Try to resolve all strides to static constants
+    SmallVector<int64_t> staticStrides;
+    if (!resolveMixedToStatic(op.getMixedStrides(), staticStrides)) {
+      return failure();
+    }
+
+    // Try to resolve all offsets to static constants (for layout computation)
+    SmallVector<int64_t> staticOffsets;
+    if (!resolveMixedToStatic(op.getMixedOffsets(), staticOffsets)) {
+      // Offsets can remain dynamic - we still need to check if result type
+      // needs updating. Use kDynamic for non-constant offsets.
+      staticOffsets.clear();
+      for (OpFoldResult ofr : op.getMixedOffsets()) {
+        if (auto attr = llvm::dyn_cast<Attribute>(ofr)) {
+          if (auto intAttr = llvm::dyn_cast<IntegerAttr>(attr)) {
+            staticOffsets.push_back(intAttr.getInt());
+            continue;
+          }
+        }
+        staticOffsets.push_back(ShapedType::kDynamic);
+      }
+    }
+
+    // Determine if this is a rank-reducing subview
+    bool isRankReducing = resultType.getRank() < sourceType.getRank();
+
+    MemRefType inferredType;
+    if (isRankReducing) {
+      // For rank-reducing subview, compute the target shape by removing
+      // dimensions where size == 1 (these are the "dropped" dimensions)
+      SmallVector<int64_t> reducedShape;
+      for (int64_t sz : staticSizes) {
+        if (sz != 1) {
+          reducedShape.push_back(sz);
+        }
+      }
+
+      // Verify the reduced shape matches the expected result rank
+      if (static_cast<int64_t>(reducedShape.size()) != resultType.getRank()) {
+        return failure();
+      }
+
+      // Use inferRankReducedResultType with the computed static shape
+      inferredType = memref::SubViewOp::inferRankReducedResultType(
+          reducedShape, sourceType, staticOffsets, staticSizes, staticStrides);
+    } else {
+      // Non-rank-reducing subview: use inferResultType directly
+      inferredType = memref::SubViewOp::inferResultType(
+          sourceType, staticOffsets, staticSizes, staticStrides);
+    }
+
+    // Check if the inferred type differs from current result type
+    if (inferredType == resultType) {
+      return failure();
+    }
+
+    // Create new subview with static sizes and strides, keeping dynamic offsets
+    // Build OpFoldResult arrays with static values where possible
+    SmallVector<OpFoldResult> newOffsets;
+    for (OpFoldResult ofr : op.getMixedOffsets()) {
+      if (auto attr = llvm::dyn_cast<Attribute>(ofr)) {
+        newOffsets.push_back(attr);
+      } else {
+        // Keep dynamic offset as-is
+        newOffsets.push_back(ofr);
+      }
+    }
+
+    SmallVector<OpFoldResult> newSizes;
+    for (int64_t sz : staticSizes) {
+      newSizes.push_back(rewriter.getIndexAttr(sz));
+    }
+
+    SmallVector<OpFoldResult> newStrides;
+    for (int64_t st : staticStrides) {
+      newStrides.push_back(rewriter.getIndexAttr(st));
+    }
+
+    // Create new subview operation
+    auto newSubview = memref::SubViewOp::create(
+        rewriter, op.getLoc(), inferredType, op.getSource(), newOffsets,
+        newSizes, newStrides);
+
+    rewriter.replaceOp(op, newSubview.getResult());
+    return success();
+  }
+};
+
 /// Pattern to update scf.for iter_args and results when operand types change.
 struct StaticizeScfForPattern : public OpRewritePattern<scf::ForOp> {
   using OpRewritePattern::OpRewritePattern;
@@ -432,7 +577,7 @@ public:
     patterns.add<StaticizeAllocPattern, StaticizeTensorEmptyPattern,
                  StaticizeToTensorPattern, StaticizeFillPattern,
                  StaticizeMatmulPattern, StaticizeGenericPattern,
-                 StaticizeScfForPattern>(&getContext());
+                 StaticizeScfForPattern, StaticizeSubviewPattern>(&getContext());
 
     if (failed(applyPatternsGreedily(getOperation(), std::move(patterns)))) {
       signalPassFailure();

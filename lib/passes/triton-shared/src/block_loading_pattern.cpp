@@ -598,9 +598,11 @@ void LoadingBlock::SetReplacementBlock() {
     llvm::SmallVector<mlir::OpFoldResult> strides(rank, builder.getIndexAttr(1));
     
     // Compute reduced shape (drop the first dimension of size 1)
+    // Note: We use kDynamic for all dimensions, but must use inferRankReducedResultType
+    // to get a layout compatible with the source memref (MLIR validation requirement)
     llvm::SmallVector<int64_t> reduced_shape;
     for (unsigned i = 1; i < rank; ++i) {
-        reduced_shape.push_back(alloc_type.getDimSize(i));
+        reduced_shape.push_back(mlir::ShapedType::kDynamic);
     }
     
     auto reduced_type = mlir::memref::SubViewOp::inferRankReducedResultType(
