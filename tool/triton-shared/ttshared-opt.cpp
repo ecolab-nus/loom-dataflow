@@ -16,7 +16,7 @@
 //   loom_triton_shared_to_affine --ttshared <ttshared.mlir> --df <df.mlir>
 //
 #include "const_dedup_cleanup.h"
-#include "explore_alloc_copy_mapping.h"
+#include "enumerate_copy_broadcast.h"
 #include "hoist_block_loading.h"
 #include "analyze_reuse.h"
 #include "enumerate_hw_mapping.h"
@@ -395,7 +395,7 @@ int main(int argc, char **argv) {
                               "05_after_reuse_annotation.mlir")))
     return 5;
 
-  // Explore alloc/copy mapping choices.
+  // Enumerate copy interconnect broadcast choices.
   PassManager mappingPM(&context);
   if (clDumpIntermediate) {
     mappingPM.enableIRPrinting(
@@ -405,7 +405,7 @@ int main(int argc, char **argv) {
         /*printAfterOnlyOnChange=*/false,
         /*printAfterOnlyOnFailure=*/false, llvm::errs());
   }
-  mappingPM.addPass(loom::passes::createExploreAllocCopyMappingPass(
+  mappingPM.addPass(loom::passes::createEnumerateCopyBroadcastPass(
       /*analysisOnly=*/clMapAnalysisOnly));
   if (failed(mappingPM.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs())

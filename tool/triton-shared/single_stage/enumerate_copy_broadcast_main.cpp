@@ -1,6 +1,6 @@
-// Single-stage: annotate reuse and explore alloc/copy mapping choices.
+// Single-stage: enumerate interconnect broadcast choices for copy operations.
 
-#include "explore_alloc_copy_mapping.h"
+#include "enumerate_copy_broadcast.h"
 #include "analyze_reuse.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -41,7 +41,7 @@ static llvm::cl::opt<bool> clAnalysisOnly(
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(
-      argc, argv, "Single-stage alloc/copy mapping explorer\n");
+      argc, argv, "Single-stage copy broadcast enumerator\n");
 
   // Setup context and register required dialects.
   mlir::DialectRegistry registry;
@@ -69,18 +69,9 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // 1) Annotate reuse on reinterpret_cast.
-  PassManager pm(&context);
-  pm.addPass(loom::passes::createAnnotateReinterpretCastReusePass());
-  if (failed(pm.run(*module))) {
-    llvm::WithColor::error(llvm::errs()) << "Reuse annotation failed\n";
-    return 2;
-  }
-
-  // 2) Explore alloc/copy mappings.
-  PassManager pm2(&context);
-  pm2.addPass(loom::passes::createExploreAllocCopyMappingPass(clAnalysisOnly));
-  if (failed(pm2.run(*module))) {
+  PassManager pm1(&context);
+  pm1.addPass(loom::passes::createEnumerateCopyBroadcastPass(clAnalysisOnly));
+  if (failed(pm1.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Mapping exploration failed\n";
     return 3;
   }

@@ -1,12 +1,15 @@
 /**
- * @file explore_alloc_copy_mapping.cpp
- * @brief Implementation for alloc/copy mapping exploration.
+ * @file enumerate_copy_broadcast.cpp
+ * @brief Implementation for enumerating copy interconnect broadcast choices.
  * @details
  * This pass analyzes loom.copy operations and checks their source operations
  * for spatial reuse information from loom.reinterpret_cast operations.
+ * It enumerates all possible interconnect mapping choices (DRAM, horizontal,
+ * vertical, all-directions broadcast) and generates function clones for each
+ * combination.
  */
 
-#include "explore_alloc_copy_mapping.h"
+#include "enumerate_copy_broadcast.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Attributes.h"
@@ -583,24 +586,24 @@ static std::string generateFunctionName(StringRef baseName,
 }
 
 /**
- * @brief Pass to explore alloc/copy mapping choices.
+ * @brief Pass to enumerate copy interconnect broadcast choices.
  * @details Analyzes loom.copy operations and generates function variants for different
- * interconnect mapping choices. For functions with exactly two copy operations, creates
+ * interconnect broadcast choices. For functions with exactly two copy operations, creates
  * clones for each combination of interconnect candidates (including DRAM option).
  */
-struct ExploreAllocCopyMappingPass
-    : public PassWrapper<ExploreAllocCopyMappingPass, OperationPass<ModuleOp>> {
-  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ExploreAllocCopyMappingPass)
+struct EnumerateCopyBroadcastPass
+    : public PassWrapper<EnumerateCopyBroadcastPass, OperationPass<ModuleOp>> {
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(EnumerateCopyBroadcastPass)
 
-  ExploreAllocCopyMappingPass() = default;
-  ExploreAllocCopyMappingPass(bool analysisOnly) : analysisOnly(analysisOnly) {}
+  EnumerateCopyBroadcastPass() = default;
+  EnumerateCopyBroadcastPass(bool analysisOnly) : analysisOnly(analysisOnly) {}
 
   /**
    * @brief Get the command-line argument name for this pass.
    * @return The argument name string.
    */
   StringRef getArgument() const override {
-    return "loom-explore-alloc-copy-mapping";
+    return "loom-enumerate-copy-broadcast";
   }
 
   /**
@@ -608,7 +611,7 @@ struct ExploreAllocCopyMappingPass
    * @return The description string.
    */
   StringRef getDescription() const override {
-    return "Explore interconnect mapping choices for loom.copy operations";
+    return "Enumerate interconnect broadcast choices for loom.copy operations";
   }
 
   /**
@@ -714,10 +717,10 @@ struct ExploreAllocCopyMappingPass
 } // namespace
 
 std::unique_ptr<mlir::Pass>
-loom::passes::createExploreAllocCopyMappingPass(bool analysisOnly) {
-  return std::make_unique<ExploreAllocCopyMappingPass>(analysisOnly);
+loom::passes::createEnumerateCopyBroadcastPass(bool analysisOnly) {
+  return std::make_unique<EnumerateCopyBroadcastPass>(analysisOnly);
 }
 
-void loom::passes::registerExploreAllocCopyMappingPass() {
-  PassRegistration<ExploreAllocCopyMappingPass>();
+void loom::passes::registerEnumerateCopyBroadcastPass() {
+  PassRegistration<EnumerateCopyBroadcastPass>();
 }
