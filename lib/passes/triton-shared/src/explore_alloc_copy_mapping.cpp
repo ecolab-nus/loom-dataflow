@@ -37,6 +37,66 @@ constexpr StringLiteral kHorizontalLinks = "horizontal_links";
 constexpr StringLiteral kVerticalLinks = "vertical_links";
 
 /**
+ * @brief Structure representing an interconnect choice for a copy operation.
+ * @details Can represent DRAM access, a single interconnect direction, or all directions (broadcast).
+ */
+struct InterconnectChoice {
+  enum Type { DRAM, Single, AllDirections };
+  Type type;
+  loom::df::InterconnectsOp horizontal;  // Used for Single(h) and AllDirections
+  loom::df::InterconnectsOp vertical;    // Used for Single(v) and AllDirections
+  
+  /**
+   * @brief Create a DRAM choice (no interconnect).
+   * @return InterconnectChoice representing DRAM access.
+   */
+  static InterconnectChoice makeDRAM() {
+    InterconnectChoice choice;
+    choice.type = DRAM;
+    choice.horizontal = nullptr;
+    choice.vertical = nullptr;
+    return choice;
+  }
+  
+  /**
+   * @brief Create a single-direction interconnect choice.
+   * @param op The interconnect operation.
+   * @return InterconnectChoice representing a single interconnect.
+   */
+  static InterconnectChoice makeSingle(loom::df::InterconnectsOp op) {
+    InterconnectChoice choice;
+    choice.type = Single;
+    StringRef name = op ? op.getSymName() : StringRef();
+    if (name == kHorizontalLinks) {
+      choice.horizontal = op;
+      choice.vertical = nullptr;
+    } else if (name == kVerticalLinks) {
+      choice.horizontal = nullptr;
+      choice.vertical = op;
+    } else {
+      choice.horizontal = op;
+      choice.vertical = nullptr;
+    }
+    return choice;
+  }
+  
+  /**
+   * @brief Create an all-directions broadcast choice.
+   * @param h The horizontal interconnect operation.
+   * @param v The vertical interconnect operation.
+   * @return InterconnectChoice representing all-directions broadcast.
+   */
+  static InterconnectChoice makeAllDirections(loom::df::InterconnectsOp h, 
+                                               loom::df::InterconnectsOp v) {
+    InterconnectChoice choice;
+    choice.type = AllDirections;
+    choice.horizontal = h;
+    choice.vertical = v;
+    return choice;
+  }
+};
+
+/**
  * @brief Check whether a value depends (transitively) on a target value.
  * @details Walks the SSA def-use graph backward from value to determine if
  * target appears among its transitive operands. Block arguments stop the walk.
@@ -154,6 +214,27 @@ static std::string getInterconnectShortLabel(loom::df::InterconnectsOp interconn
 }
 
 /**
+ * @brief Get a short label for an interconnect choice.
+ * @details Returns a single character label based on choice type:
+ *   - "d" for DRAM
+ *   - "a" for AllDirections (both horizontal and vertical)
+ *   - "h" for horizontal_links
+ *   - "v" for vertical_links
+ *   - "i" for other interconnects (fallback)
+ * @param choice The interconnect choice.
+ * @return The short label string.
+ */
+static std::string getInterconnectShortLabel(const InterconnectChoice &choice) {
+  if (choice.type == InterconnectChoice::DRAM)
+    return "d";
+  if (choice.type == InterconnectChoice::AllDirections)
+    return "a";
+  // Single case: check horizontal or vertical
+  loom::df::InterconnectsOp op = choice.horizontal ? choice.horizontal : choice.vertical;
+  return getInterconnectShortLabel(op);
+}
+
+/**
  * @brief Collect all enclosing affine.parallel loops for an operation.
  * @details Walks up the parent chain to find all affine.parallel operations that enclose the given operation.
  * @param op The operation to find enclosing loops for.
@@ -239,15 +320,16 @@ static SmallVector<loom::df::InterconnectsOp> findMatchingInterconnects(ModuleOp
  * @brief Find all candidate df.interconnects operations for a loom.copy operation.
  * @details This function checks if the copy operation's source has spatial reuse,
  * and if so, finds all df.interconnects operations that match the spatial dimensions
- * that the reinterpret_cast depends on.
+ * that the reinterpret_cast depends on. Returns InterconnectChoice objects that can
+ * represent DRAM, single direction, or all-directions broadcast.
  * @param copyOp The loom.copy operation to analyze.
  * @param module The module containing the df.interconnects operations.
- * @return A vector of candidate df.interconnects operations (always includes nullptr for DRAM option).
+ * @return A vector of candidate InterconnectChoice objects (always includes DRAM option).
  */
-static SmallVector<loom::df::InterconnectsOp> findCandidateInterconnects(loom::CopyOp copyOp,
-                                                                          ModuleOp module) {
-  SmallVector<loom::df::InterconnectsOp> candidates;
-  candidates.push_back(nullptr); // Always include DRAM option (nullptr)
+static SmallVector<InterconnectChoice> findCandidateInterconnects(loom::CopyOp copyOp,
+                                                                   ModuleOp module) {
+  SmallVector<InterconnectChoice> candidates;
+  candidates.push_back(InterconnectChoice::makeDRAM()); // Always include DRAM option
 
   auto reinterpretCastOp = findReinterpretCastSource(copyOp);
   if (!reinterpretCastOp)
@@ -262,6 +344,8 @@ static SmallVector<loom::df::InterconnectsOp> findCandidateInterconnects(loom::C
   SmallVector<affine::AffineParallelOp> parallelLoops = 
       collectEnclosingParallelLoops(copyOp);
 
+  // First collect all raw interconnect operations
+  SmallVector<loom::df::InterconnectsOp> rawCandidates;
   for (auto par : parallelLoops) {
     auto mappedToAttr = par->getAttrOfType<SymbolRefAttr>("loom.mapped_to");
     if (!mappedToAttr)
@@ -273,7 +357,39 @@ static SmallVector<loom::df::InterconnectsOp> findCandidateInterconnects(loom::C
       continue;
 
     auto matches = findMatchingInterconnects(module, mappedToAttr);
-    candidates.append(matches.begin(), matches.end());
+    rawCandidates.append(matches.begin(), matches.end());
+  }
+
+  // Now identify horizontal and vertical links
+  loom::df::InterconnectsOp horizontalOp = nullptr;
+  loom::df::InterconnectsOp verticalOp = nullptr;
+  SmallVector<loom::df::InterconnectsOp> otherOps;
+  
+  for (auto op : rawCandidates) {
+    StringRef name = getInterconnectSymbolName(op);
+    if (name == kHorizontalLinks) {
+      horizontalOp = op;
+    } else if (name == kVerticalLinks) {
+      verticalOp = op;
+    } else {
+      otherOps.push_back(op);
+    }
+  }
+
+  // If both horizontal and vertical exist, add all-directions option
+  if (horizontalOp && verticalOp) {
+    candidates.push_back(InterconnectChoice::makeAllDirections(horizontalOp, verticalOp));
+  }
+
+  // Add individual single-direction choices
+  if (horizontalOp) {
+    candidates.push_back(InterconnectChoice::makeSingle(horizontalOp));
+  }
+  if (verticalOp) {
+    candidates.push_back(InterconnectChoice::makeSingle(verticalOp));
+  }
+  for (auto op : otherOps) {
+    candidates.push_back(InterconnectChoice::makeSingle(op));
   }
 
   return candidates;
@@ -306,19 +422,34 @@ static std::optional<uint64_t> getSpatialDimSize(ModuleOp module, SymbolRefAttr 
  * @param copyOp The copy operation to set the attribute on.
  * @param interconnectOp The interconnect operation (nullptr for DRAM).
  * @param builder OpBuilder for creating attributes.
+ * @param append If true, appends to existing interconnect array; if false, replaces it.
  * @return true if successfully set, false if interconnectOp is non-null but has no symbol name.
  */
 static bool setInterconnectAttribute(loom::CopyOp copyOp, 
                                      loom::df::InterconnectsOp interconnectOp,
-                                     OpBuilder &builder) {
+                                     OpBuilder &builder,
+                                     bool append = false) {
   if (interconnectOp) {
     StringRef interconnectName = getInterconnectSymbolName(interconnectOp);
     if (interconnectName.empty())
       return false;
     
     auto symbolRef = SymbolRefAttr::get(builder.getContext(), interconnectName);
-    auto interconnectAttr = ArrayAttr::get(builder.getContext(), {symbolRef});
-    copyOp->setAttr("interconnect", interconnectAttr);
+    
+    if (append) {
+      // Read existing interconnect array and append
+      SmallVector<Attribute> interconnectAttrs;
+      if (auto existingAttr = copyOp->getAttrOfType<ArrayAttr>("interconnect")) {
+        interconnectAttrs.append(existingAttr.begin(), existingAttr.end());
+      }
+      interconnectAttrs.push_back(symbolRef);
+      auto interconnectAttr = ArrayAttr::get(builder.getContext(), interconnectAttrs);
+      copyOp->setAttr("interconnect", interconnectAttr);
+    } else {
+      // Replace with new array
+      auto interconnectAttr = ArrayAttr::get(builder.getContext(), {symbolRef});
+      copyOp->setAttr("interconnect", interconnectAttr);
+    }
   } else {
     auto emptyInterconnect = ArrayAttr::get(builder.getContext(), {});
     copyOp->setAttr("interconnect", emptyInterconnect);
@@ -372,19 +503,21 @@ static void updateBroadcastForInterconnect(SmallVector<int64_t> &broadcastValues
  * 
  * For horizontal_links or vertical_links interconnects, updates the corresponding
  * broadcast dimension with the spatial_dim size:
- * - horizontal_links -> updates broadcast[0]
- * - vertical_links -> updates broadcast[1]
+ * - horizontal_links -> updates broadcast[1]
+ * - vertical_links -> updates broadcast[0]
  * 
  * @param copyOp The loom.copy operation to modify.
  * @param interconnectOp The interconnect operation to apply (can be nullptr for DRAM).
  * @param module The module containing df.spatial_dim operations.
  * @param builder OpBuilder for creating new operations.
+ * @param append If true, appends interconnect to existing array; if false, replaces it.
  * @return true if successfully applied, false otherwise.
  */
 static bool applyInterconnectAndBroadcastToCopy(loom::CopyOp copyOp, 
                                                 loom::df::InterconnectsOp interconnectOp,
-                                                ModuleOp module, OpBuilder &builder) {
-  if (!setInterconnectAttribute(copyOp, interconnectOp, builder))
+                                                ModuleOp module, OpBuilder &builder,
+                                                bool append = false) {
+  if (!setInterconnectAttribute(copyOp, interconnectOp, builder, append))
     return false;
   
   SmallVector<int64_t> broadcastValues = getBroadcastAttribute(copyOp);
@@ -392,6 +525,31 @@ static bool applyInterconnectAndBroadcastToCopy(loom::CopyOp copyOp,
   setBroadcastAttribute(copyOp, broadcastValues);
   
   return true;
+}
+
+/**
+ * @brief Apply all-directions broadcast to a loom.copy operation.
+ * @details Applies both horizontal and vertical interconnects by calling
+ * applyInterconnectAndBroadcastToCopy twice. First applies horizontal,
+ * then appends vertical to the interconnect attribute array.
+ * 
+ * @param copyOp The loom.copy operation to modify.
+ * @param horizontalOp The horizontal interconnect operation.
+ * @param verticalOp The vertical interconnect operation.
+ * @param module The module containing df.spatial_dim operations.
+ * @param builder OpBuilder for creating new operations.
+ * @return true if successfully applied both directions, false otherwise.
+ */
+static bool applyAllDirectionsInterconnectToCopy(loom::CopyOp copyOp,
+                                                 loom::df::InterconnectsOp horizontalOp,
+                                                 loom::df::InterconnectsOp verticalOp,
+                                                 ModuleOp module, OpBuilder &builder) {
+  // First call: apply horizontal (replaces interconnect attribute)
+  if (!applyInterconnectAndBroadcastToCopy(copyOp, horizontalOp, module, builder, false))
+    return false;
+  
+  // Second call: apply vertical (appends to interconnect attribute)
+  return applyInterconnectAndBroadcastToCopy(copyOp, verticalOp, module, builder, true);
 }
 
 /**
@@ -410,17 +568,17 @@ static SmallVector<loom::CopyOp> findCopyOpsInFunc(func::FuncOp func) {
 /**
  * @brief Generate a function name based on interconnect choices.
  * @details Creates a new function name by appending short interconnect labels to the base name.
- * Uses labels: "d" for DRAM, "h" for horizontal, "v" for vertical.
+ * Uses labels: "d" for DRAM, "h" for horizontal, "v" for vertical, "a" for all directions.
  * @param baseName The base function name.
- * @param interconnect1 The first interconnect operation (can be nullptr for DRAM).
- * @param interconnect2 The second interconnect operation (can be nullptr for DRAM).
+ * @param choice1 The first interconnect choice.
+ * @param choice2 The second interconnect choice.
  * @return The new function name with interconnect labels appended.
  */
 static std::string generateFunctionName(StringRef baseName,
-                                        loom::df::InterconnectsOp interconnect1,
-                                        loom::df::InterconnectsOp interconnect2) {
-  std::string label1 = getInterconnectShortLabel(interconnect1);
-  std::string label2 = getInterconnectShortLabel(interconnect2);
+                                        const InterconnectChoice &choice1,
+                                        const InterconnectChoice &choice2) {
+  std::string label1 = getInterconnectShortLabel(choice1);
+  std::string label2 = getInterconnectShortLabel(choice2);
   return baseName.str() + "__" + label1 + "_" + label2;
 }
 
@@ -481,8 +639,8 @@ struct ExploreAllocCopyMappingPass
       auto candidates2 = findCandidateInterconnects(copyOp2, module);
 
       Operation *insertAfter = originalFunc;
-      for (loom::df::InterconnectsOp interconnect1 : candidates1) {
-        for (loom::df::InterconnectsOp interconnect2 : candidates2) {
+      for (const InterconnectChoice &choice1 : candidates1) {
+        for (const InterconnectChoice &choice2 : candidates2) {
           moduleBuilder.setInsertionPointAfter(insertAfter);
           IRMapping map;
           func::FuncOp clonedFunc = cast<func::FuncOp>(
@@ -497,20 +655,49 @@ struct ExploreAllocCopyMappingPass
           loom::CopyOp clonedCopyOp1 = clonedCopyOps[0];
           OpBuilder builder(clonedCopyOp1);
           
-          if (!applyInterconnectAndBroadcastToCopy(clonedCopyOp1, interconnect1, module, builder)) {
+          // Apply first interconnect choice
+          bool success1 = false;
+          if (choice1.type == InterconnectChoice::AllDirections) {
+            success1 = applyAllDirectionsInterconnectToCopy(clonedCopyOp1, 
+                                                            choice1.horizontal, 
+                                                            choice1.vertical, 
+                                                            module, builder);
+          } else if (choice1.type == InterconnectChoice::Single) {
+            loom::df::InterconnectsOp op1 = choice1.horizontal ? choice1.horizontal : choice1.vertical;
+            success1 = applyInterconnectAndBroadcastToCopy(clonedCopyOp1, op1, module, builder);
+          } else { // DRAM
+            success1 = applyInterconnectAndBroadcastToCopy(clonedCopyOp1, nullptr, module, builder);
+          }
+          
+          if (!success1) {
             clonedFunc.erase();
             continue;
           }
 
           loom::CopyOp clonedCopyOp2 = clonedCopyOps[1];
           builder.setInsertionPoint(clonedCopyOp2);
-          if (!applyInterconnectAndBroadcastToCopy(clonedCopyOp2, interconnect2, module, builder)) {
+          
+          // Apply second interconnect choice
+          bool success2 = false;
+          if (choice2.type == InterconnectChoice::AllDirections) {
+            success2 = applyAllDirectionsInterconnectToCopy(clonedCopyOp2, 
+                                                            choice2.horizontal, 
+                                                            choice2.vertical, 
+                                                            module, builder);
+          } else if (choice2.type == InterconnectChoice::Single) {
+            loom::df::InterconnectsOp op2 = choice2.horizontal ? choice2.horizontal : choice2.vertical;
+            success2 = applyInterconnectAndBroadcastToCopy(clonedCopyOp2, op2, module, builder);
+          } else { // DRAM
+            success2 = applyInterconnectAndBroadcastToCopy(clonedCopyOp2, nullptr, module, builder);
+          }
+          
+          if (!success2) {
             clonedFunc.erase();
             continue;
           }
 
           std::string newName = generateFunctionName(originalFunc.getSymName(),
-                                                      interconnect1, interconnect2);
+                                                      choice1, choice2);
           clonedFunc.setName(newName);
           insertAfter = clonedFunc;
         }
