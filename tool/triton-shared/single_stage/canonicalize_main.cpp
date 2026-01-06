@@ -75,9 +75,9 @@ int main(int argc, char **argv) {
   /// Step 2: Staticize - Convert dynamic memref/tensor types to static types.
   pm.addPass(loom::passes::createStaticizeTypesPass());
   /// Step 3: Lower - Lower loom operations to memref dialect.
-  // pm.addPass(loom::passes::createLoomToMemRefLoweringPass());
-  // /// Step 4: Affinize - Convert index arithmetic to affine IR.
-  // pm.addPass(loom::passes::createTritonSharedAffinizePass());
+  pm.addPass(loom::passes::createLoomToMemRefLoweringPass());
+  /// Step 4: Affinize - Convert index arithmetic to affine IR.
+  pm.addPass(loom::passes::createTritonSharedAffinizePass());
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Canonicalize pass failed\n";
     return 2;
