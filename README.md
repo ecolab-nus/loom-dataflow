@@ -140,21 +140,21 @@ build/tool/triton-shared/single_stage/hoist_block_loading \
   > test/Passes/mm_2Dmesh/03_after_block_hoisting.mlir
 ```
 
-3) Analyze reuse pattern on `loom.reinterpret_cast`
+4) Analyze reuse pattern on `loom.reinterpret_cast`
 ```bash
 build/tool/triton-shared/single_stage/analyze_reuse \
   --input test/Passes/mm_2Dmesh/03_after_block_hoisting.mlir \
   > test/Passes/mm_2Dmesh/04_after_reuse_analyzation.mlir
 ```
 
-4) Enumerate copy interconnect broadcast choices on `loom.copy`
+5) Enumerate copy interconnect broadcast choices on `loom.copy`
 ```bash
 build/tool/triton-shared/single_stage/enumerate_copy_broadcast \
   --input test/Passes/mm_2Dmesh/04_after_reuse_analyzation.mlir \
   > test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir
 ```
 
-5) Canonicalize 
+6) Canonicalize 
 ```bash
 build/tool/triton-shared/single_stage/canonicalize \
   --input test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir \
