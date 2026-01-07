@@ -631,6 +631,13 @@ struct EnumerateCopyBroadcastPass
     SmallVector<func::FuncOp> funcs = loom::utils::collectFunctions(module);
 
     for (func::FuncOp originalFunc : funcs) {
+      // Get the attributes from the parent module of the function
+      ModuleOp parentModule = loom::utils::getParentModule(originalFunc);
+      DictionaryAttr moduleAttrs = nullptr;
+      if (parentModule) {
+        moduleAttrs = parentModule->getAttrDictionary();
+      }
+      
       auto copyOps = findCopyOpsInFunc(originalFunc);
       if (copyOps.size() != 2)
         continue;
@@ -641,15 +648,16 @@ struct EnumerateCopyBroadcastPass
       auto candidates1 = findCandidateInterconnects(copyOp1, module);
       auto candidates2 = findCandidateInterconnects(copyOp2, module);
 
-      Operation *insertAfter = originalFunc;
+      // Track insertion at module level
+      Operation *insertAfter = parentModule;
       for (const InterconnectChoice &choice1 : candidates1) {
         for (const InterconnectChoice &choice2 : candidates2) {
           std::string newName = generateFunctionName(originalFunc.getSymName(),
                                                       choice1, choice2);
           
-          // Clone and modify the function with interconnect choices
-          func::FuncOp clonedFunc = loom::utils::cloneModifyAndInsertFunction(
-              moduleBuilder, originalFunc, newName,
+          // Clone and modify the function with interconnect choices and module wrapper
+          func::FuncOp clonedFunc = loom::utils::cloneModifyAndInsertFunctionWithModuleWrapper(
+              moduleBuilder, originalFunc, newName, moduleAttrs,
               [&](func::FuncOp func) -> LogicalResult {
                 // Find copy operations in the cloned function
                 auto clonedCopyOps = findCopyOpsInFunc(func);
@@ -704,12 +712,21 @@ struct EnumerateCopyBroadcastPass
               insertAfter);
           
           if (clonedFunc) {
-            insertAfter = clonedFunc;
+            // Update insertion point to the wrapper module
+            ModuleOp clonedParentModule = loom::utils::getParentModule(clonedFunc);
+            if (clonedParentModule) {
+              insertAfter = clonedParentModule;
+            }
           }
         }
       }
       
-      originalFunc.erase();
+      // Erase the original function's parent module (which contains the original function)
+      if (parentModule) {
+        parentModule.erase();
+      } else {
+        originalFunc.erase();
+      }
     }
   }
 

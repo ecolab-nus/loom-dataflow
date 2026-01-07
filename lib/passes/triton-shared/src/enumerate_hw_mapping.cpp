@@ -351,7 +351,16 @@ EnumerateSpatialMappings(ModuleOp affineModule,
     out->setAttrs(affineModule->getAttrs());
   }
 
-  for (func::FuncOp func : affineModule.getOps<func::FuncOp>()) {
+  // Collect all functions from nested modules
+  llvm::SmallVector<func::FuncOp> allFuncs = loom::utils::collectFunctions(affineModule);
+  
+  for (func::FuncOp func : allFuncs) {
+    // Get the attributes from the parent module of the function
+    ModuleOp parentModule = loom::utils::getParentModule(func);
+    DictionaryAttr moduleAttrs = nullptr;
+    if (parentModule) {
+      moduleAttrs = parentModule->getAttrDictionary();
+    }
     SmallVector<affine::AffineParallelOp> roots;
     func.walk([&](affine::AffineParallelOp par) {
       if (!par->getParentOfType<affine::AffineParallelOp>())
@@ -359,7 +368,8 @@ EnumerateSpatialMappings(ModuleOp affineModule,
     });
     if (roots.empty()) {
       builder.setInsertionPointToEnd(out.getBody());
-      (void)loom::utils::cloneAndInsertFunction(builder, func, func.getName(), nullptr);
+      (void)loom::utils::cloneAndInsertFunctionWithModuleWrapper(
+          builder, func, func.getName(), moduleAttrs, nullptr);
       continue;
     }
 
@@ -380,8 +390,8 @@ EnumerateSpatialMappings(ModuleOp affineModule,
       builder.setInsertionPointToEnd(out.getBody());
       std::string newName = (func.getName() + "__for").str();
       
-      auto clonedFunc = loom::utils::cloneModifyAndInsertFunction(
-          builder, func, newName,
+      auto clonedFunc = loom::utils::cloneModifyAndInsertFunctionWithModuleWrapper(
+          builder, func, newName, moduleAttrs,
           [&](func::FuncOp cloned) -> LogicalResult {
             affine::AffineParallelOp currentOuter = nullptr;
             cloned.walk([&](affine::AffineParallelOp par) {
@@ -422,8 +432,9 @@ EnumerateSpatialMappings(ModuleOp affineModule,
           newName += "__";
           
           // Clone and apply the mapping
-          auto clonedFunc = loom::utils::cloneModifyAndInsertFunction(
+          auto clonedFunc = loom::utils::cloneModifyAndInsertFunctionWithModuleWrapper(
               builder, func, "",  // Temporary name, will be set after getting mappingSuffix
+              moduleAttrs,
               [&](func::FuncOp cloned) -> LogicalResult {
                 affine::AffineParallelOp tar_forOp = getOutermostParallel(cloned);
                 if (!tar_forOp) {

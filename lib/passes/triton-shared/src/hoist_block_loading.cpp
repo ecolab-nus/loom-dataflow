@@ -67,6 +67,12 @@ public:
         
         // Process each function and insert clones immediately after it
         for (mlir::func::FuncOp originalFunc : funcs) {
+            // Get the attributes from the parent module of the function
+            mlir::ModuleOp parentModule = loom::utils::getParentModule(originalFunc);
+            mlir::DictionaryAttr moduleAttrs = nullptr;
+            if (parentModule) {
+                moduleAttrs = parentModule->getAttrDictionary();
+            }
             // Find the innermost scf.for loop
             mlir::scf::ForOp innermostForOp = findInnermostForOp(originalFunc);
             
@@ -81,17 +87,17 @@ public:
                 continue;
             }
             
-            // Track insertion point for consecutive clones
-            mlir::Operation *insertAfter = originalFunc;
+            // Track insertion point for consecutive clones (at module level)
+            mlir::Operation *insertAfter = parentModule;
             
             // Create clones for each block index and insert them immediately after the previous one
             for (size_t block_idx = 0; block_idx < loading_blocks.size(); ++block_idx) {
                 std::string newName = originalFunc.getSymName().str() + "__hoist_block_" + 
                                      std::to_string(block_idx);
                 
-                // Clone the function and apply hoisting modification
-                mlir::func::FuncOp clonedFunc = loom::utils::cloneModifyAndInsertFunction(
-                    moduleBuilder, originalFunc, newName,
+                // Clone the function and apply hoisting modification with module wrapper
+                mlir::func::FuncOp clonedFunc = loom::utils::cloneModifyAndInsertFunctionWithModuleWrapper(
+                    moduleBuilder, originalFunc, newName, moduleAttrs,
                     [&](mlir::func::FuncOp func) -> mlir::LogicalResult {
                         // Find the innermost loop in the cloned function and hoist the block
                         mlir::scf::ForOp clonedInnermostForOp = findInnermostForOp(func);
@@ -108,9 +114,12 @@ public:
                     },
                     insertAfter);
                 
-                // Update insertion point for next clone
+                // Update insertion point for next clone (should point to the wrapper module)
                 if (clonedFunc) {
-                    insertAfter = clonedFunc;
+                    mlir::ModuleOp clonedParentModule = loom::utils::getParentModule(clonedFunc);
+                    if (clonedParentModule) {
+                        insertAfter = clonedParentModule;
+                    }
                 }
                 // If clonedFunc is nullptr, keep insertAfter as-is for next attempt
             }

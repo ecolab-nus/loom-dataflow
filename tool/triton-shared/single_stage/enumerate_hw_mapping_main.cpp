@@ -121,14 +121,19 @@ int main(int argc, char **argv) {
       loom_affine::EnumerateSpatialMappings(*tsModule, hardwareInfo);
 
   // Merge DF declarations and generated clones into a single module.
+  // Structure: outer module -> DF ops at top -> nested modules (each containing a func variant)
   OwningOpRef<ModuleOp> merged = ModuleOp::create(UnknownLoc::get(&context));
   if (!(*out)->getAttrs().empty()) {
     (*merged)->setAttrs((*out)->getAttrs());
   }
   OpBuilder builder(merged->getBodyRegion());
   IRMapping mapping;
+  
+  // First, insert DF hardware declarations at the top of the outer module
   for (Operation &op : *dfModule->getBody())
     builder.clone(op, mapping);
+  
+  // Then, insert all the nested modules containing function variants
   for (Operation &op : *out->getBody())
     builder.clone(op, mapping);
 
