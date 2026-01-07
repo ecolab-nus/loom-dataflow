@@ -1,5 +1,6 @@
 #include "hoist_block_loading.h"
 #include "block_loading_pattern.h"
+#include "utils.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/Builders.h"
@@ -62,8 +63,7 @@ public:
         mlir::OpBuilder moduleBuilder(module.getBodyRegion());
         
         // Collect all functions first to avoid iterator invalidation
-        llvm::SmallVector<mlir::func::FuncOp> funcs(module.getOps<mlir::func::FuncOp>().begin(),
-                                                     module.getOps<mlir::func::FuncOp>().end());
+        llvm::SmallVector<mlir::func::FuncOp> funcs = loom::utils::collectFunctions(module);
         
         // Process each function and insert clones immediately after it
         for (mlir::func::FuncOp originalFunc : funcs) {
@@ -81,34 +81,38 @@ public:
                 continue;
             }
             
-            // Set insertion point right after the original function
-            moduleBuilder.setInsertionPointAfter(originalFunc);
+            // Track insertion point for consecutive clones
+            mlir::Operation *insertAfter = originalFunc;
             
-            // Create clones for each block index and insert them immediately after the original function
+            // Create clones for each block index and insert them immediately after the previous one
             for (size_t block_idx = 0; block_idx < loading_blocks.size(); ++block_idx) {
-                // Clone the function
-                mlir::IRMapping map;
-                mlir::func::FuncOp clonedFunc = 
-                    mlir::cast<mlir::func::FuncOp>(moduleBuilder.clone(*originalFunc, map));
-                
-                // Rename the cloned function
                 std::string newName = originalFunc.getSymName().str() + "__hoist_block_" + 
                                      std::to_string(block_idx);
-                clonedFunc.setName(newName);
                 
-                // Find the innermost loop in the cloned function and hoist the block
-                mlir::scf::ForOp clonedInnermostForOp = findInnermostForOp(clonedFunc);
-                bool isValid = clonedInnermostForOp && 
-                              succeeded(loom::affine::HoistSingleBlock(clonedInnermostForOp, block_idx));
+                // Clone the function and apply hoisting modification
+                mlir::func::FuncOp clonedFunc = loom::utils::cloneModifyAndInsertFunction(
+                    moduleBuilder, originalFunc, newName,
+                    [&](mlir::func::FuncOp func) -> mlir::LogicalResult {
+                        // Find the innermost loop in the cloned function and hoist the block
+                        mlir::scf::ForOp clonedInnermostForOp = findInnermostForOp(func);
+                        if (!clonedInnermostForOp) {
+                            return mlir::failure();
+                        }
+                        
+                        // Attempt to hoist the block
+                        if (failed(loom::affine::HoistSingleBlock(clonedInnermostForOp, block_idx))) {
+                            return mlir::failure();
+                        }
+                        
+                        return mlir::success();
+                    },
+                    insertAfter);
                 
-                if (!isValid) {
-                    // Block is invalid (never used CreateHoistedOpsSimple), erase the cloned function
-                    clonedFunc.erase();
-                    moduleBuilder.setInsertionPointAfter(originalFunc);
-                } else {
-                    // Block is valid, keep the cloned function
-                    moduleBuilder.setInsertionPointAfter(clonedFunc);
+                // Update insertion point for next clone
+                if (clonedFunc) {
+                    insertAfter = clonedFunc;
                 }
+                // If clonedFunc is nullptr, keep insertAfter as-is for next attempt
             }
         }
     }

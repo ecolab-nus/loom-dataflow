@@ -24,6 +24,7 @@
 
 #include "enumerate_hw_mapping.h"
 #include "affine_tile.h"
+#include "utils.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -357,9 +358,8 @@ EnumerateSpatialMappings(ModuleOp affineModule,
         roots.push_back(par);
     });
     if (roots.empty()) {
-      IRMapping map;
       builder.setInsertionPointToEnd(out.getBody());
-      (void)builder.clone(*func, map);
+      (void)loom::utils::cloneAndInsertFunction(builder, func, func.getName(), nullptr);
       continue;
     }
 
@@ -376,19 +376,28 @@ EnumerateSpatialMappings(ModuleOp affineModule,
       // nested-for in identity order [0..P-1] and emit a single clone.
       SmallVector<unsigned> order(P);
       std::iota(order.begin(), order.end(), 0);
-      IRMapping map;
+      
       builder.setInsertionPointToEnd(out.getBody());
-      auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
-      affine::AffineParallelOp currentOuter = nullptr;
-      clonedFunc.walk([&](affine::AffineParallelOp par) {
-        if (!par->getParentOfType<affine::AffineParallelOp>() && !currentOuter)
-          currentOuter = par;
-      });
-      if (!currentOuter)
+      std::string newName = (func.getName() + "__for").str();
+      
+      auto clonedFunc = loom::utils::cloneModifyAndInsertFunction(
+          builder, func, newName,
+          [&](func::FuncOp cloned) -> LogicalResult {
+            affine::AffineParallelOp currentOuter = nullptr;
+            cloned.walk([&](affine::AffineParallelOp par) {
+              if (!par->getParentOfType<affine::AffineParallelOp>() && !currentOuter)
+                currentOuter = par;
+            });
+            if (!currentOuter)
+              return failure();
+            if (failed(ConvertParallelToNested(currentOuter, order)))
+              return failure();
+            return success();
+          },
+          nullptr);
+      
+      if (!clonedFunc)
         continue;
-      (void)ConvertParallelToNested(currentOuter, order);
-      // Canonical case: append "__for" to indicate outer-for materialization.
-      clonedFunc.setName((func.getName() + "__for").str());
       continue;
     }
 
@@ -405,39 +414,47 @@ EnumerateSpatialMappings(ModuleOp affineModule,
 
         SmallVector<unsigned> orderCopy = order;
         do {
-          IRMapping map;
           builder.setInsertionPointToEnd(out.getBody());
-          auto clonedFunc = cast<func::FuncOp>(builder.clone(*func, map));
-
+          
+          // Build the function name first
           std::string mappingSuffix;
-          affine::AffineParallelOp tar_forOp = getOutermostParallel(clonedFunc);
-          if (!tar_forOp) {
-            clonedFunc.erase();
-            continue;
-          }
-
-          if (failed(applyMappingToFunction(clonedFunc, mapping, hardwareInfo.spatialDimInfoVec,
-                                            tar_forOp, mappingSuffix))) {
-            clonedFunc.erase();
-            continue;
-          }
-
-          if (!tar_forOp ||
-              failed(ConvertParallelToNested(tar_forOp, orderCopy))) {
-            clonedFunc.erase();
-            continue;
-          }
-
-          composeAndCanonicalizeAffineApplies(clonedFunc);
-
           std::string newName = func.getName().str();
           newName += "__";
-          if (!mappingSuffix.empty())
-            newName += mappingSuffix;
-          newName += "__f";
-          for (unsigned idx : orderCopy)
-            newName += std::to_string(idx);
-          clonedFunc.setName(newName);
+          
+          // Clone and apply the mapping
+          auto clonedFunc = loom::utils::cloneModifyAndInsertFunction(
+              builder, func, "",  // Temporary name, will be set after getting mappingSuffix
+              [&](func::FuncOp cloned) -> LogicalResult {
+                affine::AffineParallelOp tar_forOp = getOutermostParallel(cloned);
+                if (!tar_forOp) {
+                  return failure();
+                }
+
+                if (failed(applyMappingToFunction(cloned, mapping, hardwareInfo.spatialDimInfoVec,
+                                                  tar_forOp, mappingSuffix))) {
+                  return failure();
+                }
+
+                if (!tar_forOp || failed(ConvertParallelToNested(tar_forOp, orderCopy))) {
+                  return failure();
+                }
+
+                composeAndCanonicalizeAffineApplies(cloned);
+                
+                return success();
+              },
+              nullptr);
+          
+          if (clonedFunc) {
+            // Set the final name with the mappingSuffix obtained during modification
+            std::string finalName = newName;
+            if (!mappingSuffix.empty())
+              finalName += mappingSuffix;
+            finalName += "__f";
+            for (unsigned idx : orderCopy)
+              finalName += std::to_string(idx);
+            clonedFunc.setName(finalName);
+          }
 
         } while (std::next_permutation(orderCopy.begin(), orderCopy.end()));
       }
