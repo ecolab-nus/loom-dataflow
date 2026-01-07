@@ -10,6 +10,7 @@
  */
 
 #include "enumerate_copy_broadcast.h"
+#include "utils.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Attributes.h"
@@ -627,8 +628,7 @@ struct EnumerateCopyBroadcastPass
     ModuleOp module = getOperation();
     OpBuilder moduleBuilder(module.getBodyRegion());
 
-    SmallVector<func::FuncOp> funcs(module.getOps<func::FuncOp>().begin(),
-                                     module.getOps<func::FuncOp>().end());
+    SmallVector<func::FuncOp> funcs = loom::utils::collectFunctions(module);
 
     for (func::FuncOp originalFunc : funcs) {
       auto copyOps = findCopyOpsInFunc(originalFunc);
@@ -644,65 +644,68 @@ struct EnumerateCopyBroadcastPass
       Operation *insertAfter = originalFunc;
       for (const InterconnectChoice &choice1 : candidates1) {
         for (const InterconnectChoice &choice2 : candidates2) {
-          moduleBuilder.setInsertionPointAfter(insertAfter);
-          IRMapping map;
-          func::FuncOp clonedFunc = cast<func::FuncOp>(
-              moduleBuilder.clone(*originalFunc, map));
-
-          auto clonedCopyOps = findCopyOpsInFunc(clonedFunc);
-          if (clonedCopyOps.size() != 2) {
-            clonedFunc.erase();
-            continue;
-          }
-          
-          loom::CopyOp clonedCopyOp1 = clonedCopyOps[0];
-          OpBuilder builder(clonedCopyOp1);
-          
-          // Apply first interconnect choice
-          bool success1 = false;
-          if (choice1.type == InterconnectChoice::AllDirections) {
-            success1 = applyAllDirectionsInterconnectToCopy(clonedCopyOp1, 
-                                                            choice1.horizontal, 
-                                                            choice1.vertical, 
-                                                            module, builder);
-          } else if (choice1.type == InterconnectChoice::Single) {
-            loom::df::InterconnectsOp op1 = choice1.horizontal ? choice1.horizontal : choice1.vertical;
-            success1 = applyInterconnectAndBroadcastToCopy(clonedCopyOp1, op1, module, builder);
-          } else { // DRAM
-            success1 = applyInterconnectAndBroadcastToCopy(clonedCopyOp1, nullptr, module, builder);
-          }
-          
-          if (!success1) {
-            clonedFunc.erase();
-            continue;
-          }
-
-          loom::CopyOp clonedCopyOp2 = clonedCopyOps[1];
-          builder.setInsertionPoint(clonedCopyOp2);
-          
-          // Apply second interconnect choice
-          bool success2 = false;
-          if (choice2.type == InterconnectChoice::AllDirections) {
-            success2 = applyAllDirectionsInterconnectToCopy(clonedCopyOp2, 
-                                                            choice2.horizontal, 
-                                                            choice2.vertical, 
-                                                            module, builder);
-          } else if (choice2.type == InterconnectChoice::Single) {
-            loom::df::InterconnectsOp op2 = choice2.horizontal ? choice2.horizontal : choice2.vertical;
-            success2 = applyInterconnectAndBroadcastToCopy(clonedCopyOp2, op2, module, builder);
-          } else { // DRAM
-            success2 = applyInterconnectAndBroadcastToCopy(clonedCopyOp2, nullptr, module, builder);
-          }
-          
-          if (!success2) {
-            clonedFunc.erase();
-            continue;
-          }
-
           std::string newName = generateFunctionName(originalFunc.getSymName(),
                                                       choice1, choice2);
-          clonedFunc.setName(newName);
-          insertAfter = clonedFunc;
+          
+          // Clone and modify the function with interconnect choices
+          func::FuncOp clonedFunc = loom::utils::cloneModifyAndInsertFunction(
+              moduleBuilder, originalFunc, newName,
+              [&](func::FuncOp func) -> LogicalResult {
+                // Find copy operations in the cloned function
+                auto clonedCopyOps = findCopyOpsInFunc(func);
+                if (clonedCopyOps.size() != 2) {
+                  return failure();
+                }
+                
+                loom::CopyOp clonedCopyOp1 = clonedCopyOps[0];
+                OpBuilder builder(clonedCopyOp1);
+                
+                // Apply first interconnect choice
+                bool success1 = false;
+                if (choice1.type == InterconnectChoice::AllDirections) {
+                  success1 = applyAllDirectionsInterconnectToCopy(clonedCopyOp1, 
+                                                                  choice1.horizontal, 
+                                                                  choice1.vertical, 
+                                                                  module, builder);
+                } else if (choice1.type == InterconnectChoice::Single) {
+                  loom::df::InterconnectsOp op1 = choice1.horizontal ? choice1.horizontal : choice1.vertical;
+                  success1 = applyInterconnectAndBroadcastToCopy(clonedCopyOp1, op1, module, builder);
+                } else { // DRAM
+                  success1 = applyInterconnectAndBroadcastToCopy(clonedCopyOp1, nullptr, module, builder);
+                }
+                
+                if (!success1) {
+                  return failure();
+                }
+
+                loom::CopyOp clonedCopyOp2 = clonedCopyOps[1];
+                builder.setInsertionPoint(clonedCopyOp2);
+                
+                // Apply second interconnect choice
+                bool success2 = false;
+                if (choice2.type == InterconnectChoice::AllDirections) {
+                  success2 = applyAllDirectionsInterconnectToCopy(clonedCopyOp2, 
+                                                                  choice2.horizontal, 
+                                                                  choice2.vertical, 
+                                                                  module, builder);
+                } else if (choice2.type == InterconnectChoice::Single) {
+                  loom::df::InterconnectsOp op2 = choice2.horizontal ? choice2.horizontal : choice2.vertical;
+                  success2 = applyInterconnectAndBroadcastToCopy(clonedCopyOp2, op2, module, builder);
+                } else { // DRAM
+                  success2 = applyInterconnectAndBroadcastToCopy(clonedCopyOp2, nullptr, module, builder);
+                }
+                
+                if (!success2) {
+                  return failure();
+                }
+                
+                return success();
+              },
+              insertAfter);
+          
+          if (clonedFunc) {
+            insertAfter = clonedFunc;
+          }
         }
       }
       
