@@ -11,3812 +11,4004 @@ module {
   %9 = df.spatial_dim "d", 4
   %10 = df.memory "DRAM" {scaleout=(%9) , size = 34359738368, bandwidth = 512}
   %11 = df.interconnects "NoC" %5 : !df.memory, %10 : !df.memory  {map = affine_map<(d0, d1) -> (d0 ceildiv 4 + (d1 ceildiv 4) * 2)>} : !df.interconnect
-  func.func @matmul_kernel__d0i0_d1i0__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to %arg4 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to %arg4 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f01__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to %arg4 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f01__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to %arg4 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f01__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to %arg4 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to %arg4 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg11, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to %arg4 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg11, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to %arg4 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg11, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to %arg4 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg11, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to %arg4 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg12)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_1__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to %arg4 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg12)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_1__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to %arg4 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg12)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to %arg4 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg12)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg4 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f10__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg4 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f10__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg4 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f10__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg4 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg4 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg12, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg4 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg12, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg4 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg12, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg4 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg12, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg4 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg11)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_1__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg4 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg11)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_1__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg4 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg11)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg4 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg11)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f01__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f01__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f01__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_0__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_0__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f10__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f10__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f10__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_0__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_0__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_1__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_1__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
-  }
-  func.func @matmul_kernel__d1i0_d0i1__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
-            }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
-          }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f01__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f01__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to %arg4 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f01__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f01__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to %arg4 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f01__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f01__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to %arg4 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to %arg4 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg11, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to %arg4 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg11, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to %arg4 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg11, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to %arg4 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg11, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg12, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to %arg4 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg12)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_1__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_1__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to %arg4 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg12)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_1__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_1__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to %arg4 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg12)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_1__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to %arg4 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg12)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg10, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg12, %arg11, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg4 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f10__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f10__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg4 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f10__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f10__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg4 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f10__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f10__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg4 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg4 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg12, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_0__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg4 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg12, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_0__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg4 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg12, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_0__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg4 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 32768)>(%arg12, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg11, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg4 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg11)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_1__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_1__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg4 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg11)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_1__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_1__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg4 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg11)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_1__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg4 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 64)>(%arg11)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg10, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2 * 8 + d1) * 32768 + d0 * 64)>(%arg11, %arg12, %arg10, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
       } {loom.mapped_to = @x}
-    } {loom.mapped_to = @y}
-    return
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg3 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f01__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg3 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f01__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f01__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg3 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f01__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f01__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg3 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f01__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg3 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg11)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_0__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg3 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg11)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_0__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg3 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg11)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_0__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_0__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg3 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg11)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_0__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg3 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg3 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg3 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to %arg3 {
-          affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to %arg3 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f10__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to %arg3 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f10__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f10__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to %arg3 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f10__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f10__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to %arg3 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
-              %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f10__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
-            %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to %arg3 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg12)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to %arg3 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg12)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to %arg3 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg12)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_0__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to %arg3 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg12)
-            %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_0__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to %arg3 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to %arg3 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_1__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to %arg3 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
-      } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
-  func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-    %c8 = arith.constant 8 : index
-    %c0 = arith.constant 0 : index
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1 = arith.constant 1 : index
-    affine.parallel (%arg9) = (0) to (8) {
-      affine.parallel (%arg10) = (0) to (8) {
-        affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
-          affine.for %arg12 = 0 to %arg3 {
-            %12 = tensor.empty() : tensor<64x64xf32>
-            %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
-            %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9)
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
-            %alloc = memref.alloc() : memref<8x64x64xf32>
-            memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
-            %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
-              %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
-              %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              %alloc_2 = memref.alloc() : memref<64x64xf32>
-              memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
-              %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
-              %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
-              %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
-              %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
-              %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
-              ^bb0(%in: f32, %in_3: f32, %out: f32):
-                %22 = arith.addf %in, %in_3 : f32
-                linalg.yield %22 : f32
-              } -> tensor<64x64xf32>
-              scf.yield %21 : tensor<64x64xf32>
+  module {
+    func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_1__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
             }
-            %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-            bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
           }
-        }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
       } {loom.mapped_to = @y}
-    } {loom.mapped_to = @x}
-    return
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f01__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f01__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f01__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg11, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_1__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_1__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_1__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg12, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg11, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg11, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f10__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f10__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f10__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_0__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_0__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_0__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 32768)>(%arg12, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2) -> (d2 * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_1__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_1__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_1__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> (s0 ceildiv 8)>()[%arg3] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1) -> ((d1 * 8 + d0) * 64)>(%arg11, %arg10)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1) * 32768 + d0 * 64)>(%arg13, %arg12, %arg9)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> ((d3 * 8 + d2) * 32768 + (d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg12, %arg9)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @x}
+      } {loom.mapped_to = @y}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg3 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f01__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg3 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f01__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg3 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f01__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg3 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg3 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg11)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_0__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg3 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg11)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_0__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg3 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg11)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_0__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg3 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg11)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg3 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg3 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg3 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to %arg3 {
+            affine.for %arg12 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg11)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg12, %arg10, %arg9, %arg11)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to %arg3 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f10__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to %arg3 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f10__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to %arg3 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f10__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to %arg3 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %16 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_0, %alloc : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %17 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %15 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%15], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %14 in writable %reinterpret_cast : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to %arg3 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg12)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to %arg3 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg12)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to %arg3 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg12)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to %arg3 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0) -> (d0 * 32768)>(%arg12)
+              %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %17 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %18 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg13)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%18], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %19 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%17, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to %arg3 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to %arg3 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to %arg3 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
+  }
+  module {
+    func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
+      %c8 = arith.constant 8 : index
+      %c0 = arith.constant 0 : index
+      %cst = arith.constant 0.000000e+00 : f32
+      %c1 = arith.constant 1 : index
+      affine.parallel (%arg9) = (0) to (8) {
+        affine.parallel (%arg10) = (0) to (8) {
+          affine.for %arg11 = 0 to affine_map<()[s0] -> ((s0 ceildiv 8) ceildiv 8)>()[%arg4] {
+            affine.for %arg12 = 0 to %arg3 {
+              %12 = tensor.empty() : tensor<64x64xf32>
+              %13 = linalg.fill ins(%cst : f32) outs(%12 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %14 = affine.apply affine_map<(d0, d1, d2) -> ((d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9)
+              %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%14], sizes: [8, 64, 64], strides: [32768, 512, 1] : memref<*xf32> to memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>>
+              %alloc = memref.alloc() : memref<8x64x64xf32>
+              memref.copy %reinterpret_cast, %alloc : memref<8x64x64xf32, strided<[32768, 512, 1], offset: ?>> to memref<8x64x64xf32>
+              %15 = scf.for %arg13 = %c0 to %c8 step %c1 iter_args(%arg14 = %13) -> (tensor<64x64xf32>) {
+                %17 = affine.apply affine_map<(d0, d1) -> (d1 * 32768 + d0 * 64)>(%arg13, %arg12)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%17], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+                %alloc_2 = memref.alloc() : memref<64x64xf32>
+                memref.copy %reinterpret_cast_1, %alloc_2 : memref<64x64xf32, strided<[512, 1], offset: ?>> to memref<64x64xf32>
+                %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x64xf32> to tensor<64x64xf32>
+                %subview = memref.subview %alloc[%arg13, 0, 0] [1, 64, 64] [1, 1, 1] : memref<8x64x64xf32> to memref<64x64xf32, strided<[64, 1], offset: ?>>
+                %19 = bufferization.to_tensor %subview restrict writable : memref<64x64xf32, strided<[64, 1], offset: ?>> to tensor<64x64xf32>
+                %20 = linalg.matmul ins(%18, %19 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%13 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg14, %20 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_3: f32, %out: f32):
+                  %22 = arith.addf %in, %in_3 : f32
+                  linalg.yield %22 : f32
+                } -> tensor<64x64xf32>
+                scf.yield %21 : tensor<64x64xf32>
+              }
+              %16 = affine.apply affine_map<(d0, d1, d2, d3) -> (d3 * 32768 + (d2 * 8 + d1 * 8 + d0) * 64)>(%arg11, %arg10, %arg9, %arg12)
+              %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [64, 64], strides: [512, 1] : memref<*xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
+              bufferization.materialize_in_destination %15 in writable %reinterpret_cast_0 : (tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>) -> ()
+            }
+          }
+        } {loom.mapped_to = @y}
+      } {loom.mapped_to = @x}
+      return
+    }
   }
 }

@@ -31,6 +31,17 @@ namespace loom {
 namespace utils {
 
 /**
+ * @brief Get the parent module operation that directly contains a function.
+ *
+ * @details Returns the immediate parent ModuleOp of a function. This is useful
+ * for extracting attributes from the wrapper module in nested module structures.
+ *
+ * @param func Function to get the parent module for
+ * @return The parent ModuleOp, or nullptr if the function is not in a module
+ */
+mlir::ModuleOp getParentModule(mlir::func::FuncOp func);
+
+/**
  * @brief Clone a function and insert it into the module with a new name.
  *
  * @details Creates a clone of the original function using IRMapping,
@@ -48,6 +59,27 @@ mlir::func::FuncOp cloneAndInsertFunction(
     mlir::OpBuilder &builder,
     mlir::func::FuncOp originalFunc,
     llvm::StringRef newName,
+    mlir::Operation *insertAfter = nullptr);
+
+/**
+ * @brief Clone a function with module wrapper and insert it with a new name.
+ *
+ * @details Creates a wrapper ModuleOp with the specified attributes, clones
+ * the original function into it, sets the new name, and manages the insertion
+ * point. The wrapper module is inserted at the specified location.
+ *
+ * @param builder OpBuilder for cloning and insertion operations
+ * @param originalFunc Original function to clone
+ * @param newName New name for the cloned function
+ * @param moduleAttrs Attributes to set on the wrapper module
+ * @param insertAfter Insert after this operation (nullptr uses current point)
+ * @return The cloned function with the new name (inside its wrapper module)
+ */
+mlir::func::FuncOp cloneAndInsertFunctionWithModuleWrapper(
+    mlir::OpBuilder &builder,
+    mlir::func::FuncOp originalFunc,
+    llvm::StringRef newName,
+    mlir::DictionaryAttr moduleAttrs,
     mlir::Operation *insertAfter = nullptr);
 
 /**
@@ -90,11 +122,36 @@ mlir::func::FuncOp cloneModifyAndInsertFunction(
     mlir::Operation *insertAfter = nullptr);
 
 /**
+ * @brief Clone function with module wrapper, apply modifications, then insert if valid.
+ *
+ * @details Creates a wrapper ModuleOp with the specified attributes, clones
+ * the function into it, applies the modifier callback, and manages insertion.
+ * If the modifier returns failure(), both the function and wrapper module are
+ * erased and nullptr is returned.
+ *
+ * @param builder OpBuilder for cloning and insertion operations
+ * @param originalFunc Original function to clone
+ * @param newName New name for the cloned function
+ * @param moduleAttrs Attributes to set on the wrapper module
+ * @param modifier Callback returning success() to keep, failure() to discard
+ * @param insertAfter Insert after this operation (nullptr uses current point)
+ * @return Cloned and modified function, or nullptr if modifier returned failure
+ */
+mlir::func::FuncOp cloneModifyAndInsertFunctionWithModuleWrapper(
+    mlir::OpBuilder &builder,
+    mlir::func::FuncOp originalFunc,
+    llvm::StringRef newName,
+    mlir::DictionaryAttr moduleAttrs,
+    std::function<mlir::LogicalResult(mlir::func::FuncOp)> modifier,
+    mlir::Operation *insertAfter = nullptr);
+
+/**
  * @brief Collect all functions in a module into a vector.
  *
- * @details Walks the module and collects all func::FuncOp operations into
- * a SmallVector. This is useful for avoiding iterator invalidation when
- * passes need to clone or modify functions while iterating over them.
+ * @details Recursively walks the module (including nested modules) and collects
+ * all func::FuncOp operations into a SmallVector. This is useful for avoiding
+ * iterator invalidation when passes need to clone or modify functions while
+ * iterating over them. Works with both flat and nested module structures.
  *
  * Typical usage:
  * @code
@@ -104,8 +161,8 @@ mlir::func::FuncOp cloneModifyAndInsertFunction(
  * }
  * @endcode
  *
- * @param module Module to collect functions from
- * @return Vector containing all functions in the module
+ * @param module Module to collect functions from (recursively searches nested modules)
+ * @return Vector containing all functions in the module and its nested modules
  */
 llvm::SmallVector<mlir::func::FuncOp> collectFunctions(mlir::ModuleOp module);
 

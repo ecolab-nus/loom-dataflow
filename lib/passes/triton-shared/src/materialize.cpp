@@ -79,12 +79,20 @@ public:
       // Get the attribute name from the operation
       StringRef attrName = getAttrOp.getAttr();
 
-      // Look up the attribute in the module
-      Attribute moduleAttr = module->getAttr(attrName);
+      // Find the nearest parent ModuleOp (could be nested module containing the func)
+      ModuleOp parentModule = getAttrOp->getParentOfType<ModuleOp>();
+      if (!parentModule) {
+        getAttrOp->emitWarning() << "No parent module found for attribute '" 
+                                  << attrName << "', skipping materialization";
+        return;
+      }
+
+      // Look up the attribute in the nearest parent module
+      Attribute moduleAttr = parentModule->getAttr(attrName);
       if (!moduleAttr) {
         // If attribute not found, skip this operation
         getAttrOp->emitWarning() << "Module attribute '" << attrName
-                                  << "' not found, skipping materialization";
+                                  << "' not found in parent module, skipping materialization";
         return;
       }
 
@@ -107,7 +115,8 @@ public:
       // Mark the original operation for deletion
       opsToErase.push_back(getAttrOp);
 
-      // Record the attribute name for later removal
+      // Record the attribute name for later removal from the parent module
+      // We store a pair of (module, attrName) to handle nested modules
       usedAttrNames.insert(attrName);
     });
 
@@ -116,10 +125,15 @@ public:
       op->erase();
     }
 
-    // Remove all used module attributes
-    for (StringRef attrName : usedAttrNames) {
-      module->removeAttr(attrName);
-    }
+    // Remove used attributes from all nested modules
+    // Walk all nested modules and remove the used attributes
+    module.walk([&](ModuleOp nestedModule) {
+      for (StringRef attrName : usedAttrNames) {
+        if (nestedModule->getAttr(attrName)) {
+          nestedModule->removeAttr(attrName);
+        }
+      }
+    });
   }
 };
 
