@@ -6,6 +6,8 @@ include "mlir/IR/OpBase.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/SymbolInterfaces.td"
+include "mlir/IR/RegionKindInterface.td"
 include "LoomDialect.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 
@@ -112,4 +114,269 @@ def CopyOp : Loom_Op<"copy"> {
         `,` `broadcast` `:` $broadcast 
         attr-dict `:` type($src) `to` type($dst)
     }];
+}
+
+//===----------------------------------------------------------------------===//
+// Constraint Language Operations
+//===----------------------------------------------------------------------===//
+
+/// Constraint space container that holds symbolic variables and constraints.
+///
+/// The `loom.constraint_space` operation is a top-level container for defining
+/// symbolic variables and their constraints. It is used during lowering to
+/// record known facts about operator dimensions (primarily block sizes).
+///
+/// The operation:
+/// - Is isolated from above (cannot reference external SSA values)
+/// - Maintains a symbol table for contained symbolic variables
+/// - Contains a single region with a single block
+/// - Does not require a terminator
+///
+/// Example:
+/// ```mlir
+/// loom.constraint_space @constraints {
+///   %m = loom.symbolic_var "M" : index
+///   %n = loom.symbolic_var "N" : index
+///   loom.range %m [16, 512]
+///   loom.align %m by 32
+/// }
+/// ```
+def ConstraintSpaceOp : Loom_Op<"constraint_space", [
+  IsolatedFromAbove,
+  SymbolTable,
+  NoTerminator,
+  SingleBlock
+]> {
+  let summary = "Container for symbolic variables and constraints";
+  let description = [{
+    This operation defines a constraint space that holds symbolic variables
+    and their associated constraints. It serves as a symbol table container
+    during lowering passes to track dimension constraints.
+    
+    All symbolic variables defined within this space can be referenced by
+    constraint operations (range, align, linear_constraint) within the same
+    space, or by get_symbolic_block_size operations elsewhere via symbol
+    references.
+  }];
+  
+  let arguments = (ins
+    SymbolNameAttr:$sym_name
+  );
+  
+  let regions = (region SizedRegion<1>:$body);
+  
+  let assemblyFormat = [{
+    $sym_name $body attr-dict
+  }];
+  
+  let hasVerifier = 1;
+  
+  let extraClassDeclaration = [{
+    /// Returns the body block of the constraint space.
+    ::mlir::Block *getBodyBlock() { return &getBody().front(); }
+  }];
+}
+
+/// Symbolic variable definition within a constraint space.
+///
+/// The `loom.symbolic_var` operation defines a symbolic variable within a
+/// constraint space. The variable has a name and produces an index-typed
+/// SSA value that can be used by constraint operations.
+///
+/// Example:
+/// ```mlir
+/// %m = loom.symbolic_var "M" : index
+/// ```
+def SymbolicVarOp : Loom_Op<"symbolic_var", [
+  Pure,
+  HasParent<"ConstraintSpaceOp">
+]> {
+  let summary = "Define a symbolic variable";
+  let description = [{
+    This operation defines a symbolic variable with a given name within a
+    constraint space. The variable produces an index-typed SSA value that
+    can be referenced by constraint operations (range, align, linear_constraint)
+    within the same constraint space.
+    
+    The variable name is used for documentation and debugging purposes.
+  }];
+  
+  let arguments = (ins
+    StrAttr:$name
+  );
+  
+  let results = (outs Index:$result);
+  
+  let assemblyFormat = [{
+    $name `:` type($result) attr-dict
+  }];
+  
+  let extraClassDeclaration = [{
+    /// Returns the type of the symbolic variable (always index).
+    ::mlir::Type getVarType() { return getResult().getType(); }
+  }];
+}
+
+/// Range constraint for a symbolic variable.
+///
+/// The `loom.range` operation specifies lower and upper bounds for a
+/// symbolic variable, expressing the constraint:
+///   lower_bound <= variable <= upper_bound
+///
+/// Example:
+/// ```mlir
+/// loom.range %m [16, 512]
+/// ```
+def RangeOp : Loom_Op<"range", [
+  HasParent<"ConstraintSpaceOp">
+]> {
+  let summary = "Specify lower and upper bounds for a variable";
+  let description = [{
+    This operation constrains a symbolic variable to be within a specified
+    range [lower_bound, upper_bound]. Both bounds are inclusive.
+    
+    Semantics: lower_bound <= variable <= upper_bound
+    
+    Example:
+      loom.range %m [16, 512]
+    
+    This constrains %m to be between 16 and 512 (inclusive).
+  }];
+  
+  let arguments = (ins
+    Index:$variable,
+    I64Attr:$lower_bound,
+    I64Attr:$upper_bound
+  );
+  
+  let assemblyFormat = [{
+    $variable `[` $lower_bound `,` $upper_bound `]` attr-dict
+  }];
+}
+
+/// Alignment constraint for a symbolic variable.
+///
+/// The `loom.align` operation specifies that a symbolic variable must be
+/// aligned to a given value, expressing the constraint:
+///   variable ≡ 0 (mod alignment)
+///
+/// Example:
+/// ```mlir
+/// loom.align %m by 32
+/// ```
+def AlignOp : Loom_Op<"align", [
+  HasParent<"ConstraintSpaceOp">
+]> {
+  let summary = "Specify alignment constraint for a variable";
+  let description = [{
+    This operation constrains a symbolic variable to be aligned to a
+    specified value. The constraint is expressed as a modulo operation:
+    variable must be divisible by alignment.
+    
+    Semantics: variable ≡ 0 (mod alignment)
+    
+    Example:
+      loom.align %m by 32
+    
+    This constrains %m to be a multiple of 32.
+  }];
+  
+  let arguments = (ins
+    Index:$variable,
+    I64Attr:$alignment
+  );
+  
+  let assemblyFormat = [{
+    $variable `by` $alignment attr-dict
+  }];
+}
+
+/// Multi-variable linear constraint.
+///
+/// The `loom.linear_constraint` operation specifies a linear inequality
+/// constraint over multiple symbolic variables using an AffineMap.
+///
+/// Each result of the AffineMap represents a constraint of the form:
+///   result >= 0
+///
+/// Example:
+/// ```mlir
+/// // M + N <= 256  =>  -M - N + 256 >= 0
+/// loom.linear_constraint (%m, %n) {
+///   map = affine_map<(d0, d1) -> (-d0 - d1 + 256)>
+/// }
+/// ```
+def LinearConstraintOp : Loom_Op<"linear_constraint", [
+  HasParent<"ConstraintSpaceOp">
+]> {
+  let summary = "Specify a multi-variable linear inequality constraint";
+  let description = [{
+    This operation specifies a linear inequality constraint over one or more
+    symbolic variables. The constraint is represented using an AffineMap,
+    where each result of the map represents an inequality of the form:
+    
+      result >= 0
+    
+    This allows expressing complex linear relationships between variables.
+    
+    Convention:
+      - To express "x + y <= c", use affine_map<(d0, d1) -> (-d0 - d1 + c)>
+      - To express "x >= c", use affine_map<(d0) -> (d0 - c)>
+    
+    Example:
+      // Constraint: M + N <= 256
+      loom.linear_constraint (%m, %n) {
+        map = affine_map<(d0, d1) -> (-d0 - d1 + 256)>
+      }
+  }];
+  
+  let arguments = (ins
+    Variadic<Index>:$operands,
+    AffineMapAttr:$map
+  );
+  
+  let assemblyFormat = [{
+    `(` $operands `)` attr-dict
+  }];
+}
+
+/// Reference to a symbolic variable in a constraint space.
+///
+/// The `loom.get_symbolic_block_size` operation retrieves the value of a
+/// symbolic variable defined in a constraint space. It uses a symbol reference
+/// to the constraint space and a variable name to identify the variable.
+///
+/// Example:
+/// ```mlir
+/// %m_val = loom.get_symbolic_block_size @constraints::@M : index
+/// ```
+def GetSymbolicBlockSizeOp : Loom_Op<"get_symbolic_block_size", [
+  Pure
+]> {
+  let summary = "Get the value of a symbolic variable from a constraint space";
+  let description = [{
+    This operation retrieves the value of a symbolic variable defined within
+    a constraint space. It uses a FlatSymbolRefAttr to reference the constraint
+    space and a StringAttr to specify the variable name.
+    
+    The operation is pure and returns an index value representing the
+    symbolic variable, which can be used in subsequent computations.
+    
+    Example:
+      %m_val = loom.get_symbolic_block_size @constraints::@M : index
+      
+    This retrieves the value of variable "M" from the constraint space
+    named "@constraints".
+  }];
+  
+  let arguments = (ins
+    FlatSymbolRefAttr:$space,
+    StrAttr:$var_name
+  );
+  
+  let results = (outs Index:$result);
+  
+  let assemblyFormat = [{
+    $space `,` $var_name `:` type($result) attr-dict
+  }];
 }

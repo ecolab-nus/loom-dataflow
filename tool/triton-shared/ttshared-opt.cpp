@@ -20,6 +20,9 @@
 #include "hoist_block_loading.h"
 #include "analyze_reuse.h"
 #include "enumerate_hw_mapping.h"
+#include "loom_to_memref.h"
+#include "materialize.h"
+#include "staticize_types.h"
 #include "tile_scf_for_to_l1.h"
 #include "triton_shared_affinize.h"
 #include "triton_shared_grid_to_parallel.h"
@@ -53,6 +56,7 @@
 
 #include "DataflowDialect.h.inc"
 #include "DataflowOps.h.inc"
+#include "LoomDialect.h.inc"
 
 using namespace mlir;
 
@@ -135,7 +139,7 @@ int main(int argc, char **argv) {
                   mlir::arith::ArithDialect, mlir::tensor::TensorDialect,
                   mlir::linalg::LinalgDialect, mlir::scf::SCFDialect,
                   mlir::bufferization::BufferizationDialect,
-                  loom::df::DataflowDialect>();
+                  loom::df::DataflowDialect, loom::LoomDialect>();
   MLIRContext context(registry, clDumpIntermediate
                                     ? MLIRContext::Threading::DISABLED
                                     : MLIRContext::Threading::ENABLED);
@@ -431,6 +435,49 @@ int main(int argc, char **argv) {
   if (!clDumpDir.empty() &&
       failed(
           dumpModuleToFile(*tsModule, clDumpDir, "06_after_memref_mapping.mlir")))
+    return 5;
+
+  // Canonicalize: Materialize, staticize types, lower loom ops, and affinize.
+  PassManager canonicalizePM(&context);
+  if (clDumpIntermediate) {
+    canonicalizePM.enableIRPrinting(
+        [](mlir::Pass *, mlir::Operation *) { return false; },
+        [](mlir::Pass *, mlir::Operation *) { return true; },
+        /*printModuleScope=*/true,
+        /*printAfterOnlyOnChange=*/false,
+        /*printAfterOnlyOnFailure=*/false, llvm::errs());
+  }
+  /// Step 1: Materialize - Replace loom.get_module_attribute with arith.constant.
+  canonicalizePM.addPass(loom::passes::createMaterializePass());
+  /// Step 2: Staticize - Convert dynamic memref/tensor types to static types.
+  canonicalizePM.addPass(loom::passes::createStaticizeTypesPass());
+  /// Step 3: Lower - Lower loom operations to memref dialect.
+  canonicalizePM.addPass(loom::passes::createLoomToMemRefLoweringPass());
+  /// Step 4: Affinize - Convert index arithmetic to affine IR.
+  canonicalizePM.addPass(loom::passes::createTritonSharedAffinizePass());
+  if (failed(canonicalizePM.run(*tsModule))) {
+    llvm::WithColor::error(llvm::errs()) << "Canonicalize pass failed\n";
+    return 2;
+  }
+  {
+    PassManager cleanupPM(&context);
+    if (clDumpIntermediate) {
+      cleanupPM.enableIRPrinting(
+          [](mlir::Pass *, mlir::Operation *) { return false; },
+          [](mlir::Pass *, mlir::Operation *) { return true; },
+          /*printModuleScope=*/true,
+          /*printAfterOnlyOnChange=*/false,
+          /*printAfterOnlyOnFailure=*/false, llvm::errs());
+    }
+    cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
+    if (failed(cleanupPM.run(*tsModule))) {
+      llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+      return 7;
+    }
+  }
+  if (!clDumpDir.empty() &&
+      failed(dumpModuleToFile(*tsModule, clDumpDir,
+                              "06_after_canonicalization.mlir")))
     return 5;
 
   // Run One-Shot Bufferize to convert tensors to memrefs, while allowing
