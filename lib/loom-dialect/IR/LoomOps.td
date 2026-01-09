@@ -343,8 +343,8 @@ def LinearConstraintOp : Loom_Op<"linear_constraint", [
 /// Reference to a symbolic variable in a constraint space.
 ///
 /// The `loom.get_symbolic_block_size` operation retrieves the value of a
-/// symbolic variable defined in a constraint space. It uses a symbol reference
-/// to the constraint space and a variable name to identify the variable.
+/// symbolic variable defined in a constraint space. It uses a nested symbol
+/// reference to reference the constraint space and the variable name.
 ///
 /// Example:
 /// ```mlir
@@ -356,8 +356,8 @@ def GetSymbolicBlockSizeOp : Loom_Op<"get_symbolic_block_size", [
   let summary = "Get the value of a symbolic variable from a constraint space";
   let description = [{
     This operation retrieves the value of a symbolic variable defined within
-    a constraint space. It uses a FlatSymbolRefAttr to reference the constraint
-    space and a StringAttr to specify the variable name.
+    a constraint space. It uses a SymbolRefAttr to reference the constraint
+    space and variable name in the format @space::@var.
     
     The operation is pure and returns an index value representing the
     symbolic variable, which can be used in subsequent computations.
@@ -370,13 +370,14 @@ def GetSymbolicBlockSizeOp : Loom_Op<"get_symbolic_block_size", [
   }];
   
   let arguments = (ins
-    FlatSymbolRefAttr:$space,
-    StrAttr:$var_name
+    SymbolRefAttr:$symbol_ref
   );
   
   let results = (outs Index:$result);
   
   let assemblyFormat = [{
-    $space `,` $var_name `:` type($result) attr-dict
+    $symbol_ref `:` type($result) attr-dict
   }];
+  
+  let hasVerifier = 1;
 }

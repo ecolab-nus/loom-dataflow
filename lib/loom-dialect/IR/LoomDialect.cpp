@@ -60,3 +60,23 @@ LogicalResult loom::ConstraintSpaceOp::verify() {
   return success();
 }
 
+//===----------------------------------------------------------------------===//
+// GetSymbolicBlockSizeOp Verifier
+//===----------------------------------------------------------------------===//
+
+/// Verify that the symbol reference has the correct format: @space::@var
+LogicalResult loom::GetSymbolicBlockSizeOp::verify() {
+  SymbolRefAttr symbolRef = getSymbolRef();
+  
+  // The symbol reference should have exactly 1 nested reference:
+  // - Root: constraint space name (e.g., @global_constraints)
+  // - Nested: variable name (e.g., @M)
+  if (symbolRef.getNestedReferences().size() != 1) {
+    return emitOpError("symbol reference must have format @space::@var, "
+                       "got ")
+           << symbolRef;
+  }
+  
+  return success();
+}
+

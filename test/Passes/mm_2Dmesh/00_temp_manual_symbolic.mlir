@@ -4,6 +4,18 @@
 #map = affine_map<(d0, d1) -> (d0, d1)>
 module {
   module attributes {loom.block_m = 64 : index, loom.block_n = 64 : index, loom.block_k = 64 : index} {
+    loom.constraint_space @constraints {
+      %m = loom.symbolic_var "M" : index
+      %n = loom.symbolic_var "N" : index
+      %k = loom.symbolic_var "K" : index
+
+      loom.range %m [16, 512]
+      loom.align %m by 32
+      
+      loom.linear_constraint (%m, %n) {
+        map = affine_map<(d0, d1) -> (-d0 - d1 + 256)>
+      }
+    }
     func.func @matmul_kernel (
       %arg0: memref<*xf32> {tt.divisibility = 16 : i32}, 
       %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, 
@@ -13,30 +25,30 @@ module {
       %N_idx = arith.constant 512 : index
       %K_idx = arith.constant 512 : index
       %c1_idx = arith.constant 1 : index
-      %blkM_idx = loom.get_module_attribute "loom.block_m" : index
-      %blkN_idx = loom.get_module_attribute "loom.block_n" : index
-      %blkK_idx = loom.get_module_attribute "loom.block_k" : index
-      %Kblk_idx = arith.ceildivsi %K_idx, %blkK_idx : index
+      %block_m = loom.get_symbolic_block_size @global_constraints::@M : index
+      %block_n = loom.get_symbolic_block_size @global_constraints::@N : index
+      %block_k = loom.get_symbolic_block_size @global_constraints::@K : index
+      %Kblk_idx = arith.ceildivsi %K_idx, %block_k : index
       %cst = arith.constant 0.000000e+00 : f32 loc(#loc1)
       %c8_idx = arith.constant 8 : index loc(#loc1)
       %c512 = arith.constant 512 : index loc(#loc1)
       %c0_idx = arith.constant 0 : index loc(#loc1)
-      %0 = tensor.empty(%blkM_idx, %blkN_idx) : tensor<?x?xf32> loc(#loc2)
+      %0 = tensor.empty(%block_m, %block_n) : tensor<?x?xf32> loc(#loc2)
       %1 = linalg.fill ins(%cst : f32) outs(%0 : tensor<?x?xf32>) -> tensor<?x?xf32> loc(#loc2)
-      %2 = arith.muli %arg6, %blkM_idx : index loc(#loc3)
-      %3 = arith.muli %arg7, %blkN_idx : index loc(#loc4)
+      %2 = arith.muli %arg6, %block_m : index loc(#loc3)
+      %3 = arith.muli %arg7, %block_n : index loc(#loc4)
       %6 = scf.for %arg9 = %c0_idx to %Kblk_idx step %c1_idx iter_args(%arg10 = %1) -> (tensor<?x?xf32>) {
-        %9 = arith.muli %arg9, %blkK_idx : index loc(#loc9)
+        %9 = arith.muli %arg9, %block_k : index loc(#loc9)
         %11 = arith.muli %2, %c512 : index loc(#loc11)
         %12 = arith.addi %11, %9 : index loc(#loc11)
-        %reinterpret_cast_0 = loom.reinterpret_cast %arg0 to offset: [%12], sizes: [%blkM_idx, %blkK_idx], strides: [%K_idx, %c1_idx], reuse: [seq = false, spat = false, temp =false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>> loc(#loc11)
-        %alloc = memref.alloc(%blkM_idx, %blkK_idx) : memref<?x?xf32> loc(#loc11)
+        %reinterpret_cast_0 = loom.reinterpret_cast %arg0 to offset: [%12], sizes: [%block_m, %block_k], strides: [%K_idx, %c1_idx], reuse: [seq = false, spat = false, temp =false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>> loc(#loc11)
+        %alloc = memref.alloc(%block_m, %block_k) : memref<?x?xf32> loc(#loc11)
         loom.copy %reinterpret_cast_0, %alloc, interconnect: [], broadcast: [1, 1] : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<?x?xf32> loc(#loc11)
         %13 = bufferization.to_tensor %alloc restrict writable : memref<?x?xf32> to tensor<?x?xf32> loc(#loc11)
         %14 = arith.muli %9, %c512 : index loc(#loc10)
         %15 = arith.addi %14, %3 : index loc(#loc10)
-        %reinterpret_cast_1 = loom.reinterpret_cast %arg1 to offset: [%15], sizes: [%blkK_idx, %blkN_idx], strides: [%N_idx, %c1_idx], reuse: [seq = false, spat = false, temp =false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>> loc(#loc10)
-        %alloc_2 = memref.alloc(%blkK_idx, %blkN_idx) : memref<?x?xf32> loc(#loc10)
+        %reinterpret_cast_1 = loom.reinterpret_cast %arg1 to offset: [%15], sizes: [%block_k, %block_n], strides: [%N_idx, %c1_idx], reuse: [seq = false, spat = false, temp =false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>> loc(#loc10)
+        %alloc_2 = memref.alloc(%block_k, %block_n) : memref<?x?xf32> loc(#loc10)
         loom.copy %reinterpret_cast_1, %alloc_2, interconnect: [], broadcast: [1, 1] : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<?x?xf32> loc(#loc10)
         %16 = bufferization.to_tensor %alloc_2 restrict writable : memref<?x?xf32> to tensor<?x?xf32> loc(#loc10)
         %17 = linalg.matmul ins(%13, %16 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%1 : tensor<?x?xf32>) -> tensor<?x?xf32> loc(#loc2)
@@ -49,7 +61,7 @@ module {
       } loc(#loc8)
       %7 = arith.muli %2, %c512 : index loc(#loc11)
       %8 = arith.addi %7, %3 : index loc(#loc5)
-      %reinterpret_cast = loom.reinterpret_cast %arg2 to offset: [%8], sizes: [%blkM_idx, %blkN_idx], strides: [%N_idx, %c1_idx], reuse: [seq = false, spat = false, temp =false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>> loc(#loc5)
+      %reinterpret_cast = loom.reinterpret_cast %arg2 to offset: [%8], sizes: [%block_m, %block_n], strides: [%N_idx, %c1_idx], reuse: [seq = false, spat = false, temp =false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>> loc(#loc5)
       bufferization.materialize_in_destination %6 in writable %reinterpret_cast : (tensor<?x?xf32>, memref<?x?xf32, strided<[?, ?], offset: ?>>) -> () loc(#loc5)
       return loc(#loc)
     } loc(#loc)
