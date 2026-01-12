@@ -25,6 +25,7 @@
 #include "enumerate_hw_mapping.h"
 #include "affine_tile.h"
 #include "utils.h"
+#include "constraint_space_utils.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -47,6 +48,10 @@
 #include "DataflowTypes.h.inc"
 #define GET_OP_CLASSES
 #include "DataflowOps.h.inc"
+
+#include "LoomDialect.h.inc"
+#define GET_OP_CLASSES
+#include "LoomOps.h.inc"
 
 using namespace mlir;
 
@@ -368,8 +373,10 @@ EnumerateSpatialMappings(ModuleOp affineModule,
     });
     if (roots.empty()) {
       builder.setInsertionPointToEnd(out.getBody());
-      (void)loom::utils::cloneAndInsertFunctionWithModuleWrapper(
-          builder, func, func.getName(), moduleAttrs, nullptr);
+      (void)loom::utils::cloneFuncWithConstraints(
+          builder, func, func.getName(), moduleAttrs, "EnumerateHWMapping",
+          [](func::FuncOp, loom::ConstraintSpaceOp) { return success(); },
+          nullptr);
       continue;
     }
 
@@ -390,9 +397,9 @@ EnumerateSpatialMappings(ModuleOp affineModule,
       builder.setInsertionPointToEnd(out.getBody());
       std::string newName = (func.getName() + "__for").str();
       
-      auto clonedFunc = loom::utils::cloneModifyAndInsertFunctionWithModuleWrapper(
-          builder, func, newName, moduleAttrs,
-          [&](func::FuncOp cloned) -> LogicalResult {
+      auto clonedFunc = loom::utils::cloneFuncWithConstraints(
+          builder, func, newName, moduleAttrs, "EnumerateHWMapping",
+          [&](func::FuncOp cloned, loom::ConstraintSpaceOp) -> LogicalResult {
             affine::AffineParallelOp currentOuter = nullptr;
             cloned.walk([&](affine::AffineParallelOp par) {
               if (!par->getParentOfType<affine::AffineParallelOp>() && !currentOuter)
@@ -432,10 +439,10 @@ EnumerateSpatialMappings(ModuleOp affineModule,
           newName += "__";
           
           // Clone and apply the mapping
-          auto clonedFunc = loom::utils::cloneModifyAndInsertFunctionWithModuleWrapper(
+          auto clonedFunc = loom::utils::cloneFuncWithConstraints(
               builder, func, "",  // Temporary name, will be set after getting mappingSuffix
-              moduleAttrs,
-              [&](func::FuncOp cloned) -> LogicalResult {
+              moduleAttrs, "EnumerateHWMapping",
+              [&](func::FuncOp cloned, loom::ConstraintSpaceOp) -> LogicalResult {
                 affine::AffineParallelOp tar_forOp = getOutermostParallel(cloned);
                 if (!tar_forOp) {
                   return failure();
