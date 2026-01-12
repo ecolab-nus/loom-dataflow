@@ -9,6 +9,10 @@ target_include_directories(LoomPassesCommon
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${MLIR_INCLUDE_DIRS}
+    # Include LCS headers for constraint space utilities
+    ${CMAKE_SOURCE_DIR}/lib/lcs/inc
+    # Include the generated Loom dialect headers
+    ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
 )
 
 target_link_libraries(LoomPassesCommon
@@ -16,5 +20,11 @@ target_link_libraries(LoomPassesCommon
     MLIRIR
     MLIRFuncDialect
     MLIRSupport
+    loomConstraintSystem
 )
 
+# Depend on the generated Loom dialect headers
+add_dependencies(LoomPassesCommon
+    LOOMLoomOpsIncGen
+    LOOMLoomDialectIncGen
+)

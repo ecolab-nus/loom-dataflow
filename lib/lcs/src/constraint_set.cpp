@@ -25,6 +25,27 @@ ConstraintSet::ConstraintSet()
 ConstraintSet::ConstraintSet(unsigned numDims)
     : polyhedron_(PresburgerSpace::getSetSpace(numDims)) {}
 
+ConstraintSet::ConstraintSet(const ConstraintSet &other)
+    : polyhedron_(other.polyhedron_),
+      varToDimIndex_(other.varToDimIndex_),
+      dimNames_(other.dimNames_) {
+  LLVM_DEBUG(llvm::dbgs() << "ConstraintSet copy constructed with "
+                          << getNumDims() << " dims\n");
+}
+
+ConstraintSet &ConstraintSet::operator=(const ConstraintSet &other) {
+  if (this != &other) {
+    polyhedron_ = other.polyhedron_;
+    varToDimIndex_ = other.varToDimIndex_;
+    dimNames_ = other.dimNames_;
+  }
+  return *this;
+}
+
+ConstraintSet ConstraintSet::clone() const {
+  return ConstraintSet(*this);
+}
+
 unsigned ConstraintSet::registerVariable(llvm::StringRef name) {
   // Check if already registered
   auto it = varToDimIndex_.find(name);

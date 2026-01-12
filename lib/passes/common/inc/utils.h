@@ -27,6 +27,11 @@
 #include "llvm/ADT/SmallVector.h"
 #include <functional>
 
+// Forward declarations for Loom operations
+namespace loom {
+class ConstraintSpaceOp;
+} // namespace loom
+
 namespace loom {
 namespace utils {
 
@@ -166,6 +171,50 @@ mlir::func::FuncOp cloneModifyAndInsertFunctionWithModuleWrapper(
  */
 llvm::SmallVector<mlir::func::FuncOp> collectFunctions(mlir::ModuleOp module);
 
+/**
+ * @brief Clone function with module wrapper including deep-cloned constraint space.
+ *
+ * @details Creates a wrapper ModuleOp with the specified attributes, clones the
+ * function and constraint space into it, applies the modifier callback, and checks
+ * feasibility. If the modified constraint space is infeasible (empty solution set),
+ * the wrapper module is erased and nullptr is returned.
+ *
+ * This is the primary entry point for constraint-aware function variant generation.
+ * The modifier callback receives both the cloned function and the cloned constraint
+ * space, allowing it to add new constraints based on pass-specific logic.
+ *
+ * Typical usage:
+ * @code
+ * auto cloned = cloneFuncWithConstraints(
+ *     builder, originalFunc, "new_name", moduleAttrs, "MyPass",
+ *     [&](func::FuncOp func, loom::ConstraintSpaceOp csOp) -> LogicalResult {
+ *         // Add new constraints based on pass logic
+ *         loom::lcs::addLinearConstraint(csOp, {"M", "N"}, constraintMap);
+ *         return success();
+ *     },
+ *     insertAfter);
+ * if (cloned) {
+ *     // Function was valid and inserted
+ * }
+ * @endcode
+ *
+ * @param builder OpBuilder for cloning and insertion operations
+ * @param originalFunc Original function to clone
+ * @param newName New name for the cloned function
+ * @param moduleAttrs Attributes to set on the wrapper module
+ * @param passName Name of the pass for provenance tracking
+ * @param modifier Callback that can modify the func and add constraints to csOp
+ * @param insertAfter Insert after this operation (nullptr uses current point)
+ * @return Cloned function if feasible, nullptr if infeasible or modifier failed
+ */
+mlir::func::FuncOp cloneFuncWithConstraints(
+    mlir::OpBuilder &builder,
+    mlir::func::FuncOp originalFunc,
+    llvm::StringRef newName,
+    mlir::DictionaryAttr moduleAttrs,
+    llvm::StringRef passName,
+    std::function<mlir::LogicalResult(mlir::func::FuncOp, loom::ConstraintSpaceOp)> modifier,
+    mlir::Operation *insertAfter = nullptr);
+
 } // namespace utils
 } // namespace loom
-

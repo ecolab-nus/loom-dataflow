@@ -43,6 +43,24 @@ public:
   /// @param numDims The number of dimension variables.
   explicit ConstraintSet(unsigned numDims);
 
+  /// @brief Copy constructor for deep copying a ConstraintSet.
+  /// @param other The ConstraintSet to copy from.
+  ConstraintSet(const ConstraintSet &other);
+
+  /// @brief Move constructor.
+  /// @param other The ConstraintSet to move from.
+  ConstraintSet(ConstraintSet &&other) noexcept = default;
+
+  /// @brief Copy assignment operator.
+  ConstraintSet &operator=(const ConstraintSet &other);
+
+  /// @brief Move assignment operator.
+  ConstraintSet &operator=(ConstraintSet &&other) noexcept = default;
+
+  /// @brief Creates a deep copy of this ConstraintSet.
+  /// @return A new ConstraintSet that is a copy of this one.
+  ConstraintSet clone() const;
+
   /// @brief Registers a symbolic variable and returns its dimension index.
   /// @param name The name of the symbolic variable.
   /// @return The dimension index assigned to this variable.
