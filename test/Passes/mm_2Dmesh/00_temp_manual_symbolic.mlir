@@ -3,18 +3,20 @@
 #loc12 = loc("/tmp/tmpupax5k0l/tt.mlir":29:69)
 #map = affine_map<(d0, d1) -> (d0, d1)>
 module {
-  module attributes {loom.block_m = 64 : index, loom.block_n = 64 : index, loom.block_k = 64 : index} {
+  module {
     loom.constraint_space @constraints {
       %m = loom.symbolic_var "M" : index
       %n = loom.symbolic_var "N" : index
       %k = loom.symbolic_var "K" : index
 
-      loom.range %m [16, 512]
+      loom.range %m [0, 512]
       loom.align %m by 32
-      
-      loom.linear_constraint (%m, %n) {
-        map = affine_map<(d0, d1) -> (-d0 - d1 + 256)>
-      }
+
+      loom.range %n [0, 512]
+      loom.align %n by 32
+
+      loom.range %k [0, 512]
+      loom.align %k by 32
     }
     func.func @matmul_kernel (
       %arg0: memref<*xf32> {tt.divisibility = 16 : i32}, 
@@ -25,9 +27,9 @@ module {
       %N_idx = arith.constant 512 : index
       %K_idx = arith.constant 512 : index
       %c1_idx = arith.constant 1 : index
-      %block_m = loom.get_symbolic_block_size @global_constraints::@M : index
-      %block_n = loom.get_symbolic_block_size @global_constraints::@N : index
-      %block_k = loom.get_symbolic_block_size @global_constraints::@K : index
+      %block_m = loom.get_symbolic_block_size @constraints::@M : index
+      %block_n = loom.get_symbolic_block_size @constraints::@N : index
+      %block_k = loom.get_symbolic_block_size @constraints::@K : index
       %Kblk_idx = arith.ceildivsi %K_idx, %block_k : index
       %cst = arith.constant 0.000000e+00 : f32 loc(#loc1)
       %c8_idx = arith.constant 8 : index loc(#loc1)
