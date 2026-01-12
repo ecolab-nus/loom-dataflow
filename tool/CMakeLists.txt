@@ -54,3 +54,6 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/dataflow-dialect)
 
 # Resource-system demos
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/resource-system)
+
+# Custom LSP server
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/loom-lsp-server)

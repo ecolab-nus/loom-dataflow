@@ -23,5 +23,8 @@
         "MLIR_DIR": "/opt/llvm-mlir/lib/cmake/mlir",
         "LLVM_USE_LINKER": "lld",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-    }
+    },
+    "mlir.server_path": "/root/loom-dataflow/build/tool/loom-lsp-server/loom-lsp-server",
+    "mlir.pdll_server_path": "/opt/llvm-mlir/bin/mlir-pdll-lsp-server",
+    "mlir.tablegen_server_path": "/opt/llvm-mlir/bin/tblgen-lsp-server"
 }
