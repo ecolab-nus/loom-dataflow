@@ -1,12 +1,15 @@
 module {
-  module attributes {loom.block_k = 64 : index, loom.block_m = 64 : index, loom.block_n = 64 : index} {
+  module {
     loom.constraint_space @constraints {
       %0 = loom.symbolic_var "M" : index
       %1 = loom.symbolic_var "N" : index
       %2 = loom.symbolic_var "K" : index
-      loom.range %0[16, 512]
+      loom.range %0[0, 512]
       loom.align %0 by 32
-      loom.linear_constraint(%0, %1) {map = affine_map<(d0, d1) -> (-d0 - d1 + 256)>}
+      loom.range %1[0, 512]
+      loom.align %1 by 32
+      loom.range %2[0, 512]
+      loom.align %2 by 32
     }
     func.func @matmul_kernel(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9, %arg10) = (0, 0) to (%arg3, %arg4) {
@@ -14,9 +17,9 @@ module {
         %c512_0 = arith.constant 512 : index
         %c512_1 = arith.constant 512 : index
         %c1 = arith.constant 1 : index
-        %0 = loom.get_symbolic_block_size @global_constraints::@M : index
-        %1 = loom.get_symbolic_block_size @global_constraints::@N : index
-        %2 = loom.get_symbolic_block_size @global_constraints::@K : index
+        %0 = loom.get_symbolic_block_size @constraints::@M : index
+        %1 = loom.get_symbolic_block_size @constraints::@N : index
+        %2 = loom.get_symbolic_block_size @constraints::@K : index
         %3 = arith.ceildivsi %c512_1, %2 : index
         %cst = arith.constant 0.000000e+00 : f32
         %c8 = arith.constant 8 : index
