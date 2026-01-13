@@ -35,6 +35,9 @@
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/IRMapping.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "affine_parallel_to_for.h"
 #include "llvm/ADT/SmallVector.h"
 #include "mlir/IR/Builders.h"
@@ -103,6 +106,11 @@ LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp dfModule,
   dfModule.walk([&](Operation *op) {
     if (auto sd = dyn_cast<loom::df::SpatialDimOp>(op)) {
       res = res || failed(GetSpatialDimInfo(sd, hardwareInfo.spatialDimInfoVec));
+    }
+    else if (auto mem = dyn_cast<loom::df::MemoryOp>(op)) {
+      if (mem.getLabel() == "L1") {
+        hardwareInfo.l1Size = mem.getSize();
+      }
     }
     else if (auto ic = dyn_cast<loom::df::InterconnectsOp>(op)) {
       AffineMap map = ic.getMapAttr().getValue();
@@ -337,6 +345,103 @@ static LogicalResult applyMappingToFunction(func::FuncOp func,
   }
   return success();
 }
+
+/**
+ * @brief Trace an SSA value back to a symbolic block size name.
+ * 
+ * @param val The SSA value to trace.
+ * @return The symbolic variable name if found, empty string otherwise.
+ */
+static StringRef traceToSymbolicVar(Value val) {
+  if (!val) return "";
+  
+  // Handle direct loom.get_symbolic_block_size
+  if (auto getSym = val.getDefiningOp<loom::GetSymbolicBlockSizeOp>()) {
+    return getSym.getSymbolRef().getLeafReference().getValue();
+  }
+  
+  // Handle arith.muli/addi/etc. if needed, but for now we follow the user's sketch
+  // where block sizes are directly used from loom.get_symbolic_block_size.
+  
+  return "";
+}
+
+/**
+ * @brief Add L1 cache size constraints based on memref allocations in the function.
+ * 
+ * @param func The function to analyze and modify.
+ * @param csOp The constraint space to add constraints to.
+ * @param l1Size The size of the L1 cache in bytes.
+ * @return success if constraints are added successfully or not applicable, failure otherwise.
+ */
+static LogicalResult addL1CacheConstraints(func::FuncOp func,
+                                           loom::ConstraintSpaceOp csOp,
+                                           int64_t l1Size) {
+  if (l1Size <= 0 || !csOp) return success();
+
+  // Find all loom.alloc operations
+  SmallVector<loom::AllocOp> allocs;
+  func.walk([&](loom::AllocOp alloc) {
+    allocs.push_back(alloc);
+  });
+
+  if (allocs.empty()) return success();
+
+  llvm::SmallVector<StringRef> symVarNames;
+  llvm::StringMap<unsigned> symVarToIndex;
+  
+  struct AllocInfo {
+    SmallVector<StringRef> dims;
+    int64_t elemSize;
+  };
+  SmallVector<AllocInfo> allocInfos;
+
+  for (auto alloc : allocs) {
+    auto memrefType = cast<MemRefType>(alloc.getResult().getType());
+    AllocInfo info;
+    info.elemSize = memrefType.getElementTypeBitWidth() / 8;
+    
+    // Trace dynamic dimensions
+    auto dynamicOperands = alloc.getDynamicSizes();
+    unsigned dynamicIdx = 0;
+    for (int64_t shape : memrefType.getShape()) {
+      if (ShapedType::isDynamic(shape)) {
+        Value val = dynamicOperands[dynamicIdx++];
+        StringRef symName = traceToSymbolicVar(val);
+        if (!symName.empty()) {
+          info.dims.push_back(symName);
+          if (symVarToIndex.find(symName) == symVarToIndex.end()) {
+            symVarToIndex[symName] = symVarNames.size();
+            symVarNames.push_back(symName);
+          }
+        }
+      }
+    }
+    
+    if (!info.dims.empty()) {
+      allocInfos.push_back(info);
+    }
+  }
+
+  if (allocInfos.empty()) return success();
+
+  // Build monomials for L1 constraint
+  llvm::SmallVector<loom::lcs::Monomial> monomials;
+  for (const auto& info : allocInfos) {
+    loom::lcs::Monomial m;
+    for (StringRef dimName : info.dims) {
+      m.varIndices.push_back(symVarToIndex[dimName]);
+    }
+    m.coeff = info.elemSize;
+    monomials.push_back(m);
+  }
+
+  // Add the polynomial constraint to csOp
+  loom::lcs::addPolynomialConstraint(csOp, symVarNames, monomials, l1Size);
+
+  return success();
+}
+
 // End of Helper Functions
 // ------------------------------------------------------------
 
@@ -399,7 +504,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
       
       auto clonedFunc = loom::utils::cloneFuncWithConstraints(
           builder, func, newName, moduleAttrs, "EnumerateHWMapping",
-          [&](func::FuncOp cloned, loom::ConstraintSpaceOp) -> LogicalResult {
+          [&](func::FuncOp cloned, loom::ConstraintSpaceOp csOp) -> LogicalResult {
             affine::AffineParallelOp currentOuter = nullptr;
             cloned.walk([&](affine::AffineParallelOp par) {
               if (!par->getParentOfType<affine::AffineParallelOp>() && !currentOuter)
@@ -409,6 +514,10 @@ EnumerateSpatialMappings(ModuleOp affineModule,
               return failure();
             if (failed(ConvertParallelToNested(currentOuter, order)))
               return failure();
+            
+            if (failed(addL1CacheConstraints(cloned, csOp, hardwareInfo.l1Size)))
+              return failure();
+            
             return success();
           },
           nullptr);
@@ -442,7 +551,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
           auto clonedFunc = loom::utils::cloneFuncWithConstraints(
               builder, func, "",  // Temporary name, will be set after getting mappingSuffix
               moduleAttrs, "EnumerateHWMapping",
-              [&](func::FuncOp cloned, loom::ConstraintSpaceOp) -> LogicalResult {
+              [&](func::FuncOp cloned, loom::ConstraintSpaceOp csOp) -> LogicalResult {
                 affine::AffineParallelOp tar_forOp = getOutermostParallel(cloned);
                 if (!tar_forOp) {
                   return failure();
@@ -458,6 +567,9 @@ EnumerateSpatialMappings(ModuleOp affineModule,
                 }
 
                 composeAndCanonicalizeAffineApplies(cloned);
+                
+                if (failed(addL1CacheConstraints(cloned, csOp, hardwareInfo.l1Size)))
+                  return failure();
                 
                 return success();
               },

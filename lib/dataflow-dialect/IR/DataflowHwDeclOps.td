@@ -177,7 +177,7 @@ def CoreOp : DF_Op<"core", [AttrSizedOperandSegments]> {
 // Example (matches current custom assembly):
 //   %memories = df.memory "cluster_mem", %x
 //       {map = affine_map<(d0) -> (d0)>}
-def MemoryOp : DF_Op<"memory"> {
+def MemoryOp : DF_Op<"memory", [Symbol]> {
   let summary = "Declare memory resources via an affine map";
   let description = [{
     `df.memory` declares memory tiles associated with spatial dimensions and
@@ -186,18 +186,28 @@ def MemoryOp : DF_Op<"memory"> {
     width). The resulting `!df.memory` handle is an opaque reference to those
     resources.
 
+    The operation is a symbol and can be referenced via SymbolRefAttr.
+    The `sym_name` attribute is used as both the display name and the symbol name.
+
     Example:
       `%memories = df.memory "cluster_mem", %x
           {map = affine_map<(d0) -> (d0)>, size = 65536 : i64, bandwidth = 64 : i64}`
   }];
 
-  let arguments = (ins StrAttr:$label,
+  let arguments = (ins StrAttr:$sym_name,
                        Variadic<Index>:$scaleout,
                        I64Attr:$size,
                        I64Attr:$bandwidth);
   let results = (outs MemoryHandleType:$handle);
 
   let hasCustomAssemblyFormat = 1;
+
+  // Provide a getter for 'label' to maintain backward compatibility
+  let extraClassDeclaration = [{
+    // Alias for sym_name to maintain backward compatibility
+    ::mlir::StringAttr getLabelAttr() { return getSymNameAttr(); }
+    ::llvm::StringRef getLabel() { return getSymName(); }
+  }];
 }
 
 // df.mux : declare multiplexing between computes and memories (or other

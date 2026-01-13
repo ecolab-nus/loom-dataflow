@@ -23,6 +23,7 @@ class SymbolicVarOp;
 class RangeOp;
 class AlignOp;
 class LinearConstraintOp;
+class PolynomialConstraintOp;
 } // namespace loom
 
 namespace loom {
@@ -100,6 +101,14 @@ private:
   ///
   /// @param op The linear constraint operation.
   void visitLinearConstraint(LinearConstraintOp op);
+
+  /// @brief Visits a polynomial constraint.
+  ///
+  /// For now, this just logs the constraint as they are not yet supported
+  /// by the Presburger-based feasibility check.
+  ///
+  /// @param op The polynomial constraint operation.
+  void visitPolynomialConstraint(PolynomialConstraintOp op);
 
   /// @brief Resolves the dimension index for an SSA value.
   ///
