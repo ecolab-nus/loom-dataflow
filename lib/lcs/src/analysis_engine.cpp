@@ -164,6 +164,9 @@ void AnalysisEngine::processConstraintSpace(ConstraintSpaceOp csOp) {
         .Case<LinearConstraintOp>([this](LinearConstraintOp lcOp) {
           visitLinearConstraint(lcOp);
         })
+        .Case<PolynomialConstraintOp>([this](PolynomialConstraintOp pcOp) {
+          visitPolynomialConstraint(pcOp);
+        })
         .Case<SymbolicVarOp>([](SymbolicVarOp) {
           // Already processed in first pass
         })
@@ -280,6 +283,14 @@ void AnalysisEngine::visitLinearConstraint(LinearConstraintOp op) {
       llvm::dbgs() << " >= 0\n";
     });
   }
+}
+
+void AnalysisEngine::visitPolynomialConstraint(PolynomialConstraintOp op) {
+  LLVM_DEBUG({
+    llvm::dbgs() << "  Encountered polynomial constraint: ";
+    op->print(llvm::dbgs());
+    llvm::dbgs() << "\n  (Polynomial constraints are currently treated as data structure only and not checked for feasibility)\n";
+  });
 }
 
 std::optional<unsigned> AnalysisEngine::resolveDimIndex(Value val) const {

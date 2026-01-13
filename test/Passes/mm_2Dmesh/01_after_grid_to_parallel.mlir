@@ -34,13 +34,13 @@ module {
           %13 = arith.muli %6, %c512_2 : index
           %14 = arith.addi %13, %12 : index
           %15 = loom.reinterpret_cast %arg0 to offset : [%14], sizes : [%0, %2], strides : [%c512_1, %c1], reuse : [seq = false, spat = false, temp = false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-          %alloc = memref.alloc(%0, %2) : memref<?x?xf32>
+          %alloc = loom.alloc(%0, %2) on @L1 : memref<?x?xf32>
           loom.copy %15, %alloc, interconnect : [], broadcast : [1, 1] : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<?x?xf32>
           %16 = bufferization.to_tensor %alloc restrict writable : memref<?x?xf32> to tensor<?x?xf32>
           %17 = arith.muli %12, %c512_2 : index
           %18 = arith.addi %17, %7 : index
           %19 = loom.reinterpret_cast %arg1 to offset : [%18], sizes : [%2, %1], strides : [%c512_0, %c1], reuse : [seq = false, spat = false, temp = false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
-          %alloc_3 = memref.alloc(%2, %1) : memref<?x?xf32>
+          %alloc_3 = loom.alloc(%2, %1) on @L1 : memref<?x?xf32>
           loom.copy %19, %alloc_3, interconnect : [], broadcast : [1, 1] : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<?x?xf32>
           %20 = bufferization.to_tensor %alloc_3 restrict writable : memref<?x?xf32> to tensor<?x?xf32>
           %21 = linalg.matmul ins(%16, %20 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%5 : tensor<?x?xf32>) -> tensor<?x?xf32>

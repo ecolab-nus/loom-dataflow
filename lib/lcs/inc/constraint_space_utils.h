@@ -18,6 +18,7 @@
 namespace loom {
 class ConstraintSpaceOp;
 class LinearConstraintOp;
+class PolynomialConstraintOp;
 class RangeOp;
 class SymbolicVarOp;
 } // namespace loom
@@ -68,6 +69,26 @@ SymbolicVarOp findSymbolicVar(ConstraintSpaceOp csOp, llvm::StringRef varName);
 LinearConstraintOp addLinearConstraint(ConstraintSpaceOp csOp,
                                        llvm::ArrayRef<llvm::StringRef> varNames,
                                        mlir::AffineMap constraintMap);
+
+/// Monomial representation for polynomial constraints
+struct Monomial {
+  llvm::SmallVector<unsigned, 2> varIndices; // Indices into operand list
+  int64_t coeff;
+};
+
+/// @brief Add a polynomial constraint to an existing ConstraintSpaceOp.
+///
+/// Creates a PolynomialConstraintOp using the specified variables, monomials
+/// and upper bound. The variables must already exist in the constraint space.
+///
+/// @param csOp The constraint space to add the constraint to.
+/// @param varNames Names of the symbolic variables used in the constraint.
+/// @param monomials List of monomials in the polynomial.
+/// @param upperBound The upper bound for the polynomial (sum <= upperBound).
+/// @return The created PolynomialConstraintOp, or nullptr if variables not found.
+PolynomialConstraintOp addPolynomialConstraint(
+    ConstraintSpaceOp csOp, llvm::ArrayRef<llvm::StringRef> varNames,
+    llvm::ArrayRef<Monomial> monomials, int64_t upperBound);
 
 /// @brief Add a range constraint to an existing ConstraintSpaceOp.
 ///

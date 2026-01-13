@@ -46,6 +46,7 @@ struct SpatialDimInfo {
 struct HardwareInfo {
   llvm::SmallVector<loom_affine::SpatialDimInfo> spatialDimInfoVec;
   bool hasBidirInterconnect = false;
+  int64_t l1Size = 0;
 
   bool skipPermutation() const {
     return spatialDimInfoVec.size() == 2 && hasBidirInterconnect;

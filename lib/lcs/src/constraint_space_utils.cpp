@@ -98,6 +98,54 @@ LinearConstraintOp addLinearConstraint(ConstraintSpaceOp csOp,
   return lcOp;
 }
 
+PolynomialConstraintOp addPolynomialConstraint(
+    ConstraintSpaceOp csOp, llvm::ArrayRef<llvm::StringRef> varNames,
+    llvm::ArrayRef<Monomial> monomials, int64_t upperBound) {
+  // Find all the symbolic variables
+  llvm::SmallVector<Value, 4> operands;
+  for (llvm::StringRef name : varNames) {
+    SymbolicVarOp symVar = findSymbolicVar(csOp, name);
+    if (!symVar) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Could not find symbolic variable '" << name << "'\n");
+      return nullptr;
+    }
+    operands.push_back(symVar.getResult());
+  }
+
+  // Insert at the end of the constraint space body
+  OpBuilder builder(csOp.getBodyBlock(), csOp.getBodyBlock()->end());
+  MLIRContext *ctx = csOp.getContext();
+
+  // Build the monomials ArrayAttr
+  llvm::SmallVector<Attribute, 8> monomialAttrs;
+  for (const auto &m : monomials) {
+    llvm::SmallVector<NamedAttribute, 2> attrs;
+    
+    // vars attribute
+    llvm::SmallVector<int64_t, 4> varIndices;
+    for (unsigned idx : m.varIndices) {
+      varIndices.push_back(static_cast<int64_t>(idx));
+    }
+    attrs.push_back(builder.getNamedAttr("vars", builder.getI64ArrayAttr(varIndices)));
+    
+    // coeff attribute
+    attrs.push_back(builder.getNamedAttr("coeff", builder.getI64IntegerAttr(m.coeff)));
+    
+    monomialAttrs.push_back(DictionaryAttr::get(ctx, attrs));
+  }
+
+  // Create the polynomial constraint op
+  auto pcOp = builder.create<PolynomialConstraintOp>(
+      csOp.getLoc(), operands, builder.getArrayAttr(monomialAttrs),
+      builder.getI64IntegerAttr(upperBound));
+
+  LLVM_DEBUG(llvm::dbgs() << "Added polynomial constraint with "
+                          << monomials.size() << " monomials\n");
+
+  return pcOp;
+}
+
 RangeOp addRangeConstraint(ConstraintSpaceOp csOp, llvm::StringRef varName,
                            int64_t lowerBound, int64_t upperBound) {
   // Find the symbolic variable

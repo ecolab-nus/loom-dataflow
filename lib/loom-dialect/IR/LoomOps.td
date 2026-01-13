@@ -116,6 +116,37 @@ def CopyOp : Loom_Op<"copy"> {
     }];
 }
 
+def AllocOp : Loom_Op<"alloc"> {
+  let summary = "A wrapper of memref.alloc with a symbol reference to the hardware memory it is allocated on";
+  let description = [{
+    The `loom.alloc` operation allocates a new memref on a specific hardware 
+    memory (e.g., L1, DRAM). It is essentially a wrapper around `memref.alloc` 
+    that makes the placement explicit via a symbol reference.
+
+    Example:
+    ```mlir
+    %alloc = loom.alloc(%M, %K) on @L1 : memref<?x?xf32>
+    ```
+  }];
+
+  let arguments = (ins
+    Variadic<Index>:$dynamicSizes,
+    SymbolRefAttr:$memory,
+    OptionalAttr<I64Attr>:$alignment
+  );
+
+  let results = (outs AnyMemRef:$result);
+
+  let assemblyFormat = [{
+    (`(` $dynamicSizes^ `)`)? `on` $memory attr-dict `:` type($result)
+  }];
+
+  let extraClassDeclaration = [{
+    /// Get the rank of the allocated memref.
+    unsigned getRank() { return ::llvm::cast<::mlir::MemRefType>(getResult().getType()).getRank(); }
+  }];
+}
+
 //===----------------------------------------------------------------------===//
 // Constraint Language Operations
 //===----------------------------------------------------------------------===//
@@ -333,6 +364,37 @@ def LinearConstraintOp : Loom_Op<"linear_constraint", [
   let arguments = (ins
     Variadic<Index>:$operands,
     AffineMapAttr:$map
+  );
+  
+  let assemblyFormat = [{
+    `(` $operands `)` attr-dict
+  }];
+}
+
+def PolynomialConstraintOp : Loom_Op<"polynomial_constraint", [
+  HasParent<"ConstraintSpaceOp">
+]> {
+  let summary = "Specify a multi-variable polynomial inequality constraint";
+  let description = [{
+    This operation specifies a polynomial inequality constraint over one or more
+    symbolic variables. The constraint is represented as:
+    
+      sum(monomial.coeff * product(symbolic_vars[monomial.vars])) <= upper_bound
+    
+    Example:
+      loom.polynomial_constraint (%m, %n, %k) {
+        monomials = [
+          { vars = [0, 2], coeff = 1 }, // Monomial 0: %m * %k
+          { vars = [1, 2], coeff = 1 }  // Monomial 1: %n * %k
+        ],
+        upper_bound = 8192 : i64
+      }
+  }];
+  
+  let arguments = (ins
+    Variadic<Index>:$operands,
+    ArrayAttr:$monomials,
+    I64Attr:$upper_bound
   );
   
   let assemblyFormat = [{
