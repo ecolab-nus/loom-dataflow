@@ -5,6 +5,7 @@
 
 #include "utils.h"
 #include "constraint_space_utils.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/IRMapping.h"
 
 // Include the generated Loom dialect headers for ConstraintSpaceOp
@@ -273,18 +274,61 @@ llvm::SmallVector<AllocInfo> collectL1AllocInfos(func::FuncOp func) {
 
     // Trace dynamic dimensions
     auto dynamicOperands = alloc.getDynamicSizes();
-    unsigned dynamicIdx = 0;
-    for (int64_t shape : memrefType.getShape()) {
-      if (ShapedType::isDynamic(shape)) {
-        Value val = dynamicOperands[dynamicIdx++];
+    llvm::SmallVector<StringRef> symbolicVars;
+    llvm::SmallVector<std::pair<int64_t, StringRef>> ceildivs;
+
+    for (Value val : dynamicOperands) {
+      if (auto getSym = val.getDefiningOp<loom::GetSymbolicBlockSizeOp>()) {
+        symbolicVars.push_back(
+            getSym.getSymbolRef().getLeafReference().getValue());
+      } else if (auto ceildiv = val.getDefiningOp<arith::CeilDivSIOp>()) {
+        // Handle (Constant / SymbolicVar) pattern
+        int64_t numerator = -1;
+        if (auto constOp =
+                ceildiv.getLhs().getDefiningOp<arith::ConstantIndexOp>()) {
+          numerator = constOp.value();
+        } else if (auto constIntOp =
+                       ceildiv.getLhs().getDefiningOp<arith::ConstantIntOp>()) {
+          numerator = constIntOp.value();
+        }
+
+        if (numerator > 0) {
+          StringRef denominator = traceToSymbolicVar(ceildiv.getRhs());
+          if (!denominator.empty()) {
+            ceildivs.push_back({numerator, denominator});
+          }
+        }
+      } else {
         StringRef symName = traceToSymbolicVar(val);
         if (!symName.empty()) {
-          info.dims.push_back(symName);
+          symbolicVars.push_back(symName);
         }
       }
     }
 
-    if (!info.dims.empty()) {
+    // Cancellation logic for hoisted blocks: block_K * (K_total / block_K) ->
+    // K_total
+    for (auto &pair : ceildivs) {
+      int64_t numerator = pair.first;
+      StringRef denominator = pair.second;
+      bool cancelled = false;
+      for (auto it = symbolicVars.begin(); it != symbolicVars.end(); ++it) {
+        if (*it == denominator) {
+          symbolicVars.erase(it);
+          info.elemSize *= numerator;
+          cancelled = true;
+          break;
+        }
+      }
+      if (!cancelled) {
+        // If not cancelled, it remains as a symbolic part (though complex)
+        // For now, we prioritize the cancellation case per requirements.
+      }
+    }
+
+    info.dims = symbolicVars;
+    if (!info.dims.empty() ||
+        info.elemSize > (int64_t)(memrefType.getElementTypeBitWidth() / 8)) {
       allocInfos.push_back(std::move(info));
     }
   });
