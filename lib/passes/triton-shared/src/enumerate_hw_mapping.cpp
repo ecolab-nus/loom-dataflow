@@ -24,25 +24,24 @@
 
 #include "enumerate_hw_mapping.h"
 #include "affine_tile.h"
-#include "utils.h"
 #include "constraint_space_utils.h"
+#include "utils.h"
 
+#include "affine_parallel_to_for.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/IR/AffineExpr.h"
-#include "mlir/IR/Attributes.h"
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/OpDefinition.h"
-#include "mlir/IR/Operation.h"
-#include "mlir/IR/IRMapping.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
-#include "affine_parallel_to_for.h"
-#include "llvm/ADT/SmallVector.h"
+#include "mlir/IR/AffineExpr.h"
+#include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/IRMapping.h"
+#include "mlir/IR/OpDefinition.h"
+#include "mlir/IR/Operation.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
+#include "llvm/ADT/SmallVector.h"
 #include <algorithm>
 #include <numeric>
 
@@ -60,10 +59,13 @@ using namespace mlir;
 
 namespace loom_affine {
 
-static LogicalResult GetSpatialDimInfo(loom::df::SpatialDimOp sdOp, llvm::SmallVector<loom_affine::SpatialDimInfo>& dimVec) {
+static LogicalResult
+GetSpatialDimInfo(loom::df::SpatialDimOp sdOp,
+                  llvm::SmallVector<loom_affine::SpatialDimInfo> &dimVec) {
   loom_affine::SpatialDimInfo info;
   // Read declared name and size from the op properties.
-  // Use getSymNameAttr() since we changed the attribute to sym_name for Symbol trait
+  // Use getSymNameAttr() since we changed the attribute to sym_name for Symbol
+  // trait
   if (auto nameAttr = sdOp.getSymNameAttr()) {
     info.name = nameAttr.getValue().str();
     // Use the symbol name for SymbolRefAttr
@@ -81,38 +83,38 @@ static LogicalResult GetSpatialDimInfo(loom::df::SpatialDimOp sdOp, llvm::SmallV
   return success();
 }
 
-
 static std::pair<bool, bool> AnalyzeInterconnectDirection(AffineMap map) {
-  if (map.getNumResults() < 2) return {false, false};
+  if (map.getNumResults() < 2)
+    return {false, false};
 
   bool d0Connected = false;
   bool d1Connected = false;
   for (unsigned i = 0; i < map.getNumResults(); ++i) {
     AffineExpr expr = map.getResult(i);
 
-    if (i == 0 && expr != getAffineDimExpr(0, map.getContext())) d0Connected = true;
-    if (i == 1 && expr != getAffineDimExpr(1, map.getContext())) d1Connected = true;
+    if (i == 0 && expr != getAffineDimExpr(0, map.getContext()))
+      d0Connected = true;
+    if (i == 1 && expr != getAffineDimExpr(1, map.getContext()))
+      d1Connected = true;
   }
 
   return {d0Connected, d1Connected};
 }
 
-
-LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp dfModule, 
-  HardwareInfo &hardwareInfo) {
+LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp dfModule,
+                                            HardwareInfo &hardwareInfo) {
   bool res = false;
   bool d0Connected = false;
   bool d1Connected = false;
   dfModule.walk([&](Operation *op) {
     if (auto sd = dyn_cast<loom::df::SpatialDimOp>(op)) {
-      res = res || failed(GetSpatialDimInfo(sd, hardwareInfo.spatialDimInfoVec));
-    }
-    else if (auto mem = dyn_cast<loom::df::MemoryOp>(op)) {
+      res =
+          res || failed(GetSpatialDimInfo(sd, hardwareInfo.spatialDimInfoVec));
+    } else if (auto mem = dyn_cast<loom::df::MemoryOp>(op)) {
       if (mem.getLabel() == "L1") {
         hardwareInfo.l1Size = mem.getSize();
       }
-    }
-    else if (auto ic = dyn_cast<loom::df::InterconnectsOp>(op)) {
+    } else if (auto ic = dyn_cast<loom::df::InterconnectsOp>(op)) {
       AffineMap map = ic.getMapAttr().getValue();
       auto [x, y] = AnalyzeInterconnectDirection(map);
       if (x && !y) {
@@ -127,7 +129,6 @@ LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp dfModule,
   hardwareInfo.hasBidirInterconnect = d0Connected && d1Connected;
   return success(res);
 }
-
 
 // ------------------------------------------------------------
 // Helper functions
@@ -175,16 +176,20 @@ static void composeAndCanonicalizeAffineApplies(func::FuncOp func) {
 }
 
 /**
- * @brief Recursively enumerate all possible bucketing of dimensions into parallel iterators.
- * 
+ * @brief Recursively enumerate all possible bucketing of dimensions into
+ * parallel iterators.
+ *
  * @param dimIdx The current dimension index.
  * @param numDims The total number of dimensions.
  * @param currentBuckets The current bucketing.
  * @param out The result.
  */
-static void EnumerateBucketingRec(unsigned dimIdx, unsigned numDims,
-  loom_affine::DimBuckets& currentBuckets, llvm::SmallVector<loom_affine::DimBuckets>& out) {
-  // If we have assigned all dimensions, add the current bucketing to the result.
+static void
+EnumerateBucketingRec(unsigned dimIdx, unsigned numDims,
+                      loom_affine::DimBuckets &currentBuckets,
+                      llvm::SmallVector<loom_affine::DimBuckets> &out) {
+  // If we have assigned all dimensions, add the current bucketing to the
+  // result.
   if (dimIdx == numDims) {
     out.push_back(currentBuckets);
     return;
@@ -197,38 +202,40 @@ static void EnumerateBucketingRec(unsigned dimIdx, unsigned numDims,
   }
 }
 
-
 /**
- * @brief Generate all possible bucketing of dimensions into parallel iterators by calling EnumerateBucketingRec.
- * 
+ * @brief Generate all possible bucketing of dimensions into parallel iterators
+ * by calling EnumerateBucketingRec.
+ *
  * @param numParelleIter The number of parallel iterators.
  * @param numDims The total number of dimensions.
  * @return The result.
  */
-static llvm::SmallVector<loom_affine::DimBuckets> GenerateAllPossibleParallelBuckets(unsigned numParelleIter, unsigned numDims) {
+static llvm::SmallVector<loom_affine::DimBuckets>
+GenerateAllPossibleParallelBuckets(unsigned numParelleIter, unsigned numDims) {
   llvm::SmallVector<loom_affine::DimBuckets> bucketing_results;
   loom_affine::DimBuckets currentBuckets(numParelleIter);
   EnumerateBucketingRec(0, numDims, currentBuckets, bucketing_results);
   return bucketing_results;
 }
 
-
 /**
- * @brief Generate all possible mappings by performing a Cartesian product of each iterator's dims in the permuted bucketing.
- * 
+ * @brief Generate all possible mappings by performing a Cartesian product of
+ * each iterator's dims in the permuted bucketing.
+ *
  * @param iterIdx The current iterator index.
  * @param current The current bucketing.
  * @param bucketsPerIter The permuted bucketing for each iterator.
  * @param out The result.
  */
-static void CartesianProductOfBuckets(unsigned iterIdx,
-  loom_affine::DimBuckets &current,
-  const llvm::SmallVector<loom_affine::DimBuckets> &bucketsPerIter,
-  llvm::SmallVector<loom_affine::DimBuckets> &out) {
-  // If we have processed all iterators, add the current bucketing to the result.
+static void CartesianProductOfBuckets(
+    unsigned iterIdx, loom_affine::DimBuckets &current,
+    const llvm::SmallVector<loom_affine::DimBuckets> &bucketsPerIter,
+    llvm::SmallVector<loom_affine::DimBuckets> &out) {
+  // If we have processed all iterators, add the current bucketing to the
+  // result.
   if (iterIdx == current.size()) {
-      out.push_back(current);
-      return;
+    out.push_back(current);
+    return;
   }
 
   const auto &buckets = bucketsPerIter[iterIdx];
@@ -249,36 +256,39 @@ static void CartesianProductOfBuckets(unsigned iterIdx,
   current[iterIdx] = saved;
 }
 
-
 /**
  * @brief Generate all possible mappings by calling CartesianProductOfBuckets.
- * 
+ *
  * @param permutedBucketsPerIter The permuted bucketing for each iterator.
  * @return The result.
  */
-static llvm::SmallVector<loom_affine::DimBuckets> GenerateAllPossibleMappings(const llvm::SmallVector<loom_affine::DimBuckets>& permutedBucketsPerIter) {
+static llvm::SmallVector<loom_affine::DimBuckets> GenerateAllPossibleMappings(
+    const llvm::SmallVector<loom_affine::DimBuckets> &permutedBucketsPerIter) {
   llvm::SmallVector<loom_affine::DimBuckets> result;
   loom_affine::DimBuckets currentBuckets(permutedBucketsPerIter.size());
   CartesianProductOfBuckets(0, currentBuckets, permutedBucketsPerIter, result);
   return result;
 }
 
-
 /**
  * @brief Permute the dimensions in each iterator's bucket.
- * 
+ *
  * @param baseBuckets The base bucketing.
- * @param skipPermutation Whether to skip permutation if the number of dimensions is 2 and there is a bidirectional interconnect.
+ * @param skipPermutation Whether to skip permutation if the number of
+ * dimensions is 2 and there is a bidirectional interconnect.
  * @return The complete mappings.
  */
-static llvm::SmallVector<loom_affine::DimBuckets> PermuteBucket(const loom_affine::DimBuckets& baseBuckets, const HardwareInfo& hardwareInfo) {
+static llvm::SmallVector<loom_affine::DimBuckets>
+PermuteBucket(const loom_affine::DimBuckets &baseBuckets,
+              const HardwareInfo &hardwareInfo) {
   const unsigned numIters = static_cast<unsigned>(baseBuckets.size());
   llvm::SmallVector<loom_affine::DimBuckets> permutedBucketsPerIter(numIters);
 
   for (unsigned it = 0; it < numIters; ++it) {
     SmallVector<unsigned> dims = baseBuckets[it];
-    if (dims.size() <= 1 
-        || (dims.size() == hardwareInfo.spatialDimInfoVec.size() && hardwareInfo.skipPermutation())) {
+    if (dims.size() <= 1 ||
+        (dims.size() == hardwareInfo.spatialDimInfoVec.size() &&
+         hardwareInfo.skipPermutation())) {
       permutedBucketsPerIter[it].push_back(dims);
     } else {
       std::sort(dims.begin(), dims.end());
@@ -291,10 +301,9 @@ static llvm::SmallVector<loom_affine::DimBuckets> PermuteBucket(const loom_affin
   return GenerateAllPossibleMappings(permutedBucketsPerIter);
 }
 
-
 /**
  * @brief Get the outermost parallel iterator in a function.
- * 
+ *
  * @param func The function to get the outermost parallel iterator from.
  * @return The outermost parallel iterator.
  */
@@ -307,20 +316,19 @@ static affine::AffineParallelOp getOutermostParallel(func::FuncOp func) {
   return result;
 }
 
-
 /**
  * @brief Apply a tiling mapping to a kernel function.
- * 
+ *
  * @param func The function to apply the tiling mapping to.
  * @param mapping The tiling mapping to apply.
  * @param dims The dimensions to map.
  * @param suffix The suffix to add to the function name.
  * @return success if the mapping is applied successfully, failure otherwise.
  */
-static LogicalResult applyMappingToFunction(func::FuncOp func,
-                                            const loom_affine::DimBuckets &mapping,
-                                            const llvm::SmallVector<loom_affine::SpatialDimInfo>& dims,
-                                            affine::AffineParallelOp &tar_forOp, std::string &suffix) {
+static LogicalResult applyMappingToFunction(
+    func::FuncOp func, const loom_affine::DimBuckets &mapping,
+    const llvm::SmallVector<loom_affine::SpatialDimInfo> &dims,
+    affine::AffineParallelOp &tar_forOp, std::string &suffix) {
   suffix.clear();
 
   MLIRContext *ctx = func.getContext();
@@ -330,13 +338,15 @@ static LogicalResult applyMappingToFunction(func::FuncOp func,
       const auto &sd = dims[dimIdx];
       int64_t factor = sd.size.value_or(1);
       loom_affine::TiledParallels tiled_parallels{};
-      if (failed(tileAffineParallel(tar_forOp, factor, iterIdx, tiled_parallels)))
+      if (failed(
+              tileAffineParallel(tar_forOp, factor, iterIdx, tiled_parallels)))
         return failure();
       // Use SymbolRefAttr to reference the df.spatial_dim operation
       // Use the symbolName from SpatialDimInfo, defaulting to "dim" if empty
-      StringRef symbolName = sd.symbolName.empty() ? StringRef("dim") : StringRef(sd.symbolName);
+      StringRef symbolName =
+          sd.symbolName.empty() ? StringRef("dim") : StringRef(sd.symbolName);
       tiled_parallels.tiled_new_->setAttr("loom.mapped_to",
-                        SymbolRefAttr::get(ctx, symbolName));
+                                          SymbolRefAttr::get(ctx, symbolName));
       if (!suffix.empty())
         suffix += "_";
       suffix += "d" + std::to_string(dimIdx) + "i" + std::to_string(iterIdx);
@@ -347,87 +357,41 @@ static LogicalResult applyMappingToFunction(func::FuncOp func,
 }
 
 /**
- * @brief Trace an SSA value back to a symbolic block size name.
- * 
- * @param val The SSA value to trace.
- * @return The symbolic variable name if found, empty string otherwise.
- */
-static StringRef traceToSymbolicVar(Value val) {
-  if (!val) return "";
-  
-  // Handle direct loom.get_symbolic_block_size
-  if (auto getSym = val.getDefiningOp<loom::GetSymbolicBlockSizeOp>()) {
-    return getSym.getSymbolRef().getLeafReference().getValue();
-  }
-  
-  // Handle arith.muli/addi/etc. if needed, but for now we follow the user's sketch
-  // where block sizes are directly used from loom.get_symbolic_block_size.
-  
-  return "";
-}
-
-/**
- * @brief Add L1 cache size constraints based on memref allocations in the function.
- * 
+ * @brief Add L1 cache size constraints based on memref allocations in the
+ * function.
+ *
  * @param func The function to analyze and modify.
  * @param csOp The constraint space to add constraints to.
  * @param l1Size The size of the L1 cache in bytes.
- * @return success if constraints are added successfully or not applicable, failure otherwise.
+ * @return success if constraints are added successfully or not applicable,
+ * failure otherwise.
  */
 static LogicalResult addL1CacheConstraints(func::FuncOp func,
                                            loom::ConstraintSpaceOp csOp,
                                            int64_t l1Size) {
-  if (l1Size <= 0 || !csOp) return success();
+  if (l1Size <= 0 || !csOp)
+    return success();
 
-  // Find all loom.alloc operations
-  SmallVector<loom::AllocOp> allocs;
-  func.walk([&](loom::AllocOp alloc) {
-    allocs.push_back(alloc);
-  });
-
-  if (allocs.empty()) return success();
+  auto allocInfos = loom::utils::collectL1AllocInfos(func);
+  if (allocInfos.empty())
+    return success();
 
   llvm::SmallVector<StringRef> symVarNames;
   llvm::StringMap<unsigned> symVarToIndex;
-  
-  struct AllocInfo {
-    SmallVector<StringRef> dims;
-    int64_t elemSize;
-  };
-  SmallVector<AllocInfo> allocInfos;
 
-  for (auto alloc : allocs) {
-    auto memrefType = cast<MemRefType>(alloc.getResult().getType());
-    AllocInfo info;
-    info.elemSize = memrefType.getElementTypeBitWidth() / 8;
-    
-    // Trace dynamic dimensions
-    auto dynamicOperands = alloc.getDynamicSizes();
-    unsigned dynamicIdx = 0;
-    for (int64_t shape : memrefType.getShape()) {
-      if (ShapedType::isDynamic(shape)) {
-        Value val = dynamicOperands[dynamicIdx++];
-        StringRef symName = traceToSymbolicVar(val);
-        if (!symName.empty()) {
-          info.dims.push_back(symName);
-          if (symVarToIndex.find(symName) == symVarToIndex.end()) {
-            symVarToIndex[symName] = symVarNames.size();
-            symVarNames.push_back(symName);
-          }
-        }
+  // Build unique variable list
+  for (const auto &info : allocInfos) {
+    for (StringRef dimName : info.dims) {
+      if (symVarToIndex.find(dimName) == symVarToIndex.end()) {
+        symVarToIndex[dimName] = symVarNames.size();
+        symVarNames.push_back(dimName);
       }
-    }
-    
-    if (!info.dims.empty()) {
-      allocInfos.push_back(info);
     }
   }
 
-  if (allocInfos.empty()) return success();
-
   // Build monomials for L1 constraint
   llvm::SmallVector<loom::lcs::Monomial> monomials;
-  for (const auto& info : allocInfos) {
+  for (const auto &info : allocInfos) {
     loom::lcs::Monomial m;
     for (StringRef dimName : info.dims) {
       m.varIndices.push_back(symVarToIndex[dimName]);
@@ -445,14 +409,12 @@ static LogicalResult addL1CacheConstraints(func::FuncOp func,
 // End of Helper Functions
 // ------------------------------------------------------------
 
-
-
 /**
  * @copydoc loom_affine::EnumerateSpatialMappings
  */
 OwningOpRef<ModuleOp>
 EnumerateSpatialMappings(ModuleOp affineModule,
-                                      const HardwareInfo& hardwareInfo) {
+                         const HardwareInfo &hardwareInfo) {
   MLIRContext *ctx = affineModule.getContext();
   OpBuilder builder(ctx);
   auto out = ModuleOp::create(affineModule.getLoc());
@@ -462,8 +424,9 @@ EnumerateSpatialMappings(ModuleOp affineModule,
   }
 
   // Collect all functions from nested modules
-  llvm::SmallVector<func::FuncOp> allFuncs = loom::utils::collectFunctions(affineModule);
-  
+  llvm::SmallVector<func::FuncOp> allFuncs =
+      loom::utils::collectFunctions(affineModule);
+
   for (func::FuncOp func : allFuncs) {
     // Get the attributes from the parent module of the function
     ModuleOp parentModule = loom::utils::getParentModule(func);
@@ -492,36 +455,40 @@ EnumerateSpatialMappings(ModuleOp affineModule,
     // as in enumerateSpatialMappings, but additionally enumerate all
     // permutations of the remaining outer parallel iterators as well.
 
-    const unsigned D = static_cast<unsigned>(hardwareInfo.spatialDimInfoVec.size());
+    const unsigned D =
+        static_cast<unsigned>(hardwareInfo.spatialDimInfoVec.size());
     if (D == 0) {
       // No spatial dims to map: convert the outer parallel to a canonical
       // nested-for in identity order [0..P-1] and emit a single clone.
       SmallVector<unsigned> order(P);
       std::iota(order.begin(), order.end(), 0);
-      
+
       builder.setInsertionPointToEnd(out.getBody());
       std::string newName = (func.getName() + "__for").str();
-      
+
       auto clonedFunc = loom::utils::cloneFuncWithConstraints(
           builder, func, newName, moduleAttrs, "EnumerateHWMapping",
-          [&](func::FuncOp cloned, loom::ConstraintSpaceOp csOp) -> LogicalResult {
+          [&](func::FuncOp cloned,
+              loom::ConstraintSpaceOp csOp) -> LogicalResult {
             affine::AffineParallelOp currentOuter = nullptr;
             cloned.walk([&](affine::AffineParallelOp par) {
-              if (!par->getParentOfType<affine::AffineParallelOp>() && !currentOuter)
+              if (!par->getParentOfType<affine::AffineParallelOp>() &&
+                  !currentOuter)
                 currentOuter = par;
             });
             if (!currentOuter)
               return failure();
             if (failed(ConvertParallelToNested(currentOuter, order)))
               return failure();
-            
-            if (failed(addL1CacheConstraints(cloned, csOp, hardwareInfo.l1Size)))
+
+            if (failed(
+                    addL1CacheConstraints(cloned, csOp, hardwareInfo.l1Size)))
               return failure();
-            
+
             return success();
           },
           nullptr);
-      
+
       if (!clonedFunc)
         continue;
       continue;
@@ -541,42 +508,49 @@ EnumerateSpatialMappings(ModuleOp affineModule,
         SmallVector<unsigned> orderCopy = order;
         do {
           builder.setInsertionPointToEnd(out.getBody());
-          
+
           // Build the function name first
           std::string mappingSuffix;
           std::string newName = func.getName().str();
           newName += "__";
-          
+
           // Clone and apply the mapping
           auto clonedFunc = loom::utils::cloneFuncWithConstraints(
-              builder, func, "",  // Temporary name, will be set after getting mappingSuffix
+              builder, func,
+              "", // Temporary name, will be set after getting mappingSuffix
               moduleAttrs, "EnumerateHWMapping",
-              [&](func::FuncOp cloned, loom::ConstraintSpaceOp csOp) -> LogicalResult {
-                affine::AffineParallelOp tar_forOp = getOutermostParallel(cloned);
+              [&](func::FuncOp cloned,
+                  loom::ConstraintSpaceOp csOp) -> LogicalResult {
+                affine::AffineParallelOp tar_forOp =
+                    getOutermostParallel(cloned);
                 if (!tar_forOp) {
                   return failure();
                 }
 
-                if (failed(applyMappingToFunction(cloned, mapping, hardwareInfo.spatialDimInfoVec,
-                                                  tar_forOp, mappingSuffix))) {
+                if (failed(applyMappingToFunction(
+                        cloned, mapping, hardwareInfo.spatialDimInfoVec,
+                        tar_forOp, mappingSuffix))) {
                   return failure();
                 }
 
-                if (!tar_forOp || failed(ConvertParallelToNested(tar_forOp, orderCopy))) {
+                if (!tar_forOp ||
+                    failed(ConvertParallelToNested(tar_forOp, orderCopy))) {
                   return failure();
                 }
 
                 composeAndCanonicalizeAffineApplies(cloned);
-                
-                if (failed(addL1CacheConstraints(cloned, csOp, hardwareInfo.l1Size)))
+
+                if (failed(addL1CacheConstraints(cloned, csOp,
+                                                 hardwareInfo.l1Size)))
                   return failure();
-                
+
                 return success();
               },
               nullptr);
-          
+
           if (clonedFunc) {
-            // Set the final name with the mappingSuffix obtained during modification
+            // Set the final name with the mappingSuffix obtained during
+            // modification
             std::string finalName = newName;
             if (!mappingSuffix.empty())
               finalName += mappingSuffix;
