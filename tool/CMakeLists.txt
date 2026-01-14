@@ -5,6 +5,7 @@ set(LOOM_PASSES_INC
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/inc
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared/inc
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/constraint-opt/inc
   ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
   ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
 )
@@ -14,6 +15,9 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/affine)
 
 # Triton-shared tools
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/triton-shared/single_stage)
+
+# Loom-constraint tools
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/loom-constraint/single_stage)
 
 # Combined pipeline tool
 add_executable(ttshared-opt
