@@ -402,6 +402,48 @@ def PolynomialConstraintOp : Loom_Op<"polynomial_constraint", [
   }];
 }
 
+/// Expression within a constraint space.
+///
+/// The `loom.expression` operation defines a linear combination of symbolic
+/// variables. It is used by the factorization pass to represent factored-out
+/// sub-expressions that can be referenced as single SSA values in constraint
+/// monomials.
+///
+/// Example:
+/// ```mlir
+/// %v = loom.expression(%m, %n, %c) {coeffs = [1 : i64, 1 : i64, 1 : i64]} : index
+/// // Represents: M + N + C
+/// ```
+def ExpressionOp : Loom_Op<"expression", [
+  Pure,
+  HasParent<"ConstraintSpaceOp">
+]> {
+  let summary = "Define a symbolic expression combining variables";
+  let description = [{
+    This operation represents a linear combination of symbolic variables.
+    It is used by the factorization pass to inject factored sub-expressions
+    that can be referenced as single SSA values in polynomial constraints.
+    
+    The result is an index value representing the expression, which can be
+    used as an operand in polynomial_constraint operations.
+    
+    Example:
+      %v = loom.expression(%m, %n, %c) {coeffs = [1 : i64, 1 : i64, 1 : i64]} : index
+      // Represents: 1*M + 1*N + 1*C = M + N + C
+  }];
+  
+  let arguments = (ins
+    Variadic<Index>:$operands,
+    I64ArrayAttr:$coeffs
+  );
+  
+  let results = (outs Index:$result);
+  
+  let assemblyFormat = [{
+    `(` $operands `)` attr-dict `:` type($result)
+  }];
+}
+
 /// Reference to a symbolic variable in a constraint space.
 ///
 /// The `loom.get_symbolic_block_size` operation retrieves the value of a
