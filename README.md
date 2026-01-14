@@ -154,7 +154,21 @@ build/tool/triton-shared/single_stage/enumerate_copy_broadcast \
   > test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir
 ```
 
-6) Canonicalize 
+6) Canonicalize constraints
+```bash
+./build/tool/loom-constraint/single_stage/constraint_canonicalize \
+  --input test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir \
+  > test/Passes/mm_2Dmesh/11_after_canonicalize.mlir
+```
+
+7) Factorize constraints
+```bash
+./build/tool/loom-constraint/single_stage/constraint_factorize \
+  --input test/Passes/mm_2Dmesh/11_after_canonicalize.mlir \
+  > test/Passes/mm_2Dmesh/12_after_factorize.mlir
+```
+
+8) Canonicalize 
 ```bash
 build/tool/triton-shared/single_stage/canonicalize \
   --input test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir \
