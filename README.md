@@ -168,7 +168,21 @@ build/tool/triton-shared/single_stage/enumerate_copy_broadcast \
   > test/Passes/mm_2Dmesh/12_after_factorize.mlir
 ```
 
-8) Canonicalize 
+8) Decompose non-linear constraints
+```bash
+./build/tool/loom-constraint/single_stage/constraint_decompose \
+  --input test/Passes/mm_2Dmesh/12_after_factorize.mlir \
+  > test/Passes/mm_2Dmesh/13_after_decompose.mlir
+```
+
+9) Linearize constraints (McCormick relaxation)
+```bash
+./build/tool/loom-constraint/single_stage/constraint_linearize \
+  --input test/Passes/mm_2Dmesh/13_after_decompose.mlir \
+  > test/Passes/mm_2Dmesh/14_after_linearize.mlir
+```
+
+10) Canonicalize 
 ```bash
 build/tool/triton-shared/single_stage/canonicalize \
   --input test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir \

@@ -4,6 +4,8 @@
 add_library(loomConstraintOptPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/constraint_canonicalize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/constraint_factorize.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/constraint_decompose.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/constraint_linearize.cpp
 )
 
 target_include_directories(loomConstraintOptPasses PUBLIC

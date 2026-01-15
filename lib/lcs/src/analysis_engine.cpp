@@ -217,14 +217,23 @@ Interval BoundInferenceService::scalarMultiply(int64_t scalar, Interval a) {
 }
 
 Interval BoundInferenceService::computeExpressionBounds(ExpressionOp op) {
+  llvm::StringRef logic = op.getLogic();
   Interval result = {0, 0};
-  auto operands = op.getOperands();
-  auto coeffs = op.getCoeffs();
 
-  for (unsigned i = 0; i < operands.size(); ++i) {
-    int64_t coeff = cast<IntegerAttr>(coeffs[i]).getInt();
-    Interval operandRange = getRange(operands[i]);
-    result = add(result, scalarMultiply(coeff, operandRange));
+  if (logic == "mul") {
+    auto operands = op.getOperands();
+    assert(operands.size() == 2 &&
+           "Mul expression must have exactly 2 operands");
+    result = multiply(getRange(operands[0]), getRange(operands[1]));
+  } else if (logic == "add") {
+    auto operands = op.getOperands();
+    auto coeffs = op.getCoeffs();
+    for (unsigned i = 0; i < operands.size(); ++i) {
+      int64_t coeff = cast<IntegerAttr>(coeffs[i]).getInt();
+      result = add(result, scalarMultiply(coeff, getRange(operands[i])));
+    }
+  } else {
+    assert(false && "Unsupported logic type");
   }
 
   boundsTable_[op.getResult()] = result;
@@ -267,6 +276,9 @@ void AnalysisEngine::processConstraintSpace(ConstraintSpaceOp csOp) {
         })
         .Case<ExpressionOp>(
             [this](ExpressionOp exprOp) { visitExpression(exprOp); })
+        .Case<loom::IntermediateVarOp>([this](loom::IntermediateVarOp ivOp) {
+          visitIntermediateVar(ivOp);
+        })
         .Case<SymbolicVarOp>([](SymbolicVarOp) {
           // Already processed in first pass
         })
@@ -291,6 +303,16 @@ void AnalysisEngine::visitSymbolicVar(SymbolicVarOp op) {
 
   LLVM_DEBUG(llvm::dbgs() << "  Registered symbolic var '" << varName
                           << "' -> dim " << dimIdx << "\n");
+}
+
+void AnalysisEngine::visitIntermediateVar(loom::IntermediateVarOp op) {
+  unsigned localIdx = constraintSet_.registerLocalVariable();
+
+  // Map the SSA result value to this local index
+  valueTracker_.trackLocalId(op.getResult());
+
+  LLVM_DEBUG(llvm::dbgs() << "  Registered intermediate var -> local "
+                          << localIdx << "\n");
 }
 
 void AnalysisEngine::visitRange(RangeOp op) {
@@ -377,13 +399,19 @@ void AnalysisEngine::visitLinearConstraint(LinearConstraintOp op) {
       csCoeffs[dimMapping[d]] += mapCoeffs[d];
     }
 
-    // Add the inequality: sum(coeffs * dims) + constant >= 0
-    constraintSet_.addInequality(csCoeffs, constant);
+    // Add the constraint
+    if (op.getIsEquality()) {
+      // sum(coeffs * vars) + constant == 0
+      constraintSet_.addEquality(csCoeffs, constant);
+    } else {
+      // sum(coeffs * vars) + constant >= 0
+      constraintSet_.addInequality(csCoeffs, constant);
+    }
 
     LLVM_DEBUG({
       llvm::dbgs() << "  Added linear constraint from map result " << i << ": ";
       expr.dump();
-      llvm::dbgs() << " >= 0\n";
+      llvm::dbgs() << (op.getIsEquality() ? " == 0\n" : " >= 0\n");
     });
   }
 }

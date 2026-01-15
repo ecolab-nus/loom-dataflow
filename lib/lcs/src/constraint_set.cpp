@@ -65,6 +65,12 @@ unsigned ConstraintSet::registerVariable(llvm::StringRef name) {
   return newDimIdx;
 }
 
+unsigned ConstraintSet::registerLocalVariable() {
+  unsigned localIdx = polyhedron_.getNumLocalVars();
+  polyhedron_.appendVar(VarKind::Local, 1);
+  return localIdx;
+}
+
 std::optional<unsigned> ConstraintSet::getDimIndex(llvm::StringRef name) const {
   auto it = varToDimIndex_.find(name);
   if (it != varToDimIndex_.end()) {

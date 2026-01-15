@@ -363,7 +363,8 @@ def LinearConstraintOp : Loom_Op<"linear_constraint", [
   
   let arguments = (ins
     Variadic<Index>:$operands,
-    AffineMapAttr:$map
+    AffineMapAttr:$map,
+    DefaultValuedAttr<BoolAttr, "false">:$is_equality
   );
   
   let assemblyFormat = [{
@@ -420,21 +421,25 @@ def ExpressionOp : Loom_Op<"expression", [
 ]> {
   let summary = "Define a symbolic expression combining variables";
   let description = [{
-    This operation represents a linear combination of symbolic variables.
-    It is used by the factorization pass to inject factored sub-expressions
-    that can be referenced as single SSA values in polynomial constraints.
+    This operation represents either a linear combination of symbolic variables
+    (addition) or a product of two symbolic variables (multiplication).
+    
+    The 'logic' attribute determines whether the operation is an 'add' or 'mul'.
+    - If logic is 'add' (default):
+      It represents: coeff[0]*operand[0] + coeff[1]*operand[1] + ...
+      There can be any number of operands.
+    - If logic is 'mul':
+      It represents: operand[0] * operand[1].
+      There must be exactly two operands. The 'coeffs' attribute should be [1, 1].
     
     The result is an index value representing the expression, which can be
-    used as an operand in polynomial_constraint operations.
-    
-    Example:
-      %v = loom.expression(%m, %n, %c) {coeffs = [1 : i64, 1 : i64, 1 : i64]} : index
-      // Represents: 1*M + 1*N + 1*C = M + N + C
+    used as an operand in polynomial_constraint or other expression operations.
   }];
   
   let arguments = (ins
     Variadic<Index>:$operands,
-    I64ArrayAttr:$coeffs
+    I64ArrayAttr:$coeffs,
+    StrAttr:$logic
   );
   
   let results = (outs Index:$result);
@@ -442,6 +447,33 @@ def ExpressionOp : Loom_Op<"expression", [
   let assemblyFormat = [{
     `(` $operands `)` attr-dict `:` type($result)
   }];
+
+  let hasVerifier = 1;
+}
+
+/// A lightweight handle for a local variable in the constraint system.
+///
+/// This operation represents a local identifier (Local ID) in the Presburger
+/// arithmetic system. It does not carry any symbolic meaning outside the
+/// constraint space and is used to hold intermediate results during
+/// linearization or decomposition.
+def IntermediateVarOp : Loom_Op<"intermediate_var", [
+  Pure,
+  HasParent<"ConstraintSpaceOp">
+]> {
+  let summary = "Define an intermediate local variable";
+  let description = [{
+    This operation represents a local variable within a constraint space.
+    Local variables are temporary variables used to lower non-linear
+    expressions or to store intermediate results during constraint simplification.
+    
+    The result is an index value that can be used as an operand in
+    linear_constraint or polynomial_constraint operations.
+  }];
+  
+  let arguments = (ins);
+  let results = (outs Index:$result);
+  let assemblyFormat = "attr-dict `:` type($result)";
 }
 
 /// Reference to a symbolic variable in a constraint space.

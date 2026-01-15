@@ -72,6 +72,10 @@ public:
   /// @return The dimension index assigned to this variable.
   unsigned registerVariable(llvm::StringRef name);
 
+  /// @brief Registers a local variable and returns its local index.
+  /// @return The local index assigned to this variable.
+  unsigned registerLocalVariable();
+
   /// @brief Gets the dimension index for a registered variable.
   /// @param name The name of the symbolic variable.
   /// @return The dimension index if found, std::nullopt otherwise.
