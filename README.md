@@ -182,6 +182,13 @@ build/tool/triton-shared/single_stage/enumerate_copy_broadcast \
   > test/Passes/mm_2Dmesh/14_after_linearize.mlir
 ```
 
+10) Compress intermediate variables
+```bash
+./build/tool/loom-constraint/single_stage/compress_intermediate_var \
+  --input test/Passes/mm_2Dmesh/14_after_linearize.mlir \
+  > test/Passes/mm_2Dmesh/15_after_compress_iv.mlir
+```
+
 10) Canonicalize 
 ```bash
 build/tool/triton-shared/single_stage/canonicalize \

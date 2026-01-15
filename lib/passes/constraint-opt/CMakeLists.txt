@@ -6,6 +6,7 @@ add_library(loomConstraintOptPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/constraint_factorize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/constraint_decompose.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/constraint_linearize.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/compress_intermediate_var.cpp
 )
 
 target_include_directories(loomConstraintOptPasses PUBLIC
