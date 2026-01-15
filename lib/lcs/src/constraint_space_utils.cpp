@@ -16,6 +16,8 @@
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
+#include <algorithm>
+
 #define DEBUG_TYPE "loom-constraint-space-utils"
 
 namespace loom {
@@ -41,7 +43,8 @@ ConstraintSpaceOp cloneConstraintSpace(OpBuilder &builder,
   }
 
   LLVM_DEBUG(llvm::dbgs() << "Cloned constraint space '" << spaceName
-                          << "' with " << clonedSpace.getBodyBlock()->getOperations().size()
+                          << "' with "
+                          << clonedSpace.getBodyBlock()->getOperations().size()
                           << " operations\n");
 
   return clonedSpace;
@@ -92,10 +95,67 @@ LinearConstraintOp addLinearConstraint(ConstraintSpaceOp csOp,
   auto lcOp = builder.create<LinearConstraintOp>(
       csOp.getLoc(), operands, AffineMapAttr::get(constraintMap));
 
-  LLVM_DEBUG(llvm::dbgs() << "Added linear constraint with "
-                          << varNames.size() << " variables\n");
+  LLVM_DEBUG(llvm::dbgs() << "Added linear constraint with " << varNames.size()
+                          << " variables\n");
 
   return lcOp;
+}
+
+llvm::SmallVector<Monomial> parseMonomials(ArrayAttr monomialsAttr) {
+  llvm::SmallVector<Monomial> result;
+  if (!monomialsAttr)
+    return result;
+  for (auto mAttr : monomialsAttr) {
+    auto dict = cast<DictionaryAttr>(mAttr);
+    Monomial m;
+    m.coeff = cast<IntegerAttr>(dict.get("coeff")).getInt();
+    auto varsArr = cast<ArrayAttr>(dict.get("vars"));
+    for (auto v : varsArr) {
+      m.varIndices.push_back(cast<IntegerAttr>(v).getInt());
+    }
+    // Sort variables within monomial to maintain canonical form
+    std::sort(m.varIndices.begin(), m.varIndices.end());
+    result.push_back(std::move(m));
+  }
+  return result;
+}
+
+ArrayAttr buildMonomialsAttr(MLIRContext *ctx,
+                             llvm::ArrayRef<Monomial> monomials) {
+  OpBuilder builder(ctx);
+  llvm::SmallVector<Attribute, 8> monomialAttrs;
+  for (const auto &m : monomials) {
+    llvm::SmallVector<NamedAttribute, 2> attrs;
+    attrs.push_back(
+        builder.getNamedAttr("coeff", builder.getI64IntegerAttr(m.coeff)));
+    attrs.push_back(
+        builder.getNamedAttr("vars", builder.getI64ArrayAttr(m.varIndices)));
+    monomialAttrs.push_back(DictionaryAttr::get(ctx, attrs));
+  }
+  return builder.getArrayAttr(monomialAttrs);
+}
+
+int64_t gcd(int64_t a, int64_t b) {
+  a = std::abs(a);
+  b = std::abs(b);
+  while (b != 0) {
+    int64_t t = b;
+    b = a % b;
+    a = t;
+  }
+  return a;
+}
+
+int64_t gcdVector(llvm::ArrayRef<int64_t> values) {
+  if (values.empty())
+    return 1;
+  int64_t result = values[0];
+  for (size_t i = 1; i < values.size(); ++i) {
+    result = gcd(result, values[i]);
+    if (result == 1)
+      return 1;
+  }
+  return result;
 }
 
 PolynomialConstraintOp addPolynomialConstraint(
@@ -117,27 +177,9 @@ PolynomialConstraintOp addPolynomialConstraint(
   OpBuilder builder(csOp.getBodyBlock(), csOp.getBodyBlock()->end());
   MLIRContext *ctx = csOp.getContext();
 
-  // Build the monomials ArrayAttr
-  llvm::SmallVector<Attribute, 8> monomialAttrs;
-  for (const auto &m : monomials) {
-    llvm::SmallVector<NamedAttribute, 2> attrs;
-    
-    // vars attribute
-    llvm::SmallVector<int64_t, 4> varIndices;
-    for (unsigned idx : m.varIndices) {
-      varIndices.push_back(static_cast<int64_t>(idx));
-    }
-    attrs.push_back(builder.getNamedAttr("vars", builder.getI64ArrayAttr(varIndices)));
-    
-    // coeff attribute
-    attrs.push_back(builder.getNamedAttr("coeff", builder.getI64IntegerAttr(m.coeff)));
-    
-    monomialAttrs.push_back(DictionaryAttr::get(ctx, attrs));
-  }
-
   // Create the polynomial constraint op
   auto pcOp = builder.create<PolynomialConstraintOp>(
-      csOp.getLoc(), operands, builder.getArrayAttr(monomialAttrs),
+      csOp.getLoc(), operands, buildMonomialsAttr(ctx, monomials),
       builder.getI64IntegerAttr(upperBound));
 
   LLVM_DEBUG(llvm::dbgs() << "Added polynomial constraint with "
@@ -161,10 +203,10 @@ RangeOp addRangeConstraint(ConstraintSpaceOp csOp, llvm::StringRef varName,
 
   // Create the range op
   auto rangeOp = builder.create<RangeOp>(csOp.getLoc(), symVar.getResult(),
-                                          lowerBound, upperBound);
+                                         lowerBound, upperBound);
 
-  LLVM_DEBUG(llvm::dbgs() << "Added range constraint for '" << varName
-                          << "': [" << lowerBound << ", " << upperBound << "]\n");
+  LLVM_DEBUG(llvm::dbgs() << "Added range constraint for '" << varName << "': ["
+                          << lowerBound << ", " << upperBound << "]\n");
 
   return rangeOp;
 }
@@ -178,8 +220,8 @@ bool isFeasible(ConstraintSpaceOp csOp) {
 
   LLVM_DEBUG({
     llvm::dbgs() << "Feasibility check for constraint space '"
-                 << csOp.getSymName() << "': "
-                 << (feasible ? "FEASIBLE" : "INFEASIBLE") << "\n";
+                 << csOp.getSymName()
+                 << "': " << (feasible ? "FEASIBLE" : "INFEASIBLE") << "\n";
     if (!feasible) {
       cs.dump();
     }

@@ -4,9 +4,9 @@
  */
 
 #include "constraint_decompose.h"
+#include "constraint_space_utils.h"
 
 #include "mlir/IR/Builders.h"
-#include "mlir/IR/IRMapping.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
@@ -15,57 +15,15 @@
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
-#include <algorithm>
-#include <map>
-#include <vector>
-
 #define DEBUG_TYPE "loom-constraint-decompose"
 
 namespace loom {
 namespace constraint_opt {
 
 using namespace mlir;
+using namespace loom::lcs;
 
 namespace {
-
-/// Parsed monomial for decomposition
-struct ParsedMonomial {
-  int64_t coeff;
-  llvm::SmallVector<int64_t, 4> vars;
-
-  size_t degree() const { return vars.size(); }
-};
-
-/// Parse monomials from attribute
-llvm::SmallVector<ParsedMonomial> parseMonomials(ArrayAttr attr) {
-  llvm::SmallVector<ParsedMonomial> result;
-  for (auto mAttr : attr) {
-    auto dict = cast<DictionaryAttr>(mAttr);
-    ParsedMonomial m;
-    m.coeff = cast<IntegerAttr>(dict.get("coeff")).getInt();
-    for (auto v : cast<ArrayAttr>(dict.get("vars"))) {
-      m.vars.push_back(cast<IntegerAttr>(v).getInt());
-    }
-    result.push_back(std::move(m));
-  }
-  return result;
-}
-
-/// Build monomials attribute
-ArrayAttr buildMonomialsAttr(MLIRContext *ctx,
-                             llvm::ArrayRef<ParsedMonomial> monomials) {
-  OpBuilder builder(ctx);
-  llvm::SmallVector<Attribute, 8> attrs;
-  for (const auto &m : monomials) {
-    llvm::SmallVector<NamedAttribute, 2> namedAttrs;
-    namedAttrs.push_back(
-        builder.getNamedAttr("coeff", builder.getI64IntegerAttr(m.coeff)));
-    namedAttrs.push_back(
-        builder.getNamedAttr("vars", builder.getI64ArrayAttr(m.vars)));
-    attrs.push_back(DictionaryAttr::get(ctx, namedAttrs));
-  }
-  return builder.getArrayAttr(attrs);
-}
 
 /// Helper to get or create a multiplication expression
 Value getOrMulExpression(
@@ -122,7 +80,7 @@ bool decomposePolynomialConstraint(PolynomialConstraintOp pcOp,
     valueToIndex[currentOperands[i]] = i;
   }
 
-  llvm::SmallVector<ParsedMonomial> newMonomials;
+  llvm::SmallVector<Monomial> newMonomials;
   for (auto &m : monomials) {
     if (m.degree() <= 1) {
       newMonomials.push_back(m);
@@ -130,9 +88,9 @@ bool decomposePolynomialConstraint(PolynomialConstraintOp pcOp,
     }
 
     // Decompose degree > 1 term: c * (v1 * v2 * ... * vn)
-    Value product = currentOperands[m.vars[0]];
-    for (size_t i = 1; i < m.vars.size(); ++i) {
-      Value nextVar = currentOperands[m.vars[i]];
+    Value product = currentOperands[m.varIndices[0]];
+    for (size_t i = 1; i < m.varIndices.size(); ++i) {
+      Value nextVar = currentOperands[m.varIndices[i]];
       product = getOrMulExpression(builder, pcOp.getLoc(), product, nextVar,
                                    mulCache);
 
@@ -145,9 +103,9 @@ bool decomposePolynomialConstraint(PolynomialConstraintOp pcOp,
 
     // Now 'product' represents the whole product, it's a degree 1 term in terms
     // of 'product'
-    ParsedMonomial decomposedM;
+    Monomial decomposedM;
     decomposedM.coeff = m.coeff;
-    decomposedM.vars = {valueToIndex[product]};
+    decomposedM.varIndices = {valueToIndex[product]};
     newMonomials.push_back(decomposedM);
   }
 
