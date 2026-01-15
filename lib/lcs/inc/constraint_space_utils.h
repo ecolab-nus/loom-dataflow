@@ -35,7 +35,8 @@ namespace lcs {
 ///
 /// @param builder OpBuilder for creating the clone.
 /// @param sourceSpace The constraint space to clone.
-/// @param newName Optional new name for the cloned space (uses source name if empty).
+/// @param newName Optional new name for the cloned space (uses source name if
+/// empty).
 /// @return The cloned ConstraintSpaceOp.
 ConstraintSpaceOp cloneConstraintSpace(mlir::OpBuilder &builder,
                                        ConstraintSpaceOp sourceSpace,
@@ -59,8 +60,8 @@ SymbolicVarOp findSymbolicVar(ConstraintSpaceOp csOp, llvm::StringRef varName);
 
 /// @brief Add a linear constraint to an existing ConstraintSpaceOp.
 ///
-/// Creates a LinearConstraintOp using the specified variables and constraint map.
-/// The variables must already exist in the constraint space.
+/// Creates a LinearConstraintOp using the specified variables and constraint
+/// map. The variables must already exist in the constraint space.
 ///
 /// @param csOp The constraint space to add the constraint to.
 /// @param varNames Names of the symbolic variables used in the constraint.
@@ -72,9 +73,44 @@ LinearConstraintOp addLinearConstraint(ConstraintSpaceOp csOp,
 
 /// Monomial representation for polynomial constraints
 struct Monomial {
-  llvm::SmallVector<unsigned, 2> varIndices; // Indices into operand list
+  llvm::SmallVector<int64_t, 2> varIndices; // Indices into operand list
   int64_t coeff;
+
+  size_t degree() const { return varIndices.size(); }
+
+  bool hasVar(int64_t v) const {
+    return std::find(varIndices.begin(), varIndices.end(), v) !=
+           varIndices.end();
+  }
+
+  void removeVar(int64_t v) {
+    varIndices.erase(std::remove(varIndices.begin(), varIndices.end(), v),
+                     varIndices.end());
+  }
+
+  bool operator<(const Monomial &other) const {
+    if (varIndices.size() != other.varIndices.size())
+      return varIndices.size() < other.varIndices.size();
+    return varIndices < other.varIndices;
+  }
+
+  bool sameVars(const Monomial &other) const {
+    return varIndices == other.varIndices;
+  }
 };
+
+/// @brief Parse monomials from an ArrayAttr.
+llvm::SmallVector<Monomial> parseMonomials(mlir::ArrayAttr monomialsAttr);
+
+/// @brief Build monomials attribute from parsed structure.
+mlir::ArrayAttr buildMonomialsAttr(mlir::MLIRContext *ctx,
+                                   llvm::ArrayRef<Monomial> monomials);
+
+/// @brief Compute GCD of two integers.
+int64_t gcd(int64_t a, int64_t b);
+
+/// @brief Compute GCD of a vector of integers.
+int64_t gcdVector(llvm::ArrayRef<int64_t> values);
 
 /// @brief Add a polynomial constraint to an existing ConstraintSpaceOp.
 ///
@@ -85,10 +121,12 @@ struct Monomial {
 /// @param varNames Names of the symbolic variables used in the constraint.
 /// @param monomials List of monomials in the polynomial.
 /// @param upperBound The upper bound for the polynomial (sum <= upperBound).
-/// @return The created PolynomialConstraintOp, or nullptr if variables not found.
-PolynomialConstraintOp addPolynomialConstraint(
-    ConstraintSpaceOp csOp, llvm::ArrayRef<llvm::StringRef> varNames,
-    llvm::ArrayRef<Monomial> monomials, int64_t upperBound);
+/// @return The created PolynomialConstraintOp, or nullptr if variables not
+/// found.
+PolynomialConstraintOp
+addPolynomialConstraint(ConstraintSpaceOp csOp,
+                        llvm::ArrayRef<llvm::StringRef> varNames,
+                        llvm::ArrayRef<Monomial> monomials, int64_t upperBound);
 
 /// @brief Add a range constraint to an existing ConstraintSpaceOp.
 ///
@@ -109,7 +147,8 @@ RangeOp addRangeConstraint(ConstraintSpaceOp csOp, llvm::StringRef varName,
 /// if there are any valid points satisfying all constraints.
 ///
 /// @param csOp The constraint space to check.
-/// @return true if the constraint space is feasible (non-empty), false otherwise.
+/// @return true if the constraint space is feasible (non-empty), false
+/// otherwise.
 bool isFeasible(ConstraintSpaceOp csOp);
 
 /// @brief Set the pass name attribute on a module for provenance tracking.

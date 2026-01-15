@@ -5,6 +5,7 @@
 
 #include "constraint_linearize.h"
 #include "analysis_engine.h"
+#include "constraint_space_utils.h"
 
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Builders.h"
@@ -25,27 +26,6 @@ using namespace mlir;
 using namespace loom::lcs;
 
 namespace {
-
-struct ParsedMonomial {
-  int64_t coeff;
-  llvm::SmallVector<int64_t, 4> vars;
-};
-
-llvm::SmallVector<ParsedMonomial> parseMonomials(ArrayAttr attr) {
-  llvm::SmallVector<ParsedMonomial> result;
-  if (!attr)
-    return result;
-  for (auto mAttr : attr) {
-    auto dict = cast<DictionaryAttr>(mAttr);
-    ParsedMonomial m;
-    m.coeff = cast<IntegerAttr>(dict.get("coeff")).getInt();
-    for (auto v : cast<ArrayAttr>(dict.get("vars"))) {
-      m.vars.push_back(cast<IntegerAttr>(v).getInt());
-    }
-    result.push_back(std::move(m));
-  }
-  return result;
-}
 
 /// Emit linear constraints for McCormick relaxation of w = x * y
 void emitMcCormickConstraints(OpBuilder &builder, Location loc, Value w,
@@ -117,11 +97,11 @@ void linearizePolynomialConstraint(PolynomialConstraintOp pcOp,
   AffineExpr sum = builder.getAffineConstantExpr(0);
   for (size_t i = 0; i < monomials.size(); ++i) {
     const auto &m = monomials[i];
-    assert(m.vars.size() <= 1 &&
+    assert(m.varIndices.size() <= 1 &&
            "Polynomial constraint must be decomposed before linearization");
 
-    if (m.vars.size() == 1) {
-      sum = sum + m.coeff * builder.getAffineDimExpr(m.vars[0]);
+    if (m.varIndices.size() == 1) {
+      sum = sum + m.coeff * builder.getAffineDimExpr(m.varIndices[0]);
     } else {
       // Constant term
       sum = sum + m.coeff;

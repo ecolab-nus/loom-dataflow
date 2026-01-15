@@ -4,10 +4,9 @@
  */
 
 #include "constraint_factorize.h"
+#include "constraint_space_utils.h"
 
 #include "mlir/IR/Builders.h"
-#include "mlir/IR/IRMapping.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
 
@@ -15,69 +14,21 @@
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
-#include <algorithm>
-
 #define DEBUG_TYPE "loom-constraint-factorize"
 
 namespace loom {
 namespace constraint_opt {
 
 using namespace mlir;
+using namespace loom::lcs;
 
 namespace {
 
-/// Parsed monomial for factorization
-struct ParsedMonomial {
-  int64_t coeff;
-  llvm::SmallVector<int64_t, 4> vars;
-
-  size_t degree() const { return vars.size(); }
-
-  bool hasVar(int64_t v) const {
-    return std::find(vars.begin(), vars.end(), v) != vars.end();
-  }
-
-  void removeVar(int64_t v) {
-    vars.erase(std::remove(vars.begin(), vars.end(), v), vars.end());
-  }
-};
-
-/// Parse monomials from attribute
-llvm::SmallVector<ParsedMonomial> parseMonomials(ArrayAttr attr) {
-  llvm::SmallVector<ParsedMonomial> result;
-  for (auto mAttr : attr) {
-    auto dict = cast<DictionaryAttr>(mAttr);
-    ParsedMonomial m;
-    m.coeff = cast<IntegerAttr>(dict.get("coeff")).getInt();
-    for (auto v : cast<ArrayAttr>(dict.get("vars"))) {
-      m.vars.push_back(cast<IntegerAttr>(v).getInt());
-    }
-    result.push_back(std::move(m));
-  }
-  return result;
-}
-
-/// Build monomials attribute
-ArrayAttr buildMonomialsAttr(MLIRContext *ctx,
-                             llvm::ArrayRef<ParsedMonomial> monomials) {
-  OpBuilder builder(ctx);
-  llvm::SmallVector<Attribute, 8> attrs;
-  for (const auto &m : monomials) {
-    llvm::SmallVector<NamedAttribute, 2> namedAttrs;
-    namedAttrs.push_back(
-        builder.getNamedAttr("coeff", builder.getI64IntegerAttr(m.coeff)));
-    namedAttrs.push_back(
-        builder.getNamedAttr("vars", builder.getI64ArrayAttr(m.vars)));
-    attrs.push_back(DictionaryAttr::get(ctx, namedAttrs));
-  }
-  return builder.getArrayAttr(attrs);
-}
-
 /// Find the best common factor using greedy frequency counting
 /// Returns -1 if no common factor found
-int64_t findBestFactor(llvm::ArrayRef<ParsedMonomial> monomials) {
+int64_t findBestFactor(llvm::ArrayRef<Monomial> monomials) {
   // Only consider monomials with degree >= 2
-  llvm::SmallVector<const ParsedMonomial *> nonLinear;
+  llvm::SmallVector<const Monomial *> nonLinear;
   for (const auto &m : monomials) {
     if (m.degree() >= 2) {
       nonLinear.push_back(&m);
@@ -90,7 +41,7 @@ int64_t findBestFactor(llvm::ArrayRef<ParsedMonomial> monomials) {
   // Count frequency of each variable in non-linear terms
   llvm::DenseMap<int64_t, int64_t> freq;
   for (const auto *m : nonLinear) {
-    for (int64_t v : m->vars) {
+    for (int64_t v : m->varIndices) {
       freq[v]++;
     }
   }
@@ -132,7 +83,7 @@ bool factorizePolynomialConstraint(PolynomialConstraintOp pcOp,
   // Separate monomials into:
   // - factorable: contain the factor variable
   // - remaining: do not contain the factor variable
-  llvm::SmallVector<ParsedMonomial> factorable, remaining;
+  llvm::SmallVector<Monomial> factorable, remaining;
   for (auto &m : monomials) {
     if (m.hasVar(factorVar)) {
       factorable.push_back(m);
@@ -173,11 +124,11 @@ bool factorizePolynomialConstraint(PolynomialConstraintOp pcOp,
 
   for (auto &m : factorable) {
     m.removeVar(factorVar);
-    if (m.vars.size() == 1) {
+    if (m.varIndices.size() == 1) {
       // Single variable quotient
-      exprOperands.push_back(pcOperands[m.vars[0]]);
+      exprOperands.push_back(pcOperands[m.varIndices[0]]);
       exprCoeffs.push_back(m.coeff);
-    } else if (m.vars.empty()) {
+    } else if (m.varIndices.empty()) {
       // Constant quotient (just coefficient) - factor from linear term
       // This means original was c*K, quotient is c
       // We'll handle this by creating a constant-weighted term
@@ -198,15 +149,15 @@ bool factorizePolynomialConstraint(PolynomialConstraintOp pcOp,
       builder.getI64ArrayAttr(exprCoeffs), builder.getStringAttr("add"));
 
   // Build new monomials: factor_var * expression, plus remaining terms
-  llvm::SmallVector<ParsedMonomial> newMonomials = remaining;
+  llvm::SmallVector<Monomial> newMonomials = remaining;
 
   // The factored term becomes: coeff=1, vars=[factor_var, expr_idx]
   // We need to add the expression result as a new operand
   int64_t exprIdx = pcOp.getOperands().size(); // Index of the new operand
 
-  ParsedMonomial factoredTerm;
+  Monomial factoredTerm;
   factoredTerm.coeff = 1;
-  factoredTerm.vars = {factorVar, exprIdx};
+  factoredTerm.varIndices = {factorVar, exprIdx};
   newMonomials.push_back(factoredTerm);
 
   // Create new operands list including the expression result
@@ -215,9 +166,9 @@ bool factorizePolynomialConstraint(PolynomialConstraintOp pcOp,
   newOperands.push_back(exprOp.getResult());
 
   // Replace the polynomial constraint with updated version
-  auto newPcOp = builder.create<PolynomialConstraintOp>(
-      pcOp.getLoc(), newOperands, buildMonomialsAttr(ctx, newMonomials),
-      pcOp.getUpperBoundAttr());
+  builder.create<PolynomialConstraintOp>(pcOp.getLoc(), newOperands,
+                                         buildMonomialsAttr(ctx, newMonomials),
+                                         pcOp.getUpperBoundAttr());
 
   pcOp.erase();
 
