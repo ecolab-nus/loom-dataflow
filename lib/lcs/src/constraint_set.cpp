@@ -5,8 +5,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "constraint_set.h"
+#include "analysis_engine.h"
 #include "mlir/Analysis/Presburger/IntegerRelation.h"
 #include "mlir/Analysis/Presburger/Simplex.h"
+#include "mlir/IR/Value.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -26,8 +28,7 @@ ConstraintSet::ConstraintSet(unsigned numDims)
     : polyhedron_(PresburgerSpace::getSetSpace(numDims)) {}
 
 ConstraintSet::ConstraintSet(const ConstraintSet &other)
-    : polyhedron_(other.polyhedron_),
-      varToDimIndex_(other.varToDimIndex_),
+    : polyhedron_(other.polyhedron_), varToDimIndex_(other.varToDimIndex_),
       dimNames_(other.dimNames_) {
   LLVM_DEBUG(llvm::dbgs() << "ConstraintSet copy constructed with "
                           << getNumDims() << " dims\n");
@@ -42,9 +43,7 @@ ConstraintSet &ConstraintSet::operator=(const ConstraintSet &other) {
   return *this;
 }
 
-ConstraintSet ConstraintSet::clone() const {
-  return ConstraintSet(*this);
-}
+ConstraintSet ConstraintSet::clone() const { return ConstraintSet(*this); }
 
 unsigned ConstraintSet::registerVariable(llvm::StringRef name) {
   // Check if already registered
@@ -74,7 +73,8 @@ std::optional<unsigned> ConstraintSet::getDimIndex(llvm::StringRef name) const {
   return std::nullopt;
 }
 
-std::optional<llvm::StringRef> ConstraintSet::getVarName(unsigned dimIdx) const {
+std::optional<llvm::StringRef>
+ConstraintSet::getVarName(unsigned dimIdx) const {
   if (dimIdx < dimNames_.size()) {
     return llvm::StringRef(dimNames_[dimIdx]);
   }
@@ -271,6 +271,60 @@ void ConstraintSet::dump() const {
   polyhedron_.dump();
 }
 
+//===----------------------------------------------------------------------===//
+// PolyhedronBuilder Implementation
+//===----------------------------------------------------------------------===//
+
+PolyhedronBuilder::PolyhedronBuilder(ConstraintSet &cs,
+                                     const ValueTracker &tracker)
+    : cs_(cs), tracker_(tracker) {
+  // Add local variables if they don't exist
+  unsigned currentLocals = cs_.getPolyhedron().getNumLocalVars();
+  if (currentLocals < tracker.getNumLocals()) {
+    cs_.getPolyhedron().insertVar(VarKind::Local, currentLocals,
+                                  tracker.getNumLocals() - currentLocals);
+  }
+}
+
+void PolyhedronBuilder::addLinearConstraint(
+    llvm::ArrayRef<mlir::Value> operands, llvm::ArrayRef<int64_t> coeffs,
+    int64_t constant) {
+  unsigned numCols = cs_.getPolyhedron().getNumCols();
+  llvm::SmallVector<int64_t, 8> fullCoeffs(numCols, 0);
+
+  for (unsigned i = 0; i < operands.size(); ++i) {
+    auto colIdx = tracker_.getColumnIndex(operands[i]);
+    if (colIdx) {
+      fullCoeffs[*colIdx] += coeffs[i];
+    }
+  }
+  fullCoeffs[numCols - 1] = constant;
+
+  cs_.getPolyhedron().addInequality(fullCoeffs);
+}
+
+void PolyhedronBuilder::addExpressionEquality(
+    mlir::Value exprValue, llvm::ArrayRef<mlir::Value> operands,
+    llvm::ArrayRef<int64_t> coeffs) {
+  unsigned numCols = cs_.getPolyhedron().getNumCols();
+  llvm::SmallVector<int64_t, 8> fullCoeffs(numCols, 0);
+
+  // exprValue = sum(coeffs[i] * operands[i])
+  // exprValue - sum(coeffs[i] * operands[i]) = 0
+  auto exprColIdx = tracker_.getColumnIndex(exprValue);
+  if (exprColIdx) {
+    fullCoeffs[*exprColIdx] = 1;
+  }
+
+  for (unsigned i = 0; i < operands.size(); ++i) {
+    auto colIdx = tracker_.getColumnIndex(operands[i]);
+    if (colIdx) {
+      fullCoeffs[*colIdx] -= coeffs[i];
+    }
+  }
+
+  cs_.getPolyhedron().addEquality(fullCoeffs);
+}
+
 } // namespace lcs
 } // namespace loom
-

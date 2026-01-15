@@ -48,15 +48,14 @@ namespace {
 /// @brief Visitor to extract linear coefficients from an AffineExpr.
 ///
 /// This visitor walks an AffineExpr and extracts the coefficient for each
-/// dimension variable and the constant term. It only supports affine expressions
-/// (linear combinations of dimensions with integer coefficients).
+/// dimension variable and the constant term. It only supports affine
+/// expressions (linear combinations of dimensions with integer coefficients).
 class CoefficientExtractor : public AffineExprVisitor<CoefficientExtractor> {
 public:
-  CoefficientExtractor(unsigned numDims,
-                       llvm::SmallVectorImpl<int64_t> &coeffs,
+  CoefficientExtractor(unsigned numDims, llvm::SmallVectorImpl<int64_t> &coeffs,
                        int64_t &constant)
-      : numDims_(numDims), coeffs_(coeffs), constant_(constant),
-        multiplier_(1), success_(true) {
+      : numDims_(numDims), coeffs_(coeffs), constant_(constant), multiplier_(1),
+        success_(true) {
     coeffs_.assign(numDims, 0);
     constant_ = 0;
   }
@@ -136,8 +135,104 @@ private:
 } // namespace
 
 //===----------------------------------------------------------------------===//
-// AnalysisEngine Implementation
+// ValueTracker Implementation
 //===----------------------------------------------------------------------===//
+
+unsigned ValueTracker::trackDimension(mlir::Value val,
+                                      llvm::StringRef /*name*/) {
+  unsigned idx = valueToDimIndex_.size();
+  valueToDimIndex_[val] = idx;
+  return idx;
+}
+
+unsigned ValueTracker::trackLocalId(mlir::Value val) {
+  unsigned idx = valueToLocalIndex_.size();
+  valueToLocalIndex_[val] = idx;
+  return idx;
+}
+
+std::optional<unsigned> ValueTracker::getColumnIndex(mlir::Value val) const {
+  auto it = valueToDimIndex_.find(val);
+  if (it != valueToDimIndex_.end()) {
+    return it->second;
+  }
+  auto itLocal = valueToLocalIndex_.find(val);
+  if (itLocal != valueToLocalIndex_.end()) {
+    // Local IDs start after dimensions
+    return valueToDimIndex_.size() + itLocal->second;
+  }
+  return std::nullopt;
+}
+
+bool ValueTracker::isDimension(mlir::Value val) const {
+  return valueToDimIndex_.count(val) > 0;
+}
+
+//===----------------------------------------------------------------------===//
+// BoundInferenceService Implementation
+//===----------------------------------------------------------------------===//
+
+void BoundInferenceService::initialize() {
+  csOp_->walk([&](RangeOp rangeOp) {
+    boundsTable_[rangeOp.getVariable()] = {
+        static_cast<int64_t>(rangeOp.getLowerBound()),
+        static_cast<int64_t>(rangeOp.getUpperBound())};
+  });
+}
+
+Interval BoundInferenceService::getRange(mlir::Value val) {
+  if (boundsTable_.count(val)) {
+    return boundsTable_[val];
+  }
+
+  // If it's an expression, compute its bounds
+  if (auto exprOp = val.getDefiningOp<ExpressionOp>()) {
+    return computeExpressionBounds(exprOp);
+  }
+
+  return Interval::unbounded();
+}
+
+void BoundInferenceService::setRange(mlir::Value val, Interval range) {
+  boundsTable_[val] = range;
+}
+
+Interval BoundInferenceService::add(Interval a, Interval b) {
+  return {a.lower + b.lower, a.upper + b.upper};
+}
+
+Interval BoundInferenceService::multiply(Interval a, Interval b) {
+  int64_t v1 = a.lower * b.lower;
+  int64_t v2 = a.lower * b.upper;
+  int64_t v3 = a.upper * b.lower;
+  int64_t v4 = a.upper * b.upper;
+
+  return {std::min({v1, v2, v3, v4}), std::max({v1, v2, v3, v4})};
+}
+
+Interval BoundInferenceService::scalarMultiply(int64_t scalar, Interval a) {
+  int64_t v1 = scalar * a.lower;
+  int64_t v2 = scalar * a.upper;
+  return {std::min(v1, v2), std::max(v1, v2)};
+}
+
+Interval BoundInferenceService::computeExpressionBounds(ExpressionOp op) {
+  Interval result = {0, 0};
+  auto operands = op.getOperands();
+  auto coeffs = op.getCoeffs();
+
+  for (unsigned i = 0; i < operands.size(); ++i) {
+    int64_t coeff = cast<IntegerAttr>(coeffs[i]).getInt();
+    Interval operandRange = getRange(operands[i]);
+    result = add(result, scalarMultiply(coeff, operandRange));
+  }
+
+  boundsTable_[op.getResult()] = result;
+  return result;
+}
+
+BoundInferenceService::BoundInferenceService(loom::ConstraintSpaceOp csOp)
+    : csOp_(csOp.getOperation()) {}
 
 ConstraintSet AnalysisEngine::buildConstraintSet(ConstraintSpaceOp csOp) {
   AnalysisEngine engine;
@@ -148,6 +243,10 @@ ConstraintSet AnalysisEngine::buildConstraintSet(ConstraintSpaceOp csOp) {
 void AnalysisEngine::processConstraintSpace(ConstraintSpaceOp csOp) {
   LLVM_DEBUG(llvm::dbgs() << "Processing constraint space: "
                           << csOp.getSymName() << "\n");
+
+  // Initialize bound service
+  boundService_ = std::make_unique<BoundInferenceService>(csOp);
+  boundService_->initialize();
 
   // First pass: register all symbolic variables to establish dimension indices
   for (Operation &op : csOp.getBodyBlock()->getOperations()) {
@@ -161,18 +260,19 @@ void AnalysisEngine::processConstraintSpace(ConstraintSpaceOp csOp) {
     llvm::TypeSwitch<Operation *>(&op)
         .Case<RangeOp>([this](RangeOp rangeOp) { visitRange(rangeOp); })
         .Case<AlignOp>([this](AlignOp alignOp) { visitAlign(alignOp); })
-        .Case<LinearConstraintOp>([this](LinearConstraintOp lcOp) {
-          visitLinearConstraint(lcOp);
-        })
+        .Case<LinearConstraintOp>(
+            [this](LinearConstraintOp lcOp) { visitLinearConstraint(lcOp); })
         .Case<PolynomialConstraintOp>([this](PolynomialConstraintOp pcOp) {
           visitPolynomialConstraint(pcOp);
         })
+        .Case<ExpressionOp>(
+            [this](ExpressionOp exprOp) { visitExpression(exprOp); })
         .Case<SymbolicVarOp>([](SymbolicVarOp) {
           // Already processed in first pass
         })
         .Default([](Operation *op) {
-          LLVM_DEBUG(llvm::dbgs()
-                     << "Skipping unknown operation: " << op->getName() << "\n");
+          LLVM_DEBUG(llvm::dbgs() << "Skipping unknown operation: "
+                                  << op->getName() << "\n");
         });
   }
 
@@ -187,7 +287,7 @@ void AnalysisEngine::visitSymbolicVar(SymbolicVarOp op) {
   unsigned dimIdx = constraintSet_.registerVariable(varName);
 
   // Map the SSA result value to this dimension index
-  valueToDimIndex_[op.getResult()] = dimIdx;
+  valueTracker_.trackDimension(op.getResult(), varName);
 
   LLVM_DEBUG(llvm::dbgs() << "  Registered symbolic var '" << varName
                           << "' -> dim " << dimIdx << "\n");
@@ -198,8 +298,9 @@ void AnalysisEngine::visitRange(RangeOp op) {
   auto dimIdxOpt = resolveDimIndex(var);
 
   if (!dimIdxOpt) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "Warning: Could not resolve dimension for range constraint\n");
+    LLVM_DEBUG(
+        llvm::dbgs()
+        << "Warning: Could not resolve dimension for range constraint\n");
     return;
   }
 
@@ -209,8 +310,8 @@ void AnalysisEngine::visitRange(RangeOp op) {
 
   constraintSet_.addRange(dimIdx, lb, ub);
 
-  LLVM_DEBUG(llvm::dbgs() << "  Added range constraint: dim" << dimIdx << " in ["
-                          << lb << ", " << ub << "]\n");
+  LLVM_DEBUG(llvm::dbgs() << "  Added range constraint: dim" << dimIdx
+                          << " in [" << lb << ", " << ub << "]\n");
 }
 
 void AnalysisEngine::visitAlign(AlignOp op) {
@@ -244,8 +345,9 @@ void AnalysisEngine::visitLinearConstraint(LinearConstraintOp op) {
   for (Value operand : operands) {
     auto dimIdxOpt = resolveDimIndex(operand);
     if (!dimIdxOpt) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Warning: Could not resolve operand in linear constraint\n");
+      LLVM_DEBUG(
+          llvm::dbgs()
+          << "Warning: Could not resolve operand in linear constraint\n");
       return;
     }
     dimMapping.push_back(*dimIdxOpt);
@@ -263,8 +365,9 @@ void AnalysisEngine::visitLinearConstraint(LinearConstraintOp op) {
     extractor.visit(expr);
 
     if (!extractor.succeeded()) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Warning: Could not extract coefficients from expression\n");
+      LLVM_DEBUG(
+          llvm::dbgs()
+          << "Warning: Could not extract coefficients from expression\n");
       continue;
     }
 
@@ -289,16 +392,19 @@ void AnalysisEngine::visitPolynomialConstraint(PolynomialConstraintOp op) {
   LLVM_DEBUG({
     llvm::dbgs() << "  Encountered polynomial constraint: ";
     op->print(llvm::dbgs());
-    llvm::dbgs() << "\n  (Polynomial constraints are currently treated as data structure only and not checked for feasibility)\n";
+    llvm::dbgs() << "\n  (Polynomial constraints are currently treated as data "
+                    "structure only and not checked for feasibility)\n";
   });
 }
 
+void AnalysisEngine::visitExpression(ExpressionOp op) {
+  unsigned localIdx = valueTracker_.trackLocalId(op.getResult());
+  LLVM_DEBUG(llvm::dbgs() << "  Registered expression as local " << localIdx
+                          << "\n");
+}
+
 std::optional<unsigned> AnalysisEngine::resolveDimIndex(Value val) const {
-  auto it = valueToDimIndex_.find(val);
-  if (it != valueToDimIndex_.end()) {
-    return it->second;
-  }
-  return std::nullopt;
+  return valueTracker_.getColumnIndex(val);
 }
 
 bool AnalysisEngine::extractCoefficients(AffineExpr expr, unsigned numDims,
@@ -311,4 +417,3 @@ bool AnalysisEngine::extractCoefficients(AffineExpr expr, unsigned numDims,
 
 } // namespace lcs
 } // namespace loom
-
