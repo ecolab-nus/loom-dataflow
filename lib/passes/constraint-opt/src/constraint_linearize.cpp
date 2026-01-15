@@ -153,6 +153,10 @@ LogicalResult runConstraintLinearize(ModuleOp module) {
       Location loc = exprOp.getLoc();
       builder.setInsertionPoint(exprOp);
 
+      if (exprOp.getLogic() == "add") {
+        continue;
+      }
+
       // Create a new intermediate variable to replace this expression
       auto ivOp =
           builder.create<IntermediateVarOp>(loc, builder.getIndexType());
@@ -165,28 +169,6 @@ LogicalResult runConstraintLinearize(ModuleOp module) {
         auto operands = exprOp.getOperands();
         emitMcCormickConstraints(builder, loc, ivOp.getResult(), operands[0],
                                  operands[1], bis);
-      } else if (exprOp.getLogic() == "add") {
-        // Emit equality constraint for addition: iv = sum(coeffs * operands)
-        auto operands = exprOp.getOperands();
-        auto coeffs = exprOp.getCoeffs();
-
-        llvm::SmallVector<Value> linearOperands;
-        linearOperands.push_back(ivOp.getResult());
-        for (auto v : operands)
-          linearOperands.push_back(v);
-
-        // Map: (iv, op1, op2, ...) -> iv - sum(coeff_i * op_i)
-        AffineExpr expr = builder.getAffineDimExpr(0);
-        for (unsigned i = 0; i < operands.size(); ++i) {
-          int64_t c = cast<IntegerAttr>(coeffs[i]).getInt();
-          expr = expr - c * builder.getAffineDimExpr(i + 1);
-        }
-
-        auto map = AffineMap::get(linearOperands.size(), 0, {expr},
-                                  builder.getContext());
-        builder.create<LinearConstraintOp>(loc, linearOperands,
-                                           AffineMapAttr::get(map),
-                                           builder.getBoolAttr(true));
       }
 
       // Replace original result with the new local variable

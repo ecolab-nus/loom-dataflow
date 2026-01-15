@@ -157,3 +157,41 @@ target_compile_options(constraint_linearize PRIVATE -fno-rtti)
 set_target_properties(constraint_linearize PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
+# compress_intermediate_var
+add_executable(compress_intermediate_var
+  ${CMAKE_CURRENT_LIST_DIR}/compress_intermediate_var_main.cpp
+)
+
+target_include_directories(compress_intermediate_var PRIVATE
+  ${MLIR_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/lib/passes/constraint-opt/inc
+  ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
+  ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
+)
+
+target_link_libraries(compress_intermediate_var PRIVATE
+  loomConstraintOptPasses
+  MLIRIR
+  MLIRParser
+  MLIRSupport
+  LLVMSupport
+  MLIRFuncDialect
+  MLIRAffineDialect
+  MLIRArithDialect
+  MLIRMemRefDialect
+  MLIRTensorDialect
+  MLIRLinalgDialect
+  MLIRSCFDialect
+  MLIRBufferizationDialect
+  MLIRAsmParser
+  MLIRBytecodeReader
+  loomDataflowDialect
+  loomDialect
+)
+mlir_check_all_link_libraries(compress_intermediate_var)
+
+target_compile_options(compress_intermediate_var PRIVATE -fno-rtti)
+
+set_target_properties(compress_intermediate_var PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
