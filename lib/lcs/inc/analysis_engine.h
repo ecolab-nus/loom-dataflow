@@ -15,6 +15,7 @@
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
+#include <map>
 
 // Forward declarations for Loom operations
 namespace loom {
@@ -24,7 +25,13 @@ class RangeOp;
 class AlignOp;
 class LinearConstraintOp;
 class PolynomialConstraintOp;
+class ExpressionOp;
 } // namespace loom
+
+namespace mlir {
+class Value;
+class Operation;
+} // namespace mlir
 
 namespace loom {
 namespace lcs {
@@ -47,6 +54,88 @@ namespace lcs {
 /// 2. RangeOp: Add lower/upper bound constraints
 /// 3. AlignOp: Add alignment (modulo) constraints
 /// 4. LinearConstraintOp: Add linear inequality constraints from AffineMap
+
+/// @brief Represents an interval [lower, upper] for bound inference.
+struct Interval {
+  int64_t lower;
+  int64_t upper;
+
+  bool isValid() const { return lower <= upper; }
+
+  static Interval unbounded() {
+    return {std::numeric_limits<int64_t>::min() / 2,
+            std::numeric_limits<int64_t>::max() / 2};
+  }
+
+  static Interval constant(int64_t val) { return {val, val}; }
+};
+
+/// @brief ValueTracker manages the mapping between SSA values and matrix column
+/// indices.
+class ValueTracker {
+public:
+  ValueTracker() = default;
+
+  /// @brief Tracks a symbolic variable as a dimension.
+  unsigned trackDimension(mlir::Value val, llvm::StringRef name);
+
+  /// @brief Tracks an expression result as a local (auxiliary) variable.
+  unsigned trackLocalId(mlir::Value val);
+
+  /// @brief Resolves the column index for an SSA value.
+  std::optional<unsigned> getColumnIndex(mlir::Value val) const;
+
+  /// @brief Checks if a value is tracked as a dimension.
+  bool isDimension(mlir::Value val) const;
+
+  /// @brief Gets the number of dimensions.
+  unsigned getNumDims() const { return valueToDimIndex_.size(); }
+
+  /// @brief Gets the number of local IDs.
+  unsigned getNumLocals() const { return valueToLocalIndex_.size(); }
+
+  /// @brief Gets the mapping of SSA values to dimension indices.
+  const llvm::DenseMap<mlir::Value, unsigned> &getDimensions() const {
+    return valueToDimIndex_;
+  }
+
+  /// @brief Gets the mapping of SSA values to local indices.
+  const llvm::DenseMap<mlir::Value, unsigned> &getLocalIds() const {
+    return valueToLocalIndex_;
+  }
+
+private:
+  llvm::DenseMap<mlir::Value, unsigned> valueToDimIndex_;
+  llvm::DenseMap<mlir::Value, unsigned> valueToLocalIndex_;
+};
+
+/// @brief BoundInferenceService provides interval arithmetic and range queries.
+class BoundInferenceService {
+public:
+  explicit BoundInferenceService(loom::ConstraintSpaceOp csOp);
+
+  /// @brief Initializes the service by scanning range operations.
+  void initialize();
+
+  /// @brief Gets the range for a given SSA value.
+  Interval getRange(mlir::Value val);
+
+  /// @brief Manual override or update for a value's range.
+  void setRange(mlir::Value val, Interval range);
+
+  // Interval arithmetic helpers
+  static Interval add(Interval a, Interval b);
+  static Interval multiply(Interval a, Interval b);
+  static Interval scalarMultiply(int64_t scalar, Interval a);
+
+private:
+  mlir::Operation *csOp_;
+  llvm::DenseMap<mlir::Value, Interval> boundsTable_;
+
+  /// @brief Computes bounds for an expression operation recursively.
+  Interval computeExpressionBounds(ExpressionOp op);
+};
+
 class AnalysisEngine {
 public:
   /// @brief Builds a ConstraintSet from a ConstraintSpaceOp.
@@ -136,11 +225,16 @@ private:
   ConstraintSet constraintSet_;
 
   /// Maps SSA values (results of SymbolicVarOp) to dimension indices.
-  llvm::DenseMap<mlir::Value, unsigned> valueToDimIndex_;
+  ValueTracker valueTracker_;
+
+  /// Service for bound inference.
+  std::unique_ptr<BoundInferenceService> boundService_;
+
+  /// @brief Visits an expression operation.
+  void visitExpression(ExpressionOp op);
 };
 
 } // namespace lcs
 } // namespace loom
 
 #endif // LOOM_LCS_ANALYSIS_ENGINE_H
-

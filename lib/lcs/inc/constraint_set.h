@@ -17,8 +17,14 @@
 #include <optional>
 #include <string>
 
+namespace mlir {
+class Value;
+class Operation;
+} // namespace mlir
+
 namespace loom {
 namespace lcs {
+class ValueTracker;
 
 using mlir::presburger::BoundType;
 using mlir::presburger::IntegerPolyhedron;
@@ -167,8 +173,31 @@ private:
   llvm::SmallVector<std::string, 8> dimNames_;
 };
 
+/// @brief PolyhedronBuilder helps in constructing matrix constraints.
+///
+/// It scans Loom operations and fills the IntegerPolyhedron matrix using
+/// mappings from ValueTracker.
+class PolyhedronBuilder {
+public:
+  explicit PolyhedronBuilder(ConstraintSet &cs, const ValueTracker &tracker);
+
+  /// @brief Adds a linear constraint from Op operands and coefficients.
+  /// The constraint is: sum(coeffs[i] * operands[i]) + constant >= 0.
+  void addLinearConstraint(llvm::ArrayRef<mlir::Value> operands,
+                           llvm::ArrayRef<int64_t> coeffs, int64_t constant);
+
+  /// @brief Adds an equality constraint for loom.expression.
+  /// The equality is: exprValue - sum(coeffs[i] * operands[i]) = 0.
+  void addExpressionEquality(mlir::Value exprValue,
+                             llvm::ArrayRef<mlir::Value> operands,
+                             llvm::ArrayRef<int64_t> coeffs);
+
+private:
+  ConstraintSet &cs_;
+  const ValueTracker &tracker_;
+};
+
 } // namespace lcs
 } // namespace loom
 
 #endif // LOOM_LCS_CONSTRAINT_SET_H
-
