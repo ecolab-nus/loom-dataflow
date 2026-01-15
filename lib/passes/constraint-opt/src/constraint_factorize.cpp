@@ -195,7 +195,7 @@ bool factorizePolynomialConstraint(PolynomialConstraintOp pcOp,
   // Create loom.expression op for the quotient sum
   auto exprOp = builder.create<ExpressionOp>(
       pcOp.getLoc(), builder.getIndexType(), exprOperands,
-      builder.getI64ArrayAttr(exprCoeffs));
+      builder.getI64ArrayAttr(exprCoeffs), builder.getStringAttr("add"));
 
   // Build new monomials: factor_var * expression, plus remaining terms
   llvm::SmallVector<ParsedMonomial> newMonomials = remaining;

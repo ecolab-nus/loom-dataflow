@@ -26,6 +26,7 @@ class AlignOp;
 class LinearConstraintOp;
 class PolynomialConstraintOp;
 class ExpressionOp;
+class IntermediateVarOp;
 } // namespace loom
 
 namespace mlir {
@@ -167,6 +168,9 @@ private:
   ///
   /// @param op The symbolic variable operation.
   void visitSymbolicVar(SymbolicVarOp op);
+
+  /// @brief Visits an intermediate variable definition.
+  void visitIntermediateVar(loom::IntermediateVarOp op);
 
   /// @brief Visits a range constraint.
   ///

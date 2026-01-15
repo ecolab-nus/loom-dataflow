@@ -37,17 +37,19 @@ void LoomDialect::initialize() {
 // ConstraintSpaceOp Verifier
 //===----------------------------------------------------------------------===//
 
-/// Verify that all symbolic variable names within a constraint space are unique.
+/// Verify that all symbolic variable names within a constraint space are
+/// unique.
 LogicalResult loom::ConstraintSpaceOp::verify() {
   llvm::DenseMap<StringAttr, Location> variableNames;
-  
+
   // Walk through all symbolic_var operations in the constraint space body
   for (Operation &op : getBodyBlock()->getOperations()) {
     if (auto symbolicVar = dyn_cast<loom::SymbolicVarOp>(&op)) {
       StringAttr varName = symbolicVar.getNameAttr();
-      
+
       // Check if this variable name has already been seen
-      auto [it, inserted] = variableNames.try_emplace(varName, symbolicVar.getLoc());
+      auto [it, inserted] =
+          variableNames.try_emplace(varName, symbolicVar.getLoc());
       if (!inserted) {
         // Duplicate variable name found
         return symbolicVar.emitOpError("duplicate symbolic variable name '")
@@ -56,7 +58,7 @@ LogicalResult loom::ConstraintSpaceOp::verify() {
       }
     }
   }
-  
+
   return success();
 }
 
@@ -67,7 +69,7 @@ LogicalResult loom::ConstraintSpaceOp::verify() {
 /// Verify that the symbol reference has the correct format: @space::@var
 LogicalResult loom::GetSymbolicBlockSizeOp::verify() {
   SymbolRefAttr symbolRef = getSymbolRef();
-  
+
   // The symbol reference should have exactly 1 nested reference:
   // - Root: constraint space name (e.g., @global_constraints)
   // - Nested: variable name (e.g., @M)
@@ -76,7 +78,36 @@ LogicalResult loom::GetSymbolicBlockSizeOp::verify() {
                        "got ")
            << symbolRef;
   }
-  
+
   return success();
 }
 
+//===----------------------------------------------------------------------===//
+// ExpressionOp Verifier
+//===----------------------------------------------------------------------===//
+
+LogicalResult loom::ExpressionOp::verify() {
+  auto operands = getOperands();
+  auto coeffs = getCoeffs();
+  auto logic = getLogic();
+
+  if (logic == "add") {
+    if (operands.size() != coeffs.size()) {
+      return emitOpError(
+          "number of operands must match number of coefficients for 'add' "
+          "logic");
+    }
+  } else if (logic == "mul") {
+    if (operands.size() != 2) {
+      return emitOpError("multiplication must have exactly two operands");
+    }
+    if (coeffs.size() != 2) {
+      return emitOpError(
+          "multiplication must have two coefficients (typically {1, 1})");
+    }
+  } else {
+    return emitOpError("unsupported logic type: ") << logic;
+  }
+
+  return success();
+}
