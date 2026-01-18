@@ -1,12 +1,4 @@
-/**
- * @file constraint_factorize_main.cpp
- * @brief CLI driver for polynomial constraint factorization.
- *
- * Usage:
- *   constraint_factorize --input <file.mlir>
- */
-
-#include "constraint_factorize.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -70,7 +62,10 @@ int main(int argc, char **argv) {
   }
 
   // Run factorization pass
-  if (failed(loom::constraint_opt::runConstraintFactorize(*module))) {
+  PassManager pm(&context);
+  pm.addPass(loom::constraint_opt::createLoomConstraintFactorizePass());
+
+  if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Constraint factorization failed\n";
     return 1;
   }

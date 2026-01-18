@@ -1,12 +1,9 @@
-/**
- * @file constraint_decompose.cpp
- * @brief Implementation of polynomial constraint decomposition pass.
- */
-
-#include "constraint_decompose.h"
+#include "Passes.h"
 #include "constraint_space_utils.h"
 
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/OpDefinition.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
@@ -19,6 +16,9 @@
 
 namespace loom {
 namespace constraint_opt {
+
+#define GEN_PASS_DEF_LOOMCONSTRAINTDECOMPOSE
+#include "Passes.h.inc"
 
 using namespace mlir;
 using namespace loom::lcs;
@@ -50,7 +50,7 @@ Value getOrMulExpression(
 
 /// Decompose a single polynomial constraint
 bool decomposePolynomialConstraint(PolynomialConstraintOp pcOp,
-                                   ConstraintSpaceOp csOp) {
+                                   ConstraintSpaceOp /*csOp*/) {
   MLIRContext *ctx = pcOp.getContext();
   auto monomials = parseMonomials(pcOp.getMonomials());
 
@@ -119,24 +119,32 @@ bool decomposePolynomialConstraint(PolynomialConstraintOp pcOp,
   return true;
 }
 
+struct LoomConstraintDecompose
+    : public impl::LoomConstraintDecomposeBase<LoomConstraintDecompose> {
+  using LoomConstraintDecomposeBase::LoomConstraintDecomposeBase;
+
+  void runOnOperation() override {
+    ModuleOp module = getOperation();
+    module.walk([&](ConstraintSpaceOp csOp) {
+      // Collect ops to process
+      llvm::SmallVector<PolynomialConstraintOp> pcOps;
+      for (auto &op : *csOp.getBodyBlock()) {
+        if (auto pcOp = dyn_cast<PolynomialConstraintOp>(&op)) {
+          pcOps.push_back(pcOp);
+        }
+      }
+
+      for (auto pcOp : pcOps) {
+        decomposePolynomialConstraint(pcOp, csOp);
+      }
+    });
+  }
+};
+
 } // namespace
 
-LogicalResult runConstraintDecompose(ModuleOp module) {
-  module.walk([&](ConstraintSpaceOp csOp) {
-    // Collect ops to process
-    llvm::SmallVector<PolynomialConstraintOp> pcOps;
-    for (auto &op : *csOp.getBodyBlock()) {
-      if (auto pcOp = dyn_cast<PolynomialConstraintOp>(&op)) {
-        pcOps.push_back(pcOp);
-      }
-    }
-
-    for (auto pcOp : pcOps) {
-      decomposePolynomialConstraint(pcOp, csOp);
-    }
-  });
-
-  return success();
+std::unique_ptr<mlir::Pass> createLoomConstraintDecomposePass() {
+  return std::make_unique<LoomConstraintDecompose>();
 }
 
 } // namespace constraint_opt

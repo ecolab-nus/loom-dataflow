@@ -1,11 +1,8 @@
-/**
- * @file intermediate_var_compression.cpp
- * @brief Implementation of intermediate variable compression pass.
- */
-
-#include "compress_intermediate_var.h"
+#include "Passes.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/OpDefinition.h"
 #include "llvm/ADT/SetVector.h"
 
 #include "LoomDialect.h.inc"
@@ -16,6 +13,9 @@
 
 namespace loom {
 namespace constraint_opt {
+
+#define GEN_PASS_DEF_LOOMCOMPRESSINTERMEDIATEVAR
+#include "Passes.h.inc"
 
 using namespace mlir;
 
@@ -108,29 +108,38 @@ void compressAddExpression(ExpressionOp exprOp) {
   exprOp.erase();
 }
 
-} // namespace
+struct LoomCompressIntermediateVar
+    : public impl::LoomCompressIntermediateVarBase<
+          LoomCompressIntermediateVar> {
+  using LoomCompressIntermediateVarBase::LoomCompressIntermediateVarBase;
 
-LogicalResult runIntermediateVarCompression(ModuleOp module) {
-  module.walk([&](ConstraintSpaceOp csOp) {
-    // Collect all add expressions first to avoid iterator invalidation
-    llvm::SmallVector<ExpressionOp> addExprs;
-    for (auto &op : csOp.getBodyBlock()->getOperations()) {
-      if (auto exprOp = dyn_cast<ExpressionOp>(&op)) {
-        if (exprOp.getLogic() == "add") {
-          addExprs.push_back(exprOp);
+  void runOnOperation() override {
+    ModuleOp module = getOperation();
+    module.walk([&](ConstraintSpaceOp csOp) {
+      // Collect all add expressions first to avoid iterator invalidation
+      llvm::SmallVector<ExpressionOp> addExprs;
+      for (auto &op : csOp.getBodyBlock()->getOperations()) {
+        if (auto exprOp = dyn_cast<ExpressionOp>(&op)) {
+          if (exprOp.getLogic() == "add") {
+            addExprs.push_back(exprOp);
+          }
         }
       }
-    }
 
-    // Process them one by one
-    // Note: If an add expression depends on another, processing them in order
-    // should correctly substitute everything.
-    for (auto exprOp : addExprs) {
-      compressAddExpression(exprOp);
-    }
-  });
+      // Process them one by one
+      // Note: If an add expression depends on another, processing them in order
+      // should correctly substitute everything.
+      for (auto exprOp : addExprs) {
+        compressAddExpression(exprOp);
+      }
+    });
+  }
+};
 
-  return success();
+} // namespace
+
+std::unique_ptr<mlir::Pass> createLoomCompressIntermediateVarPass() {
+  return std::make_unique<LoomCompressIntermediateVar>();
 }
 
 } // namespace constraint_opt

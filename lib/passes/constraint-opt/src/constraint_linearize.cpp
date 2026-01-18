@@ -1,15 +1,11 @@
-/**
- * @file constraint_linearize.cpp
- * @brief Implementation of polynomial constraint linearization pass.
- */
-
-#include "constraint_linearize.h"
+#include "Passes.h"
 #include "analysis_engine.h"
 #include "constraint_space_utils.h"
 
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Builders.h"
-#include "mlir/IR/IRMapping.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/OpDefinition.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
 
@@ -21,6 +17,9 @@
 
 namespace loom {
 namespace constraint_opt {
+
+#define GEN_PASS_DEF_LOOMCONSTRAINTLINEARIZE
+#include "Passes.h.inc"
 
 using namespace mlir;
 using namespace loom::lcs;
@@ -117,67 +116,75 @@ void linearizePolynomialConstraint(PolynomialConstraintOp pcOp,
   pcOp.erase();
 }
 
+struct LoomConstraintLinearize
+    : public impl::LoomConstraintLinearizeBase<LoomConstraintLinearize> {
+  using LoomConstraintLinearizeBase::LoomConstraintLinearizeBase;
+
+  void runOnOperation() override {
+    ModuleOp module = getOperation();
+    module.walk([&](ConstraintSpaceOp csOp) {
+      BoundInferenceService bis(csOp);
+      bis.initialize();
+
+      OpBuilder builder(csOp.getContext());
+
+      // 1. Process polynomial_constraints (which should now be formally linear
+      // or decomposed)
+      llvm::SmallVector<PolynomialConstraintOp> pcOps;
+      for (auto &op : csOp.getBodyBlock()->getOperations()) {
+        if (auto pcOp = dyn_cast<PolynomialConstraintOp>(&op)) {
+          pcOps.push_back(pcOp);
+        }
+      }
+
+      for (auto pcOp : pcOps) {
+        builder.setInsertionPoint(pcOp);
+        linearizePolynomialConstraint(pcOp, builder);
+      }
+
+      // 2. Process all ExpressionOps in correct order (program order)
+      // We collect them first because we will be erasing them.
+      llvm::SmallVector<ExpressionOp> exprOps;
+      for (auto &op : csOp.getBodyBlock()->getOperations()) {
+        if (auto exprOp = dyn_cast<ExpressionOp>(&op)) {
+          exprOps.push_back(exprOp);
+        }
+      }
+
+      for (auto exprOp : exprOps) {
+        Location loc = exprOp.getLoc();
+        builder.setInsertionPoint(exprOp);
+
+        if (exprOp.getLogic() == "add") {
+          continue;
+        }
+
+        // Create a new intermediate variable to replace this expression
+        auto ivOp =
+            builder.create<IntermediateVarOp>(loc, builder.getIndexType());
+
+        // Propagate range information to the new variable
+        bis.setRange(ivOp.getResult(), bis.getRange(exprOp.getResult()));
+
+        if (exprOp.getLogic() == "mul") {
+          // Emit McCormick constraints for multiplication
+          auto operands = exprOp.getOperands();
+          emitMcCormickConstraints(builder, loc, ivOp.getResult(), operands[0],
+                                   operands[1], bis);
+        }
+
+        // Replace original result with the new local variable
+        exprOp.getResult().replaceAllUsesWith(ivOp.getResult());
+        exprOp.erase();
+      }
+    });
+  }
+};
+
 } // namespace
 
-LogicalResult runConstraintLinearize(ModuleOp module) {
-  module.walk([&](ConstraintSpaceOp csOp) {
-    BoundInferenceService bis(csOp);
-    bis.initialize();
-
-    OpBuilder builder(csOp.getContext());
-
-    // 1. Process polynomial_constraints (which should now be formally linear or
-    // decomposed)
-    llvm::SmallVector<PolynomialConstraintOp> pcOps;
-    for (auto &op : csOp.getBodyBlock()->getOperations()) {
-      if (auto pcOp = dyn_cast<PolynomialConstraintOp>(&op)) {
-        pcOps.push_back(pcOp);
-      }
-    }
-
-    for (auto pcOp : pcOps) {
-      builder.setInsertionPoint(pcOp);
-      linearizePolynomialConstraint(pcOp, builder);
-    }
-
-    // 2. Process all ExpressionOps in correct order (program order)
-    // We collect them first because we will be erasing them.
-    llvm::SmallVector<ExpressionOp> exprOps;
-    for (auto &op : csOp.getBodyBlock()->getOperations()) {
-      if (auto exprOp = dyn_cast<ExpressionOp>(&op)) {
-        exprOps.push_back(exprOp);
-      }
-    }
-
-    for (auto exprOp : exprOps) {
-      Location loc = exprOp.getLoc();
-      builder.setInsertionPoint(exprOp);
-
-      if (exprOp.getLogic() == "add") {
-        continue;
-      }
-
-      // Create a new intermediate variable to replace this expression
-      auto ivOp =
-          builder.create<IntermediateVarOp>(loc, builder.getIndexType());
-
-      // Propagate range information to the new variable
-      bis.setRange(ivOp.getResult(), bis.getRange(exprOp.getResult()));
-
-      if (exprOp.getLogic() == "mul") {
-        // Emit McCormick constraints for multiplication
-        auto operands = exprOp.getOperands();
-        emitMcCormickConstraints(builder, loc, ivOp.getResult(), operands[0],
-                                 operands[1], bis);
-      }
-
-      // Replace original result with the new local variable
-      exprOp.getResult().replaceAllUsesWith(ivOp.getResult());
-      exprOp.erase();
-    }
-  });
-
-  return success();
+std::unique_ptr<mlir::Pass> createLoomConstraintLinearizePass() {
+  return std::make_unique<LoomConstraintLinearize>();
 }
 
 } // namespace constraint_opt

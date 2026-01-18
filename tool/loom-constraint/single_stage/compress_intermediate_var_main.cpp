@@ -1,9 +1,4 @@
-/**
- * @file compress_intermediate_var_main.cpp
- * @brief CLI driver for intermediate variable compression.
- */
-
-#include "compress_intermediate_var.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -64,7 +59,10 @@ int main(int argc, char **argv) {
   }
 
   // Run intermediate variable compression pass
-  if (failed(loom::constraint_opt::runIntermediateVarCompression(*module))) {
+  PassManager pm(&context);
+  pm.addPass(loom::constraint_opt::createLoomCompressIntermediateVarPass());
+
+  if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs())
         << "Intermediate variable compression failed\n";
     return 1;

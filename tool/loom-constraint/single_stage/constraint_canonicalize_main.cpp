@@ -1,12 +1,4 @@
-/**
- * @file constraint_canonicalize_main.cpp
- * @brief CLI driver for polynomial constraint canonicalization.
- *
- * Usage:
- *   constraint_canonicalize --input <file.mlir>
- */
-
-#include "constraint_canonicalize.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -70,7 +62,10 @@ int main(int argc, char **argv) {
   }
 
   // Run canonicalization pass
-  if (failed(loom::constraint_opt::runConstraintCanonicalize(*module))) {
+  PassManager pm(&context);
+  pm.addPass(loom::constraint_opt::createLoomConstraintCanonicalizePass());
+
+  if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs())
         << "Constraint canonicalization failed\n";
     return 1;

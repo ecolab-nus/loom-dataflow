@@ -1,9 +1,4 @@
-/**
- * @file constraint_simplify.cpp
- * @brief Implementation of constraint simplification pass.
- */
-
-#include "constraint_simplify.h"
+#include "Passes.h"
 #include "analysis_engine.h"
 #include "constraint_space_utils.h"
 
@@ -11,6 +6,8 @@
 #include "mlir/Analysis/Presburger/Simplex.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/OpDefinition.h"
 #include "llvm/Support/Debug.h"
 
 #include "LoomDialect.h.inc"
@@ -21,6 +18,9 @@
 
 namespace loom {
 namespace constraint_opt {
+
+#define GEN_PASS_DEF_LOOMCONSTRAINTSIMPLIFY
+#include "Passes.h.inc"
 
 using namespace mlir;
 using namespace loom::lcs;
@@ -288,13 +288,6 @@ struct SimplifyState {
 
   void emitConstraint(ArrayRef<DynamicAPInt> coeffs, bool isEquality,
                       OpBuilder &builder, MLIRContext *ctx) {
-    SmallVector<Value> operands;
-    SmallVector<AffineExpr> exprs;
-
-    // We only want to include dims/locals that have non-zero coefficients
-    // But LinearConstraintOp takes a list of operands and a map.
-    // We'll collect all SymbolicVars and IntermediateVars as operands.
-
     SmallVector<Value> allValues;
     // Dimensions
     SmallVector<Value> dims(tracker.getNumDims());
@@ -325,17 +318,26 @@ struct SimplifyState {
   }
 };
 
+struct LoomConstraintSimplify
+    : public impl::LoomConstraintSimplifyBase<LoomConstraintSimplify> {
+  using LoomConstraintSimplifyBase::LoomConstraintSimplifyBase;
+
+  void runOnOperation() override {
+    ModuleOp module = getOperation();
+    module.walk([&](ConstraintSpaceOp csOp) {
+      SimplifyState state(csOp);
+      if (failed(state.Initialize()))
+        return;
+      state.Simplify();
+      state.Reconstruct();
+    });
+  }
+};
+
 } // namespace
 
-LogicalResult runConstraintSimplify(ModuleOp module) {
-  module.walk([&](ConstraintSpaceOp csOp) {
-    SimplifyState state(csOp);
-    if (failed(state.Initialize()))
-      return;
-    state.Simplify();
-    state.Reconstruct();
-  });
-  return success();
+std::unique_ptr<mlir::Pass> createLoomConstraintSimplifyPass() {
+  return std::make_unique<LoomConstraintSimplify>();
 }
 
 } // namespace constraint_opt

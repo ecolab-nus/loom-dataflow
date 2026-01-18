@@ -105,17 +105,26 @@ llvm::SmallVector<Monomial> parseMonomials(ArrayAttr monomialsAttr) {
   llvm::SmallVector<Monomial> result;
   if (!monomialsAttr)
     return result;
+
   for (auto mAttr : monomialsAttr) {
-    auto dict = cast<DictionaryAttr>(mAttr);
+    auto dict = dyn_cast<DictionaryAttr>(mAttr);
+    if (!dict)
+      continue;
+
     Monomial m;
-    m.coeff = cast<IntegerAttr>(dict.get("coeff")).getInt();
-    auto varsArr = cast<ArrayAttr>(dict.get("vars"));
-    for (auto v : varsArr) {
-      m.varIndices.push_back(cast<IntegerAttr>(v).getInt());
+    auto coeffAttr = dict.getAs<IntegerAttr>("coeff");
+    auto varsAttr = dict.getAs<ArrayAttr>("vars");
+
+    if (coeffAttr && varsAttr) {
+      m.coeff = coeffAttr.getInt();
+      for (auto v : varsAttr) {
+        if (auto vInt = dyn_cast<IntegerAttr>(v))
+          m.varIndices.push_back(vInt.getInt());
+      }
+      // Sort variables within monomial to maintain canonical form
+      std::sort(m.varIndices.begin(), m.varIndices.end());
+      result.push_back(std::move(m));
     }
-    // Sort variables within monomial to maintain canonical form
-    std::sort(m.varIndices.begin(), m.varIndices.end());
-    result.push_back(std::move(m));
   }
   return result;
 }

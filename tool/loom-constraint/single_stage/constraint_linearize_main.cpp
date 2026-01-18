@@ -1,9 +1,4 @@
-/**
- * @file constraint_linearize_main.cpp
- * @brief CLI driver for polynomial constraint linearization.
- */
-
-#include "constraint_linearize.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -66,7 +61,10 @@ int main(int argc, char **argv) {
   }
 
   // Run linearization pass
-  if (failed(loom::constraint_opt::runConstraintLinearize(*module))) {
+  PassManager pm(&context);
+  pm.addPass(loom::constraint_opt::createLoomConstraintLinearizePass());
+
+  if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Constraint linearization failed\n";
     return 1;
   }

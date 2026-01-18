@@ -26,28 +26,63 @@ ModuleOp getParentModule(func::FuncOp func) {
   return nullptr;
 }
 
-func::FuncOp cloneAndInsertFunction(OpBuilder &builder,
-                                    func::FuncOp originalFunc,
-                                    llvm::StringRef newName,
-                                    Operation *insertAfter) {
+namespace {
+
+/// Private helper to clone a function and optionally apply a modifier.
+/// Handles insertion point management and failure cleanup.
+func::FuncOp cloneFunctionImpl(
+    OpBuilder &builder, func::FuncOp originalFunc, llvm::StringRef newName,
+    Operation *insertAfter, DictionaryAttr moduleAttrs,
+    std::function<LogicalResult(func::FuncOp)> modifier = nullptr) {
 
   // Set insertion point
   if (insertAfter) {
     builder.setInsertionPointAfter(insertAfter);
   }
-  // If insertAfter is nullptr, use the current insertion point
+
+  // Create wrapper module if needed
+  ModuleOp wrapperModule = nullptr;
+  OpBuilder effectiveBuilder = builder;
+  if (moduleAttrs) {
+    wrapperModule = ModuleOp::create(originalFunc.getLoc());
+    wrapperModule->setAttrs(moduleAttrs);
+    builder.insert(wrapperModule);
+    effectiveBuilder = OpBuilder(wrapperModule.getBodyRegion());
+  }
 
   // Clone the function
   IRMapping mapping;
-  auto clonedFunc = cast<func::FuncOp>(builder.clone(*originalFunc, mapping));
-
-  // Set the new name
+  auto clonedFunc =
+      cast<func::FuncOp>(effectiveBuilder.clone(*originalFunc, mapping));
   clonedFunc.setName(newName);
 
-  // Update insertion point to after the cloned function
-  builder.setInsertionPointAfter(clonedFunc);
+  // Apply modifier if provided
+  if (modifier) {
+    if (failed(modifier(clonedFunc))) {
+      if (wrapperModule) {
+        wrapperModule.erase();
+      } else {
+        clonedFunc.erase();
+      }
+      return nullptr;
+    }
+  }
+
+  // Update builder's insertion point to after the inserted operation
+  builder.setInsertionPointAfter(wrapperModule ? (Operation *)wrapperModule
+                                               : (Operation *)clonedFunc);
 
   return clonedFunc;
+}
+
+} // namespace
+
+func::FuncOp cloneAndInsertFunction(OpBuilder &builder,
+                                    func::FuncOp originalFunc,
+                                    llvm::StringRef newName,
+                                    Operation *insertAfter) {
+  return cloneFunctionImpl(builder, originalFunc, newName, insertAfter,
+                           nullptr);
 }
 
 func::FuncOp cloneAndInsertFunctionWithModuleWrapper(OpBuilder &builder,
@@ -55,65 +90,16 @@ func::FuncOp cloneAndInsertFunctionWithModuleWrapper(OpBuilder &builder,
                                                      llvm::StringRef newName,
                                                      DictionaryAttr moduleAttrs,
                                                      Operation *insertAfter) {
-
-  // Set insertion point for the wrapper module
-  if (insertAfter) {
-    builder.setInsertionPointAfter(insertAfter);
-  }
-  // If insertAfter is nullptr, use the current insertion point
-
-  // Create the wrapper module
-  auto wrapperModule = builder.create<ModuleOp>(originalFunc.getLoc());
-
-  // Set the attributes on the wrapper module
-  if (moduleAttrs) {
-    wrapperModule->setAttrs(moduleAttrs);
-  }
-
-  // Create a builder for the wrapper module's body
-  OpBuilder moduleBuilder(wrapperModule.getBodyRegion());
-
-  // Clone the function into the wrapper module
-  IRMapping mapping;
-  auto clonedFunc =
-      cast<func::FuncOp>(moduleBuilder.clone(*originalFunc, mapping));
-
-  // Set the new name
-  clonedFunc.setName(newName);
-
-  // Update insertion point to after the wrapper module
-  builder.setInsertionPointAfter(wrapperModule);
-
-  return clonedFunc;
+  return cloneFunctionImpl(builder, originalFunc, newName, insertAfter,
+                           moduleAttrs);
 }
 
 func::FuncOp cloneModifyAndInsertFunction(
     OpBuilder &builder, func::FuncOp originalFunc, llvm::StringRef newName,
     std::function<LogicalResult(func::FuncOp)> modifier,
     Operation *insertAfter) {
-
-  // Clone the function (don't update insertion point yet)
-  if (insertAfter) {
-    builder.setInsertionPointAfter(insertAfter);
-  }
-
-  IRMapping mapping;
-  auto clonedFunc = cast<func::FuncOp>(builder.clone(*originalFunc, mapping));
-
-  // Set the new name
-  clonedFunc.setName(newName);
-
-  // Apply the modifier
-  if (failed(modifier(clonedFunc))) {
-    // Modifier failed, erase the cloned function and return nullptr
-    clonedFunc.erase();
-    return nullptr;
-  }
-
-  // Modifier succeeded, update insertion point to after the cloned function
-  builder.setInsertionPointAfter(clonedFunc);
-
-  return clonedFunc;
+  return cloneFunctionImpl(builder, originalFunc, newName, insertAfter, nullptr,
+                           modifier);
 }
 
 func::FuncOp cloneModifyAndInsertFunctionWithModuleWrapper(
@@ -121,42 +107,8 @@ func::FuncOp cloneModifyAndInsertFunctionWithModuleWrapper(
     DictionaryAttr moduleAttrs,
     std::function<LogicalResult(func::FuncOp)> modifier,
     Operation *insertAfter) {
-
-  // Set insertion point for the wrapper module
-  if (insertAfter) {
-    builder.setInsertionPointAfter(insertAfter);
-  }
-
-  // Create the wrapper module
-  auto wrapperModule = builder.create<ModuleOp>(originalFunc.getLoc());
-
-  // Set the attributes on the wrapper module
-  if (moduleAttrs) {
-    wrapperModule->setAttrs(moduleAttrs);
-  }
-
-  // Create a builder for the wrapper module's body
-  OpBuilder moduleBuilder(wrapperModule.getBodyRegion());
-
-  // Clone the function into the wrapper module
-  IRMapping mapping;
-  auto clonedFunc =
-      cast<func::FuncOp>(moduleBuilder.clone(*originalFunc, mapping));
-
-  // Set the new name
-  clonedFunc.setName(newName);
-
-  // Apply the modifier
-  if (failed(modifier(clonedFunc))) {
-    // Modifier failed, erase both the function and wrapper module
-    wrapperModule.erase();
-    return nullptr;
-  }
-
-  // Modifier succeeded, update insertion point to after the wrapper module
-  builder.setInsertionPointAfter(wrapperModule);
-
-  return clonedFunc;
+  return cloneFunctionImpl(builder, originalFunc, newName, insertAfter,
+                           moduleAttrs, modifier);
 }
 
 llvm::SmallVector<func::FuncOp> collectFunctions(ModuleOp module) {
@@ -181,7 +133,8 @@ func::FuncOp cloneFuncWithConstraints(
   }
 
   // Create the wrapper module
-  auto wrapperModule = builder.create<ModuleOp>(originalFunc.getLoc());
+  auto wrapperModule = ModuleOp::create(originalFunc.getLoc());
+  builder.insert(wrapperModule);
 
   // Set the attributes on the wrapper module
   if (moduleAttrs) {

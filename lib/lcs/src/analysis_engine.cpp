@@ -265,7 +265,16 @@ void AnalysisEngine::processConstraintSpace(ConstraintSpaceOp csOp) {
   }
 
   // Second pass: process all constraint operations
-  for (Operation &op : csOp.getBodyBlock()->getOperations()) {
+  processOps(csOp.getBodyBlock()->getOperations());
+
+  LLVM_DEBUG({
+    llvm::dbgs() << "Finished processing constraint space. Result:\n";
+    constraintSet_.dump();
+  });
+}
+
+void AnalysisEngine::processOps(llvm::iterator_range<Block::iterator> ops) {
+  for (Operation &op : ops) {
     llvm::TypeSwitch<Operation *>(&op)
         .Case<RangeOp>([this](RangeOp rangeOp) { visitRange(rangeOp); })
         .Case<AlignOp>([this](AlignOp alignOp) { visitAlign(alignOp); })
@@ -287,11 +296,6 @@ void AnalysisEngine::processConstraintSpace(ConstraintSpaceOp csOp) {
                                   << op->getName() << "\n");
         });
   }
-
-  LLVM_DEBUG({
-    llvm::dbgs() << "Finished processing constraint space. Result:\n";
-    constraintSet_.dump();
-  });
 }
 
 void AnalysisEngine::visitSymbolicVar(SymbolicVarOp op) {
