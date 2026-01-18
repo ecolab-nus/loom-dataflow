@@ -58,7 +58,7 @@
  *   grid-to-parallel and spatial mapping passes.
  */
 
-#include "triton_shared_affinize.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Affine/Utils.h"
@@ -1860,9 +1860,7 @@ std::unique_ptr<mlir::Pass> createTritonSharedAffinizePass() {
  * @details After registration, the pass can be invoked by name
  * `--loom-triton-shared-affinize` in pass pipelines.
  */
-void registerTritonSharedAffinizePass() {
-  PassRegistration<TritonSharedAffinizePass>();
-}
+
 
 } // namespace passes
 } // namespace loom

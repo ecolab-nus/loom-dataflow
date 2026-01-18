@@ -3,7 +3,7 @@
 // Usage:
 //   loom_triton_shared_grid_to_parallel --input <input.mlir>
 
-#include "triton_shared_grid_to_parallel.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"

@@ -31,7 +31,7 @@
  *   tensors or temporary buffers are created by this pass).
  */
 
-#include "tile_scf_for_to_l1.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -577,7 +577,7 @@ std::unique_ptr<mlir::Pass> createTileScfForToL1Pass() {
   return std::make_unique<TileScfForToL1Pass>();
 }
 
-void registerTileScfForToL1Pass() { PassRegistration<TileScfForToL1Pass>(); }
+
 
 } // namespace passes
 } // namespace loom

@@ -9,7 +9,7 @@
  * combination.
  */
 
-#include "enumerate_copy_broadcast.h"
+#include "Passes.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Attributes.h"
@@ -785,6 +785,4 @@ loom::passes::createEnumerateCopyBroadcastPass(bool analysisOnly) {
   return std::make_unique<EnumerateCopyBroadcastPass>(analysisOnly);
 }
 
-void loom::passes::registerEnumerateCopyBroadcastPass() {
-  PassRegistration<EnumerateCopyBroadcastPass>();
-}
+

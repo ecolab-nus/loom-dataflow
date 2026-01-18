@@ -80,7 +80,7 @@
  * - Does not introduce reductions or yield results from the parallel region.
  */
 
-#include "triton_shared_grid_to_parallel.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -323,12 +323,7 @@ std::unique_ptr<mlir::Pass> createTritonSharedGridToParallelPass() {
   return std::make_unique<TritonSharedGridToParallelPass>();
 }
 
-void registerTritonSharedGridToParallelPass() {
-  /**
-   * @brief Register the grid-to-parallel pass for textual pipelines.
-   */
-  PassRegistration<TritonSharedGridToParallelPass>();
-}
+
 
 } // namespace passes
 } // namespace loom

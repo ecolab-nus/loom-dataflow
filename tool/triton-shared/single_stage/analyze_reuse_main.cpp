@@ -5,7 +5,7 @@
 //   loom_triton_shared_analyze_reuse --input <input.mlir>
 //   loom_triton_shared_analyze_reuse --input -  (reads from stdin)
 
-#include "analyze_reuse.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -33,7 +33,8 @@
 using namespace mlir;
 
 static llvm::cl::opt<std::string>
-    clInput("input", llvm::cl::desc("Path to input MLIR file (use '-' for stdin)"),
+    clInput("input",
+            llvm::cl::desc("Path to input MLIR file (use '-' for stdin)"),
             llvm::cl::value_desc("filename"), llvm::cl::init("-"));
 
 int main(int argc, char **argv) {

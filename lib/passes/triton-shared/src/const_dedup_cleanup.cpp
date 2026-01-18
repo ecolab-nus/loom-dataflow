@@ -3,7 +3,7 @@
 // affine.apply where possible.
 //===------------------------------------------------------------------===//
 
-#include "const_dedup_cleanup.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"

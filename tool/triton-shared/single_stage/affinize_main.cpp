@@ -3,7 +3,7 @@
 // Usage:
 //   loom_triton_shared_affinize --ttshared <input.mlir>
 
-#include "triton_shared_affinize.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
