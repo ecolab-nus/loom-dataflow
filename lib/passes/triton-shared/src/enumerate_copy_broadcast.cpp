@@ -688,68 +688,69 @@ struct EnumerateCopyBroadcastPass
               generateFunctionName(originalFunc.getSymName(), choice1, choice2);
 
           // Clone and modify the function with interconnect choices and module
-          // wrapper
-          func::FuncOp clonedFunc =
-              loom::utils::cloneModifyAndInsertFunctionWithModuleWrapper(
-                  moduleBuilder, originalFunc, newName, moduleAttrs,
-                  [&](func::FuncOp func) -> LogicalResult {
-                    // Find copy operations in the cloned function
-                    auto clonedCopyOps = findCopyOpsInFunc(func);
-                    if (clonedCopyOps.size() != 2) {
-                      return failure();
-                    }
+          // wrapper, ensuring constraint space is preserved
+          func::FuncOp clonedFunc = loom::utils::cloneFuncWithConstraints(
+              moduleBuilder, originalFunc, newName, moduleAttrs,
+              "EnumerateCopyBroadcast",
+              [&](func::FuncOp func,
+                  loom::ConstraintSpaceOp /*cs*/) -> LogicalResult {
+                // Find copy operations in the cloned function
+                auto clonedCopyOps = findCopyOpsInFunc(func);
+                if (clonedCopyOps.size() != 2) {
+                  return failure();
+                }
 
-                    loom::CopyOp clonedCopyOp1 = clonedCopyOps[0];
-                    OpBuilder builder(clonedCopyOp1);
+                loom::CopyOp clonedCopyOp1 = clonedCopyOps[0];
+                OpBuilder builder(clonedCopyOp1);
 
-                    // Apply first interconnect choice
-                    bool success1 = false;
-                    if (choice1.type == InterconnectChoice::AllDirections) {
-                      success1 = applyAllDirectionsInterconnectToCopy(
-                          clonedCopyOp1, choice1.horizontal, choice1.vertical,
-                          module, builder);
-                    } else if (choice1.type == InterconnectChoice::Single) {
-                      loom::df::InterconnectsOp op1 = choice1.horizontal
-                                                          ? choice1.horizontal
-                                                          : choice1.vertical;
-                      success1 = applyInterconnectAndBroadcastToCopy(
-                          clonedCopyOp1, op1, module, builder);
-                    } else { // DRAM
-                      success1 = applyInterconnectAndBroadcastToCopy(
-                          clonedCopyOp1, nullptr, module, builder);
-                    }
+                // Apply first interconnect choice
+                bool success1 = false;
+                if (choice1.type == InterconnectChoice::AllDirections) {
+                  success1 = applyAllDirectionsInterconnectToCopy(
+                      clonedCopyOp1, choice1.horizontal, choice1.vertical,
+                      module, builder);
+                } else if (choice1.type == InterconnectChoice::Single) {
+                  loom::df::InterconnectsOp op1 = choice1.horizontal
+                                                      ? choice1.horizontal
+                                                      : choice1.vertical;
+                  success1 = applyInterconnectAndBroadcastToCopy(
+                      clonedCopyOp1, op1, module, builder);
+                } else { // DRAM
+                  success1 = applyInterconnectAndBroadcastToCopy(
+                      clonedCopyOp1, nullptr, module, builder);
+                }
 
-                    if (!success1) {
-                      return failure();
-                    }
+                if (!success1) {
+                  return failure();
+                }
 
-                    loom::CopyOp clonedCopyOp2 = clonedCopyOps[1];
-                    builder.setInsertionPoint(clonedCopyOp2);
+                loom::CopyOp clonedCopyOp2 = clonedCopyOps[1];
+                builder.setInsertionPoint(clonedCopyOp2);
 
-                    // Apply second interconnect choice
-                    bool success2 = false;
-                    if (choice2.type == InterconnectChoice::AllDirections) {
-                      success2 = applyAllDirectionsInterconnectToCopy(
-                          clonedCopyOp2, choice2.horizontal, choice2.vertical,
-                          module, builder);
-                    } else if (choice2.type == InterconnectChoice::Single) {
-                      loom::df::InterconnectsOp op2 = choice2.horizontal
-                                                          ? choice2.horizontal
-                                                          : choice2.vertical;
-                      success2 = applyInterconnectAndBroadcastToCopy(
-                          clonedCopyOp2, op2, module, builder);
-                    } else { // DRAM
-                      success2 = applyInterconnectAndBroadcastToCopy(
-                          clonedCopyOp2, nullptr, module, builder);
-                    }
+                // Apply second interconnect choice
+                bool success2 = false;
+                if (choice2.type == InterconnectChoice::AllDirections) {
+                  success2 = applyAllDirectionsInterconnectToCopy(
+                      clonedCopyOp2, choice2.horizontal, choice2.vertical,
+                      module, builder);
+                } else if (choice2.type == InterconnectChoice::Single) {
+                  loom::df::InterconnectsOp op2 = choice2.horizontal
+                                                      ? choice2.horizontal
+                                                      : choice2.vertical;
+                  success2 = applyInterconnectAndBroadcastToCopy(
+                      clonedCopyOp2, op2, module, builder);
+                } else { // DRAM
+                  success2 = applyInterconnectAndBroadcastToCopy(
+                      clonedCopyOp2, nullptr, module, builder);
+                }
 
-                    if (!success2) {
-                      return failure();
-                    }
+                if (!success2) {
+                  return failure();
+                }
 
-                    return success();
-                  },
-                  insertAfter);
+                return success();
+              },
+              insertAfter);
 
           if (clonedFunc) {
             // Update insertion point to the wrapper module
