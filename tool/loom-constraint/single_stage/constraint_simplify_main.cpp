@@ -1,9 +1,4 @@
-/**
- * @file constraint_simplify_main.cpp
- * @brief CLI driver for constraint simplification.
- */
-
-#include "constraint_simplify.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -64,7 +59,10 @@ int main(int argc, char **argv) {
   }
 
   // Run constraint simplification pass
-  if (failed(loom::constraint_opt::runConstraintSimplify(*module))) {
+  PassManager pm(&context);
+  pm.addPass(loom::constraint_opt::createLoomConstraintSimplifyPass());
+
+  if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs())
         << "Constraint simplification failed\n";
     return 1;

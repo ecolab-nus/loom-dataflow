@@ -1,12 +1,9 @@
-/**
- * @file constraint_factorize.cpp
- * @brief Implementation of polynomial constraint factorization pass.
- */
-
-#include "constraint_factorize.h"
+#include "Passes.h"
 #include "constraint_space_utils.h"
 
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/OpDefinition.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
 
@@ -18,6 +15,9 @@
 
 namespace loom {
 namespace constraint_opt {
+
+#define GEN_PASS_DEF_LOOMCONSTRAINTFACTORIZE
+#include "Passes.h.inc"
 
 using namespace mlir;
 using namespace loom::lcs;
@@ -177,38 +177,46 @@ bool factorizePolynomialConstraint(PolynomialConstraintOp pcOp,
   return true;
 }
 
+struct LoomConstraintFactorize
+    : public impl::LoomConstraintFactorizeBase<LoomConstraintFactorize> {
+  using LoomConstraintFactorizeBase::LoomConstraintFactorizeBase;
+
+  void runOnOperation() override {
+    ModuleOp module = getOperation();
+    bool changed = true;
+    int iterations = 0;
+    const int maxIterations = 10; // Prevent infinite loops
+
+    while (changed && iterations < maxIterations) {
+      changed = false;
+      iterations++;
+
+      module.walk([&](ConstraintSpaceOp csOp) {
+        // Collect ops to process (avoid modifying while iterating)
+        llvm::SmallVector<PolynomialConstraintOp> pcOps;
+        for (auto &op : *csOp.getBodyBlock()) {
+          if (auto pcOp = dyn_cast<PolynomialConstraintOp>(&op)) {
+            pcOps.push_back(pcOp);
+          }
+        }
+
+        for (auto pcOp : pcOps) {
+          if (factorizePolynomialConstraint(pcOp, csOp)) {
+            changed = true;
+          }
+        }
+      });
+    }
+
+    LLVM_DEBUG(llvm::dbgs() << "Factorization completed in " << iterations
+                            << " iterations\n");
+  }
+};
+
 } // namespace
 
-LogicalResult runConstraintFactorize(ModuleOp module) {
-  bool changed = true;
-  int iterations = 0;
-  const int maxIterations = 10; // Prevent infinite loops
-
-  while (changed && iterations < maxIterations) {
-    changed = false;
-    iterations++;
-
-    module.walk([&](ConstraintSpaceOp csOp) {
-      // Collect ops to process (avoid modifying while iterating)
-      llvm::SmallVector<PolynomialConstraintOp> pcOps;
-      for (auto &op : *csOp.getBodyBlock()) {
-        if (auto pcOp = dyn_cast<PolynomialConstraintOp>(&op)) {
-          pcOps.push_back(pcOp);
-        }
-      }
-
-      for (auto pcOp : pcOps) {
-        if (factorizePolynomialConstraint(pcOp, csOp)) {
-          changed = true;
-        }
-      }
-    });
-  }
-
-  LLVM_DEBUG(llvm::dbgs() << "Factorization completed in " << iterations
-                          << " iterations\n");
-
-  return success();
+std::unique_ptr<mlir::Pass> createLoomConstraintFactorizePass() {
+  return std::make_unique<LoomConstraintFactorize>();
 }
 
 } // namespace constraint_opt

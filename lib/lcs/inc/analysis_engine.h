@@ -10,12 +10,10 @@
 
 #include "constraint_set.h"
 #include "mlir/IR/AffineExpr.h"
-#include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
-#include <map>
 
 // Forward declarations for Loom operations
 namespace loom {
@@ -154,6 +152,10 @@ public:
   /// @brief Processes all operations in a constraint space.
   /// @param csOp The constraint space operation.
   void processConstraintSpace(ConstraintSpaceOp csOp);
+
+  /// @brief Processes a range of operations into the constraint set.
+  /// @param ops The range of operations to process.
+  void processOps(llvm::iterator_range<mlir::Block::iterator> ops);
 
   /// @brief Gets the built constraint set.
   /// @return The constraint set built by processing operations.

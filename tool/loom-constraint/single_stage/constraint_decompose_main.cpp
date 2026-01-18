@@ -1,9 +1,4 @@
-/**
- * @file constraint_decompose_main.cpp
- * @brief CLI driver for polynomial constraint decomposition.
- */
-
-#include "constraint_decompose.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -66,7 +61,10 @@ int main(int argc, char **argv) {
   }
 
   // Run decomposition pass
-  if (failed(loom::constraint_opt::runConstraintDecompose(*module))) {
+  PassManager pm(&context);
+  pm.addPass(loom::constraint_opt::createLoomConstraintDecomposePass());
+
+  if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Constraint decomposition failed\n";
     return 1;
   }

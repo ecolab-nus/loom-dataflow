@@ -1,12 +1,8 @@
-/**
- * @file constraint_canonicalize.cpp
- * @brief Implementation of polynomial constraint canonicalization pass.
- */
-
-#include "constraint_canonicalize.h"
+#include "Passes.h"
 #include "constraint_space_utils.h"
 
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
 
@@ -20,6 +16,9 @@
 
 namespace loom {
 namespace constraint_opt {
+
+#define GEN_PASS_DEF_LOOMCONSTRAINTCANONICALIZE
+#include "Passes.h.inc"
 
 using namespace mlir;
 using namespace loom::lcs;
@@ -90,22 +89,28 @@ LogicalResult canonicalizePolynomialConstraint(PolynomialConstraintOp pcOp) {
   return success();
 }
 
-} // namespace
+struct LoomConstraintCanonicalize
+    : public impl::LoomConstraintCanonicalizeBase<LoomConstraintCanonicalize> {
+  using LoomConstraintCanonicalizeBase::LoomConstraintCanonicalizeBase;
 
-LogicalResult runConstraintCanonicalize(ModuleOp module) {
-  LogicalResult result = success();
-
-  module.walk([&](ConstraintSpaceOp csOp) {
-    for (auto &op : *csOp.getBodyBlock()) {
-      if (auto pcOp = dyn_cast<PolynomialConstraintOp>(&op)) {
-        if (failed(canonicalizePolynomialConstraint(pcOp))) {
-          result = failure();
+  void runOnOperation() override {
+    ModuleOp module = getOperation();
+    module.walk([&](ConstraintSpaceOp csOp) {
+      for (auto &op : *csOp.getBodyBlock()) {
+        if (auto pcOp = dyn_cast<PolynomialConstraintOp>(&op)) {
+          if (failed(canonicalizePolynomialConstraint(pcOp))) {
+            signalPassFailure();
+          }
         }
       }
-    }
-  });
+    });
+  }
+};
 
-  return result;
+} // namespace
+
+std::unique_ptr<mlir::Pass> createLoomConstraintCanonicalizePass() {
+  return std::make_unique<LoomConstraintCanonicalize>();
 }
 
 } // namespace constraint_opt
