@@ -3,7 +3,7 @@
  * @brief Lowering pass for loom dialect to memref dialect with static type inference.
  */
 
-#include "loom_to_memref.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -114,6 +114,4 @@ std::unique_ptr<mlir::Pass> loom::passes::createLoomToMemRefLoweringPass() {
   return std::make_unique<LoomToMemRefLoweringPass>();
 }
 
-void loom::passes::registerLoomToMemRefLoweringPass() {
-  PassRegistration<LoomToMemRefLoweringPass>();
-}
+

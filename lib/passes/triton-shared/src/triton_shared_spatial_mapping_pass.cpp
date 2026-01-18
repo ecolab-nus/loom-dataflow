@@ -3,7 +3,7 @@
  * @brief Implementation of spatial mapping enumeration as an MLIR pass.
  */
 
-#include "triton_shared_spatial_mapping_pass.h"
+#include "Passes.h"
 
 #include "enumerate_hw_mapping.h"
 
@@ -123,6 +123,4 @@ loom::passes::createTritonSharedExploreSpatialMappingsPass(bool withOuterFors) {
       withOuterFors);
 }
 
-void loom::passes::registerTritonSharedExploreSpatialMappingsPass() {
-  PassRegistration<TritonSharedExploreSpatialMappingsPass>();
-}
+

@@ -15,18 +15,8 @@
 // Usage:
 //   loom_triton_shared_to_affine --ttshared <ttshared.mlir> --df <df.mlir>
 //
-#include "const_dedup_cleanup.h"
-#include "enumerate_copy_broadcast.h"
-#include "hoist_block_loading.h"
-#include "analyze_reuse.h"
+#include "Passes.h"
 #include "enumerate_hw_mapping.h"
-#include "loom_to_memref.h"
-#include "materialize.h"
-#include "staticize_types.h"
-#include "tile_scf_for_to_l1.h"
-#include "triton_shared_affinize.h"
-#include "triton_shared_grid_to_parallel.h"
-#include "triton_shared_spatial_mapping_pass.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -74,9 +64,10 @@ static llvm::cl::opt<bool> clMapAnalysisOnly(
     llvm::cl::desc("Only attach loom.copy.candidates; do not clone functions"),
     llvm::cl::init(false));
 
-static llvm::cl::opt<bool> clSkipTileScfForToL1("skip-tile-scf-for-to-l1",
-                      llvm::cl::desc("Skip the tile-scf-for-to-l1 pass"),
-                      llvm::cl::init(true));
+static llvm::cl::opt<bool>
+    clSkipTileScfForToL1("skip-tile-scf-for-to-l1",
+                         llvm::cl::desc("Skip the tile-scf-for-to-l1 pass"),
+                         llvm::cl::init(true));
 
 static llvm::cl::opt<bool>
     clDumpIntermediate("dump-intermediate",
@@ -161,7 +152,8 @@ int main(int argc, char **argv) {
   }
 
   loom_affine::HardwareInfo hardwareInfo;
-  if (failed(loom_affine::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
+  if (failed(loom_affine::GetHardwareInfoForExploration(*dfModule,
+                                                        hardwareInfo))) {
     llvm::WithColor::error(llvm::errs())
         << "Failed to collect hardware information from DF module\n";
     return 1;
@@ -215,7 +207,8 @@ int main(int argc, char **argv) {
     }
   }
   if (!clDumpDir.empty() &&
-      failed(dumpModuleToFile(*tsModule, clDumpDir, "01_after_affinization.mlir")))
+      failed(
+          dumpModuleToFile(*tsModule, clDumpDir, "01_after_affinization.mlir")))
     return 5;
 
   // Run grid-to-parallel, then dump if requested.
@@ -289,8 +282,7 @@ int main(int argc, char **argv) {
     }
   if (!hasFuncs) {
     OwningOpRef<ModuleOp> explored =
-        loom_affine::EnumerateSpatialMappings(*tsModule,
-                                                          hardwareInfo);
+        loom_affine::EnumerateSpatialMappings(*tsModule, hardwareInfo);
     // Replace non-DF ops with explored clones.
     SmallVector<Operation *, 16> toErase;
     for (Operation &op : *tsModule->getBody()) {
@@ -323,7 +315,8 @@ int main(int argc, char **argv) {
     }
   }
   if (!clDumpDir.empty() &&
-      failed(dumpModuleToFile(*tsModule, clDumpDir, "03_after_exploration.mlir")))
+      failed(
+          dumpModuleToFile(*tsModule, clDumpDir, "03_after_exploration.mlir")))
     return 5;
 
   // Run hoist block loading pass.
@@ -338,8 +331,7 @@ int main(int argc, char **argv) {
   }
   hoistPM.addPass(loom::passes::createHoistBlockLoadingPass());
   if (failed(hoistPM.run(*tsModule))) {
-    llvm::WithColor::error(llvm::errs())
-        << "Hoist block loading pass failed\n";
+    llvm::WithColor::error(llvm::errs()) << "Hoist block loading pass failed\n";
     return 9;
   }
   {
@@ -433,8 +425,8 @@ int main(int argc, char **argv) {
     }
   }
   if (!clDumpDir.empty() &&
-      failed(
-          dumpModuleToFile(*tsModule, clDumpDir, "06_after_memref_mapping.mlir")))
+      failed(dumpModuleToFile(*tsModule, clDumpDir,
+                              "06_after_memref_mapping.mlir")))
     return 5;
 
   // Canonicalize: Materialize, staticize types, lower loom ops, and affinize.
@@ -447,7 +439,8 @@ int main(int argc, char **argv) {
         /*printAfterOnlyOnChange=*/false,
         /*printAfterOnlyOnFailure=*/false, llvm::errs());
   }
-  /// Step 1: Materialize - Replace loom.get_module_attribute with arith.constant.
+  /// Step 1: Materialize - Replace loom.get_module_attribute with
+  /// arith.constant.
   canonicalizePM.addPass(loom::passes::createMaterializePass());
   /// Step 2: Staticize - Convert dynamic memref/tensor types to static types.
   canonicalizePM.addPass(loom::passes::createStaticizeTypesPass());
@@ -520,10 +513,10 @@ int main(int argc, char **argv) {
   }
 
   if (!clDumpDir.empty() &&
-      failed(
-          dumpModuleToFile(*tsModule, clDumpDir, "07_after_bufferization.mlir")))
+      failed(dumpModuleToFile(*tsModule, clDumpDir,
+                              "07_after_bufferization.mlir")))
     return 5;
-  
+
   // Tile scf.for loops to fit L1, then dump if requested.
   if (!clSkipTileScfForToL1) {
     PassManager tilePM(&context);
@@ -540,7 +533,7 @@ int main(int argc, char **argv) {
       llvm::WithColor::error(llvm::errs()) << "SCF tiling to L1 pass failed\n";
       return 6;
     }
-    
+
     // Cleanup after tiling pass.
     {
       PassManager cleanupPM(&context);
@@ -554,14 +547,16 @@ int main(int argc, char **argv) {
       }
       cleanupPM.addPass(loom::passes::createConstDedupCleanupPass());
       if (failed(cleanupPM.run(*tsModule))) {
-        llvm::WithColor::error(llvm::errs()) << "Constant cleanup pass failed\n";
+        llvm::WithColor::error(llvm::errs())
+            << "Constant cleanup pass failed\n";
         return 7;
       }
     }
-    
+
     // Dump after tiling only if tiling pass was executed.
     if (!clDumpDir.empty() &&
-        failed(dumpModuleToFile(*tsModule, clDumpDir, "08_after_for_tiling.mlir")))
+        failed(
+            dumpModuleToFile(*tsModule, clDumpDir, "08_after_for_tiling.mlir")))
       return 5;
   }
 
@@ -579,7 +574,7 @@ int main(int argc, char **argv) {
     for (Operation *op : llvm::reverse(dfOps))
       op->moveBefore(&body.front());
   }
-  
+
   // Print to stdout only if no dump directory was specified.
   if (clDumpDir.empty()) {
     mlir::OpPrintingFlags flags;
@@ -587,6 +582,6 @@ int main(int argc, char **argv) {
     tsModule->print(llvm::outs(), flags);
     llvm::outs() << "\n";
   }
-  
+
   return 0;
 }

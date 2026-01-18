@@ -1,9 +1,10 @@
-// Standalone driver that tiles scf.for loops to fit within the single df.memory (L1).
+// Standalone driver that tiles scf.for loops to fit within the single df.memory
+// (L1).
 //
 // Usage:
 //   tile_scf_for_to_l1 <input.mlir>
 
-#include "tile_scf_for_to_l1.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -107,4 +108,3 @@ int main(int argc, char **argv) {
   llvm::outs() << "\n";
   return 0;
 }
-

@@ -1,6 +1,15 @@
 # Triton-shared passes library
 # Provides passes for Triton-shared optimization pipeline
 
+set(LLVM_TARGET_DEFINITIONS inc/Passes.td)
+set(TBLGEN_INCLUDES)
+foreach(inc ${MLIR_INCLUDE_DIRS})
+  list(APPEND TBLGEN_INCLUDES -I ${inc})
+endforeach()
+
+mlir_tablegen(Passes.h.inc -gen-pass-decls -name LoomTritonShared ${TBLGEN_INCLUDES})
+add_public_tablegen_target(LoomTritonSharedPassesIncGen)
+
 add_library(loomTritonSharedPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/block_loading_pattern.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/const_dedup_cleanup.cpp
@@ -21,6 +30,7 @@ add_library(loomTritonSharedPasses STATIC
 target_include_directories(loomTritonSharedPasses PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${MLIR_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 # Triton-shared passes depend on affine passes and common utilities
@@ -47,5 +57,6 @@ target_link_libraries(loomTritonSharedPasses PUBLIC
     loomDialect
 )
 mlir_check_all_link_libraries(loomTritonSharedPasses)
+add_dependencies(loomTritonSharedPasses LoomTritonSharedPassesIncGen)
 
 target_compile_options(loomTritonSharedPasses PRIVATE -fno-rtti)

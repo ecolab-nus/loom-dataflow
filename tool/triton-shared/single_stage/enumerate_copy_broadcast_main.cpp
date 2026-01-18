@@ -1,7 +1,6 @@
 // Single-stage: enumerate interconnect broadcast choices for copy operations.
 
-#include "enumerate_copy_broadcast.h"
-#include "analyze_reuse.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -40,8 +39,8 @@ static llvm::cl::opt<bool> clAnalysisOnly(
 // No max-variants: we always enumerate all combinations.
 
 int main(int argc, char **argv) {
-  llvm::cl::ParseCommandLineOptions(
-      argc, argv, "Single-stage copy broadcast enumerator\n");
+  llvm::cl::ParseCommandLineOptions(argc, argv,
+                                    "Single-stage copy broadcast enumerator\n");
 
   // Setup context and register required dialects.
   mlir::DialectRegistry registry;

@@ -8,7 +8,7 @@
  * in the module's attributes, and creates an arith.constant with that value.
  */
 
-#include "materialize.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -143,7 +143,5 @@ std::unique_ptr<mlir::Pass> loom::passes::createMaterializePass() {
   return std::make_unique<MaterializePass>();
 }
 
-void loom::passes::registerMaterializePass() {
-  PassRegistration<MaterializePass>();
-}
+
 

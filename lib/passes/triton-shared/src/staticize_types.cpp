@@ -14,7 +14,7 @@
  * - scf.for: Updates iter_args and results when operand types change
  */
 
-#include "staticize_types.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
@@ -591,6 +591,4 @@ std::unique_ptr<mlir::Pass> loom::passes::createStaticizeTypesPass() {
   return std::make_unique<StaticizeTypesPass>();
 }
 
-void loom::passes::registerStaticizeTypesPass() {
-  PassRegistration<StaticizeTypesPass>();
-}
+

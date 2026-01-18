@@ -1,4 +1,4 @@
-#include "hoist_block_loading.h"
+#include "Passes.h"
 #include "block_loading_pattern.h"
 #include "constraint_space_utils.h"
 #include "enumerate_hw_mapping.h"
@@ -195,6 +195,4 @@ std::unique_ptr<mlir::Pass> loom::passes::createHoistBlockLoadingPass() {
 }
 
 /// @brief Register the hoist block loading pass with MLIR.
-void loom::passes::registerHoistBlockLoadingPass() {
-  mlir::PassRegistration<HoistBlockLoadingPass>();
-}
+

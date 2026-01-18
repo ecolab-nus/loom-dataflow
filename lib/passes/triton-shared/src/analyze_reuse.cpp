@@ -14,7 +14,7 @@
  *   attributes of the operation.
  */
 
-#include "analyze_reuse.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -191,9 +191,4 @@ loom::passes::createAnnotateReinterpretCastReusePass() {
   return std::make_unique<AnnotateReinterpretCastReusePass>();
 }
 
-void loom::passes::registerAnnotateReinterpretCastReusePass() {
-  /**
-   * @brief Register the reinterpret_cast reuse annotation pass.
-   */
-  PassRegistration<AnnotateReinterpretCastReusePass>();
-}
+

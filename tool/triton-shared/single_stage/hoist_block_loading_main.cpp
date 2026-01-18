@@ -4,7 +4,7 @@
 //   hoist_block_loading --input <input.mlir>
 //   hoist_block_loading --input -  (reads from stdin)
 
-#include "hoist_block_loading.h"
+#include "Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -33,7 +33,8 @@
 using namespace mlir;
 
 static llvm::cl::opt<std::string>
-    clInput("input", llvm::cl::desc("Path to input MLIR file (use '-' for stdin)"),
+    clInput("input",
+            llvm::cl::desc("Path to input MLIR file (use '-' for stdin)"),
             llvm::cl::value_desc("filename"), llvm::cl::init("-"));
 
 int main(int argc, char **argv) {
@@ -80,4 +81,3 @@ int main(int argc, char **argv) {
   llvm::outs() << "\n";
   return 0;
 }
-
