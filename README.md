@@ -189,6 +189,13 @@ build/tool/triton-shared/single_stage/enumerate_copy_broadcast \
   > test/Passes/mm_2Dmesh/15_after_compress_iv.mlir
 ```
 
+11) Simplify constraint space
+```bash
+./build/tool/loom-constraint/single_stage/constraint_simplify \
+  --input test/Passes/mm_2Dmesh/15_after_compress_iv.mlir \
+  > test/Passes/mm_2Dmesh/16_after_simplify.mlir
+```
+
 10) Canonicalize 
 ```bash
 build/tool/triton-shared/single_stage/canonicalize \
