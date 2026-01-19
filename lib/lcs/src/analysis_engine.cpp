@@ -12,7 +12,6 @@
 #include "mlir/Bytecode/BytecodeOpInterface.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/AffineExpr.h"
-#include "mlir/IR/AffineExprVisitor.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Block.h"
 #include "mlir/IR/Builders.h"
@@ -38,101 +37,6 @@ namespace loom {
 namespace lcs {
 
 using namespace mlir;
-
-//===----------------------------------------------------------------------===//
-// Coefficient Extraction Helper
-//===----------------------------------------------------------------------===//
-
-namespace {
-
-/// @brief Visitor to extract linear coefficients from an AffineExpr.
-///
-/// This visitor walks an AffineExpr and extracts the coefficient for each
-/// dimension variable and the constant term. It only supports affine
-/// expressions (linear combinations of dimensions with integer coefficients).
-class CoefficientExtractor : public AffineExprVisitor<CoefficientExtractor> {
-public:
-  CoefficientExtractor(unsigned numDims, llvm::SmallVectorImpl<int64_t> &coeffs,
-                       int64_t &constant)
-      : numDims_(numDims), coeffs_(coeffs), constant_(constant), multiplier_(1),
-        success_(true) {
-    coeffs_.assign(numDims, 0);
-    constant_ = 0;
-  }
-
-  void visitDimExpr(AffineDimExpr expr) {
-    unsigned pos = expr.getPosition();
-    if (pos < numDims_) {
-      coeffs_[pos] += multiplier_;
-    } else {
-      success_ = false;
-    }
-  }
-
-  void visitSymbolExpr(AffineSymbolExpr /*expr*/) {
-    // Symbols are not supported in LinearConstraintOp
-    // All variables should be dimensions
-    LLVM_DEBUG(llvm::dbgs()
-               << "Warning: Symbol encountered in constraint expression\n");
-    success_ = false;
-  }
-
-  void visitConstantExpr(AffineConstantExpr expr) {
-    constant_ += multiplier_ * expr.getValue();
-  }
-
-  void visitAddExpr(AffineBinaryOpExpr expr) {
-    visit(expr.getLHS());
-    visit(expr.getRHS());
-  }
-
-  void visitMulExpr(AffineBinaryOpExpr expr) {
-    // For multiply, one side must be a constant
-    auto lhsConst = dyn_cast<AffineConstantExpr>(expr.getLHS());
-    auto rhsConst = dyn_cast<AffineConstantExpr>(expr.getRHS());
-
-    if (lhsConst) {
-      int64_t savedMult = multiplier_;
-      multiplier_ *= lhsConst.getValue();
-      visit(expr.getRHS());
-      multiplier_ = savedMult;
-    } else if (rhsConst) {
-      int64_t savedMult = multiplier_;
-      multiplier_ *= rhsConst.getValue();
-      visit(expr.getLHS());
-      multiplier_ = savedMult;
-    } else {
-      // Non-linear: product of two non-constants
-      success_ = false;
-    }
-  }
-
-  void visitModExpr(AffineBinaryOpExpr /*expr*/) {
-    // Modulo is not linear
-    success_ = false;
-  }
-
-  void visitFloorDivExpr(AffineBinaryOpExpr /*expr*/) {
-    // Floor division is not linear in general
-    success_ = false;
-  }
-
-  void visitCeilDivExpr(AffineBinaryOpExpr /*expr*/) {
-    // Ceiling division is not linear in general
-    success_ = false;
-  }
-
-  bool succeeded() const { return success_; }
-
-private:
-  unsigned numDims_;
-  llvm::SmallVectorImpl<int64_t> &coeffs_;
-  int64_t &constant_;
-  int64_t multiplier_;
-  bool success_;
-};
-
-} // namespace
 
 //===----------------------------------------------------------------------===//
 // ValueTracker Implementation

@@ -5,6 +5,7 @@ add_library(loomConstraintSystem STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/constraint_set.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/analysis_engine.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/constraint_space_utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/constraint_exporter.cpp
 )
 
 target_include_directories(loomConstraintSystem PUBLIC

@@ -14,7 +14,10 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 
-// Forward declarations for Loom operations
+namespace mlir {
+class Operation;
+}
+
 namespace loom {
 class ConstraintSpaceOp;
 class LinearConstraintOp;
@@ -25,6 +28,10 @@ class SymbolicVarOp;
 
 namespace loom {
 namespace lcs {
+
+/// Export constraint space to JSON string
+std::string exportConstraintSpaceToJson(mlir::Operation *csOp,
+                                        llvm::StringRef passName);
 
 /// @brief Deep clone a ConstraintSpaceOp into a target location.
 ///

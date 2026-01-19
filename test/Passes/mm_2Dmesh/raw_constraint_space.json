@@ -1,0 +1,8945 @@
+[
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f01__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f01__d_a",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f01__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f01__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_a",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f01__hoist_block_1__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f01__hoist_block_1__a_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f01__hoist_block_1__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f01__hoist_block_1__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f10__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f10__d_a",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f10__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f10__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_a",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f10__hoist_block_1__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f10__hoist_block_1__a_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f10__hoist_block_1__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f10__hoist_block_1__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f01__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f01__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f01__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f01__h_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f01__hoist_block_0__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f01__hoist_block_0__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f01__hoist_block_0__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f01__hoist_block_0__h_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f01__hoist_block_1__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f01__hoist_block_1__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f01__hoist_block_1__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f01__hoist_block_1__v_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f10__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f10__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f10__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f10__h_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f10__hoist_block_0__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f10__hoist_block_0__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f10__hoist_block_0__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f10__hoist_block_0__h_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f10__hoist_block_1__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f10__hoist_block_1__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f10__hoist_block_1__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i1__f10__hoist_block_1__v_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f01__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f01__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f01__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f01__v_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f01__hoist_block_0__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f01__hoist_block_0__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f01__hoist_block_0__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f01__hoist_block_0__v_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f01__hoist_block_1__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f01__hoist_block_1__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f01__hoist_block_1__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f01__hoist_block_1__h_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f10__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f10__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f10__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f10__v_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f10__hoist_block_0__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f10__hoist_block_0__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f10__hoist_block_0__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f10__hoist_block_0__v_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f10__hoist_block_1__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f10__hoist_block_1__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f10__hoist_block_1__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d1i0_d0i1__f10__hoist_block_1__h_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f01__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f01__a_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f01__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f01__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f01__hoist_block_0__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f01__hoist_block_0__a_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f01__hoist_block_0__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f01__hoist_block_0__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_a",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f10__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f10__a_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f10__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f10__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f10__hoist_block_0__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f10__hoist_block_0__a_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f10__hoist_block_0__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f10__hoist_block_0__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "M"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_a",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "N"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  },
+  {
+    "func_name": "matmul_kernel__d0i0_d1i0__f01__d_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "M"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "N"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "K"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "M"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "M"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "N"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "N"
+    },
+    {
+      "lower_bound": 0,
+      "type": "range",
+      "upper_bound": 512,
+      "variable": "K"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "K"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "M",
+            "K"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "K",
+            "N"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 32768
+    }
+  ]
+  }
+]

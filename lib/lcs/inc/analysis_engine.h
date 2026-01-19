@@ -10,10 +10,12 @@
 
 #include "constraint_set.h"
 #include "mlir/IR/AffineExpr.h"
+#include "mlir/IR/AffineExprVisitor.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Debug.h"
 
 // Forward declarations for Loom operations
 namespace loom {
@@ -34,6 +36,73 @@ class Operation;
 
 namespace loom {
 namespace lcs {
+
+/// @brief Visitor to extract linear coefficients from an AffineExpr.
+class CoefficientExtractor
+    : public mlir::AffineExprVisitor<CoefficientExtractor> {
+public:
+  CoefficientExtractor(unsigned numDims, llvm::SmallVectorImpl<int64_t> &coeffs,
+                       int64_t &constant)
+      : numDims_(numDims), coeffs_(coeffs), constant_(constant), multiplier_(1),
+        success_(true) {
+    coeffs_.assign(numDims, 0);
+    constant_ = 0;
+  }
+
+  void visitDimExpr(mlir::AffineDimExpr expr) {
+    unsigned pos = expr.getPosition();
+    if (pos < numDims_) {
+      coeffs_[pos] += multiplier_;
+    } else {
+      success_ = false;
+    }
+  }
+
+  void visitSymbolExpr(mlir::AffineSymbolExpr /*expr*/) { success_ = false; }
+
+  void visitConstantExpr(mlir::AffineConstantExpr expr) {
+    constant_ += multiplier_ * expr.getValue();
+  }
+
+  void visitAddExpr(mlir::AffineBinaryOpExpr expr) {
+    visit(expr.getLHS());
+    visit(expr.getRHS());
+  }
+
+  void visitMulExpr(mlir::AffineBinaryOpExpr expr) {
+    auto lhsConst = llvm::dyn_cast<mlir::AffineConstantExpr>(expr.getLHS());
+    auto rhsConst = llvm::dyn_cast<mlir::AffineConstantExpr>(expr.getRHS());
+
+    if (lhsConst) {
+      int64_t savedMult = multiplier_;
+      multiplier_ *= lhsConst.getValue();
+      visit(expr.getRHS());
+      multiplier_ = savedMult;
+    } else if (rhsConst) {
+      int64_t savedMult = multiplier_;
+      multiplier_ *= rhsConst.getValue();
+      visit(expr.getLHS());
+      multiplier_ = savedMult;
+    } else {
+      success_ = false;
+    }
+  }
+
+  void visitModExpr(mlir::AffineBinaryOpExpr /*expr*/) { success_ = false; }
+  void visitFloorDivExpr(mlir::AffineBinaryOpExpr /*expr*/) {
+    success_ = false;
+  }
+  void visitCeilDivExpr(mlir::AffineBinaryOpExpr /*expr*/) { success_ = false; }
+
+  bool succeeded() const { return success_; }
+
+private:
+  unsigned numDims_;
+  llvm::SmallVectorImpl<int64_t> &coeffs_;
+  int64_t &constant_;
+  int64_t multiplier_;
+  bool success_;
+};
 
 /// @brief AnalysisEngine converts Loom constraint IR into ConstraintSet.
 ///

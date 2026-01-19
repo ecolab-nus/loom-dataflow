@@ -151,7 +151,8 @@ build/tool/loom-opt/single_stage/analyze_reuse \
 ```bash
 build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
   --input test/Passes/mm_2Dmesh/04_after_reuse_analyzation.mlir \
-  > test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir
+  > test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir \
+  2> test/Passes/mm_2Dmesh/raw_constraint_space.json
 ```
 
 6) Canonicalize constraints
@@ -193,10 +194,11 @@ build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
 ```bash
 ./build/tool/loom-constraint/single_stage/constraint_simplify \
   --input test/Passes/mm_2Dmesh/15_after_compress_iv.mlir \
-  > test/Passes/mm_2Dmesh/16_after_simplify.mlir
+  > test/Passes/mm_2Dmesh/16_after_simplify.mlir \
+  2> test/Passes/mm_2Dmesh/linearized_constraint_space.json
 ```
 
-10) Canonicalize 
+12) Canonicalize 
 ```bash
 build/tool/loom-opt/single_stage/canonicalize \
   --input test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir \
