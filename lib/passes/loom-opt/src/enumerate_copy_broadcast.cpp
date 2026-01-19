@@ -10,6 +10,8 @@
  */
 
 #include "Passes.h"
+#include "constraint_exporter.h"
+#include "constraint_space_utils.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Attributes.h"
@@ -100,6 +102,15 @@ struct InterconnectChoice {
     choice.vertical = v;
     return choice;
   }
+
+  /**
+   * @brief Apply this interconnect choice and update broadcast for a copy op.
+   * @param copyOp The copy operation to modify.
+   * @param module The module containing df.spatial_dim operations.
+   * @param builder OpBuilder for creating attributes.
+   * @return true if successfully applied, false otherwise.
+   */
+  bool apply(loom::CopyOp copyOp, ModuleOp module, OpBuilder &builder) const;
 };
 
 /**
@@ -526,29 +537,10 @@ updateBroadcastForInterconnect(SmallVector<int64_t> &broadcastValues,
   } else if (interconnectName == kVerticalLinks) {
     broadcastValues[0] = size;
   }
-}
-
-/**
- * @brief Apply an interconnect and update broadcast attribute to a loom.copy
- * operation.
- * @details Sets the interconnect attribute and updates the broadcast attribute
- * if needed. If interconnectOp is nullptr (indicating DRAM access), creates an
- * empty array attribute.
- *
- * For horizontal_links or vertical_links interconnects, updates the
- * corresponding broadcast dimension with the spatial_dim size:
- * - horizontal_links -> updates broadcast[1]
- * - vertical_links -> updates broadcast[0]
- *
- * @param copyOp The loom.copy operation to modify.
- * @param interconnectOp The interconnect operation to apply (can be nullptr for
- * DRAM).
- * @param module The module containing df.spatial_dim operations.
- * @param builder OpBuilder for creating new operations.
- * @param append If true, appends interconnect to existing array; if false,
- * replaces it.
- * @return true if successfully applied, false otherwise.
- */
+} /**
+   * @brief Apply an interconnect and update broadcast attribute to a loom.copy
+   * operation.
+   */
 static bool applyInterconnectAndBroadcastToCopy(
     loom::CopyOp copyOp, loom::df::InterconnectsOp interconnectOp,
     ModuleOp module, OpBuilder &builder, bool append = false) {
@@ -563,29 +555,36 @@ static bool applyInterconnectAndBroadcastToCopy(
 }
 
 /**
- * @brief Apply all-directions broadcast to a loom.copy operation.
- * @details Applies both horizontal and vertical interconnects by calling
- * applyInterconnectAndBroadcastToCopy twice. First applies horizontal,
- * then appends vertical to the interconnect attribute array.
- *
- * @param copyOp The loom.copy operation to modify.
- * @param horizontalOp The horizontal interconnect operation.
- * @param verticalOp The vertical interconnect operation.
- * @param module The module containing df.spatial_dim operations.
- * @param builder OpBuilder for creating new operations.
- * @return true if successfully applied both directions, false otherwise.
+ * @brief Generate a function name based on interconnect choices.
  */
-static bool applyAllDirectionsInterconnectToCopy(
-    loom::CopyOp copyOp, loom::df::InterconnectsOp horizontalOp,
-    loom::df::InterconnectsOp verticalOp, ModuleOp module, OpBuilder &builder) {
-  // First call: apply horizontal (replaces interconnect attribute)
-  if (!applyInterconnectAndBroadcastToCopy(copyOp, horizontalOp, module,
-                                           builder, false))
-    return false;
+static std::string generateFunctionName(StringRef baseName,
+                                        const InterconnectChoice &choice1,
+                                        const InterconnectChoice &choice2) {
+  std::string label1 = getInterconnectShortLabel(choice1);
+  std::string label2 = getInterconnectShortLabel(choice2);
+  return baseName.str() + "__" + label1 + "_" + label2;
+}
 
-  // Second call: apply vertical (appends to interconnect attribute)
-  return applyInterconnectAndBroadcastToCopy(copyOp, verticalOp, module,
-                                             builder, true);
+/**
+ * @brief Apply this interconnect choice and update broadcast for a copy op.
+ */
+bool InterconnectChoice::apply(loom::CopyOp copyOp, ModuleOp module,
+                               OpBuilder &builder) const {
+  if (type == AllDirections) {
+    // First apply horizontal (replaces interconnect attribute)
+    if (!applyInterconnectAndBroadcastToCopy(copyOp, horizontal, module,
+                                             builder, false))
+      return false;
+    // Then apply vertical (appends to interconnect attribute)
+    return applyInterconnectAndBroadcastToCopy(copyOp, vertical, module,
+                                               builder, true);
+  }
+
+  // Single or DRAM case
+  loom::df::InterconnectsOp op =
+      (type == Single) ? (horizontal ? horizontal : vertical) : nullptr;
+  return applyInterconnectAndBroadcastToCopy(copyOp, op, module, builder,
+                                             false);
 }
 
 /**
@@ -600,22 +599,82 @@ static SmallVector<loom::CopyOp> findCopyOpsInFunc(func::FuncOp func) {
 }
 
 /**
- * @brief Generate a function name based on interconnect choices.
- * @details Creates a new function name by appending short interconnect labels
- * to the base name. Uses labels: "d" for DRAM, "h" for horizontal, "v" for
- * vertical, "a" for all directions.
- * @param baseName The base function name.
- * @param choice1 The first interconnect choice.
- * @param choice2 The second interconnect choice.
- * @return The new function name with interconnect labels appended.
+ * @brief Class responsible for enumerating and generating function clones
+ * based on copy operation interconnect choices.
  */
-static std::string generateFunctionName(StringRef baseName,
-                                        const InterconnectChoice &choice1,
-                                        const InterconnectChoice &choice2) {
-  std::string label1 = getInterconnectShortLabel(choice1);
-  std::string label2 = getInterconnectShortLabel(choice2);
-  return baseName.str() + "__" + label1 + "_" + label2;
-}
+class CopyBroadcastEnumerator {
+public:
+  CopyBroadcastEnumerator(ModuleOp module)
+      : module(module), builder(module.getBodyRegion()) {}
+
+  /// @brief Enumerate choices for all functions in the module.
+  void enumerate() {
+    SmallVector<func::FuncOp> funcs = loom::utils::collectFunctions(module);
+    for (func::FuncOp func : funcs) {
+      processFunction(func);
+    }
+  }
+
+private:
+  void processFunction(func::FuncOp originalFunc) {
+    ModuleOp parentModule = loom::utils::getParentModule(originalFunc);
+    DictionaryAttr moduleAttrs =
+        parentModule ? parentModule->getAttrDictionary() : nullptr;
+
+    auto copyOps = findCopyOpsInFunc(originalFunc);
+    if (copyOps.size() != 2)
+      return;
+
+    auto candidates1 = findCandidateInterconnects(copyOps[0], module);
+    auto candidates2 = findCandidateInterconnects(copyOps[1], module);
+
+    Operation *insertAfter = parentModule;
+    for (const auto &choice1 : candidates1) {
+      for (const auto &choice2 : candidates2) {
+        std::string newName =
+            generateFunctionName(originalFunc.getSymName(), choice1, choice2);
+
+        func::FuncOp clonedFunc = loom::utils::cloneFuncWithConstraints(
+            builder, originalFunc, newName, moduleAttrs,
+            "EnumerateCopyBroadcast",
+            [&](func::FuncOp func, loom::ConstraintSpaceOp /*cs*/) {
+              return applyChoices(func, choice1, choice2);
+            },
+            insertAfter);
+
+        if (clonedFunc) {
+          if (auto clonedParent = loom::utils::getParentModule(clonedFunc))
+            insertAfter = clonedParent;
+        }
+      }
+    }
+
+    if (parentModule)
+      parentModule.erase();
+    else
+      originalFunc.erase();
+  }
+
+  LogicalResult applyChoices(func::FuncOp func, const InterconnectChoice &c1,
+                             const InterconnectChoice &c2) {
+    auto copyOps = findCopyOpsInFunc(func);
+    if (copyOps.size() != 2)
+      return failure();
+
+    OpBuilder b1(copyOps[0]);
+    if (!c1.apply(copyOps[0], module, b1))
+      return failure();
+
+    OpBuilder b2(copyOps[1]);
+    if (!c2.apply(copyOps[1], module, b2))
+      return failure();
+
+    return success();
+  }
+
+  ModuleOp module;
+  OpBuilder builder;
+};
 
 /**
  * @brief Pass to enumerate copy interconnect broadcast choices.
@@ -658,118 +717,48 @@ struct EnumerateCopyBroadcastPass
    */
   void runOnOperation() override {
     ModuleOp module = getOperation();
-    OpBuilder moduleBuilder(module.getBodyRegion());
 
-    SmallVector<func::FuncOp> funcs = loom::utils::collectFunctions(module);
+    // Perform enumeration and cloning
+    CopyBroadcastEnumerator enumerator(module);
+    enumerator.enumerate();
 
-    for (func::FuncOp originalFunc : funcs) {
-      // Get the attributes from the parent module of the function
-      ModuleOp parentModule = loom::utils::getParentModule(originalFunc);
-      DictionaryAttr moduleAttrs = nullptr;
-      if (parentModule) {
-        moduleAttrs = parentModule->getAttrDictionary();
+    // Export simplified constraints to JSON for each constraint space
+    llvm::SmallVector<std::string, 8> allJsonStrings;
+    module.walk([&](ModuleOp wrapperModule) {
+      if (auto csOp = loom::lcs::findConstraintSpace(wrapperModule)) {
+        std::string passName = "EnumerateCopyBroadcast";
+        auto passNameAttr =
+            wrapperModule->getAttrOfType<StringAttr>("loom.pass_name");
+        if (passNameAttr)
+          passName = passNameAttr.getValue().str();
+
+        allJsonStrings.push_back(
+            loom::lcs::exportConstraintSpaceToJson(csOp, passName));
       }
+    });
 
-      auto copyOps = findCopyOpsInFunc(originalFunc);
-      if (copyOps.size() != 2)
-        continue;
-
-      loom::CopyOp copyOp1 = copyOps[0];
-      loom::CopyOp copyOp2 = copyOps[1];
-
-      auto candidates1 = findCandidateInterconnects(copyOp1, module);
-      auto candidates2 = findCandidateInterconnects(copyOp2, module);
-
-      // Track insertion at module level
-      Operation *insertAfter = parentModule;
-      for (const InterconnectChoice &choice1 : candidates1) {
-        for (const InterconnectChoice &choice2 : candidates2) {
-          std::string newName =
-              generateFunctionName(originalFunc.getSymName(), choice1, choice2);
-
-          // Clone and modify the function with interconnect choices and module
-          // wrapper, ensuring constraint space is preserved
-          func::FuncOp clonedFunc = loom::utils::cloneFuncWithConstraints(
-              moduleBuilder, originalFunc, newName, moduleAttrs,
-              "EnumerateCopyBroadcast",
-              [&](func::FuncOp func,
-                  loom::ConstraintSpaceOp /*cs*/) -> LogicalResult {
-                // Find copy operations in the cloned function
-                auto clonedCopyOps = findCopyOpsInFunc(func);
-                if (clonedCopyOps.size() != 2) {
-                  return failure();
-                }
-
-                loom::CopyOp clonedCopyOp1 = clonedCopyOps[0];
-                OpBuilder builder(clonedCopyOp1);
-
-                // Apply first interconnect choice
-                bool success1 = false;
-                if (choice1.type == InterconnectChoice::AllDirections) {
-                  success1 = applyAllDirectionsInterconnectToCopy(
-                      clonedCopyOp1, choice1.horizontal, choice1.vertical,
-                      module, builder);
-                } else if (choice1.type == InterconnectChoice::Single) {
-                  loom::df::InterconnectsOp op1 = choice1.horizontal
-                                                      ? choice1.horizontal
-                                                      : choice1.vertical;
-                  success1 = applyInterconnectAndBroadcastToCopy(
-                      clonedCopyOp1, op1, module, builder);
-                } else { // DRAM
-                  success1 = applyInterconnectAndBroadcastToCopy(
-                      clonedCopyOp1, nullptr, module, builder);
-                }
-
-                if (!success1) {
-                  return failure();
-                }
-
-                loom::CopyOp clonedCopyOp2 = clonedCopyOps[1];
-                builder.setInsertionPoint(clonedCopyOp2);
-
-                // Apply second interconnect choice
-                bool success2 = false;
-                if (choice2.type == InterconnectChoice::AllDirections) {
-                  success2 = applyAllDirectionsInterconnectToCopy(
-                      clonedCopyOp2, choice2.horizontal, choice2.vertical,
-                      module, builder);
-                } else if (choice2.type == InterconnectChoice::Single) {
-                  loom::df::InterconnectsOp op2 = choice2.horizontal
-                                                      ? choice2.horizontal
-                                                      : choice2.vertical;
-                  success2 = applyInterconnectAndBroadcastToCopy(
-                      clonedCopyOp2, op2, module, builder);
-                } else { // DRAM
-                  success2 = applyInterconnectAndBroadcastToCopy(
-                      clonedCopyOp2, nullptr, module, builder);
-                }
-
-                if (!success2) {
-                  return failure();
-                }
-
-                return success();
-              },
-              insertAfter);
-
-          if (clonedFunc) {
-            // Update insertion point to the wrapper module
-            ModuleOp clonedParentModule =
-                loom::utils::getParentModule(clonedFunc);
-            if (clonedParentModule) {
-              insertAfter = clonedParentModule;
-            }
+    if (!allJsonStrings.empty()) {
+      llvm::errs() << "[\n";
+      for (size_t i = 0; i < allJsonStrings.size(); ++i) {
+        // Indent the internal JSON
+        std::string indented;
+        llvm::raw_string_ostream os(indented);
+        bool firstLine = true;
+        for (char c : allJsonStrings[i]) {
+          if (firstLine) {
+            os << "  ";
+            firstLine = false;
           }
+          os << c;
+          if (c == '\n')
+            os << "  ";
         }
+        llvm::errs() << os.str();
+        if (i < allJsonStrings.size() - 1)
+          llvm::errs() << ",";
+        llvm::errs() << "\n";
       }
-
-      // Erase the original function's parent module (which contains the
-      // original function)
-      if (parentModule) {
-        parentModule.erase();
-      } else {
-        originalFunc.erase();
-      }
+      llvm::errs() << "]\n";
     }
   }
 
@@ -784,5 +773,3 @@ std::unique_ptr<mlir::Pass>
 loom::passes::createEnumerateCopyBroadcastPass(bool analysisOnly) {
   return std::make_unique<EnumerateCopyBroadcastPass>(analysisOnly);
 }
-
-

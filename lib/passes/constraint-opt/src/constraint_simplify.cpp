@@ -1,5 +1,6 @@
 #include "Passes.h"
 #include "analysis_engine.h"
+#include "constraint_exporter.h"
 #include "constraint_space_utils.h"
 
 #include "mlir/Analysis/Presburger/IntegerRelation.h"
@@ -324,13 +325,42 @@ struct LoomConstraintSimplify
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
+    // Export simplified constraints to JSON
+    llvm::SmallVector<std::string, 8> allJsonStrings;
     module.walk([&](ConstraintSpaceOp csOp) {
       SimplifyState state(csOp);
       if (failed(state.Initialize()))
         return;
       state.Simplify();
       state.Reconstruct();
+
+      allJsonStrings.push_back(
+          loom::lcs::exportConstraintSpaceToJson(csOp, "ConstraintSimplify"));
     });
+
+    if (!allJsonStrings.empty()) {
+      llvm::errs() << "[\n";
+      for (size_t i = 0; i < allJsonStrings.size(); ++i) {
+        // Indent the internal JSON
+        std::string indented;
+        llvm::raw_string_ostream os(indented);
+        bool firstLine = true;
+        for (char c : allJsonStrings[i]) {
+          if (firstLine) {
+            os << "  ";
+            firstLine = false;
+          }
+          os << c;
+          if (c == '\n')
+            os << "  ";
+        }
+        llvm::errs() << os.str();
+        if (i < allJsonStrings.size() - 1)
+          llvm::errs() << ",";
+        llvm::errs() << "\n";
+      }
+      llvm::errs() << "]\n";
+    }
   }
 };
 
