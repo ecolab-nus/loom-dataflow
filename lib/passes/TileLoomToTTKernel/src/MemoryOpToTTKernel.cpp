@@ -17,7 +17,10 @@
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
+#include <memory>
 #include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOps.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOpsTypes.h"
@@ -25,6 +28,46 @@
 using namespace mlir;
 using namespace mlir::loom;
 using namespace tt::ttkernel;
+
+namespace {
+
+/**
+ * @brief Tracks `loom.alloc` allocations and assigns a stable, dense index.
+ *
+ * @details The TTKernel lowering uses an integer "compile-arg index" to refer
+ *          to circular buffers. When the input IR contains `memref.alloc` ops
+ *          annotated with `{loom.alloc ...}`, we assign each such allocation
+ *          a stable index based on insertion order into this tracker.
+ *
+ *          This avoids trying to infer indices from users (which fails when an
+ *          alloc is currently unused) and makes lowering deterministic.
+ */
+class AllocTracker {
+public:
+  /**
+   * @brief Get the index for an allocation, creating one if needed.
+   * @param alloc The `memref.alloc` op annotated with `{loom.alloc ...}`.
+   * @return A stable, non-negative index for this allocation.
+   */
+  int64_t getOrCreate(memref::AllocOp alloc) {
+    Value v = alloc.getResult();
+    auto it = allocToIndex.find(v);
+    if (it != allocToIndex.end())
+      return it->second;
+    int64_t idx = static_cast<int64_t>(allocs.size());
+    allocs.push_back(v);
+    allocToIndex.try_emplace(v, idx);
+    return idx;
+  }
+
+private:
+  /// Ordered list of tracked alloc results.
+  llvm::SmallVector<Value, 8> allocs;
+  /// Map from alloc result to its assigned index.
+  llvm::DenseMap<Value, int64_t> allocToIndex;
+};
+
+} // namespace
 /**
  * @brief Convert `memref.copy` with `loom.copy.choice` into TTKernel load ops.
  *
@@ -82,8 +125,10 @@ struct ConvertAllocOp : public OpConversionPattern<memref::AllocOp> {
    * @param typeConverter Type converter for the conversion pipeline.
    * @param context MLIR context.
    */
-  ConvertAllocOp(TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<memref::AllocOp>(typeConverter, context) {}
+  ConvertAllocOp(TypeConverter &typeConverter, MLIRContext *context,
+                 std::shared_ptr<AllocTracker> tracker)
+      : OpConversionPattern<memref::AllocOp>(typeConverter, context),
+        tracker(std::move(tracker)) {}
 
   /**
    * @brief Match and rewrite `memref.alloc` with `{loom.alloc ...}`.
@@ -102,7 +147,9 @@ struct ConvertAllocOp : public OpConversionPattern<memref::AllocOp> {
       return failure();
 
     Location loc = op.getLoc();
-    auto idxAttr = rewriter.getI32IntegerAttr(0);
+    // Assign a stable index based on the number of tracked allocations so far.
+    int64_t allocIdx = tracker->getOrCreate(op);
+    auto idxAttr = rewriter.getI32IntegerAttr(static_cast<int32_t>(allocIdx));
     auto memrefType =
         cast<CBType>(typeConverter->convertType(op.getResult().getType()));
     auto cb =
@@ -118,11 +165,16 @@ struct ConvertAllocOp : public OpConversionPattern<memref::AllocOp> {
     //rewriter.eraseOp(op);
     return success();
   }
+
+private:
+  /// Shared allocation tracker used to assign deterministic indices.
+  std::shared_ptr<AllocTracker> tracker;
 };
 
 void loom::populateMemoryOpConversionPatterns(RewritePatternSet &patterns,
                                              TypeConverter &typeConverter,
                                              MLIRContext *context) {
-  patterns.add<ConvertAllocOp>(typeConverter, context);
+  auto tracker = std::make_shared<AllocTracker>();
+  patterns.add<ConvertAllocOp>(typeConverter, context, tracker);
   patterns.add<ConvertLoadOp>(typeConverter, context);
 }
