@@ -1,10 +1,11 @@
 #include "Passes.h"
 #include "block_loading_pattern.h"
 #include "constraint_space_utils.h"
-#include "enumerate_hw_mapping.h"
+#include "hardware_info.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
+#include "mlir/Pass/Pass.h"
 #include "utils.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
@@ -69,9 +70,8 @@ public:
     mlir::OpBuilder moduleBuilder(module.getBodyRegion());
 
     // Collect hardware info to get L1 size
-    loom_affine::HardwareInfo hardwareInfo;
-    if (failed(
-            loom_affine::GetHardwareInfoForExploration(module, hardwareInfo))) {
+    loom::HardwareInfo hardwareInfo;
+    if (failed(loom::GetHardwareInfoForExploration(module, hardwareInfo))) {
       hardwareInfo.l1Size = 0;
     }
 
@@ -185,14 +185,11 @@ public:
   }
 };
 
-} // namespace passes
-} // namespace loom
-
-/// @brief Create the hoist block loading pass.
-/// @return A unique pointer to the created pass.
-std::unique_ptr<mlir::Pass> loom::passes::createHoistBlockLoadingPass() {
+std::unique_ptr<mlir::Pass> createHoistBlockLoadingPass() {
   return std::make_unique<HoistBlockLoadingPass>();
 }
 
-/// @brief Register the hoist block loading pass with MLIR.
+} // namespace passes
+} // namespace loom
 
+/// @brief Register the hoist block loading pass with MLIR.

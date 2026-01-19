@@ -14,7 +14,7 @@
 // the inner `scf.for` loops to represent per-core tile sequencing.
 
 #include "Passes.h"
-#include "enumerate_hw_mapping.h"
+#include "hardware_info.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -90,9 +90,8 @@ int main(int argc, char **argv) {
   }
 
   // Collect spatial dimensions.
-  loom_affine::HardwareInfo hardwareInfo;
-  if (failed(loom_affine::GetHardwareInfoForExploration(*dfModule,
-                                                        hardwareInfo))) {
+  loom::HardwareInfo hardwareInfo;
+  if (failed(loom::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
     llvm::WithColor::error(llvm::errs())
         << "Failed to collect hardware information from DF module\n";
     return 1;
@@ -120,7 +119,7 @@ int main(int argc, char **argv) {
   // and rely purely on the number of iterators in the parallel op.
   // Enumerate mappings and also explore outer-for loop orderings.
   OwningOpRef<ModuleOp> out =
-      loom_affine::EnumerateSpatialMappings(*tsModule, hardwareInfo);
+      loom::EnumerateSpatialMappings(*tsModule, hardwareInfo);
 
   // Merge DF declarations and generated clones into a single module.
   // Structure: outer module -> DF ops at top -> nested modules (each containing

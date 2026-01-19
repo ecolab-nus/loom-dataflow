@@ -9,7 +9,7 @@
 // module containing a clone of the function for each mapping. Each created
 // inner loop is annotated with `loom.mapped_to` and function names are suffixed
 // to encode the mapping.
-#include "enumerate_hw_mapping.h"
+#include "hardware_info.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -72,8 +72,8 @@ int main(int argc, char **argv) {
   }
 
   // Collect spatial dimensions.
-  loom_affine::HardwareInfo hardwareInfo;
-  if (failed(loom_affine::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
+  loom::HardwareInfo hardwareInfo;
+  if (failed(loom::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
     llvm::WithColor::error(llvm::errs())
         << "Failed to collect hardware information from DF module\n";
     return 1;
@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
 
   // Enumerate all mapping combinations for the Affine module.
   OwningOpRef<ModuleOp> out =
-      loom_affine::EnumerateSpatialMappings(*affineModule, hardwareInfo);
+      loom::EnumerateSpatialMappings(*affineModule, hardwareInfo);
 
   // Merge DF declarations and generated Affine clones into a single module to
   // avoid duplicate alias ids and produce a single well-formed module.
