@@ -4,7 +4,7 @@ This directory contains all MLIR-based transformations and helper analyses shipp
 
 ## Structure
 - `affine/` – utilities and passes that target affine IR.
-- `triton-shared/` – passes specific to Triton-shared lowered kernels.
+- `loom-opt/` – passes specific to Triton-shared lowered kernels.
 - `common/` – shared spatial-mapping utilities and analyses (including `input_sharing_analysis.cpp`) consumed by both pipelines.
 
 ## Affine utilities (`affine/`)
@@ -12,7 +12,7 @@ This directory contains all MLIR-based transformations and helper analyses shipp
 - `affine_parallel_to_for.{h,cpp}` – rewrite an outermost `affine.parallel` into a chain of `affine.for` loops with configurable iterator order, so spatial exploration can enumerate wave permutations.
 - Driver mains in `tool/affine/` expose tiling (`affine_tile`), exploration (`affine_explore`), and reuse analysis (`affine_analyze`) flows that stitch these utilities together.
 
-## Triton-shared passes (`triton-shared/`)
+## Triton-shared passes (`loom-opt/`)
 #### Input 
 Triton emits `tt.shared` kernels that expect to run on a GPU grid; the last six function arguments encode the launch grid extents and the current program IDs (`program_id.{x,y,z}`). Example of such input can be found in `test/Dialect/Triton/mm_fixed_strides/ttshared.mlir`.
 #### Passes 
