@@ -8,7 +8,18 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/IRMapping.h"
 
-// Include the generated Loom dialect headers for ConstraintSpaceOp
+#include "hardware_info.h"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+
+// Include the generated Dataflow dialect headers
+#include "DataflowDialect.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "DataflowTypes.h.inc"
+#define GET_OP_CLASSES
+#include "DataflowOps.h.inc"
+
+// Include the generated Loom dialect headers
 #include "LoomDialect.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"

@@ -16,7 +16,7 @@
 //   ttshared-opt --ttshared <ttshared.mlir> --df <df.mlir>
 //
 #include "Passes.h"
-#include "enumerate_hw_mapping.h"
+#include "hardware_info.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -151,9 +151,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  loom_affine::HardwareInfo hardwareInfo;
-  if (failed(loom_affine::GetHardwareInfoForExploration(*dfModule,
-                                                        hardwareInfo))) {
+  loom::HardwareInfo hardwareInfo;
+  if (failed(loom::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
     llvm::WithColor::error(llvm::errs())
         << "Failed to collect hardware information from DF module\n";
     return 1;
@@ -282,7 +281,7 @@ int main(int argc, char **argv) {
     }
   if (!hasFuncs) {
     OwningOpRef<ModuleOp> explored =
-        loom_affine::EnumerateSpatialMappings(*tsModule, hardwareInfo);
+        loom::EnumerateSpatialMappings(*tsModule, hardwareInfo);
     // Replace non-DF ops with explored clones.
     SmallVector<Operation *, 16> toErase;
     for (Operation &op : *tsModule->getBody()) {

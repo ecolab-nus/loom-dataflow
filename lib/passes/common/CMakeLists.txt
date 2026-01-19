@@ -3,6 +3,8 @@
 
 add_library(LoomPassesCommon
   src/utils.cpp
+  src/block_loading_pattern.cpp
+  src/hardware_info.cpp
 )
 
 target_include_directories(LoomPassesCommon
@@ -13,6 +15,10 @@ target_include_directories(LoomPassesCommon
     ${CMAKE_SOURCE_DIR}/lib/lcs/inc
     # Include the generated Loom dialect headers
     ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
+    # Include the generated Dataflow dialect headers
+    ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
+    # Include affine directory for tiling and parallel-to-for
+    ${CMAKE_SOURCE_DIR}/lib/passes/affine/inc
 )
 
 target_link_libraries(LoomPassesCommon
@@ -20,7 +26,14 @@ target_link_libraries(LoomPassesCommon
     MLIRIR
     MLIRFuncDialect
     MLIRSupport
+    MLIRAffineDialect
+    MLIRMemRefDialect
+    MLIRSCFDialect
+    MLIRArithDialect
+    MLIRBufferizationDialect
     loomConstraintSystem
+    loomDialect
+    loomDataflowDialect
 )
 
 # Depend on the generated Loom dialect headers
