@@ -13,7 +13,7 @@
 // `test/Dialect/Triton/mm_fixed_strides/after_exploration.mlir`.
 //
 // Usage:
-//   loom_triton_shared_to_affine --ttshared <ttshared.mlir> --df <df.mlir>
+//   ttshared-opt --ttshared <ttshared.mlir> --df <df.mlir>
 //
 #include "Passes.h"
 #include "enumerate_hw_mapping.h"

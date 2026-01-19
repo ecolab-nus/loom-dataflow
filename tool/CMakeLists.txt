@@ -1,10 +1,10 @@
-# Root tools for affine and triton-shared
+# Root tools for affine and loom-opt
 
 # Common include dirs for all tools
 set(LOOM_PASSES_INC
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/affine/inc
-  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared/inc
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/loom-opt/inc
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/constraint-opt/inc
   ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
   ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
@@ -14,14 +14,14 @@ set(LOOM_PASSES_INC
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/affine)
 
 # Triton-shared tools
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/triton-shared/single_stage)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/loom-opt/single_stage)
 
 # Loom-constraint tools
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/loom-constraint/single_stage)
 
 # Combined pipeline tool
 add_executable(ttshared-opt
-  ${CMAKE_CURRENT_LIST_DIR}/triton-shared/ttshared-opt.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/loom-opt/ttshared-opt.cpp
 )
 
 target_include_directories(ttshared-opt PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
