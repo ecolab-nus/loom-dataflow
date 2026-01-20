@@ -16,11 +16,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -83,11 +83,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -150,11 +150,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -217,11 +217,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -284,11 +284,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -357,11 +357,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -430,11 +430,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -503,11 +503,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -576,11 +576,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -649,11 +649,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -722,11 +722,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -795,11 +795,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -868,11 +868,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -935,11 +935,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1002,11 +1002,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1069,11 +1069,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1136,11 +1136,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1209,11 +1209,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1282,11 +1282,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1355,11 +1355,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1428,11 +1428,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1501,11 +1501,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1574,11 +1574,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1647,11 +1647,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1720,11 +1720,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1788,11 +1788,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1856,11 +1856,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1924,11 +1924,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -1992,11 +1992,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -2066,11 +2066,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -2140,11 +2140,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -2214,11 +2214,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -2288,11 +2288,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -2362,11 +2362,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -2436,11 +2436,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -2510,11 +2510,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -2584,11 +2584,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -2652,11 +2652,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -2720,11 +2720,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -2788,11 +2788,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -2856,11 +2856,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -2930,11 +2930,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3004,11 +3004,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3078,11 +3078,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3152,11 +3152,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3226,11 +3226,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3300,11 +3300,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3374,11 +3374,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3448,11 +3448,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3516,11 +3516,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3584,11 +3584,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3652,11 +3652,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3720,11 +3720,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3794,11 +3794,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3868,11 +3868,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -3942,11 +3942,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4016,11 +4016,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4090,11 +4090,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4164,11 +4164,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4238,11 +4238,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4312,11 +4312,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4380,11 +4380,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4448,11 +4448,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4516,11 +4516,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4584,11 +4584,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4658,11 +4658,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4732,11 +4732,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4806,11 +4806,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4880,11 +4880,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -4954,11 +4954,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5028,11 +5028,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5102,11 +5102,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5176,11 +5176,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5243,11 +5243,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5310,11 +5310,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5377,11 +5377,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5444,11 +5444,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5517,11 +5517,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5590,11 +5590,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5663,11 +5663,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5736,11 +5736,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5809,11 +5809,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5882,11 +5882,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -5955,11 +5955,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -6028,11 +6028,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -6095,11 +6095,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -6162,11 +6162,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -6229,11 +6229,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -6296,11 +6296,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -6369,11 +6369,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -6442,11 +6442,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -6515,11 +6515,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -6588,11 +6588,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -6661,11 +6661,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -6734,11 +6734,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
@@ -6807,11 +6807,11 @@ module {
       %12 = loom.symbolic_var "M" : index
       %13 = loom.symbolic_var "N" : index
       %14 = loom.symbolic_var "K" : index
-      loom.range %12[0, 512]
+      loom.range %12[32, 512]
       loom.align %12 by 32
-      loom.range %13[0, 512]
+      loom.range %13[32, 512]
       loom.align %13 by 32
-      loom.range %14[0, 512]
+      loom.range %14[32, 512]
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 8192 : i64}
