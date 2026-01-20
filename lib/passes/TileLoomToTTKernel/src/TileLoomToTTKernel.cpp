@@ -5,6 +5,7 @@
 
 #include "MemoryOpToTTKernel.h"
 #include "ComputeOpToTTKernel.h"
+#include "FuncOpToTTKernel.h"
 #include "TileLoomToTTKernel.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -123,6 +124,11 @@ public:
       signalPassFailure();
       return;
     }
+
+    // Step 2: Specialize functions into compute and data variants.
+    // This clones each function into `__compute` (stores erased) and
+    // `__data` (compute ops erased) versions before lowering.
+    specializeFunctionsForTTKernel(module);
 
     // Create type converter
     TileLoomTypeConverter typeConverter;
