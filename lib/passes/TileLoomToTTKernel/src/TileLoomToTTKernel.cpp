@@ -125,10 +125,31 @@ public:
       return;
     }
 
-    // Step 2: Specialize functions into compute and data variants.
-    // This clones each function into `__compute` (stores erased) and
-    // `__data` (compute ops erased) versions before lowering.
+    // Step 2: Specialize functions into compute/reader/writer variants.
+    // This clones each function into:
+    // - `__compute`: stores erased (compute-only)
+    // - `__reader` : stores + compute erased (loads-only)
+    // - `__writer` : loads  + compute erased (stores-only)
+    //
+    // This must run before MemoryOp/ComputeOp lowering so each specialized
+    // function is lowered independently.
     specializeFunctionsForTTKernel(module);
+
+    // Step 3: Run a per-function DSE-style cleanup after splitting.
+    //
+    // The specialization step above can leave behind dead ops (e.g. allocs,
+    // casts, unused loop-carried values). Run a small cleanup pipeline on each
+    // function to simplify IR before the TTKernel lowering patterns run.
+    PassManager postSplitPm(context);
+    postSplitPm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
+    postSplitPm.addNestedPass<func::FuncOp>(createCSEPass());
+    // Symbol DCE cleans up any now-unreferenced symbols at the module level.
+    postSplitPm.addPass(createSymbolDCEPass());
+    if (failed(postSplitPm.run(module))) {
+      signalPassFailure();
+      return;
+    }
+    
 
     // Create type converter
     TileLoomTypeConverter typeConverter;

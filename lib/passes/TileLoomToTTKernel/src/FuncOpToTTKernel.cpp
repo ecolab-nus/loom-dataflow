@@ -2,10 +2,12 @@
  * @file FuncOpToTTKernel.cpp
  * @brief Implementation for function specialization pass.
  *
- * @details This pass clones each func::FuncOp into two specialized versions:
+ * @details This pass clones each func::FuncOp into three specialized versions:
  *          - `__compute`: retains compute ops, erases store operations
- *          - `__data`: retains memory ops (loads/stores), erases compute ops
- *          This mimics the CoreSpecialize pattern from triton-tenstorrent.
+ *          - `__reader` : retains memory load ops, erases stores & compute ops
+ *          - `__writer` : retains memory store ops, erases loads & compute ops
+ *          This loosely mimics the CoreSpecialize pattern from
+ *          triton-tenstorrent while remaining TileLoom-specific.
  */
 
 #include "FuncOpToTTKernel.h"
@@ -31,6 +33,19 @@ namespace {
  */
 static bool isStoreOp(memref::CopyOp op) {
   return op.getTarget().getDefiningOp<memref::ReinterpretCastOp>() != nullptr;
+}
+
+/**
+ * @brief Check if a memref.copy is a load operation.
+ *
+ * @details A load is identified when the source is a reinterpret_cast,
+ *          indicating data flows from external DRAM to L1/CB.
+ *
+ * @param op The memref.copy operation to check.
+ * @return true if this is a load operation, false otherwise.
+ */
+static bool isLoadOp(memref::CopyOp op) {
+  return op.getSource().getDefiningOp<memref::ReinterpretCastOp>() != nullptr;
 }
 
 /**
@@ -99,25 +114,29 @@ static func::FuncOp makeComputeFunc(func::FuncOp func) {
 }
 
 /**
- * @brief Specialize a function for data movement only.
+ * @brief Specialize a function for reader-only data movement.
  *
- * @details Clones the function with `__data` suffix and erases all
- *          compute operations (linalg.matmul etc.). Loads and stores
- *          are retained for data movement.
+ * @details Clones the function with `__reader` suffix and erases all
+ *          compute operations (linalg.matmul etc.) and store operations
+ *          (memref.copy where target is reinterpret_cast). Loads are
+ *          retained to model DRAM -> L1 traffic.
  *
  * @param func The original function to specialize.
- * @return The specialized data function.
+ * @return The specialized reader function.
  */
-static func::FuncOp makeDataFunc(func::FuncOp func) {
+static func::FuncOp makeReaderFunc(func::FuncOp func) {
   IRMapping mapping;
-  auto dataFunc = cast<func::FuncOp>(func->clone(mapping));
-  dataFunc.setName((func.getName() + "__data").str());
+  auto readerFunc = cast<func::FuncOp>(func->clone(mapping));
+  readerFunc.setName((func.getName() + "__reader").str());
 
-  // Collect compute ops to erase
+  // Collect compute ops and stores to erase.
   SmallVector<Operation *, 8> opsToErase;
-  dataFunc.walk([&](Operation *op) {
+  readerFunc.walk([&](Operation *op) {
     if (isComputeOp(op)) {
       opsToErase.push_back(op);
+    } else if (auto copyOp = dyn_cast<memref::CopyOp>(op)) {
+      if (isStoreOp(copyOp))
+        opsToErase.push_back(op);
     }
   });
 
@@ -134,15 +153,54 @@ static func::FuncOp makeDataFunc(func::FuncOp func) {
     }
   }
 
-  return dataFunc;
+  return readerFunc;
+}
+
+/**
+ * @brief Specialize a function for writer-only data movement.
+ *
+ * @details Clones the function with `__writer` suffix and erases all
+ *          compute operations and load operations (memref.copy where the
+ *          source is reinterpret_cast). Stores are retained to model
+ *          CB/L1 -> DRAM traffic.
+ *
+ * @param func The original function to specialize.
+ * @return The specialized writer function.
+ */
+static func::FuncOp makeWriterFunc(func::FuncOp func) {
+  IRMapping mapping;
+  auto writerFunc = cast<func::FuncOp>(func->clone(mapping));
+  writerFunc.setName((func.getName() + "__writer").str());
+
+  SmallVector<Operation *, 8> opsToErase;
+  writerFunc.walk([&](Operation *op) {
+    if (isComputeOp(op)) {
+      opsToErase.push_back(op);
+    } else if (auto copyOp = dyn_cast<memref::CopyOp>(op)) {
+      if (isLoadOp(copyOp))
+        opsToErase.push_back(op);
+    }
+  });
+
+  for (Operation *op : llvm::reverse(opsToErase)) {
+    if (auto matmulOp = dyn_cast<linalg::MatmulOp>(op)) {
+      (void)matmulOp;
+      op->erase();
+    } else {
+      op->erase();
+    }
+  }
+
+  return writerFunc;
 }
 
 /**
  * @brief Specializer class that manages function cloning and specialization.
  *
  * @details Follows the CoreSpecialize pattern from triton-tenstorrent.
- *          For each function, creates compute and data specialized versions,
- *          inserts them into the module, and erases the original.
+ *          For each function, creates compute, reader, and writer
+ *          specialized versions, inserts them into the module, and
+ *          erases the original.
  */
 class FunctionSpecializer {
 public:
@@ -150,11 +208,13 @@ public:
       : module(module), originalFunc(func) {
     // Create specialized versions
     auto computeFunc = makeComputeFunc(func);
-    auto dataFunc = makeDataFunc(func);
+    auto readerFunc = makeReaderFunc(func);
+    auto writerFunc = makeWriterFunc(func);
 
     // Insert specialized functions into the module (before the original)
     module.insert(func, computeFunc);
-    module.insert(func, dataFunc);
+    module.insert(func, readerFunc);
+    module.insert(func, writerFunc);
   }
 
 private:
@@ -171,7 +231,8 @@ void mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
        llvm::make_early_inc_range(module.getOps<func::FuncOp>())) {
     // Skip functions that are already specialized
     StringRef name = func.getName();
-    if (name.ends_with("__compute") || name.ends_with("__data"))
+    if (name.ends_with("__compute") || name.ends_with("__reader") ||
+        name.ends_with("__writer"))
       continue;
 
     // Skip external/declaration-only functions
