@@ -73,6 +73,29 @@ public:
 };
 
 /**
+ * @brief Erase all Dataflow dialect operations from the module.
+ *
+ * @details This helper walks the entire module and removes every operation
+ *          whose dialect namespace is "df". These operations are part of the
+ *          hardware description in the Dataflow dialect and are not needed
+ *          after TileLoom has been fully lowered to the TTKernel dialect.
+ *
+ * @param module The module in which to erase all Dataflow dialect operations.
+ */
+static void eraseAllDfOps(ModuleOp module) {
+  SmallVector<Operation *, 16> toErase;
+  module.walk([&](Operation *op) {
+    Dialect *dialect = op->getDialect();
+    if (dialect && dialect->getNamespace() == StringRef("df"))
+      toErase.push_back(op);
+  });
+
+  // Erase in reverse to avoid invalidating the IR while deleting.
+  for (auto *op : llvm::reverse(toErase))
+    op->erase();
+}
+
+/**
  * @brief Pass that converts TileLoom IR to TTKernel dialect.
  * 
  * @details This pass applies conversion patterns to transform TileLoom
@@ -223,7 +246,11 @@ public:
     // Apply conversion
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       signalPassFailure();
+      return;
     }
+
+    // Final stage: strip all Dataflow (df) dialect ops from the module.
+    eraseAllDfOps(module);
   }
 };
 
@@ -236,4 +263,3 @@ std::unique_ptr<Pass> mlir::loom::createTileLoomToTTKernelPass() {
 void mlir::loom::registerTileLoomToTTKernelPass() {
   PassRegistration<TileLoomToTTKernelPass>();
 }
-
