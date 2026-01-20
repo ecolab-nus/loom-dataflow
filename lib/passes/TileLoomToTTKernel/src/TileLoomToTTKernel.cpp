@@ -49,7 +49,7 @@ public:
       return CBType::get(memref);
     });
     
-    // Add target materialization for CBType -> MemRefType (if needed)
+/*     // Add target materialization for CBType -> MemRefType (if needed)
     addTargetMaterialization([](OpBuilder &builder, Type type,
                                  ValueRange inputs, Location loc) -> Value {
       // If we need to materialize a memref from a CBType, we can extract
@@ -65,7 +65,7 @@ public:
       // we can wrap it. For now, return nullptr to indicate no
       // materialization is available.
       return nullptr;
-    });
+    }); */
   }
 };
 
@@ -162,7 +162,12 @@ public:
     // Mark memref operations that don't have loom.copy.choice as legal
     // They will be type-converted but not rewritten
     // Note: memref::AllocOp is handled dynamically above (loom.alloc makes it illegal)
-    target.addLegalOp<memref::ReinterpretCastOp>();
+    // `memref.reinterpret_cast` is generally legal, but if it carries
+    // `loom.reuse` we treat it as requiring conversion (framework hook).
+    target.addDynamicallyLegalOp<memref::ReinterpretCastOp>(
+        [&](memref::ReinterpretCastOp op) {
+          return !op->hasAttr("loom.reuse");
+        });
     target.addLegalDialect<mlir::tt::ttkernel::TTKernelDialect>();
 
     // Populate conversion patterns
