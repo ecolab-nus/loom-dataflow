@@ -1,9 +1,10 @@
 import argparse
 import sys
 import numpy as np
-from .parser import load_constraint_spaces, find_by_func_name, compile_constraint_function, compile_expression_function, get_ranges, get_alignments
-from .sampler import generate_continuous_grid, evaluate_constraints, evaluate_continuous_field, apply_alignment_filter, get_aligned_points
+from .parser import load_constraint_spaces, find_by_func_name, compile_constraint_function, compile_expression_function, get_ranges, get_alignments, get_primary_vars, get_intermediate_vars
+from .sampler import generate_continuous_grid, evaluate_constraints, evaluate_continuous_field, evaluate_projected_field, apply_alignment_filter, get_aligned_points
 from .renderer import create_isosurface, create_scatter3d, build_figure, add_k_slider
+from .projector import FourierMotzkinProjector
 
 def main():
     parser = argparse.ArgumentParser(description='LOOM Constraint Visualization Engine')
@@ -28,23 +29,38 @@ def main():
     print(f"Processing: {space.func_name}")
 
     # 2. Setup grid and constraints
-    var_names = [v.name for v in space.variables if not v.is_intermediate]
+    primary_vars = get_primary_vars(space)
+    intermediate_vars = get_intermediate_vars(space)
+    var_names = primary_vars # For UI display
+    
     ranges = get_ranges(space)
     alignments = get_alignments(space)
     
     if len(var_names) < 3:
         print(f"Warning: Expected 3 variables (M, N, K), but found {var_names}")
 
-    # Generate dense grid for continuous surface
+    # Generate dense grid for continuous surface (using only primary variables)
     grid = generate_continuous_grid(ranges, resolution=args.resolution)
     
-    # Compile and evaluate
-    expr_fns = [compile_expression_function(c, var_names) for c in space.constraints]
-    field = evaluate_continuous_field(grid, expr_fns)
+    # 3. Compile and evaluate field
+    if intermediate_vars:
+        print(f"Intermediate variables detected: {intermediate_vars}. Using Fourier-Motzkin projection.")
+        projector = FourierMotzkinProjector(space.constraints, primary_vars, intermediate_vars)
+        field = evaluate_projected_field(grid, projector)
+        
+        # We still need a boolean mask for scatter points.
+        # For simplicity, we can use the field (field <= 1.0)
+        mask = (field <= 1.00001)
+    else:
+        # Standard polynomial/linear evaluation
+        expr_fns = [compile_expression_function(c, var_names) for c in space.constraints]
+        field = evaluate_continuous_field(grid, expr_fns)
+        
+        # We still need the boolean mask for scatter points
+        constraint_fns = [compile_constraint_function(c, var_names) for c in space.constraints]
+        mask = evaluate_constraints(grid, constraint_fns)
     
-    # 3. Handle alignment points (Discrete Search Space)
-    # We still need the boolean mask for scatter points
-    constraint_fns = [compile_constraint_function(c, var_names) for c in space.constraints]
+    # 4. Handle alignment points (Discrete Search Space)
     aligned_grid_parts = []
     for name in var_names:
         r = ranges.get(name, (0, 512))
@@ -58,15 +74,24 @@ def main():
     if len(aligned_grid_parts) >= 3:
         # Use only the first 3 variables for 3D visualization if more exist
         a_grid = np.meshgrid(*aligned_grid_parts[:3], indexing='ij')
-        # If there are more than 3 vars, we might need a better way to evaluate.
-        # But for M,N,K it's perfect.
-        a_mask = evaluate_constraints(a_grid, constraint_fns)
+        
+        if intermediate_vars:
+            # Re-evaluate projected field on the discrete grid
+            # This is slightly expensive but accurate for alignments
+            projector = FourierMotzkinProjector(space.constraints, primary_vars, intermediate_vars)
+            a_field = evaluate_projected_field(a_grid, projector)
+            a_mask = (a_field <= 1.00001)
+        else:
+            # Standard constraints
+            constraint_fns = [compile_constraint_function(c, var_names) for c in space.constraints]
+            a_mask = evaluate_constraints(a_grid, constraint_fns)
+            
         aligned_points = get_aligned_points(a_grid, a_mask)
         print(f"Found {len(aligned_points)} valid aligned points.")
     else:
         aligned_points = np.array([])
 
-    # 4. Render
+    # 5. Render
     # Boundary is where field == 1.0. 
     # Points inside have field <= 1.0.
     iso = create_isosurface(grid, field, isomin=0.0, isomax=1.0)
