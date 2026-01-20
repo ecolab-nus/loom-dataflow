@@ -135,3 +135,9 @@ def get_alignments(space: ConstraintSpace) -> Dict[str, int]:
         if isinstance(m, AlignMetadata):
             aligns[m.variable] = m.alignment
     return aligns
+
+def get_primary_vars(space: ConstraintSpace) -> List[str]:
+    return [v.name for v in space.variables if not v.is_intermediate]
+
+def get_intermediate_vars(space: ConstraintSpace) -> List[str]:
+    return [v.name for v in space.variables if v.is_intermediate]

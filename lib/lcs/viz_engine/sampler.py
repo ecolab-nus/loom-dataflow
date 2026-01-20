@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List, Dict, Tuple, Callable
+from typing import List, Dict, Tuple, Callable, Any
 
 def generate_continuous_grid(ranges: Dict[str, Tuple[int, int]], resolution: int = 100) -> Tuple[np.ndarray, ...]:
     """
@@ -45,6 +45,14 @@ def evaluate_continuous_field(grid: Tuple[np.ndarray, ...], expr_fns: List[Calla
             score = lhs / rhs
         combined = np.maximum(combined, score)
     return combined
+
+def evaluate_projected_field(grid: Tuple[np.ndarray, ...], projector: Any) -> np.ndarray:
+    """
+    Evaluates the feasibility field after projecting out intermediate variables.
+    Boundary is at 1.0.
+    """
+    eval_fn = projector.compile_projected_field_function()
+    return eval_fn(*grid)
 
 def apply_alignment_filter(grid: Tuple[np.ndarray, ...], mask: np.ndarray, alignments: Dict[str, int]) -> np.ndarray:
     """
