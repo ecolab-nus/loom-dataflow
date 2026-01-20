@@ -4,12 +4,14 @@
  */
 
 #include "MemoryOpToTTKernel.h"
+#include "ComputeOpToTTKernel.h"
 #include "TileLoomToTTKernel.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Func/Transforms/FuncConversions.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
@@ -93,7 +95,7 @@ public:
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<func::FuncDialect, memref::MemRefDialect,
                     arith::ArithDialect, scf::SCFDialect,
-                    affine::AffineDialect>();
+                    affine::AffineDialect, linalg::LinalgDialect>();
     // Ensure TTKernel is loaded before patterns create TTKernel types (e.g.,
     // DataFormatType). Otherwise, creating such types can fail with
     // "storage uniquer isn't initialized".
@@ -153,7 +155,7 @@ public:
     // Mark memref operations that don't need conversion as legal
     // (they will be type-converted automatically)
     target.addLegalDialect<arith::ArithDialect, scf::SCFDialect,
-                          affine::AffineDialect>();
+                          affine::AffineDialect, linalg::LinalgDialect>();
     
     // Mark module and function ops as legal (they will be type-converted)
     target.addLegalOp<ModuleOp>();
@@ -182,6 +184,8 @@ public:
     
     // Add memory operation conversion patterns (memref.copy with loom.copy.choice)
     populateMemoryOpConversionPatterns(patterns, typeConverter, context);
+    // Add compute operation conversion patterns (e.g., linalg.matmul)
+    populateComputeOpConversionPatterns(patterns, typeConverter, context);
 
     // Apply conversion
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {

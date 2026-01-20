@@ -84,6 +84,7 @@ target_link_libraries(loomTileLoomToTTKernel PUBLIC
     MLIRMemRefDialect
     MLIRSCFDialect
     MLIRFuncDialect
+    MLIRLinalgDialect
     MLIRTransforms
     MLIRSupport
     LLVMSupport
