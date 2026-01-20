@@ -27,6 +27,7 @@ using namespace loom::lcs;
 namespace {
 
 /// Emit linear constraints for McCormick relaxation of w = x * y
+/// Convention: affine_map expression <= 0
 void emitMcCormickConstraints(OpBuilder &builder, Location loc, Value w,
                               Value x, Value y, BoundInferenceService &bis) {
   Interval ix = bis.getRange(x);
@@ -45,39 +46,43 @@ void emitMcCormickConstraints(OpBuilder &builder, Location loc, Value w,
 
   MLIRContext *ctx = builder.getContext();
 
-  // 1. w - Ly*x - Lx*y + Lx*Ly >= 0
-  // affine_map<(d0, d1, d2) -> (d0 - Ly*d1 - Lx*d2 + Lx*Ly)>
+  // Lower bound 1: w >= Ly*x + Lx*y - Lx*Ly
+  // In <= 0 form: Ly*x + Lx*y - Lx*Ly - w <= 0
+  // affine_map<(d0, d1, d2) -> (-d0 + Ly*d1 + Lx*d2 - Lx*Ly)>
   auto map1 = AffineMap::get(3, 0,
-                             {builder.getAffineDimExpr(0) -
-                              Ly * builder.getAffineDimExpr(1) -
-                              Lx * builder.getAffineDimExpr(2) + (Lx * Ly)},
+                             {(-builder.getAffineDimExpr(0)) +
+                              Ly * builder.getAffineDimExpr(1) +
+                              Lx * builder.getAffineDimExpr(2) - (Lx * Ly)},
                              ctx);
   builder.create<LinearConstraintOp>(loc, ValueRange{w, x, y},
                                      AffineMapAttr::get(map1));
 
-  // 2. w - Uy*x - Ux*y + Ux*Uy >= 0
+  // Lower bound 2: w >= Uy*x + Ux*y - Ux*Uy
+  // In <= 0 form: Uy*x + Ux*y - Ux*Uy - w <= 0
   auto map2 = AffineMap::get(3, 0,
-                             {builder.getAffineDimExpr(0) -
-                              Uy * builder.getAffineDimExpr(1) -
-                              Ux * builder.getAffineDimExpr(2) + (Ux * Uy)},
+                             {(-builder.getAffineDimExpr(0)) +
+                              Uy * builder.getAffineDimExpr(1) +
+                              Ux * builder.getAffineDimExpr(2) - (Ux * Uy)},
                              ctx);
   builder.create<LinearConstraintOp>(loc, ValueRange{w, x, y},
                                      AffineMapAttr::get(map2));
 
-  // 3. -w + Uy*x + Lx*y - Lx*Uy >= 0
+  // Upper bound 1: w <= Uy*x + Lx*y - Lx*Uy
+  // In <= 0 form: w - Uy*x - Lx*y + Lx*Uy <= 0
   auto map3 = AffineMap::get(3, 0,
-                             {(-builder.getAffineDimExpr(0)) +
-                              Uy * builder.getAffineDimExpr(1) +
-                              Lx * builder.getAffineDimExpr(2) - (Lx * Uy)},
+                             {builder.getAffineDimExpr(0) -
+                              Uy * builder.getAffineDimExpr(1) -
+                              Lx * builder.getAffineDimExpr(2) + (Lx * Uy)},
                              ctx);
   builder.create<LinearConstraintOp>(loc, ValueRange{w, x, y},
                                      AffineMapAttr::get(map3));
 
-  // 4. -w + Ly*x + Ux*y - Ux*Ly >= 0
+  // Upper bound 2: w <= Ly*x + Ux*y - Ux*Ly
+  // In <= 0 form: w - Ly*x - Ux*y + Ux*Ly <= 0
   auto map4 = AffineMap::get(3, 0,
-                             {(-builder.getAffineDimExpr(0)) +
-                              Ly * builder.getAffineDimExpr(1) +
-                              Ux * builder.getAffineDimExpr(2) - (Ux * Ly)},
+                             {builder.getAffineDimExpr(0) -
+                              Ly * builder.getAffineDimExpr(1) -
+                              Ux * builder.getAffineDimExpr(2) + (Ux * Ly)},
                              ctx);
   builder.create<LinearConstraintOp>(loc, ValueRange{w, x, y},
                                      AffineMapAttr::get(map4));
@@ -90,7 +95,8 @@ void linearizePolynomialConstraint(PolynomialConstraintOp pcOp,
   auto operands = pcOp.getOperands();
   int64_t ub = pcOp.getUpperBound();
 
-  // sum(coeff_i * var_i) <= UB  =>  -sum(coeff_i * var_i) + UB >= 0
+  // sum(coeff_i * var_i) <= UB
+  // In <= 0 form: sum(coeff_i * var_i) - UB <= 0
 
   llvm::SmallVector<AffineExpr, 4> exprs;
   AffineExpr sum = builder.getAffineConstantExpr(0);
@@ -107,8 +113,8 @@ void linearizePolynomialConstraint(PolynomialConstraintOp pcOp,
     }
   }
 
-  // -sum + UB >= 0
-  AffineExpr resultExpr = (-sum) + ub;
+  // sum - UB <= 0
+  AffineExpr resultExpr = sum - ub;
   auto map = AffineMap::get(operands.size(), 0, {resultExpr}, ctx);
 
   builder.create<LinearConstraintOp>(pcOp.getLoc(), operands,
