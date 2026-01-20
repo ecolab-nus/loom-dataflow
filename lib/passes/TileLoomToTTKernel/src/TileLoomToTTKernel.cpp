@@ -155,7 +155,13 @@ public:
     // Mark memref operations that don't need conversion as legal
     // (they will be type-converted automatically)
     target.addLegalDialect<arith::ArithDialect, scf::SCFDialect,
-                          affine::AffineDialect, linalg::LinalgDialect>();
+                          affine::AffineDialect>();
+
+    // linalg dialect is generally legal, but we require a conversion for
+    // linalg.matmul so it can be lowered to TTKernel matmul.
+    target.addLegalDialect<linalg::LinalgDialect>();
+    target.addDynamicallyLegalOp<linalg::MatmulOp>(
+        [&](linalg::MatmulOp op) { return false; });
     
     // Mark module and function ops as legal (they will be type-converted)
     target.addLegalOp<ModuleOp>();
