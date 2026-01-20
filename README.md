@@ -121,89 +121,98 @@ build/tool/ttshared-opt \
 1) Replace grid indices with a 3-D `affine.parallel`
 ```bash
 build/tool/loom-opt/single_stage/grid_to_parallel \
-  --input test/Passes/mm_2Dmesh/00_temp_manual_symbolic.mlir  \
-  > test/Passes/mm_2Dmesh/01_after_grid_to_parallel.mlir
+  --input test/Passes/mm_2Dmesh/IR/00_temp_manual_symbolic.mlir  \
+  > test/Passes/mm_2Dmesh/IR/01_after_grid_to_parallel.mlir
 ```
 
 2) Enumerate spatial mappings and merge DF declarations
 ```bash
 build/tool/loom-opt/single_stage/enumerate_hw_mapping \
-  --input test/Passes/mm_2Dmesh/01_after_grid_to_parallel.mlir \
+  --input test/Passes/mm_2Dmesh/IR/01_after_grid_to_parallel.mlir \
   --df test/Dialect/DataflowDialect/2D_mesh.mlir \
-  > test/Passes/mm_2Dmesh/02_after_hardware_mapping.mlir
+  > test/Passes/mm_2Dmesh/IR/02_after_hardware_mapping.mlir
 ```
 
 3) Hoist loading A, B blocks
 ```bash
 build/tool/loom-opt/single_stage/hoist_block_loading \
-  --input test/Passes/mm_2Dmesh/02_after_hardware_mapping.mlir \
-  > test/Passes/mm_2Dmesh/03_after_block_hoisting.mlir
+  --input test/Passes/mm_2Dmesh/IR/02_after_hardware_mapping.mlir \
+  > test/Passes/mm_2Dmesh/IR/03_after_block_hoisting.mlir
 ```
 
 4) Analyze reuse pattern on `loom.reinterpret_cast`
 ```bash
 build/tool/loom-opt/single_stage/analyze_reuse \
-  --input test/Passes/mm_2Dmesh/03_after_block_hoisting.mlir \
-  > test/Passes/mm_2Dmesh/04_after_reuse_analyzation.mlir
+  --input test/Passes/mm_2Dmesh/IR/03_after_block_hoisting.mlir \
+  > test/Passes/mm_2Dmesh/IR/04_after_reuse_analyzation.mlir
 ```
 
 5) Enumerate copy interconnect broadcast choices on `loom.copy`
 ```bash
 build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
-  --input test/Passes/mm_2Dmesh/04_after_reuse_analyzation.mlir \
-  > test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir \
-  2> test/Passes/mm_2Dmesh/raw_constraint_space.json
+  --input test/Passes/mm_2Dmesh/IR/04_after_reuse_analyzation.mlir \
+  > test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
+  2> test/Passes/mm_2Dmesh/constraint_space/raw_constraint_space.json
 ```
 
 6) Canonicalize constraints
 ```bash
 ./build/tool/loom-constraint/single_stage/constraint_canonicalize \
-  --input test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir \
-  > test/Passes/mm_2Dmesh/11_after_canonicalize.mlir
+  --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
+  > test/Passes/mm_2Dmesh/IR/11_after_canonicalize.mlir
 ```
 
 7) Factorize constraints
 ```bash
 ./build/tool/loom-constraint/single_stage/constraint_factorize \
-  --input test/Passes/mm_2Dmesh/11_after_canonicalize.mlir \
-  > test/Passes/mm_2Dmesh/12_after_factorize.mlir
+  --input test/Passes/mm_2Dmesh/IR/11_after_canonicalize.mlir \
+  > test/Passes/mm_2Dmesh/IR/12_after_factorize.mlir
 ```
 
 8) Decompose non-linear constraints
 ```bash
 ./build/tool/loom-constraint/single_stage/constraint_decompose \
-  --input test/Passes/mm_2Dmesh/12_after_factorize.mlir \
-  > test/Passes/mm_2Dmesh/13_after_decompose.mlir
+  --input test/Passes/mm_2Dmesh/IR/12_after_factorize.mlir \
+  > test/Passes/mm_2Dmesh/IR/13_after_decompose.mlir
 ```
 
 9) Linearize constraints (McCormick relaxation)
 ```bash
 ./build/tool/loom-constraint/single_stage/constraint_linearize \
-  --input test/Passes/mm_2Dmesh/13_after_decompose.mlir \
-  > test/Passes/mm_2Dmesh/14_after_linearize.mlir
+  --input test/Passes/mm_2Dmesh/IR/13_after_decompose.mlir \
+  > test/Passes/mm_2Dmesh/IR/14_after_linearize.mlir
 ```
 
 10) Compress intermediate variables
 ```bash
 ./build/tool/loom-constraint/single_stage/compress_intermediate_var \
-  --input test/Passes/mm_2Dmesh/14_after_linearize.mlir \
-  > test/Passes/mm_2Dmesh/15_after_compress_iv.mlir
+  --input test/Passes/mm_2Dmesh/IR/14_after_linearize.mlir \
+  > test/Passes/mm_2Dmesh/IR/15_after_compress_iv.mlir
 ```
 
 11) Simplify constraint space
 ```bash
 ./build/tool/loom-constraint/single_stage/constraint_simplify \
-  --input test/Passes/mm_2Dmesh/15_after_compress_iv.mlir \
-  > test/Passes/mm_2Dmesh/16_after_simplify.mlir \
-  2> test/Passes/mm_2Dmesh/linearized_constraint_space.json
+  --input test/Passes/mm_2Dmesh/IR/15_after_compress_iv.mlir \
+  > test/Passes/mm_2Dmesh/IR/16_after_simplify.mlir \
+  2> test/Passes/mm_2Dmesh/constraint_space/linearized_constraint_space.json
 ```
 
 12) Canonicalize 
 ```bash
 build/tool/loom-opt/single_stage/canonicalize \
-  --input test/Passes/mm_2Dmesh/05_after_enumerate_broadcast.mlir \
-  > test/Passes/mm_2Dmesh/06_after_canonicalization_.mlir
+  --input test/Passes/mm_2Dmes/IR/05_after_enumerate_broadcast.mlir \
+  > test/Passes/mm_2Dmesh/constraint_space/06_after_canonicalization_.mlir
 ```
+
+### Constraint Space Visualization Utils
+
+1) Visualize Raw Constraint Space
+```bash
+python -m lib.lcs.viz_engine.cli   --func-name matmul_kernel__d0i0_d1i0__f01__d_d   test/Passes/mm_2Dmesh/constraint_space/raw_constraint_space.json   --resolution 40   --output test/Passes/mm_2Dmesh/viz/raw_constraint_space.html
+```
+
+2) Visualize Linear Constraint Space
 
 Notes:
 - The end-to-end driver accepts `--map-analysis-only` to attach `loom.copy.candidates` without cloning functions.
