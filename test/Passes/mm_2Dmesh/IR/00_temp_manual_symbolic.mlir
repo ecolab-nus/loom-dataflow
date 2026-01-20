@@ -9,13 +9,13 @@ module {
       %n = loom.symbolic_var "N" : index
       %k = loom.symbolic_var "K" : index
 
-      loom.range %m [0, 512]
+      loom.range %m [32, 512]
       loom.align %m by 32
 
-      loom.range %n [0, 512]
+      loom.range %n [32, 512]
       loom.align %n by 32
 
-      loom.range %k [0, 512]
+      loom.range %k [32, 512]
       loom.align %k by 32
     }
     func.func @matmul_kernel (

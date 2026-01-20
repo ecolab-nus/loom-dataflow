@@ -4,11 +4,11 @@ module {
       %0 = loom.symbolic_var "M" : index
       %1 = loom.symbolic_var "N" : index
       %2 = loom.symbolic_var "K" : index
-      loom.range %0[0, 512]
+      loom.range %0[32, 512]
       loom.align %0 by 32
-      loom.range %1[0, 512]
+      loom.range %1[32, 512]
       loom.align %1 by 32
-      loom.range %2[0, 512]
+      loom.range %2[32, 512]
       loom.align %2 by 32
     }
     func.func @matmul_kernel(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
