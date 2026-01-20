@@ -128,12 +128,18 @@ public:
     // Set up conversion target
     ConversionTarget target(*context);
     
-    // Mark memref.copy with loom.copy.choice as illegal (needs conversion)
+    // Classify memref.copy as load/store based on whether the target is a
+    // reinterpret_cast. Always mark them illegal so the lowering patterns run.
     target.addDynamicallyLegalOp<memref::CopyOp>([&](memref::CopyOp op) {
-      // Only convert copies with loom.copy.choice attribute
-      // Other copies remain legal (they will be handled by type conversion
-      // if their types change, but won't be rewritten)
-      return !op->hasAttr("loom.copy.choice");
+      bool sourceIsRC =
+          op.getSource().getDefiningOp<memref::ReinterpretCastOp>() != nullptr;
+      bool targetIsRC =
+          op.getTarget().getDefiningOp<memref::ReinterpretCastOp>() != nullptr;
+      if (sourceIsRC || targetIsRC) {
+        return false;
+      } else {
+        return true;
+      }
     });
     
     // Mark memref.alloc with loom.alloc as illegal (needs conversion)

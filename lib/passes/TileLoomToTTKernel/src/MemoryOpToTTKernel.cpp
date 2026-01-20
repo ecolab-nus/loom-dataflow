@@ -83,9 +83,34 @@ public:
     return inserted.first->second;
   }
 
+  /**
+   * @brief Get or create output data for the given output memref.
+   *
+   * @details Stores use the output (DRAM) memref to recover a compile-arg index
+   *          for the base address. Unlike inputs, the output memref may not be
+   *          associated with a `{loom.alloc ...}` L1 allocation, so we assign a
+   *          fresh (cbIndex, baseAddrIndex) pair keyed by the output memref
+   *          value itself.
+   *
+   * @param outputMemref Output memref value (typically a function argument).
+   * @return InputData containing a stable CB index and base address index.
+   */
+  const InputData &getOrCreateOutput(Value outputMemref) {
+    auto it = outputToData.find(outputMemref);
+    if (it != outputToData.end())
+      return it->second;
+    int64_t cbIndex = nextCompileArgIndex;
+    nextCompileArgIndex += 2;
+    InputData data{cbIndex, cbIndex + 1};
+    auto inserted = outputToData.try_emplace(outputMemref, data);
+    return inserted.first->second;
+  }
+
 private:
   /// Map from input memref to its compile-arg indices.
   llvm::DenseMap<Value, InputData> inputToData;
+  /// Map from output memref to its compile-arg indices.
+  llvm::DenseMap<Value, InputData> outputToData;
   /// Map from alloc result to its assigned CB index.
   llvm::DenseMap<Value, int64_t> allocToCbIndex;
   /// Next compile-arg index (even indices are CBs; odd are base addrs).
@@ -116,27 +141,21 @@ struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
         inputTracker(std::move(inputTracker)) {}
 
   /**
-   * @brief Match and rewrite `memref.copy` into a no-op for TTKernel lowering.
+   * @brief Match and rewrite `memref.copy` into TTKernel NOC read operations.
    *
-   * @details For now, we implement a simple version that **removes**
-   *          `memref.copy` operations whose destination allocation is
-   *          annotated with `{loom.alloc ...}`. This satisfies the conversion
-   *          target without yet introducing TTKernel-specific load operations.
+   * @details This pattern handles `memref.copy` operations where the source
+   *          is a `memref.reinterpret_cast` (indicating data flows from external
+   *          memory to L1/CB). It emits TTKernel NOC async read operations to
+   *          load data from DRAM into the circular buffer.
    */
   LogicalResult
   matchAndRewrite(memref::CopyOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    // Only handle memref.copy with the loom.copy.choice attribute.
-    auto copyChoiceAttr =
-        op->getAttrOfType<DictionaryAttr>("loom.copy.choice");
-    if (!copyChoiceAttr)
+    // Load: source must be a reinterpret_cast (reading from external memory).
+    Value source = op.getSource();
+    if (!source.getDefiningOp<memref::ReinterpretCastOp>())
       return failure();
 
-    // Optionally check the kind field (default to "mem" if present).
-    if (auto kindAttr = copyChoiceAttr.getAs<StringAttr>("kind")) {
-      if (kindAttr.getValue() != "mem")
-        return failure();
-    }
     Location loc = op.getLoc();
     Value cb;
     memref::AllocOp targetAlloc = op.getTarget().getDefiningOp<memref::AllocOp>();
@@ -157,10 +176,11 @@ struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
     auto pageSize = GetTileSizeOp::create(rewriter, loc, cb);
 
     // Get the base address and offset from memref.reinterpret_cast
-    Value source = op.getSource();
+    // (source is already known to be a reinterpret_cast from the match check above)
     Value offset;
     Value inputMemref = source;
-    if (auto reinterpretCastOp = source.getDefiningOp<memref::ReinterpretCastOp>()) {
+    auto reinterpretCastOp = source.getDefiningOp<memref::ReinterpretCastOp>();
+    {
       inputMemref = reinterpretCastOp.getSource();
       // Get the offset from reinterpret_cast (use first offset if multiple)
       auto offsets = reinterpretCastOp.getOffsets();
@@ -213,7 +233,6 @@ struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
         loc, rewriter.getI32Type(), 0);
 
     // determine how many tiles we need to load by converting the shape to tiles
-    llvm::outs() << "cb type: " << cast<CBType>(cb.getType()) << "\n";
     auto cbType = cast<CBType>(cb.getType());
     Value numPages;
     
@@ -280,6 +299,194 @@ struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
     rewriter.setInsertionPointAfter(loadTileLoop);
     NocAsyncReadBarrierOp::create(rewriter, loc);
 
+
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+private:
+  /// Shared input tracker for base address indices.
+  std::shared_ptr<InputDataTracker> inputTracker;
+};
+
+/**
+ * @brief Convert `memref.copy` with `loom.copy.choice` into TTKernel store ops.
+ *
+ * @details The conversion handles store operations where data flows from L1/CB
+ *          (source) to external memory (target). It uses the target memref to
+ *          recover base address information and emits a TTKernel NOC write
+ *          sequence to transfer data from the circular buffer to DRAM.
+ */
+struct ConvertStoreOp : public OpConversionPattern<memref::CopyOp> {
+  using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
+
+  /**
+   * @brief Construct the pattern with a type converter and context.
+   * @param typeConverter Type converter for the conversion pipeline.
+   * @param context MLIR context.
+   */
+  ConvertStoreOp(TypeConverter &typeConverter, MLIRContext *context,
+                 std::shared_ptr<InputDataTracker> inputTracker)
+      : OpConversionPattern<memref::CopyOp>(typeConverter, context),
+        inputTracker(std::move(inputTracker)) {}
+
+  /**
+   * @brief Match and rewrite `memref.copy` into TTKernel NOC write operations.
+   *
+   * @details This pattern handles `memref.copy` operations where the source
+   *          is NOT a `memref.reinterpret_cast` (indicating data flows from
+   *          L1/CB to external memory). It emits TTKernel NOC async write
+   *          operations to transfer data from the circular buffer to DRAM.
+   */
+  LogicalResult
+  matchAndRewrite(memref::CopyOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    // Store: DRAM side is the target reinterpret_cast (writing from L1/CB to external memory).
+    Value target = op.getTarget();
+    if (!target.getDefiningOp<memref::ReinterpretCastOp>())
+      return failure();    
+    Location loc = op.getLoc();
+    Value cb;
+    
+    // L1 side: materialize the CB from the compile-time args associated with
+    // the DRAM memref (the reinterpret_cast source), matching the load path.
+    Value outputMemref = target;
+    if (auto reinterpretCastOp = target.getDefiningOp<memref::ReinterpretCastOp>())
+      outputMemref = reinterpretCastOp.getSource();
+
+    auto cbIdxAttr = rewriter.getI32IntegerAttr(
+        static_cast<int32_t>(inputTracker->getOrCreateOutput(outputMemref).cbIndex));
+    auto memrefType =
+        cast<CBType>(typeConverter->convertType(op.getSource().getType()));
+    cb = rewriter.create<GetCompileArgValOp>(loc, memrefType, cbIdxAttr);
+
+    auto opInsertionPt = rewriter.saveInsertionPoint();
+    rewriter.setInsertionPointAfterValue(cb);
+
+    auto dataFormat = GetDataFormatOp::create(rewriter, loc, cb);
+    auto pageSize = GetTileSizeOp::create(rewriter, loc, cb);
+
+    // Get the base address and offset from the target (external memory)
+    Value offset;
+    if (auto reinterpretCastOp = target.getDefiningOp<memref::ReinterpretCastOp>()) {
+      // Get the offset from reinterpret_cast (use first offset if multiple)
+      auto offsets = reinterpretCastOp.getOffsets();
+      if (!offsets.empty()) {
+        offset = offsets[0];
+      } else {
+        // If no dynamic offsets, check static offsets
+        auto mixedOffsets = reinterpretCastOp.getMixedOffsets();
+        if (!mixedOffsets.empty() && mixedOffsets[0].is<Attribute>()) {
+          // Static offset - convert to value
+          auto staticOffset = llvm::cast<IntegerAttr>(mixedOffsets[0].get<Attribute>());
+          offset = rewriter.create<arith::ConstantIndexOp>(loc, staticOffset.getInt());
+        } else {
+          // Fallback: use constant 0 (index type)
+          offset = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+        }
+      }
+    } else {
+      // No reinterpret_cast - use offset 0
+      offset = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    }
+
+    // Materialize the base address from a compile-time arg associated with the
+    // output (DRAM) memref (typically the "last input memref" function arg).
+    const auto &outputData = inputTracker->getOrCreateOutput(outputMemref);
+    auto baseAddrIdxAttr = rewriter.getI32IntegerAttr(
+        static_cast<int32_t>(outputData.baseAddrIndex));
+    auto baseAddr = rewriter.create<GetCompileArgValOp>(
+        loc, rewriter.getI32Type(), baseAddrIdxAttr);
+
+    Value trueVal = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI1Type(), 1);
+    Value addrGen = GetInterleavedAddrGenFastOp::create(
+        rewriter, loc, /*dram=*/trueVal, baseAddr, pageSize, dataFormat);
+
+    rewriter.restoreInsertionPoint(opInsertionPt);
+
+    // Convert bytes offset to tile index.
+    // arith.divui requires operands/results to have the same type.
+    Value offsetI32 = offset;
+    if (offsetI32 && offsetI32.getType().isIndex()) {
+      offsetI32 = rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(),
+                                                      offsetI32);
+    }
+    Value baseTileIndex =
+        arith::DivUIOp::create(rewriter, loc, offsetI32, pageSize);
+
+    Value const0 = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(), 0);
+
+    // Determine how many tiles we need to store.
+    auto cbType = cast<CBType>(cb.getType());
+    Value numPages;
+
+    // Check if CB is tiled (element type is TileType) or scalar
+    auto elementType = cbType.getElementType();
+    if (auto tileType = llvm::dyn_cast<TileType>(elementType)) {
+      // Tiled CB: use getNumTiles() directly
+      const int32_t numTiles = cbType.getNumTiles();
+      numPages = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), numTiles);
+    } else {
+      // Scalar CB: calculate numTiles = (numElements * elementSizeInBytes) / pageSizeInBytes
+      const int64_t numElements = cbType.getNumElements();
+
+      // Get element size in bytes
+      int32_t elementSizeBytes = 0;
+      if (elementType.isF32()) {
+        elementSizeBytes = 4;
+      } else if (elementType.isF16() || elementType.isBF16()) {
+        elementSizeBytes = 2;
+      } else if (auto intType = llvm::dyn_cast<IntegerType>(elementType)) {
+        elementSizeBytes = (intType.getWidth() + 7) / 8; // Round up to bytes
+      } else {
+        // Default: assume 4 bytes if unknown
+        elementSizeBytes = 4;
+      }
+
+      // Calculate total size in bytes and divide by page size
+      Value totalSizeBytes = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), numElements * elementSizeBytes);
+      numPages = arith::DivUIOp::create(rewriter, loc, totalSizeBytes, pageSize);
+    }
+
+    // Get read pointer for store (reading from CB to write to DRAM)
+    Value l1Addr = GetReadPtrOp::create(rewriter, loc, cb);
+
+    scf::ForOp storeTileLoop = scf::ForOp::create(
+        rewriter, loc,
+        rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0),
+        numPages,
+        rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1),
+        ValueRange{l1Addr, baseTileIndex});
+    {
+      rewriter.setInsertionPointToStart(storeTileLoop.getBody());
+      Value crtL1Address = storeTileLoop.getRegionIterArgs()[0];
+      Value crtTileIndex = storeTileLoop.getRegionIterArgs()[1];
+
+      Value nocAddr = InterleavedAddrGenFastGetNocAddrOp::create(
+          rewriter, loc, addrGen, crtTileIndex, const0, Value());
+
+      // Use NocAsyncWriteOp instead of NocAsyncReadOp
+      NocAsyncWriteOp::create(rewriter, loc, crtL1Address, nocAddr, pageSize);
+
+      Value nextL1Address =
+          arith::AddIOp::create(rewriter, loc, crtL1Address, pageSize);
+      Value nextTileIndex =
+          arith::AddIOp::create(rewriter, loc, crtTileIndex,
+                                rewriter.create<arith::ConstantIntOp>(
+                                    loc, rewriter.getI32Type(), 1));
+      scf::YieldOp::create(rewriter, loc,
+                           ValueRange{nextL1Address, nextTileIndex});
+    }
+
+    rewriter.setInsertionPointAfter(storeTileLoop);
+    NocAsyncWriteBarrierOp::create(rewriter, loc);
+
+    // Pop the tiles from the CB after writing
+    CBPopFrontOp::create(rewriter, loc, cb, numPages);
 
     rewriter.eraseOp(op);
     return success();
@@ -377,6 +584,7 @@ void loom::populateMemoryOpConversionPatterns(RewritePatternSet &patterns,
                                              MLIRContext *context) {
   auto inputTracker = std::make_shared<InputDataTracker>();
   patterns.add<ConvertAllocOp>(typeConverter, context, inputTracker);
-  patterns.add<ConvertReuseReinterpretCastOp>(typeConverter, context);
   patterns.add<ConvertLoadOp>(typeConverter, context, inputTracker);
+  patterns.add<ConvertStoreOp>(typeConverter, context, inputTracker);
+  patterns.add<ConvertReuseReinterpretCastOp>(typeConverter, context);
 }
