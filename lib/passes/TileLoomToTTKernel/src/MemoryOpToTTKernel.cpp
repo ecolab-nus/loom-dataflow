@@ -10,6 +10,7 @@
  #include "MemoryOpToTTKernel.h"
 
  #include "mlir/Dialect/Affine/IR/AffineOps.h"
+ #include "mlir/Dialect/Func/IR/FuncOps.h"
  #include "mlir/Dialect/MemRef/IR/MemRef.h"
  #include "mlir/Dialect/Arith/IR/Arith.h"
  #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -34,11 +35,29 @@
  namespace {
  
  /**
+  * @brief Per-function tracking data for compile-arg indices.
+  *
+  * @details Each function gets its own tracking state so that compile-arg
+  *          indices start from 0 for each specialized function.
+  */
+ struct FunctionTrackingData {
+   /// Map from input memref to its compile-arg indices.
+   llvm::DenseMap<Value, std::pair<int64_t, int64_t>> inputToData;
+   /// Map from output memref to its compile-arg indices.
+   llvm::DenseMap<Value, std::pair<int64_t, int64_t>> outputToData;
+   /// Map from alloc result to its assigned CB index.
+   llvm::DenseMap<Value, int64_t> allocToCbIndex;
+   /// Next compile-arg index (even indices are CBs; odd are base addrs).
+   int64_t nextCompileArgIndex = 0;
+ };
+
+ /**
   * @brief Tracks input memrefs and assigns compile-arg indices for CB/base addr.
   *
   * @details Each input memref is assigned a pair of compile-arg indices:
   *          - cbIndex: index for the L1 circular buffer.
   *          - baseAddrIndex: index for the input base address (cbIndex + 1).
+  *          Each function maintains its own independent set of indices.
   */
  class InputDataTracker {
  public:
@@ -56,13 +75,14 @@
     * @return A stable, non-negative compile-arg index for this allocation.
     */
    int64_t getOrCreateAlloc(memref::AllocOp alloc) {
+     auto *funcData = getOrCreateFuncData(alloc);
      Value v = alloc.getResult();
-     auto it = allocToCbIndex.find(v);
-     if (it != allocToCbIndex.end())
+     auto it = funcData->allocToCbIndex.find(v);
+     if (it != funcData->allocToCbIndex.end())
        return it->second;
-     int64_t cbIndex = nextCompileArgIndex;
-     nextCompileArgIndex += 2;
-     allocToCbIndex.try_emplace(v, cbIndex);
+     int64_t cbIndex = funcData->nextCompileArgIndex;
+     funcData->nextCompileArgIndex += 2;
+     funcData->allocToCbIndex.try_emplace(v, cbIndex);
      return cbIndex;
    }
  
@@ -72,15 +92,15 @@
     * @param alloc The L1 alloc associated with this input.
     * @return InputData containing CB index and base address index.
     */
-   const InputData &getOrCreate(Value inputMemref, memref::AllocOp alloc) {
-     auto it = inputToData.find(inputMemref);
-     if (it != inputToData.end())
-       return it->second;
+   InputData getOrCreate(Value inputMemref, memref::AllocOp alloc) {
+     auto *funcData = getOrCreateFuncData(alloc);
+     auto it = funcData->inputToData.find(inputMemref);
+     if (it != funcData->inputToData.end())
+       return InputData{it->second.first, it->second.second};
      int64_t cbIndex = getOrCreateAlloc(alloc);
      int64_t baseAddrIndex = cbIndex + 1;
-     InputData data{cbIndex, baseAddrIndex};
-     auto inserted = inputToData.try_emplace(inputMemref, data);
-     return inserted.first->second;
+     funcData->inputToData.try_emplace(inputMemref, std::make_pair(cbIndex, baseAddrIndex));
+     return InputData{cbIndex, baseAddrIndex};
    }
  
    /**
@@ -93,28 +113,38 @@
     *          value itself.
     *
     * @param outputMemref Output memref value (typically a function argument).
+    * @param op The operation requesting the output data (used to find parent function).
     * @return InputData containing a stable CB index and base address index.
     */
-   const InputData &getOrCreateOutput(Value outputMemref) {
-     auto it = outputToData.find(outputMemref);
-     if (it != outputToData.end())
-       return it->second;
-     int64_t cbIndex = nextCompileArgIndex;
-     nextCompileArgIndex += 2;
-     InputData data{cbIndex, cbIndex + 1};
-     auto inserted = outputToData.try_emplace(outputMemref, data);
-     return inserted.first->second;
+   InputData getOrCreateOutput(Value outputMemref, Operation *op) {
+     auto *funcData = getOrCreateFuncData(op);
+     auto it = funcData->outputToData.find(outputMemref);
+     if (it != funcData->outputToData.end())
+       return InputData{it->second.first, it->second.second};
+     int64_t cbIndex = funcData->nextCompileArgIndex;
+     funcData->nextCompileArgIndex += 2;
+     funcData->outputToData.try_emplace(outputMemref, std::make_pair(cbIndex, cbIndex + 1));
+     return InputData{cbIndex, cbIndex + 1};
    }
  
  private:
-   /// Map from input memref to its compile-arg indices.
-   llvm::DenseMap<Value, InputData> inputToData;
-   /// Map from output memref to its compile-arg indices.
-   llvm::DenseMap<Value, InputData> outputToData;
-   /// Map from alloc result to its assigned CB index.
-   llvm::DenseMap<Value, int64_t> allocToCbIndex;
-   /// Next compile-arg index (even indices are CBs; odd are base addrs).
-   int64_t nextCompileArgIndex = 0;
+   /// Get the parent function of an operation.
+   func::FuncOp getParentFunc(Operation *op) const {
+     return op->getParentOfType<func::FuncOp>();
+   }
+
+   /// Get or create tracking data for the function containing the given operation.
+   FunctionTrackingData *getOrCreateFuncData(Operation *op) {
+     func::FuncOp func = getParentFunc(op);
+     assert(func && "Operation must be inside a function");
+     auto it = funcToData.find(func);
+     if (it != funcToData.end())
+       return &it->second;
+     return &funcToData.try_emplace(func, FunctionTrackingData{}).first->second;
+   }
+
+   /// Map from function to its tracking data.
+   llvm::DenseMap<func::FuncOp, FunctionTrackingData> funcToData;
  };
  
  } // namespace
@@ -195,7 +225,7 @@
  
      // If the source comes from a memref input and the target is an L1 alloc,
      // materialize the base address from a compile-time arg adjacent to the CB.
-         const auto &inputData =
+         const auto inputData =
              inputTracker->getOrCreate(inputMemref, targetAlloc);
          auto baseAddrIdxAttr = rewriter.getI32IntegerAttr(
              static_cast<int32_t>(inputData.baseAddrIndex));
@@ -347,7 +377,7 @@
        outputMemref = reinterpretCastOp.getSource();
 
       auto cbIdxAttr = rewriter.getI32IntegerAttr(
-          static_cast<int32_t>(inputTracker->getOrCreateOutput(outputMemref).cbIndex));
+          static_cast<int32_t>(inputTracker->getOrCreateOutput(outputMemref, op).cbIndex));
       auto memrefType =
           cast<CBType>(typeConverter->convertType(op.getSource().getType()));
       auto cb = rewriter.create<GetCompileArgValOp>(loc, memrefType, cbIdxAttr);
@@ -385,7 +415,7 @@
  
      // Materialize the base address from a compile-time arg associated with the
      // output (DRAM) memref (typically the "last input memref" function arg).
-     const auto &outputData = inputTracker->getOrCreateOutput(outputMemref);
+     const auto outputData = inputTracker->getOrCreateOutput(outputMemref, op);
      auto baseAddrIdxAttr = rewriter.getI32IntegerAttr(
          static_cast<int32_t>(outputData.baseAddrIndex));
      auto baseAddr = rewriter.create<GetCompileArgValOp>(
