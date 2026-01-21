@@ -54,11 +54,8 @@ public:
     Location loc = op.getLoc();
 
     Value in0Cb = adaptor.getInputs()[0];
-    llvm::outs() << "in0Cb: " << in0Cb << "\n";
     Value in1Cb = adaptor.getInputs()[1];
-    llvm::outs() << "in1Cb: " << in1Cb << "\n";
     Value outCb = adaptor.getOutputs()[0];
-    llvm::outs() << "outCb: " << outCb << "\n";
 
     // Ensure operands are TTKernel CBs.
     if (!isa<CBType>(in0Cb.getType()) || !isa<CBType>(in1Cb.getType()) ||

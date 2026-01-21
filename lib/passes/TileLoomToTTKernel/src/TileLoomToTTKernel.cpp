@@ -158,6 +158,29 @@ public:
     // function is lowered independently.
     specializeFunctionsForTTKernel(module);
 
+    // Create shared compile-arg tracker for index management.
+    auto compileArgTracker = std::make_shared<CompileArgTracker>();
+
+    // Create type converter (needed for memref -> CB conversion).
+    TileLoomTypeConverter typeConverter;
+
+    // Step 2.5: Replace index-type function arguments with GetCompileArgValOp.
+    // For each function, insert GetCompileArgValOp at the beginning of the
+    // function body to materialize compile-time arguments:
+    // - Index types: GetCompileArgValOp returning i32, then cast to index
+    // - Memref types (DRAM pointers): handled later by memory conversion patterns
+    OpBuilder builder(context);
+    for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+      if (failed(replaceFuncArgsWithCompileArgs(func, compileArgTracker,
+                                                 typeConverter, builder))) {
+        signalPassFailure();
+        return;
+      }
+    }
+    // Note: We don't remove arguments here. Memref args are still used by
+    // reinterpret_cast ops. They will be removed after conversion when all
+    // uses are eliminated.
+
     // Step 3: Run a per-function DSE-style cleanup after splitting.
     //
     // The specialization step above can leave behind dead ops (e.g. allocs,
@@ -173,9 +196,6 @@ public:
       return;
     }
     
-
-    // Create type converter
-    TileLoomTypeConverter typeConverter;
 
     // Set up conversion target
     ConversionTarget target(*context);
@@ -236,10 +256,18 @@ public:
 
     // Populate conversion patterns
     RewritePatternSet patterns(context);
-    
+
+    // Ensure function signatures, calls, and returns are rewritten when types
+    // (e.g., index -> i32) change.
+    populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
+        patterns, typeConverter);
+    populateReturnOpTypeConversionPattern(patterns, typeConverter);
+    populateCallOpTypeConversionPattern(patterns, typeConverter);
+
     
     // Add memory operation conversion patterns (memref.copy with loom.copy.choice)
-    populateMemoryOpConversionPatterns(patterns, typeConverter, context);
+    populateMemoryOpConversionPatterns(patterns, typeConverter, context,
+                                       compileArgTracker);
     // Add compute operation conversion patterns (e.g., linalg.matmul)
     populateComputeOpConversionPatterns(patterns, typeConverter, context);
 
@@ -247,6 +275,18 @@ public:
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       signalPassFailure();
       return;
+    }
+
+    // Post-conversion: Remove all function arguments.
+    // After conversion, memref args used in reinterpret_cast should be dead
+    // (the conversion patterns emit GetCompileArgValOp for base addresses).
+    // Index args were already replaced before conversion.
+    for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+      if (failed(removeAllFunctionArguments(func))) {
+        // Some argument still has uses - emit a warning but continue.
+        // This might happen if some conversion pattern didn't run.
+        func.emitWarning() << "could not remove all function arguments";
+      }
     }
 
     // Final stage: strip all Dataflow (df) dialect ops from the module.

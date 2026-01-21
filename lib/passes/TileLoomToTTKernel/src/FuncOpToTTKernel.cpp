@@ -12,13 +12,196 @@
 
 #include "FuncOpToTTKernel.h"
 
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/IRMapping.h"
+#include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/SmallVector.h"
 
+// TTKernel thread type attribute and enum.
+#include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
+#include "ttmlir/Dialect/TTKernel/IR/TTKernelOps.h"
+#include "ttmlir/Dialect/TTKernel/IR/TTKernelOpsTypes.h"
+
 using namespace mlir;
+using namespace tt::ttkernel;
+
+//===----------------------------------------------------------------------===//
+// CompileArgTracker Implementation
+//===----------------------------------------------------------------------===//
+
+func::FuncOp loom::CompileArgTracker::getParentFunc(Operation *op) const {
+  return op->getParentOfType<func::FuncOp>();
+}
+
+loom::FunctionTrackingData *
+loom::CompileArgTracker::getOrCreateFuncData(Operation *op) {
+  func::FuncOp func = getParentFunc(op);
+  assert(func && "Operation must be inside a function");
+  return getOrCreateFuncData(func);
+}
+
+loom::FunctionTrackingData *
+loom::CompileArgTracker::getOrCreateFuncData(func::FuncOp func) {
+  auto it = funcToData.find(func);
+  if (it != funcToData.end())
+    return &it->second;
+  return &funcToData.try_emplace(func, FunctionTrackingData{}).first->second;
+}
+
+loom::FunctionTrackingData *
+loom::CompileArgTracker::getFuncData(func::FuncOp func) {
+  auto it = funcToData.find(func);
+  if (it != funcToData.end())
+    return &it->second;
+  return nullptr;
+}
+
+int64_t loom::CompileArgTracker::getOrCreateAlloc(memref::AllocOp alloc) {
+  auto *funcData = getOrCreateFuncData(alloc);
+  Value v = alloc.getResult();
+  auto it = funcData->allocToCbIndex.find(v);
+  if (it != funcData->allocToCbIndex.end())
+    return it->second;
+  // Assign next available index for allocs not associated with a function argument.
+  int64_t cbIndex = funcData->nextCompileArgIndex++;
+  funcData->allocToCbIndex.try_emplace(v, cbIndex);
+  return cbIndex;
+}
+
+loom::CompileArgTracker::MemrefData
+loom::CompileArgTracker::getOrCreate(Value inputMemref, memref::AllocOp alloc) {
+  auto *funcData = getOrCreateFuncData(alloc);
+  Value allocResult = alloc.getResult();
+  
+  // Check if the input memref was pre-recorded (e.g., as a function argument).
+  // If so, use the pre-assigned (cbIndex, baseAddrIndex) pair.
+  auto it = funcData->inputToData.find(inputMemref);
+  if (it != funcData->inputToData.end()) {
+    int64_t cbIndex = it->second.first;
+    int64_t baseAddrIndex = it->second.second;
+    
+    // Record the alloc's CB index for later use.
+    funcData->allocToCbIndex.try_emplace(allocResult, cbIndex);
+    
+    return MemrefData{cbIndex, baseAddrIndex};
+  }
+  
+  // Not pre-recorded - assign new indices.
+  int64_t cbIndex = getOrCreateAlloc(alloc);
+  int64_t baseAddrIndex = cbIndex; // For non-function-arg memrefs, use same index
+  funcData->inputToData.try_emplace(inputMemref,
+                                    std::make_pair(cbIndex, baseAddrIndex));
+  return MemrefData{cbIndex, baseAddrIndex};
+}
+
+loom::CompileArgTracker::MemrefData
+loom::CompileArgTracker::getOrCreateOutput(Value outputMemref, Operation *op) {
+  auto *funcData = getOrCreateFuncData(op);
+  
+  // Check if the output memref was pre-recorded as an input (function argument).
+  // If so, use the pre-assigned (cbIndex, baseAddrIndex) pair.
+  auto inputIt = funcData->inputToData.find(outputMemref);
+  if (inputIt != funcData->inputToData.end()) {
+    int64_t cbIndex = inputIt->second.first;
+    int64_t baseAddrIndex = inputIt->second.second;
+    funcData->outputToData.try_emplace(outputMemref,
+                                       std::make_pair(cbIndex, baseAddrIndex));
+    return MemrefData{cbIndex, baseAddrIndex};
+  }
+  
+  // Check if already tracked as output
+  auto it = funcData->outputToData.find(outputMemref);
+  if (it != funcData->outputToData.end())
+    return MemrefData{it->second.first, it->second.second};
+  
+  // Not pre-recorded - assign next available index
+  int64_t cbIndex = funcData->nextCompileArgIndex++;
+  funcData->outputToData.try_emplace(outputMemref,
+                                     std::make_pair(cbIndex, cbIndex));
+  return MemrefData{cbIndex, cbIndex};
+}
+
+int64_t loom::CompileArgTracker::getOrCreateIndex(Value indexValue,
+                                                  Operation *op) {
+  auto *funcData = getOrCreateFuncData(op);
+  auto it = funcData->indexToArgIndex.find(indexValue);
+  if (it != funcData->indexToArgIndex.end())
+    return it->second;
+  int64_t argIndex = funcData->nextCompileArgIndex++;
+  funcData->indexToArgIndex.try_emplace(indexValue, argIndex);
+  return argIndex;
+}
+
+//===----------------------------------------------------------------------===//
+// replaceFuncArgsWithCompileArgs Implementation
+//===----------------------------------------------------------------------===//
+
+LogicalResult mlir::loom::replaceFuncArgsWithCompileArgs(
+    func::FuncOp func, std::shared_ptr<CompileArgTracker> tracker,
+    TypeConverter &typeConverter, OpBuilder &rewriter) {
+  Block &entry = func.front();
+  Location loc = func.getLoc();
+
+  // Save insertion point and set to start of function body.
+  OpBuilder::InsertionGuard guard(rewriter);
+  rewriter.setInsertionPointToStart(&entry);
+
+  // Get or create tracking data for this function.
+  auto *funcData = tracker->getOrCreateFuncData(func);
+
+  // First pass: calculate the compile-arg index for each function argument.
+  // Memref args use TWO indices (CB + base addr), index args use ONE index.
+  // This preserves the argument order while accounting for the dual indices.
+  int64_t currentIndex = 0;
+  for (BlockArgument arg : entry.getArguments()) {
+    Type argType = arg.getType();
+
+    if (isa<MemRefType, UnrankedMemRefType>(argType)) {
+      // Memref type: assign two consecutive indices (CB, base addr).
+      int64_t cbIndex = currentIndex;
+      int64_t baseAddrIndex = currentIndex + 1;
+      funcData->inputToData.try_emplace(arg, std::make_pair(cbIndex, baseAddrIndex));
+      currentIndex += 2;
+    } else if (argType.isIndex()) {
+      // Index type: assign one index.
+      funcData->indexToArgIndex.try_emplace(arg, currentIndex);
+      currentIndex += 1;
+    } else {
+      // Other types: assign one index.
+      currentIndex += 1;
+    }
+  }
+
+  // Set nextCompileArgIndex to continue after all function arguments.
+  funcData->nextCompileArgIndex = currentIndex;
+
+  // Second pass: emit GetCompileArgValOp for index arguments.
+  for (BlockArgument arg : entry.getArguments()) {
+    Type argType = arg.getType();
+
+    if (argType.isIndex()) {
+      // Get the pre-assigned index.
+      auto it = funcData->indexToArgIndex.find(arg);
+      assert(it != funcData->indexToArgIndex.end());
+      int64_t argIndex = it->second;
+      
+      auto idxAttr = rewriter.getI32IntegerAttr(static_cast<int32_t>(argIndex));
+      auto compileArg =
+          rewriter.create<GetCompileArgValOp>(loc, rewriter.getI32Type(), idxAttr);
+      // Replace all uses of the index argument with the compile-arg value.
+      // Need to cast i32 back to index for compatibility.
+      auto indexCast = rewriter.create<arith::IndexCastOp>(
+          loc, rewriter.getIndexType(), compileArg);
+      arg.replaceAllUsesWith(indexCast);
+    }
+    // Memref types are handled by the memory conversion patterns.
+  }
+
+  return success();
+}
 
 namespace {
 
@@ -211,6 +394,18 @@ public:
     auto readerFunc = makeReaderFunc(func);
     auto writerFunc = makeWriterFunc(func);
 
+    // Attach TTKernel thread type attributes so downstream TTKernelToCpp
+    // translation can recognize these as kernel entry points.
+    auto *ctx = module.getContext();
+    auto computeAttr = mlir::tt::ttkernel::ThreadTypeAttr::get(
+        ctx, mlir::tt::ttkernel::ThreadType::Compute);
+    auto nocAttr = mlir::tt::ttkernel::ThreadTypeAttr::get(
+        ctx, mlir::tt::ttkernel::ThreadType::Noc);
+
+    computeFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, computeAttr);
+    readerFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
+    writerFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
+
     // Insert specialized functions into the module (before the original)
     module.insert(func, computeFunc);
     module.insert(func, readerFunc);
@@ -247,3 +442,25 @@ void mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
   }
 }
 
+LogicalResult mlir::loom::removeAllFunctionArguments(func::FuncOp func) {
+  Block &entry = func.front();
+
+  // Ensure no argument still has uses before erasing.
+  for (BlockArgument arg : entry.getArguments()) {
+    if (!arg.use_empty())
+      return func.emitError()
+             << "cannot erase arguments; argument " << arg.getArgNumber()
+             << " still has uses";
+  }
+
+  // Erase arguments from last to first to avoid index shifting issues.
+  for (int64_t idx = static_cast<int64_t>(entry.getNumArguments()) - 1;
+       idx >= 0; --idx) {
+    entry.eraseArgument(static_cast<unsigned>(idx));
+  }
+
+  auto funcType = func.getFunctionType();
+  func.setType(FunctionType::get(func.getContext(), TypeRange(),
+                                 funcType.getResults()));
+  return success();
+}
