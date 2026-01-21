@@ -30,19 +30,18 @@ def evaluate_constraints(grid: Tuple[np.ndarray, ...], constraint_fns: List[Call
 def evaluate_continuous_field(grid: Tuple[np.ndarray, ...], expr_fns: List[Callable]) -> np.ndarray:
     """
     Evaluates normalized constraint scores for smooth rendering.
-    Boundary is at 1.0. We use max(LHS/RHS) to combine multiple constraints.
+    Boundary is at 1.0. We use max(normalized_scores) to combine multiple constraints.
+    Normalization ensures that score <= 1.0 iff the constraint is satisfied.
     """
-    # Initialize with a small value
-    combined = np.zeros(grid[0].shape)
+    # Initialize with a very small value to not interfere with max
+    combined = np.full(grid[0].shape, -1e9)
     for fn in expr_fns:
         lhs, rhs = fn(*grid)
-        if isinstance(rhs, (int, float)) and rhs == 0:
-            # Linear constraint (LHS <= 0)
-            # We transform it to a score where 1.0 is the boundary.
-            # A simple way is score = LHS + 1.0 (so boundary 0 becomes 1)
-            score = lhs + 1.0
-        else:
-            score = lhs / rhs
+        # Robust normalization to handle negative RHS and zero RHS
+        # score = (LHS - RHS) / max(1, abs(RHS)) + 1.0
+        # This ensures score == 1.0 at the boundary, and score <= 1.0 when satisfied.
+        denom = np.maximum(1.0, np.abs(rhs))
+        score = (lhs - rhs) / denom + 1.0
         combined = np.maximum(combined, score)
     return combined
 
