@@ -213,6 +213,9 @@ python -m lib.lcs.viz_engine.cli   --func-name matmul_kernel__d0i0_d1i0__f01__d_
 ```
 
 2) Visualize Linear Constraint Space
+```bash
+python -m lib.lcs.viz_engine.cli   --func-name matmul_kernel__d0i0_d1i0__f01__d_d   test/Passes/mm_2Dmesh/constraint_space/linearized_constraint_space.json   --resolution 40   --output test/Passes/mm_2Dmesh/viz/linearized_constraint_space.html
+```
 
 Notes:
 - The end-to-end driver accepts `--map-analysis-only` to attach `loom.copy.candidates` without cloning functions.
