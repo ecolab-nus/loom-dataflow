@@ -3,8 +3,9 @@
  * @brief Main pass for converting TileLoom IR to TTKernel dialect.
  */
 
-#include "MemoryOpToTTKernel.h"
 #include "ComputeOpToTTKernel.h"
+#include "MemoryOpToTTKernel.h"
+#include "AffineOpToTTKernel.h"
 #include "FuncOpToTTKernel.h"
 #include "TileLoomToTTKernel.h"
 
@@ -224,8 +225,19 @@ public:
     
     // Mark memref operations that don't need conversion as legal
     // (they will be type-converted automatically)
-    target.addLegalDialect<arith::ArithDialect, scf::SCFDialect,
-                          affine::AffineDialect>();
+    target.addLegalDialect<arith::ArithDialect, scf::SCFDialect>();
+
+    // Affine dialect is generally legal, but we require a conversion for
+    // affine.parallel so it can be lowered to straight-line code with
+    // compile-time iterators.
+    target.addLegalDialect<affine::AffineDialect>();
+    target.addDynamicallyLegalOp<affine::AffineParallelOp>(
+        [&](affine::AffineParallelOp op) {
+          // Always mark affine.parallel as illegal so our conversion runs.
+          // If a loop is not rewritten, the conversion will fail.
+          (void)op;
+          return false;
+        });
 
     // linalg dialect is generally legal, but we require a conversion for
     // linalg.matmul so it can be lowered to TTKernel matmul.
@@ -265,6 +277,10 @@ public:
     populateCallOpTypeConversionPattern(patterns, typeConverter);
 
     
+    // Add Affine operation conversion patterns (e.g., affine.parallel -> CT args)
+    populateAffineOpConversionPatterns(patterns, typeConverter, context,
+                                       compileArgTracker);
+
     // Add memory operation conversion patterns (memref.copy with loom.copy.choice)
     populateMemoryOpConversionPatterns(patterns, typeConverter, context,
                                        compileArgTracker);

@@ -4,6 +4,7 @@
 add_library(loomTileLoomToTTKernel STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/MemoryOpToTTKernel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/ComputeOpToTTKernel.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/AffineOpToTTKernel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/FuncOpToTTKernel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/TileLoomToTTKernel.cpp
 )
