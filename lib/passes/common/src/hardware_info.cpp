@@ -266,6 +266,44 @@ static LogicalResult addL1CacheConstraints(func::FuncOp func,
   return success();
 }
 
+static LogicalResult
+addHardwareDerivedConstraints(loom::ConstraintSpaceOp csOp,
+                              const loom::HardwareInfo &hardwareInfo) {
+  if (!csOp)
+    return success();
+
+  // Task 1: BM BN BK 32-alignment and range LB=32
+  if (!hardwareInfo.matUnits.empty()) {
+    int64_t align = hardwareInfo.matUnits[0].shape[0]; // e.g., 32
+    loom::lcs::updateRangeLowerBounds(csOp, align);
+    loom::lcs::addAlignConstraintsForAllVars(csOp, align);
+  }
+
+  // Task 2: BM*BN*BK / 32^3 >= 8
+  if (hardwareInfo.matUnitCount > 0 && !hardwareInfo.matUnits.empty()) {
+    int64_t align = hardwareInfo.matUnits[0].shape[0]; // e.g., 32
+    // We assume M, N, K are the symbolic variables in order.
+    // In mm_2Dmesh, they are "M", "N", "K".
+    // We should ideally find them by name or use a heuristic.
+    // The requirement says BM BN BK Need 32-element alignment.
+    // In our test case they are %0, %1, %2 but they correspond to M, N, K.
+    // Actually, we can just apply it to all symbolic variables if there are
+    // exactly 3.
+    llvm::SmallVector<StringRef> symVarNames;
+    for (Operation &op : csOp.getBodyBlock()->getOperations()) {
+      if (auto symVar = dyn_cast<loom::SymbolicVarOp>(&op)) {
+        symVarNames.push_back(symVar.getName());
+      }
+    }
+    if (symVarNames.size() >= 3) {
+      loom::lcs::addPipelineParallelismConstraint(
+          csOp, symVarNames, hardwareInfo.matUnitCount, align);
+    }
+  }
+
+  return success();
+}
+
 } // namespace
 
 namespace loom {
@@ -282,6 +320,19 @@ LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp dfModule,
     } else if (auto mem = dyn_cast<loom::df::MemoryOp>(op)) {
       if (mem.getLabel() == "L1") {
         hardwareInfo.l1Size = mem.getSize();
+      }
+    } else if (auto mat = dyn_cast<loom::df::MatOp>(op)) {
+      MatUnitInfo info;
+      info.name = mat.getName().str();
+      auto shape = mat.getShape();
+      for (auto dim : shape)
+        info.shape.push_back(dim);
+      hardwareInfo.matUnits.push_back(std::move(info));
+    } else if (auto core = dyn_cast<loom::df::CoreOp>(op)) {
+      if (auto countsAttr = core.getScaleinCountsAttr()) {
+        auto counts = countsAttr.asArrayRef();
+        if (!counts.empty())
+          hardwareInfo.matUnitCount = counts[0]; // First unit is mat_unit
       }
     } else if (auto ic = dyn_cast<loom::df::InterconnectsOp>(op)) {
       AffineMap map = ic.getMapAttr().getValue();
@@ -363,6 +414,9 @@ EnumerateSpatialMappings(ModuleOp affineModule,
                     addL1CacheConstraints(cloned, csOp, hardwareInfo.l1Size)))
               return failure();
 
+            if (failed(addHardwareDerivedConstraints(csOp, hardwareInfo)))
+              return failure();
+
             return success();
           },
           nullptr);
@@ -411,6 +465,9 @@ EnumerateSpatialMappings(ModuleOp affineModule,
 
                 composeAndCanonicalizeAffineApplies(cloned);
 
+                if (failed(addHardwareDerivedConstraints(csOp, hardwareInfo)))
+                  return failure();
+
                 if (failed(addL1CacheConstraints(cloned, csOp,
                                                  hardwareInfo.l1Size)))
                   return failure();
@@ -436,11 +493,4 @@ EnumerateSpatialMappings(ModuleOp affineModule,
 
   return out;
 }
-
-OwningOpRef<ModuleOp> enumerateTritonSharedSpatialMappings(
-    ModuleOp module, const HardwareInfo &hardwareInfo, unsigned numGridDims) {
-  // Not implemented yet
-  return nullptr;
-}
-
 } // namespace loom

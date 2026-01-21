@@ -13,15 +13,16 @@ module {
   %11 = df.interconnects "NoC" %5 : !df.memory, %10 : !df.memory  {map = affine_map<(d0, d1) -> (d0 ceildiv 4 + (d1 ceildiv 4) * 2)>} : !df.interconnect
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -34,9 +35,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -80,15 +81,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -101,9 +103,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -147,15 +149,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -168,9 +171,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -214,15 +217,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -235,9 +239,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -281,15 +285,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -303,9 +308,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -354,15 +359,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -376,9 +382,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -427,15 +433,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -449,9 +456,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -500,15 +507,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -522,9 +530,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -573,15 +581,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -595,9 +604,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -646,15 +655,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -668,9 +678,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -719,15 +729,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -741,9 +752,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -792,15 +803,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -814,9 +826,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -865,15 +877,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -886,9 +899,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -932,15 +945,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -953,9 +967,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -999,15 +1013,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -1020,9 +1035,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1066,15 +1081,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -1087,9 +1103,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1133,15 +1149,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -1155,9 +1172,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1206,15 +1223,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -1228,9 +1246,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1279,15 +1297,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -1301,9 +1320,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1352,15 +1371,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -1374,9 +1394,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1425,15 +1445,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -1447,9 +1468,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1498,15 +1519,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -1520,9 +1542,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1571,15 +1593,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -1593,9 +1616,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1644,15 +1667,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -1666,9 +1690,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1717,15 +1741,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -1739,9 +1764,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1785,15 +1810,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -1807,9 +1833,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1853,15 +1879,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -1875,9 +1902,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1921,15 +1948,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -1943,9 +1971,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -1989,15 +2017,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -2012,9 +2041,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -2063,15 +2092,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -2086,9 +2116,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -2137,15 +2167,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -2160,9 +2191,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -2211,15 +2242,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -2234,9 +2266,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -2285,15 +2317,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -2308,9 +2341,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -2359,15 +2392,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -2382,9 +2416,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -2433,15 +2467,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -2456,9 +2491,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -2507,15 +2542,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -2530,9 +2566,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -2581,15 +2617,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -2603,9 +2640,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -2649,15 +2686,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -2671,9 +2709,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -2717,15 +2755,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -2739,9 +2778,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -2785,15 +2824,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -2807,9 +2847,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -2853,15 +2893,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -2876,9 +2917,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -2927,15 +2968,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -2950,9 +2992,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3001,15 +3043,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -3024,9 +3067,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3075,15 +3118,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -3098,9 +3142,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3149,15 +3193,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -3172,9 +3217,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3223,15 +3268,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -3246,9 +3292,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3297,15 +3343,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -3320,9 +3367,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3371,15 +3418,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -3394,9 +3442,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3445,15 +3493,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -3467,9 +3516,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3513,15 +3562,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -3535,9 +3585,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3581,15 +3631,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -3603,9 +3654,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3649,15 +3700,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -3671,9 +3723,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3717,15 +3769,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -3740,9 +3793,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3791,15 +3844,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -3814,9 +3868,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3865,15 +3919,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -3888,9 +3943,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -3939,15 +3994,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -3962,9 +4018,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4013,15 +4069,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -4036,9 +4093,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4087,15 +4144,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -4110,9 +4168,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4161,15 +4219,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -4184,9 +4243,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4235,15 +4294,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -4258,9 +4318,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4309,15 +4369,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -4331,9 +4392,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4377,15 +4438,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -4399,9 +4461,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4445,15 +4507,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -4467,9 +4530,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4513,15 +4576,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -4535,9 +4599,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4581,15 +4645,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -4604,9 +4669,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4655,15 +4720,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -4678,9 +4744,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4729,15 +4795,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -4752,9 +4819,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4803,15 +4870,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -4826,9 +4894,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4877,15 +4945,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -4900,9 +4969,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -4951,15 +5020,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -4974,9 +5044,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5025,15 +5095,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -5048,9 +5119,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5099,15 +5170,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -5122,9 +5194,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %14 = loom.get_symbolic_block_size @constraints::@M : index
-              %15 = loom.get_symbolic_block_size @constraints::@N : index
-              %16 = loom.get_symbolic_block_size @constraints::@K : index
+              %14 = loom.get_symbolic_block_size @constraints::@BM : index
+              %15 = loom.get_symbolic_block_size @constraints::@BN : index
+              %16 = loom.get_symbolic_block_size @constraints::@BK : index
               %17 = arith.ceildivsi %c512_0, %16 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5173,15 +5245,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -5194,9 +5267,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5240,15 +5313,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -5261,9 +5335,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5307,15 +5381,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -5328,9 +5403,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5374,15 +5449,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -5395,9 +5471,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5441,15 +5517,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -5463,9 +5540,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5514,15 +5591,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -5536,9 +5614,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5587,15 +5665,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -5609,9 +5688,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5660,15 +5739,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -5682,9 +5762,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5733,15 +5813,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -5755,9 +5836,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5806,15 +5887,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -5828,9 +5910,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5879,15 +5961,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -5901,9 +5984,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -5952,15 +6035,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -5974,9 +6058,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -6025,15 +6109,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -6046,9 +6131,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -6092,15 +6177,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -6113,9 +6199,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -6159,15 +6245,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -6180,9 +6267,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -6226,15 +6313,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
     }
@@ -6247,9 +6335,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -6293,15 +6381,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -6315,9 +6404,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -6366,15 +6455,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -6388,9 +6478,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -6439,15 +6529,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -6461,9 +6552,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -6512,15 +6603,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%12, %14, %13) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -6534,9 +6626,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -6585,15 +6677,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -6607,9 +6700,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -6658,15 +6751,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -6680,9 +6774,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -6731,15 +6825,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -6753,9 +6848,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index
@@ -6804,15 +6899,16 @@ module {
   }
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "M" : index
-      %13 = loom.symbolic_var "N" : index
-      %14 = loom.symbolic_var "K" : index
+      %12 = loom.symbolic_var "BM" : index
+      %13 = loom.symbolic_var "BN" : index
+      %14 = loom.symbolic_var "BK" : index
       loom.range %12[32, 512]
-      loom.align %12 by 32
       loom.range %13[32, 512]
-      loom.align %13 by 32
       loom.range %14[32, 512]
+      loom.align %12 by 32
+      loom.align %13 by 32
       loom.align %14 by 32
+      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       loom.polynomial_constraint(%12, %14, %13, %15) {monomials = [{coeff = 1 : i64, vars = [1, 3]}], upper_bound = 374784 : i64}
       loom.polynomial_constraint(%13, %12, %14) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [1, 2]}], upper_bound = 374784 : i64}
@@ -6826,9 +6922,9 @@ module {
               %c512 = arith.constant 512 : index
               %c512_0 = arith.constant 512 : index
               %c1 = arith.constant 1 : index
-              %13 = loom.get_symbolic_block_size @constraints::@M : index
-              %14 = loom.get_symbolic_block_size @constraints::@N : index
-              %15 = loom.get_symbolic_block_size @constraints::@K : index
+              %13 = loom.get_symbolic_block_size @constraints::@BM : index
+              %14 = loom.get_symbolic_block_size @constraints::@BN : index
+              %15 = loom.get_symbolic_block_size @constraints::@BK : index
               %16 = arith.ceildivsi %c512_0, %15 : index
               %cst = arith.constant 0.000000e+00 : f32
               %c512_1 = arith.constant 512 : index

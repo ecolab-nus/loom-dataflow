@@ -220,6 +220,43 @@ RangeOp addRangeConstraint(ConstraintSpaceOp csOp, llvm::StringRef varName,
   return rangeOp;
 }
 
+void updateRangeLowerBounds(ConstraintSpaceOp csOp, int64_t newLowerBound) {
+  for (Operation &op : csOp.getBodyBlock()->getOperations()) {
+    if (auto rangeOp = dyn_cast<RangeOp>(&op)) {
+      if (static_cast<int64_t>(rangeOp.getLowerBound()) < newLowerBound) {
+        rangeOp.setLowerBound(newLowerBound);
+      }
+    }
+  }
+}
+
+void addAlignConstraintsForAllVars(ConstraintSpaceOp csOp, int64_t alignment) {
+  OpBuilder builder(csOp.getBodyBlock(), csOp.getBodyBlock()->end());
+  for (Operation &op : csOp.getBodyBlock()->getOperations()) {
+    if (auto symVar = dyn_cast<SymbolicVarOp>(&op)) {
+      builder.create<AlignOp>(csOp.getLoc(), symVar.getResult(), alignment);
+    }
+  }
+}
+
+PolynomialConstraintOp
+addPipelineParallelismConstraint(ConstraintSpaceOp csOp,
+                                 llvm::ArrayRef<llvm::StringRef> varNames,
+                                 int64_t minMatUnits, int64_t alignment) {
+  llvm::SmallVector<Monomial> monomials;
+  Monomial m;
+  m.coeff = -1; // -M*N*K
+  for (unsigned i = 0; i < varNames.size(); ++i) {
+    m.varIndices.push_back(i);
+  }
+  monomials.push_back(m);
+
+  // minMatUnits * alignment^3
+  int64_t lowerBound = minMatUnits * alignment * alignment * alignment;
+  // -M*N*K <= -lowerBound
+  return addPolynomialConstraint(csOp, varNames, monomials, -lowerBound);
+}
+
 bool isFeasible(ConstraintSpaceOp csOp) {
   // Build the constraint set from IR
   ConstraintSet cs = AnalysisEngine::buildConstraintSet(csOp);

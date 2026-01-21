@@ -16,10 +16,17 @@ struct SpatialDimInfo {
   std::string symbolName; // Symbol name for SymbolRefAttr references
 };
 
+struct MatUnitInfo {
+  llvm::SmallVector<int64_t, 3> shape; // [BM, BN, BK] alignment granularity
+  std::string name;
+};
+
 struct HardwareInfo {
   llvm::SmallVector<SpatialDimInfo> spatialDimInfoVec;
   bool hasBidirInterconnect = false;
   int64_t l1Size = 0;
+  llvm::SmallVector<MatUnitInfo> matUnits; // Matrix unit info for alignment
+  int64_t matUnitCount = 0; // Number of mat_units per core for pipeline
 
   bool skipPermutation() const {
     return spatialDimInfoVec.size() == 2 && hasBidirInterconnect;
@@ -40,14 +47,4 @@ mlir::LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp dfModule,
 mlir::OwningOpRef<mlir::ModuleOp>
 EnumerateSpatialMappings(mlir::ModuleOp affineModule,
                          const HardwareInfo &hardwareInfo);
-
-/**
- * \brief Enumerate mappings from Triton-shared grid dims to hardware spatial
- * dims.
- */
-mlir::OwningOpRef<mlir::ModuleOp>
-enumerateTritonSharedSpatialMappings(mlir::ModuleOp module,
-                                     const HardwareInfo &hardwareInfo,
-                                     unsigned numGridDims = 3);
-
 } // namespace loom

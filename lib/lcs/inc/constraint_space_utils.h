@@ -148,6 +148,19 @@ addPolynomialConstraint(ConstraintSpaceOp csOp,
 RangeOp addRangeConstraint(ConstraintSpaceOp csOp, llvm::StringRef varName,
                            int64_t lowerBound, int64_t upperBound);
 
+/// @brief Update lower bounds of all range constraints in a space.
+void updateRangeLowerBounds(ConstraintSpaceOp csOp, int64_t newLowerBound);
+
+/// @brief Add alignment constraints for all symbolic variables in a space.
+void addAlignConstraintsForAllVars(ConstraintSpaceOp csOp, int64_t alignment);
+
+/// @brief Add a pipeline parallelism constraint (multi-variable product >=
+/// minVal).
+PolynomialConstraintOp
+addPipelineParallelismConstraint(ConstraintSpaceOp csOp,
+                                 llvm::ArrayRef<llvm::StringRef> varNames,
+                                 int64_t minMatUnits, int64_t alignment);
+
 /// @brief Check if the constraint space is feasible.
 ///
 /// Uses AnalysisEngine to build a ConstraintSet from the IR and checks

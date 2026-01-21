@@ -5,18 +5,13 @@
 module {
   module {
     loom.constraint_space @constraints {
-      %m = loom.symbolic_var "M" : index
-      %n = loom.symbolic_var "N" : index
-      %k = loom.symbolic_var "K" : index
+      %bm = loom.symbolic_var "BM" : index
+      %bn = loom.symbolic_var "BN" : index
+      %bk = loom.symbolic_var "BK" : index
 
-      loom.range %m [32, 512]
-      loom.align %m by 32
-
-      loom.range %n [32, 512]
-      loom.align %n by 32
-
-      loom.range %k [32, 512]
-      loom.align %k by 32
+      loom.range %bm [0, 512]
+      loom.range %bn [0, 512]
+      loom.range %bk [0, 512]
     }
     func.func @matmul_kernel (
       %arg0: memref<*xf32> {tt.divisibility = 16 : i32}, 
@@ -27,9 +22,9 @@ module {
       %N_idx = arith.constant 512 : index
       %K_idx = arith.constant 512 : index
       %c1_idx = arith.constant 1 : index
-      %block_m = loom.get_symbolic_block_size @constraints::@M : index
-      %block_n = loom.get_symbolic_block_size @constraints::@N : index
-      %block_k = loom.get_symbolic_block_size @constraints::@K : index
+      %block_m = loom.get_symbolic_block_size @constraints::@BM : index
+      %block_n = loom.get_symbolic_block_size @constraints::@BN : index
+      %block_k = loom.get_symbolic_block_size @constraints::@BK : index
       %Kblk_idx = arith.ceildivsi %K_idx, %block_k : index
       %cst = arith.constant 0.000000e+00 : f32 loc(#loc1)
       %c8_idx = arith.constant 8 : index loc(#loc1)
