@@ -4,12 +4,12 @@ module {
   %2 = df.spatial_dim "x", 8
   %3 = df.spatial_dim "y", 8
   %4 = df.core "core" {scaleout=(%2, %3) , scalein=(%0, %1, [8, 1])}
-  %5 = df.memory "L1" {scaleout=(%2, %3) , size = 1499136, bandwidth = 64}
+  %5 = df.memory "L1" {scaleout=(%2, %3) , size = 1499136, bandwidth = 15}
   %6 = df.mux %4 : !df.compute, %5 : !df.memory  {map = affine_map<(d0, d1) -> (d0, d1)>}
   %7 = df.interconnects "horizontal_links" %5 : !df.memory, %5 : !df.memory  {bandwidth = 128 : i64, map = affine_map<(d0, d1) -> ((d0 + 1) mod 8, d1)>, spatial_dims = [@y]} : !df.interconnect
   %8 = df.interconnects "vertical_links" %5 : !df.memory, %5 : !df.memory  {bandwidth = 128 : i64, map = affine_map<(d0, d1) -> (d0, (d1 + 1) mod 8)>, spatial_dims = [@x]} : !df.interconnect
   %9 = df.spatial_dim "d", 4
-  %10 = df.memory "DRAM" {scaleout=(%9) , size = 34359738368, bandwidth = 512}
+  %10 = df.memory "DRAM" {scaleout=(%9) , size = 34359738368, bandwidth = 288}
   %11 = df.interconnects "NoC" %5 : !df.memory, %10 : !df.memory  {map = affine_map<(d0, d1) -> (d0 ceildiv 4 + (d1 ceildiv 4) * 2)>} : !df.interconnect
   module attributes {loom.pass_name = "EnumerateCopyBroadcast"} {
     loom.constraint_space @constraints {
@@ -109,8 +109,8 @@ module {
       %17 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
@@ -356,8 +356,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
@@ -449,8 +449,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
@@ -542,8 +542,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
@@ -635,12 +635,12 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
@@ -649,8 +649,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d2 * 512 - d6 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -512 - d2 * 32 + d6 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d6 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -825,13 +825,13 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d2 * 512 - d6 - 262144)>}
@@ -914,8 +914,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
@@ -1016,13 +1016,13 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d2 * 512 - d6 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d2 * 32 + d6 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d6 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -1190,8 +1190,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d5 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -1263,8 +1263,8 @@ module {
       %17 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
@@ -1272,8 +1272,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d5 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -1437,8 +1437,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d2 * 512 - d6 - 262144)>}
@@ -1628,8 +1628,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d2 * 512 - d6 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -512 - d2 * 32 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -512 - d2 * 32 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d6 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -1707,22 +1707,22 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d2 * 512 - d6 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -512 - d2 * 32 + d6 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d6 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -1814,8 +1814,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d2 * 512 - d6 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d2 * 32 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d2 * 512 + d6 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d2 * 32 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d6 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -2079,8 +2079,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
@@ -2088,8 +2088,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d2 * 512 - d6 - 262144)>}
@@ -2263,8 +2263,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d5 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -2894,8 +2894,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d2 * 512 - d6 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d2 * 32 + d6 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d6 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -3068,8 +3068,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
@@ -3077,13 +3077,13 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d2 * 512 - d6 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d2 * 32 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d2 * 512 + d6 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d2 * 32 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d6 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -3171,8 +3171,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d2 * 512 - d6 - 262144)>}
@@ -3264,8 +3264,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d5 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -3338,8 +3338,8 @@ module {
       %17 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
@@ -3347,8 +3347,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d5 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -3421,8 +3421,8 @@ module {
       %17 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
@@ -3430,8 +3430,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d5 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -3508,8 +3508,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
@@ -3682,8 +3682,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
@@ -3691,8 +3691,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d2 * 512 - d6 - 262144)>}
@@ -3870,8 +3870,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
@@ -3884,8 +3884,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d2 * 512 - d6 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -512 - d2 * 32 + d6 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d6 - 374784)>}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_0__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -3964,8 +3964,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
@@ -4588,17 +4588,17 @@ module {
       %17 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d5 - 374784)>}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -4864,8 +4864,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
@@ -4874,8 +4874,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d2 * 512 - d6 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -512 - d2 * 32 + d6 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d6 - 374784)>}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -4954,8 +4954,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
@@ -4968,8 +4968,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d2 * 512 - d6 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -512 - d2 * 32 + d6 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d6 - 374784)>}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -5048,8 +5048,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
@@ -5062,8 +5062,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d2 * 512 - d6 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d2 * 32 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d2 * 512 + d6 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d2 * 32 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d6 - 374784)>}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -6680,8 +6680,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d5 - 374784)>}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -6753,8 +6753,8 @@ module {
       %17 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
@@ -6762,8 +6762,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d5 - 374784)>}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -6938,8 +6938,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d2 * 512 - d6 - 262144)>}
@@ -7217,8 +7217,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d2 * 512 - d6 - 262144)>}
@@ -7305,8 +7305,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -262144 - d3 * 32 + d4 + 8388608)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
@@ -7487,8 +7487,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
@@ -7579,8 +7579,8 @@ module {
       %17 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17) {map = affine_map<(d0, d1, d2, d3, d4, d5) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
@@ -8001,8 +8001,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
@@ -8015,8 +8015,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d2 * 512 - d6 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -512 - d2 * 32 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -512 - d2 * 32 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d6 - 374784)>}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -8094,8 +8094,8 @@ module {
       %18 = loom.intermediate_var : index
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 - d3 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 - d3 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 512 + d3 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 32 + d3 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 1024 + d3 * 32 - d4 - 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * 262144 + d3 * 512 - d4 - 134217728)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d2 * -1024 - d3 * 512 + d4 + 524288)>}
@@ -8108,8 +8108,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * 512 + d2 * 512 - d6 - 262144)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -512 - d2 * 32 + d6 + 16384)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1 * -32 - d2 * 512 + d6 + 16384)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d6 - 374784)>}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
@@ -8568,8 +8568,8 @@ module {
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (-d4 + 262144)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d1 * 32 + d2 * 64 - d5 - 2048)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d1 * 512 + d2 * 1024 - d5 - 524288)>}
-      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -512 - d1 * 512 - d2 * 64 + d5 + 32768)>}
+      loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * -32 - d1 * 32 - d2 * 1024 + d5 + 32768)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d5 - 374784)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 32 + d2 * 32 - d6 - 1024)>}
       loom.linear_constraint(%12, %13, %14, %15, %16, %17, %18) {map = affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0 * 512 + d2 * 512 - d6 - 262144)>}
