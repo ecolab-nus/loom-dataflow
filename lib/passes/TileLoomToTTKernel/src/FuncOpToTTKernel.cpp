@@ -66,6 +66,11 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
       auto baseAddrOp = rewriter.create<GetCompileArgValOp>(
           loc, rewriter.getI32Type(), baseAddrIdxAttr);
 
+      // Create TensorAccessArgs and TensorAccess for base address.
+      auto pagesize = GetTileSizeOp::create(rewriter, loc, cbOp.getResult());
+      auto baseAddrArgs = rewriter.create<TensorAccessorArgsOp>(loc, baseAddrOp.getResult(), baseAddrOp.getResult());
+      auto baseAddrTensorAccess = rewriter.create<TensorAccessorOp>(loc, baseAddrArgs.getResult(), baseAddrOp.getResult(), pagesize);
+
       // Store the created values keyed by the memref argument.
       // We do NOT replace uses here - the memref argument is used by
       // memref.reinterpret_cast ops which need the original memref type.

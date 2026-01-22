@@ -137,11 +137,6 @@ struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
          }
        }
      }
-
-     Value trueVal = rewriter.create<arith::ConstantIntOp>(
-         loc, rewriter.getI1Type(), 1);
-     Value addrGen = GetInterleavedAddrGenFastOp::create(
-         rewriter, loc, /*dram=*/trueVal, baseAddr, pageSize, dataFormat);
  
      rewriter.restoreInsertionPoint(opInsertionPt);
  
@@ -200,32 +195,7 @@ struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
  
      Value l1Addr = GetWritePtrOp::create(rewriter, loc, cb);
  
-     scf::ForOp loadTileLoop = scf::ForOp::create(
-         rewriter, loc, rewriter.create<arith::ConstantIntOp>(
-                           loc, rewriter.getI32Type(), 0),
-         numPages,
-         rewriter.create<arith::ConstantIntOp>(
-             loc, rewriter.getI32Type(), 1),
-         ValueRange{l1Addr, baseTileIndex});
-     {
-       rewriter.setInsertionPointToStart(loadTileLoop.getBody());
-       Value crtL1Address = loadTileLoop.getRegionIterArgs()[0];
-       Value crtTileIndex = loadTileLoop.getRegionIterArgs()[1];
-       Value nocAddr = InterleavedAddrGenFastGetNocAddrOp::create(
-           rewriter, loc, addrGen, crtTileIndex, const0, Value());
-       NocAsyncReadOp::create(rewriter, loc, nocAddr, crtL1Address,
-                                        pageSize);
-       Value nextL1Address =
-           arith::AddIOp::create(rewriter, loc, crtL1Address, pageSize);
-       Value nextTileIndex =
-           arith::AddIOp::create(rewriter, loc, crtTileIndex,
-                                 rewriter.create<arith::ConstantIntOp>(
-                                     loc, rewriter.getI32Type(), 1));
-       scf::YieldOp::create(rewriter, loc,
-                            ValueRange{nextL1Address, nextTileIndex});
-     }
- 
-     rewriter.setInsertionPointAfter(loadTileLoop);
+
      NocAsyncReadBarrierOp::create(rewriter, loc);
  
  
@@ -315,9 +285,10 @@ struct ConvertStoreOp : public OpConversionPattern<memref::CopyOp> {
  
      auto opInsertionPt = rewriter.saveInsertionPoint();
      rewriter.setInsertionPointAfterValue(insertionAnchor);
- 
+     //TODO: should place the code here or in FuncOpToTTKernel?
      auto dataFormat = GetDataFormatOp::create(rewriter, loc, cb);
      auto pageSize = GetTileSizeOp::create(rewriter, loc, cb);
+
  
      // Get the base address and offset from the target (external memory)
      Value offset;
