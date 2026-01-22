@@ -88,20 +88,8 @@ public:
 
     rewriter.setInsertionPoint(op);
     for (Value iv : op.getIVs()) {
-      // Allocate or look up a compile-arg index for this IV.
-      int64_t argIndex = tracker->getOrCreateIndex(iv, op);
-      auto idxAttr =
-          rewriter.getI32IntegerAttr(static_cast<int32_t>(argIndex));
-
-      // Emit TTKernel get_compile_time_arg_val (returns i32).
-      Value ctArg =
-          rewriter.create<GetCompileArgValOp>(loc, rewriter.getI32Type(),
-                                              idxAttr);
-
-      // Cast back to index so existing affine/arithmetic uses remain valid.
-      Value ivIndex = rewriter.create<arith::IndexCastOp>(
-          loc, rewriter.getIndexType(), ctArg);
-
+      // Create a compile-arg for this IV using the tracker.
+      Value ivIndex = tracker->createIndexCompileArg(iv, loc, rewriter);
       newIvValues.push_back(ivIndex);
     }
 

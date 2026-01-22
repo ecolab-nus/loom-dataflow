@@ -32,107 +32,147 @@ using namespace tt::ttkernel;
 // CompileArgTracker Implementation
 //===----------------------------------------------------------------------===//
 
-func::FuncOp loom::CompileArgTracker::getParentFunc(Operation *op) const {
-  return op->getParentOfType<func::FuncOp>();
+LogicalResult loom::CompileArgTracker::processInputArgs(
+    func::FuncOp func, TypeConverter &typeConverter, OpBuilder &rewriter) {
+  Block &entry = func.front();
+  Location loc = func.getLoc();
+
+  // Save insertion point and set to start of function body.
+  OpBuilder::InsertionGuard guard(rewriter);
+  rewriter.setInsertionPointToStart(&entry);
+
+  // Process each function argument.
+  for (BlockArgument arg : entry.getArguments()) {
+    Type argType = arg.getType();
+
+    if (isa<MemRefType, UnrankedMemRefType>(argType)) {
+      // Memref type: create CB and base address.
+      // CB uses nextCompileArgIndex, base address uses nextCompileArgIndex + 1.
+      // Memref type: create CB and base address.
+      // CB uses nextCompileArgIndex, base address uses nextCompileArgIndex + 1.
+      int64_t cbIndex = getAndIncrementIndex(func);
+      int64_t baseAddrIndex = getAndIncrementIndex(func);
+
+      // Create GetCompileArgValOp for CB.
+      auto cbIdxAttr = rewriter.getI32IntegerAttr(static_cast<int32_t>(cbIndex));
+      auto cbType = typeConverter.convertType(argType);
+      if (!cbType)
+        return func.emitError() << "failed to convert memref type to CB type";
+      auto cbOp = rewriter.create<GetCompileArgValOp>(loc, cbType, cbIdxAttr);
+
+      // Create GetCompileArgValOp for base address.
+      auto baseAddrIdxAttr =
+          rewriter.getI32IntegerAttr(static_cast<int32_t>(baseAddrIndex));
+      auto baseAddrOp = rewriter.create<GetCompileArgValOp>(
+          loc, rewriter.getI32Type(), baseAddrIdxAttr);
+
+      // Store the created values keyed by the memref argument.
+      // We do NOT replace uses here - the memref argument is used by
+      // memref.reinterpret_cast ops which need the original memref type.
+      // The memory conversion patterns will use getBaseAddr() to find the
+      // pre-created base address when processing load/store ops.
+      memrefArgToData[arg] = MemrefArgData{cbOp.getResult(), baseAddrOp.getResult()};
+
+    } else if (argType.isIndex()) {
+      // Index type: create a single compile-arg.
+      // Index type: create a single compile-arg.
+      int64_t argIndex = getAndIncrementIndex(func);
+
+      auto idxAttr = rewriter.getI32IntegerAttr(static_cast<int32_t>(argIndex));
+      auto compileArgOp =
+          rewriter.create<GetCompileArgValOp>(loc, rewriter.getI32Type(), idxAttr);
+
+      // Cast i32 to index for compatibility.
+      auto indexCast = rewriter.create<arith::IndexCastOp>(
+          loc, rewriter.getIndexType(), compileArgOp.getResult());
+
+      // Store the created values.
+      indexArgToData[arg] =
+          IndexArgData{compileArgOp.getResult(), indexCast.getResult()};
+
+      // Replace uses of the index argument with the casted value.
+      arg.replaceAllUsesWith(indexCast.getResult());
+
+    } else {
+      // Other types: not supported yet.
+      return func.emitError()
+             << "unsupported argument type: " << argType;
+    }
+  }
+
+  return success();
 }
 
-loom::FunctionTrackingData *
-loom::CompileArgTracker::getOrCreateFuncData(Operation *op) {
-  func::FuncOp func = getParentFunc(op);
-  assert(func && "Operation must be inside a function");
-  return getOrCreateFuncData(func);
-}
-
-loom::FunctionTrackingData *
-loom::CompileArgTracker::getOrCreateFuncData(func::FuncOp func) {
-  auto it = funcToData.find(func);
-  if (it != funcToData.end())
-    return &it->second;
-  return &funcToData.try_emplace(func, FunctionTrackingData{}).first->second;
-}
-
-loom::FunctionTrackingData *
-loom::CompileArgTracker::getFuncData(func::FuncOp func) {
-  auto it = funcToData.find(func);
-  if (it != funcToData.end())
+loom::MemrefArgData *loom::CompileArgTracker::getMemrefData(Value arg) {
+  auto it = memrefArgToData.find(arg);
+  if (it != memrefArgToData.end())
     return &it->second;
   return nullptr;
 }
 
-int64_t loom::CompileArgTracker::getOrCreateAlloc(memref::AllocOp alloc) {
-  auto *funcData = getOrCreateFuncData(alloc);
-  Value v = alloc.getResult();
-  auto it = funcData->allocToCbIndex.find(v);
-  if (it != funcData->allocToCbIndex.end())
-    return it->second;
-  // Assign next available index for allocs not associated with a function argument.
-  int64_t cbIndex = funcData->nextCompileArgIndex++;
-  funcData->allocToCbIndex.try_emplace(v, cbIndex);
-  return cbIndex;
+loom::IndexArgData *loom::CompileArgTracker::getIndexData(Value arg) {
+  auto it = indexArgToData.find(arg);
+  if (it != indexArgToData.end())
+    return &it->second;
+  return nullptr;
 }
 
-loom::CompileArgTracker::MemrefData
-loom::CompileArgTracker::getOrCreate(Value inputMemref, memref::AllocOp alloc) {
-  auto *funcData = getOrCreateFuncData(alloc);
-  Value allocResult = alloc.getResult();
-  
-  // Check if the input memref was pre-recorded (e.g., as a function argument).
-  // If so, use the pre-assigned (cbIndex, baseAddrIndex) pair.
-  auto it = funcData->inputToData.find(inputMemref);
-  if (it != funcData->inputToData.end()) {
-    int64_t cbIndex = it->second.first;
-    int64_t baseAddrIndex = it->second.second;
-    
-    // Record the alloc's CB index for later use.
-    funcData->allocToCbIndex.try_emplace(allocResult, cbIndex);
-    
-    return MemrefData{cbIndex, baseAddrIndex};
+Value loom::CompileArgTracker::getCB(Value arg) {
+  if (auto *data = getMemrefData(arg))
+    return data->cb;
+  return nullptr;
+}
+
+Value loom::CompileArgTracker::getBaseAddr(Value arg) {
+  if (auto *data = getMemrefData(arg))
+    return data->baseAddr;
+  return nullptr;
+}
+
+Value loom::CompileArgTracker::getIndexValue(Value arg) {
+  if (auto *data = getIndexData(arg))
+    return data->indexValue;
+  return nullptr;
+}
+
+Value loom::CompileArgTracker::createIndexCompileArg(Value value, Location loc,
+                                                      OpBuilder &rewriter) {
+  // Check if already created.
+  if (auto *data = getIndexData(value))
+    return data->indexValue;
+
+  // Allocate a new compile-arg index.
+  // Find parent function to get the correct index counter.
+  Operation *parentOp = rewriter.getInsertionBlock()->getParentOp();
+  auto funcOp = dyn_cast<func::FuncOp>(parentOp);
+  if (!funcOp)
+    funcOp = parentOp->getParentOfType<func::FuncOp>();
+
+  if (!funcOp) {
+    // Should not happen in valid IR within a function.
+    return nullptr;
   }
-  
-  // Not pre-recorded - assign new indices.
-  int64_t cbIndex = getOrCreateAlloc(alloc);
-  int64_t baseAddrIndex = cbIndex; // For non-function-arg memrefs, use same index
-  funcData->inputToData.try_emplace(inputMemref,
-                                    std::make_pair(cbIndex, baseAddrIndex));
-  return MemrefData{cbIndex, baseAddrIndex};
+
+  // Allocate a new compile-arg index.
+  int64_t argIndex = getAndIncrementIndex(funcOp);
+
+  auto idxAttr = rewriter.getI32IntegerAttr(static_cast<int32_t>(argIndex));
+  auto compileArgOp =
+      rewriter.create<GetCompileArgValOp>(loc, rewriter.getI32Type(), idxAttr);
+
+  // Cast i32 to index for compatibility.
+  auto indexCast = rewriter.create<arith::IndexCastOp>(
+      loc, rewriter.getIndexType(), compileArgOp.getResult());
+
+  // Store the created values.
+  indexArgToData[value] =
+      IndexArgData{compileArgOp.getResult(), indexCast.getResult()};
+
+  return indexCast.getResult();
 }
 
-loom::CompileArgTracker::MemrefData
-loom::CompileArgTracker::getOrCreateOutput(Value outputMemref, Operation *op) {
-  auto *funcData = getOrCreateFuncData(op);
-  
-  // Check if the output memref was pre-recorded as an input (function argument).
-  // If so, use the pre-assigned (cbIndex, baseAddrIndex) pair.
-  auto inputIt = funcData->inputToData.find(outputMemref);
-  if (inputIt != funcData->inputToData.end()) {
-    int64_t cbIndex = inputIt->second.first;
-    int64_t baseAddrIndex = inputIt->second.second;
-    funcData->outputToData.try_emplace(outputMemref,
-                                       std::make_pair(cbIndex, baseAddrIndex));
-    return MemrefData{cbIndex, baseAddrIndex};
-  }
-  
-  // Check if already tracked as output
-  auto it = funcData->outputToData.find(outputMemref);
-  if (it != funcData->outputToData.end())
-    return MemrefData{it->second.first, it->second.second};
-  
-  // Not pre-recorded - assign next available index
-  int64_t cbIndex = funcData->nextCompileArgIndex++;
-  funcData->outputToData.try_emplace(outputMemref,
-                                     std::make_pair(cbIndex, cbIndex));
-  return MemrefData{cbIndex, cbIndex};
-}
-
-int64_t loom::CompileArgTracker::getOrCreateIndex(Value indexValue,
-                                                  Operation *op) {
-  auto *funcData = getOrCreateFuncData(op);
-  auto it = funcData->indexToArgIndex.find(indexValue);
-  if (it != funcData->indexToArgIndex.end())
-    return it->second;
-  int64_t argIndex = funcData->nextCompileArgIndex++;
-  funcData->indexToArgIndex.try_emplace(indexValue, argIndex);
-  return argIndex;
+int64_t loom::CompileArgTracker::getAndIncrementIndex(Operation *funcOp) {
+  return funcToNextArgIndex[funcOp]++;
 }
 
 //===----------------------------------------------------------------------===//
@@ -142,65 +182,8 @@ int64_t loom::CompileArgTracker::getOrCreateIndex(Value indexValue,
 LogicalResult mlir::loom::replaceFuncArgsWithCompileArgs(
     func::FuncOp func, std::shared_ptr<CompileArgTracker> tracker,
     TypeConverter &typeConverter, OpBuilder &rewriter) {
-  Block &entry = func.front();
-  Location loc = func.getLoc();
-
-  // Save insertion point and set to start of function body.
-  OpBuilder::InsertionGuard guard(rewriter);
-  rewriter.setInsertionPointToStart(&entry);
-
-  // Get or create tracking data for this function.
-  auto *funcData = tracker->getOrCreateFuncData(func);
-
-  // First pass: calculate the compile-arg index for each function argument.
-  // Memref args use TWO indices (CB + base addr), index args use ONE index.
-  // This preserves the argument order while accounting for the dual indices.
-  int64_t currentIndex = 0;
-  for (BlockArgument arg : entry.getArguments()) {
-    Type argType = arg.getType();
-
-    if (isa<MemRefType, UnrankedMemRefType>(argType)) {
-      // Memref type: assign two consecutive indices (CB, base addr).
-      int64_t cbIndex = currentIndex;
-      int64_t baseAddrIndex = currentIndex + 1;
-      funcData->inputToData.try_emplace(arg, std::make_pair(cbIndex, baseAddrIndex));
-      currentIndex += 2;
-    } else if (argType.isIndex()) {
-      // Index type: assign one index.
-      funcData->indexToArgIndex.try_emplace(arg, currentIndex);
-      currentIndex += 1;
-    } else {
-      // Other types: assign one index.
-      currentIndex += 1;
-    }
-  }
-
-  // Set nextCompileArgIndex to continue after all function arguments.
-  funcData->nextCompileArgIndex = currentIndex;
-
-  // Second pass: emit GetCompileArgValOp for index arguments.
-  for (BlockArgument arg : entry.getArguments()) {
-    Type argType = arg.getType();
-
-    if (argType.isIndex()) {
-      // Get the pre-assigned index.
-      auto it = funcData->indexToArgIndex.find(arg);
-      assert(it != funcData->indexToArgIndex.end());
-      int64_t argIndex = it->second;
-      
-      auto idxAttr = rewriter.getI32IntegerAttr(static_cast<int32_t>(argIndex));
-      auto compileArg =
-          rewriter.create<GetCompileArgValOp>(loc, rewriter.getI32Type(), idxAttr);
-      // Replace all uses of the index argument with the compile-arg value.
-      // Need to cast i32 back to index for compatibility.
-      auto indexCast = rewriter.create<arith::IndexCastOp>(
-          loc, rewriter.getIndexType(), compileArg);
-      arg.replaceAllUsesWith(indexCast);
-    }
-    // Memref types are handled by the memory conversion patterns.
-  }
-
-  return success();
+  // Delegate to the tracker's processInputArgs method.
+  return tracker->processInputArgs(func, typeConverter, rewriter);
 }
 
 namespace {

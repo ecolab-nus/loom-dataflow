@@ -31,103 +31,120 @@ namespace mlir {
 namespace loom {
 
 /**
- * @brief Per-function tracking data for compile-arg indices.
+ * @brief Data created for a memref input argument.
  *
- * @details Each function gets its own tracking state so that compile-arg
- *          indices start from 0 for each specialized function.
+ * @details Stores the CB value and base address value created by 
+ *          GetCompileArgValOp for a memref function argument.
  */
-struct FunctionTrackingData {
-  /// Map from input memref to its compile-arg indices (cbIndex, baseAddrIndex).
-  llvm::DenseMap<Value, std::pair<int64_t, int64_t>> inputToData;
-  /// Map from output memref to its compile-arg indices (cbIndex, baseAddrIndex).
-  llvm::DenseMap<Value, std::pair<int64_t, int64_t>> outputToData;
-  /// Map from alloc result to its assigned CB index.
-  llvm::DenseMap<Value, int64_t> allocToCbIndex;
-  /// Map from index-typed value to its compile-arg index.
-  llvm::DenseMap<Value, int64_t> indexToArgIndex;
-  /// Next compile-arg index.
-  int64_t nextCompileArgIndex = 0;
+struct MemrefArgData {
+  /// The CB value created for this memref argument.
+  Value cb;
+  /// The base address value created for this memref argument.
+  Value baseAddr;
 };
 
 /**
- * @brief Tracks function arguments and assigns compile-arg indices.
+ * @brief Data created for an index input argument.
  *
- * @details Supports tracking for:
- *          - Memref arguments: assigned pairs of (cbIndex, baseAddrIndex)
- *          - Index arguments: assigned a single compile-arg index
- *          Each function maintains its own independent set of indices.
+ * @details Stores the compile-arg value created by GetCompileArgValOp
+ *          for an index function argument.
+ */
+struct IndexArgData {
+  /// The compile-arg value (i32) created for this index argument.
+  Value compileArg;
+  /// The index-casted value for use in operations expecting index type.
+  Value indexValue;
+};
+
+/**
+ * @brief Tracks input arguments and creates compile-arg values for them.
+ *
+ * @details This simplified tracker focuses only on input arguments:
+ *          - Memref arguments: creates a CB and base address via GetCompileArgValOp
+ *          - Index arguments: creates a single compile-arg value via GetCompileArgValOp
+ *          The created values are stored in maps for later usage.
  */
 class CompileArgTracker {
 public:
   /**
-   * @brief Encapsulates compile-arg indices for a memref.
-   */
-  struct MemrefData {
-    int64_t cbIndex;
-    int64_t baseAddrIndex;
-  };
-
-  /**
-   * @brief Get or create a CB index for the given L1 alloc.
-   * @param alloc The `memref.alloc` op annotated with `{loom.alloc ...}`.
-   * @return A stable, non-negative compile-arg index for this allocation.
-   */
-  int64_t getOrCreateAlloc(memref::AllocOp alloc);
-
-  /**
-   * @brief Get or create input data for the given input memref.
-   * @param inputMemref Input memref value (typically a function argument).
-   * @param alloc The L1 alloc associated with this input.
-   * @return MemrefData containing CB index and base address index.
-   */
-  MemrefData getOrCreate(Value inputMemref, memref::AllocOp alloc);
-
-  /**
-   * @brief Get or create output data for the given output memref.
+   * @brief Process all input arguments of a function and create compile-arg values.
    *
-   * @details Stores use the output (DRAM) memref to recover a compile-arg index
-   *          for the base address. Unlike inputs, the output memref may not be
-   *          associated with a `{loom.alloc ...}` L1 allocation, so we assign a
-   *          fresh (cbIndex, baseAddrIndex) pair keyed by the output memref
-   *          value itself.
+   * @details For each function argument:
+   *          - Memref types: creates two GetCompileArgValOp (CB and base address)
+   *          - Index types: creates one GetCompileArgValOp and casts to index
+   *          All created values are stored in internal maps and can be retrieved later.
    *
-   * @param outputMemref Output memref value (typically a function argument).
-   * @param op The operation requesting the output data (used to find parent function).
-   * @return MemrefData containing a stable CB index and base address index.
+   * @param func The function to process.
+   * @param typeConverter Type converter for memref-to-CB conversion.
+   * @param rewriter The builder for IR modifications.
+   * @return success if all arguments were processed, failure otherwise.
    */
-  MemrefData getOrCreateOutput(Value outputMemref, Operation *op);
+  LogicalResult processInputArgs(func::FuncOp func, TypeConverter &typeConverter,
+                                  OpBuilder &rewriter);
 
   /**
-   * @brief Get or create a compile-arg index for an index-typed value.
-   * @param indexValue The index-typed value (typically a function argument).
-   * @param op The operation requesting the index (used to find parent function).
-   * @return A stable compile-arg index for this value.
+   * @brief Get the created data for a memref argument.
+   * @param arg The memref argument (BlockArgument).
+   * @return Pointer to MemrefArgData if found, nullptr otherwise.
    */
-  int64_t getOrCreateIndex(Value indexValue, Operation *op);
+  MemrefArgData *getMemrefData(Value arg);
 
   /**
-   * @brief Get the tracking data for a function, or nullptr if not tracked.
-   * @param func The function to look up.
-   * @return Pointer to tracking data, or nullptr.
+   * @brief Get the created data for an index argument.
+   * @param arg The index argument (BlockArgument).
+   * @return Pointer to IndexArgData if found, nullptr otherwise.
    */
-  FunctionTrackingData *getFuncData(func::FuncOp func);
+  IndexArgData *getIndexData(Value arg);
 
   /**
-   * @brief Get or create tracking data for a function.
-   * @param func The function to track.
-   * @return Pointer to tracking data.
+   * @brief Get the CB value for a memref argument.
+   * @param arg The memref argument (BlockArgument).
+   * @return The CB value if found, nullptr otherwise.
    */
-  FunctionTrackingData *getOrCreateFuncData(func::FuncOp func);
+  Value getCB(Value arg);
+
+  /**
+   * @brief Get the base address value for a memref argument.
+   * @param arg The memref argument (BlockArgument).
+   * @return The base address value if found, nullptr otherwise.
+   */
+  Value getBaseAddr(Value arg);
+
+  /**
+   * @brief Get the index value for an index argument.
+   * @param arg The index argument (BlockArgument).
+   * @return The index value if found, nullptr otherwise.
+   */
+  Value getIndexValue(Value arg);
+
+
+
+  /**
+   * @brief Create a compile-arg for an index-typed value (e.g., loop IV).
+   *
+   * @details Allocates a new compile-arg index and creates a GetCompileArgValOp
+   *          followed by an index cast. Stores the result for later retrieval.
+   *          This is used for loop induction variables that are not function args.
+   *
+   * @param value The value to create a compile-arg for.
+   * @param loc The location for created ops.
+   * @param rewriter The builder for IR modifications.
+   * @return The index-casted value representing the compile-arg.
+   */
+  Value createIndexCompileArg(Value value, Location loc, OpBuilder &rewriter);
 
 private:
-  /// Get the parent function of an operation.
-  func::FuncOp getParentFunc(Operation *op) const;
+  // Helper to get and increment the compile-arg index for a specific function.
+  int64_t getAndIncrementIndex(Operation *funcOp);
 
-  /// Get or create tracking data for the function containing the given operation.
-  FunctionTrackingData *getOrCreateFuncData(Operation *op);
+  // Map from FuncOp (as Operation*) to the next available compile-arg index.
+  llvm::DenseMap<Operation *, int64_t> funcToNextArgIndex;
 
-  /// Map from function to its tracking data.
-  llvm::DenseMap<func::FuncOp, FunctionTrackingData> funcToData;
+  /// Map from memref argument to its created CB and base address.
+  llvm::DenseMap<Value, MemrefArgData> memrefArgToData;
+  
+  /// Map from index argument to its created compile-arg value.
+  llvm::DenseMap<Value, IndexArgData> indexArgToData;
 };
 
 /**

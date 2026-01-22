@@ -3,8 +3,8 @@
  * @brief Implementation for memory operation to TT kernel conversion pass.
  * @details
  * This pass processes memory operations whose destination allocations carry
- * `{loom.alloc ...}` attributes and records their base address information
- * using the CompileArgTracker from FuncOpToTTKernel.
+ * `{loom.alloc ...}` attributes and uses the pre-created compile-arg values
+ * from the CompileArgTracker.
  */
 
 #include "MemoryOpToTTKernel.h"
@@ -32,14 +32,13 @@ using namespace mlir;
 using namespace mlir::loom;
 using namespace tt::ttkernel;
 using namespace tt::ttcore;
+
 /**
  * @brief Convert `memref.copy` with `loom.copy.choice` into TTKernel load ops.
  *
- * @details The conversion uses CompileArgTracker to recover the base memref and
- *          offset from the source `memref.reinterpret_cast`. It then emits a
- *          TTKernel NOC read sequence to populate the destination circular
- *          buffer (CB). The destination is expected to be type-converted to a
- *          TTKernel CB type by the surrounding conversion pipeline.
+ * @details The conversion uses CompileArgTracker to get the pre-created base
+ *          address value from the source memref. It then emits a TTKernel NOC
+ *          read sequence to populate the destination circular buffer (CB).
  */
 struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
   using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
@@ -48,7 +47,7 @@ struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
    * @brief Construct the pattern with a type converter and context.
    * @param typeConverter Type converter for the conversion pipeline.
    * @param context MLIR context.
-   * @param tracker Shared tracker for compile-arg index assignment.
+   * @param tracker Shared tracker for compile-arg values.
    */
   ConvertLoadOp(TypeConverter &typeConverter, MLIRContext *context,
                 std::shared_ptr<CompileArgTracker> tracker)
@@ -68,29 +67,60 @@ struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
                    ConversionPatternRewriter &rewriter) const override {
      // Load: source must be a reinterpret_cast (reading from external memory).
      Value source = op.getSource();
-     if (!source.getDefiningOp<memref::ReinterpretCastOp>())
+     auto reinterpretCastOp = source.getDefiningOp<memref::ReinterpretCastOp>();
+     if (!reinterpretCastOp)
        return failure();
  
      Location loc = op.getLoc();
-     Value cb;
-     memref::AllocOp targetAlloc = op.getTarget().getDefiningOp<memref::AllocOp>();
-     cb = rewriter.getRemappedValue(op.getTarget());
+     
+     // Get the input memref (source of reinterpret_cast) - this should be a function argument.
+     Value inputMemref = reinterpretCastOp.getSource();
+     
+     // Get the pre-created CB from the tracker.
+     Value cb = tracker->getCB(inputMemref);
+     if (!cb) {
+       // Fallback: try to get from remapped value (alloc conversion may have run).
+       cb = rewriter.getRemappedValue(op.getTarget());
+     }
+     if (!cb) {
+       // Still no CB - create a fallback.
+       auto cbType =
+           cast<CBType>(typeConverter->convertType(op.getTarget().getType()));
+       auto idxAttr = rewriter.getI32IntegerAttr(0);
+       cb = rewriter.create<GetCompileArgValOp>(loc, cbType, idxAttr);
+     }
 
  
+     // Get the pre-created base address from the tracker.
+     Value baseAddr = tracker->getBaseAddr(inputMemref);
+     if (!baseAddr) {
+       // If not found in tracker (e.g., not a function argument), create one here.
+       // This is a fallback for memrefs that weren't processed at function entry.
+       auto baseAddrIdxAttr = rewriter.getI32IntegerAttr(0);
+       baseAddr = rewriter.create<GetCompileArgValOp>(
+           loc, rewriter.getI32Type(), baseAddrIdxAttr);
+     }
+ 
+     // Determine insertion point: must be after both cb and baseAddr.
+     Value insertionAnchor = cb;
+     Operation* cbOp = cb.getDefiningOp();
+     Operation* baseAddrOp = baseAddr.getDefiningOp();
+     if (cbOp && baseAddrOp && cbOp->getBlock() == baseAddrOp->getBlock()) {
+       // If both are in the same block, insert after the later one.
+       if (cbOp->isBeforeInBlock(baseAddrOp)) {
+         insertionAnchor = baseAddr;
+       }
+     }
+ 
      auto opInsertionPt = rewriter.saveInsertionPoint();
-     rewriter.setInsertionPointAfterValue(cb);
+     rewriter.setInsertionPointAfterValue(insertionAnchor);
  
      auto dataFormat = GetDataFormatOp::create(rewriter, loc, cb);
      auto pageSize = GetTileSizeOp::create(rewriter, loc, cb);
  
-     // Get the base address and offset from memref.reinterpret_cast
-     // (source is already known to be a reinterpret_cast from the match check above)
+     // Get the offset from reinterpret_cast (use first offset if multiple)
      Value offset;
-     Value inputMemref = source;
-     auto reinterpretCastOp = source.getDefiningOp<memref::ReinterpretCastOp>();
      {
-       inputMemref = reinterpretCastOp.getSource();
-       // Get the offset from reinterpret_cast (use first offset if multiple)
        auto offsets = reinterpretCastOp.getOffsets();
        if (!offsets.empty()) {
          offset = offsets[0];
@@ -107,16 +137,7 @@ struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
          }
        }
      }
- 
-    // If the source comes from a memref input and the target is an L1 alloc,
-    // materialize the base address from a compile-time arg adjacent to the CB.
-        const auto inputData =
-            tracker->getOrCreate(inputMemref, targetAlloc);
-        auto baseAddrIdxAttr = rewriter.getI32IntegerAttr(
-            static_cast<int32_t>(inputData.baseAddrIndex));
-        auto baseAddr = rewriter.create<GetCompileArgValOp>(
-            loc, rewriter.getI32Type(), baseAddrIdxAttr);
- 
+
      Value trueVal = rewriter.create<arith::ConstantIntOp>(
          loc, rewriter.getI1Type(), 1);
      Value addrGen = GetInterleavedAddrGenFastOp::create(
@@ -213,7 +234,7 @@ struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
    }
  
 private:
-  /// Shared tracker for compile-arg index assignment.
+  /// Shared tracker for compile-arg values.
   std::shared_ptr<CompileArgTracker> tracker;
 };
 
@@ -221,9 +242,9 @@ private:
  * @brief Convert `memref.copy` with `loom.copy.choice` into TTKernel store ops.
  *
  * @details The conversion handles store operations where data flows from L1/CB
- *          (source) to external memory (target). It uses the target memref to
- *          recover base address information and emits a TTKernel NOC write
- *          sequence to transfer data from the circular buffer to DRAM.
+ *          (source) to external memory (target). It uses the pre-created base
+ *          address value and emits a TTKernel NOC write sequence to transfer
+ *          data from the circular buffer to DRAM.
  */
 struct ConvertStoreOp : public OpConversionPattern<memref::CopyOp> {
   using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
@@ -232,7 +253,7 @@ struct ConvertStoreOp : public OpConversionPattern<memref::CopyOp> {
    * @brief Construct the pattern with a type converter and context.
    * @param typeConverter Type converter for the conversion pipeline.
    * @param context MLIR context.
-   * @param tracker Shared tracker for compile-arg index assignment.
+   * @param tracker Shared tracker for compile-arg values.
    */
   ConvertStoreOp(TypeConverter &typeConverter, MLIRContext *context,
                  std::shared_ptr<CompileArgTracker> tracker)
@@ -252,25 +273,48 @@ struct ConvertStoreOp : public OpConversionPattern<memref::CopyOp> {
                    ConversionPatternRewriter &rewriter) const override {
      // Store: DRAM side is the target reinterpret_cast (writing from L1/CB to external memory).
      Value target = op.getTarget();
-     if (!target.getDefiningOp<memref::ReinterpretCastOp>())
+     auto reinterpretCastOp = target.getDefiningOp<memref::ReinterpretCastOp>();
+     if (!reinterpretCastOp)
        return failure();    
      Location loc = op.getLoc();
      
-     // L1 side: materialize the CB from the compile-time args associated with
-     // the DRAM memref (the reinterpret_cast source), matching the load path.
-     Value outputMemref = target;
-     if (auto reinterpretCastOp = target.getDefiningOp<memref::ReinterpretCastOp>())
-       outputMemref = reinterpretCastOp.getSource();
+     // Get the output memref (source of reinterpret_cast) - used for base address lookup.
+     Value outputMemref = reinterpretCastOp.getSource();
 
-     auto cbIdxAttr = rewriter.getI32IntegerAttr(
-         static_cast<int32_t>(tracker->getOrCreateOutput(outputMemref, op).cbIndex));
-     auto memrefType =
-         cast<CBType>(typeConverter->convertType(op.getSource().getType()));
-     auto cb = rewriter.create<GetCompileArgValOp>(loc, memrefType, cbIdxAttr);
+     // For store, the CB is associated with the L1 source (alloc), not the output memref.
+     // The source should be an alloc that was converted to a CB.
+     Value cb = rewriter.getRemappedValue(op.getSource());
+     if (!cb) {
+       // Fallback: create CB from type converter.
+       auto cbIdxAttr = rewriter.getI32IntegerAttr(0);
+       auto cbType =
+           cast<CBType>(typeConverter->convertType(op.getSource().getType()));
+       cb = rewriter.create<GetCompileArgValOp>(loc, cbType, cbIdxAttr);
+     }
 
  
+     // Get the pre-created base address from the tracker.
+     Value baseAddr = tracker->getBaseAddr(outputMemref);
+     if (!baseAddr) {
+       // Fallback: create base address.
+       auto baseAddrIdxAttr = rewriter.getI32IntegerAttr(0);
+       baseAddr = rewriter.create<GetCompileArgValOp>(
+           loc, rewriter.getI32Type(), baseAddrIdxAttr);
+     }
+ 
+     // Determine insertion point: must be after both cb and baseAddr.
+     Value insertionAnchor = cb;
+     Operation* cbOp = cb.getDefiningOp();
+     Operation* baseAddrOp = baseAddr.getDefiningOp();
+     if (cbOp && baseAddrOp && cbOp->getBlock() == baseAddrOp->getBlock()) {
+       // If both are in the same block, insert after the later one.
+       if (cbOp->isBeforeInBlock(baseAddrOp)) {
+         insertionAnchor = baseAddr;
+       }
+     }
+ 
      auto opInsertionPt = rewriter.saveInsertionPoint();
-     rewriter.setInsertionPointAfterValue(cb);
+     rewriter.setInsertionPointAfterValue(insertionAnchor);
  
      auto dataFormat = GetDataFormatOp::create(rewriter, loc, cb);
      auto pageSize = GetTileSizeOp::create(rewriter, loc, cb);
@@ -298,14 +342,6 @@ struct ConvertStoreOp : public OpConversionPattern<memref::CopyOp> {
        // No reinterpret_cast - use offset 0
        offset = rewriter.create<arith::ConstantIndexOp>(loc, 0);
      }
- 
-    // Materialize the base address from a compile-time arg associated with the
-    // output (DRAM) memref (typically the "last input memref" function arg).
-    const auto outputData = tracker->getOrCreateOutput(outputMemref, op);
-    auto baseAddrIdxAttr = rewriter.getI32IntegerAttr(
-        static_cast<int32_t>(outputData.baseAddrIndex));
-    auto baseAddr = rewriter.create<GetCompileArgValOp>(
-        loc, rewriter.getI32Type(), baseAddrIdxAttr);
  
      Value trueVal = rewriter.create<arith::ConstantIntOp>(
          loc, rewriter.getI1Type(), 1);
@@ -402,7 +438,7 @@ struct ConvertStoreOp : public OpConversionPattern<memref::CopyOp> {
    return success();
   }
  private:
-   /// Shared tracker for compile-arg index assignment.
+   /// Shared tracker for compile-arg values.
    std::shared_ptr<CompileArgTracker> tracker;
  };
  
@@ -431,7 +467,7 @@ struct ConvertAllocOp : public OpConversionPattern<memref::AllocOp> {
    * @brief Construct the pattern with a type converter and context.
    * @param typeConverter Type converter for the conversion pipeline.
    * @param context MLIR context.
-   * @param tracker Shared tracker for compile-arg index assignment.
+   * @param tracker Shared tracker for compile-arg values.
    */
   ConvertAllocOp(TypeConverter &typeConverter, MLIRContext *context,
                  std::shared_ptr<CompileArgTracker> tracker)
@@ -467,48 +503,35 @@ struct ConvertAllocOp : public OpConversionPattern<memref::AllocOp> {
   }
 
    /**
-    * @brief Match and rewrite `memref.alloc` with `{loom.alloc ...}`.
+    * @brief Match and rewrite `memref.alloc` to TTKernel CB.
     *
-    * @details This pattern converts L1 allocations to TTKernel circular buffers.
-    *          The CB index is determined by:
-    *          1. If the alloc receives data from a function argument (via memref.copy),
-    *             use the pre-assigned CB index from inputToData.
-    *          2. Otherwise, use the next available compile-arg index.
+    * @details This pattern converts allocations to TTKernel circular buffers.
+    *          - For allocs with `loom.alloc` that receive data from an input memref,
+    *            use the pre-created CB from the tracker.
+    *          - For other allocs (like output accumulators), create a new CB.
     */
    LogicalResult
    matchAndRewrite(memref::AllocOp op, OpAdaptor adaptor,
                    ConversionPatternRewriter &rewriter) const override {
-     // Only handle memref.alloc annotated with {loom.alloc ...}.
-     auto allocAttr = op->getAttrOfType<DictionaryAttr>("loom.alloc");
-     if (!allocAttr)
-       return failure();
-
      Location loc = op.getLoc();
-     auto *funcData = tracker->getOrCreateFuncData(
-         op->getParentOfType<func::FuncOp>());
      
      // Try to find the input memref that flows into this alloc.
-     // If found and it was pre-recorded (function argument), use its CB index.
-     int64_t allocIdx;
+     // If found, use the pre-created CB from the tracker.
      Value inputMemref = findInputMemref(op);
+     Value cb;
      if (inputMemref) {
-       auto it = funcData->inputToData.find(inputMemref);
-       if (it != funcData->inputToData.end()) {
-         // Use the pre-assigned CB index.
-         allocIdx = it->second.first;
-         funcData->allocToCbIndex[op.getResult()] = allocIdx;
-       } else {
-         allocIdx = tracker->getOrCreateAlloc(op);
-       }
-     } else {
-       allocIdx = tracker->getOrCreateAlloc(op);
+       cb = tracker->getCB(inputMemref);
      }
      
-     auto idxAttr = rewriter.getI32IntegerAttr(static_cast<int32_t>(allocIdx));
-     auto memrefType =
-         cast<CBType>(typeConverter->convertType(op.getResult().getType()));
-     auto cb =
-         rewriter.create<GetCompileArgValOp>(loc, memrefType, idxAttr);
+     if (!cb) {
+       // No pre-created CB found. Create a new one.
+       // For allocs with loom.alloc: this is a fallback
+       // For allocs without loom.alloc (e.g., output accumulators): create new CB
+       auto idxAttr = rewriter.getI32IntegerAttr(0); // TODO: use tracker to get unique index
+       auto cbType =
+           cast<CBType>(typeConverter->convertType(op.getResult().getType()));
+       cb = rewriter.create<GetCompileArgValOp>(loc, cbType, idxAttr);
+     }
 
      // Replace all uses of the alloc result with the CB value
      rewriter.replaceOp(op, cb);
@@ -516,7 +539,7 @@ struct ConvertAllocOp : public OpConversionPattern<memref::AllocOp> {
    }
  
 private:
-  /// Shared tracker for compile-arg index assignment.
+  /// Shared tracker for compile-arg values.
   std::shared_ptr<CompileArgTracker> tracker;
 };
 

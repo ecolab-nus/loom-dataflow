@@ -165,11 +165,30 @@ public:
     // Create type converter (needed for memref -> CB conversion).
     TileLoomTypeConverter typeConverter;
 
-    // Step 2.5: Replace index-type function arguments with GetCompileArgValOp.
+    // Step 3: Run a per-function DSE-style cleanup after splitting.
+    //
+    // The specialization step above can leave behind dead ops (e.g. allocs,
+    // casts, unused loop-carried values). Run a small cleanup pipeline on each
+    // function to simplify IR before the TTKernel lowering patterns run.
+    // NOTE: This MUST run BEFORE replaceFuncArgsWithCompileArgs because
+    // the cleanup passes may modify the IR, which would invalidate any
+    // values stored in the tracker.
+    PassManager postSplitPm(context);
+    postSplitPm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
+    postSplitPm.addNestedPass<func::FuncOp>(createCSEPass());
+    // Symbol DCE cleans up any now-unreferenced symbols at the module level.
+    postSplitPm.addPass(createSymbolDCEPass());
+    if (failed(postSplitPm.run(module))) {
+      signalPassFailure();
+      return;
+    }
+
+    // Step 3.5: Replace index-type function arguments with GetCompileArgValOp.
     // For each function, insert GetCompileArgValOp at the beginning of the
     // function body to materialize compile-time arguments:
     // - Index types: GetCompileArgValOp returning i32, then cast to index
-    // - Memref types (DRAM pointers): handled later by memory conversion patterns
+    // - Memref types (DRAM pointers): create CB and base address values
+    // This is done AFTER cleanup passes to avoid dangling value references.
     OpBuilder builder(context);
     for (func::FuncOp func : module.getOps<func::FuncOp>()) {
       if (failed(replaceFuncArgsWithCompileArgs(func, compileArgTracker,
@@ -182,21 +201,6 @@ public:
     // reinterpret_cast ops. They will be removed after conversion when all
     // uses are eliminated.
 
-    // Step 3: Run a per-function DSE-style cleanup after splitting.
-    //
-    // The specialization step above can leave behind dead ops (e.g. allocs,
-    // casts, unused loop-carried values). Run a small cleanup pipeline on each
-    // function to simplify IR before the TTKernel lowering patterns run.
-    PassManager postSplitPm(context);
-    postSplitPm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
-    postSplitPm.addNestedPass<func::FuncOp>(createCSEPass());
-    // Symbol DCE cleans up any now-unreferenced symbols at the module level.
-    postSplitPm.addPass(createSymbolDCEPass());
-    if (failed(postSplitPm.run(module))) {
-      signalPassFailure();
-      return;
-    }
-    
 
     // Set up conversion target
     ConversionTarget target(*context);
@@ -215,13 +219,9 @@ public:
       }
     });
     
-    // Mark memref.alloc with loom.alloc as illegal (needs conversion)
-    target.addDynamicallyLegalOp<memref::AllocOp>([&](memref::AllocOp op) {
-      // Only convert allocs with loom.alloc attribute
-      // Other allocs remain legal (they will be handled by type conversion
-      // if their types change, but won't be rewritten)
-      return !op->hasAttr("loom.alloc");
-    });
+    // Mark all memref.alloc as illegal (needs conversion)
+    // The type converter converts memref to CB, so all allocs need conversion.
+    target.addIllegalOp<memref::AllocOp>();
     
     // Mark memref operations that don't need conversion as legal
     // (they will be type-converted automatically)
