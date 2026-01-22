@@ -41,6 +41,8 @@ struct MemrefArgData {
   Value cb;
   /// The base address value created for this memref argument.
   Value baseAddr;
+  /// The tensor accessor value created for this memref argument.
+  Value tensorAccessor;
 };
 
 /**
@@ -109,6 +111,13 @@ public:
    * @return The base address value if found, nullptr otherwise.
    */
   Value getBaseAddr(Value arg);
+
+  /**
+   * @brief Get the tensor accessor value for a memref argument.
+   * @param arg The memref argument (BlockArgument).
+   * @return The tensor accessor value if found, nullptr otherwise.
+   */
+  Value getTensorAccessor(Value arg);
 
   /**
    * @brief Get the index value for an index argument.

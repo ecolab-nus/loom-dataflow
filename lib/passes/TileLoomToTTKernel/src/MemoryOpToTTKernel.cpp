@@ -111,12 +111,19 @@ struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
          insertionAnchor = baseAddr;
        }
      }
+
+     
  
      auto opInsertionPt = rewriter.saveInsertionPoint();
      rewriter.setInsertionPointAfterValue(insertionAnchor);
  
      auto dataFormat = GetDataFormatOp::create(rewriter, loc, cb);
      auto pageSize = GetTileSizeOp::create(rewriter, loc, cb);
+
+     Value trueVal = rewriter.create<arith::ConstantIntOp>(
+         loc, rewriter.getI1Type(), 1);
+     Value addrGen = GetInterleavedAddrGenFastOp::create(
+         rewriter, loc, /*dram=*/trueVal, baseAddr, pageSize, dataFormat);
  
      // Get the offset from reinterpret_cast (use first offset if multiple)
      Value offset;
@@ -191,14 +198,41 @@ struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
            loc, rewriter.getI32Type(), numElements * elementSizeBytes);
        numPages = arith::DivUIOp::create(rewriter, loc, totalSizeBytes, pageSize);
      }
+     //reserve space in CB and obtain write pointer
      CBReserveBackOp::create(rewriter, loc, cb, numPages);
- 
      Value l1Addr = GetWritePtrOp::create(rewriter, loc, cb);
- 
 
-     NocAsyncReadBarrierOp::create(rewriter, loc);
+     //copy data from source to L1
+    scf::ForOp loadTileLoop = scf::ForOp::create(
+        rewriter, loc, rewriter.create<arith::ConstantIntOp>(
+                           loc, rewriter.getI32Type(), 0), numPages,
+        rewriter.create<arith::ConstantIntOp>(
+                           loc, rewriter.getI32Type(), 1),
+        ValueRange{l1Addr, baseTileIndex});
+    {
+      rewriter.setInsertionPointToStart(loadTileLoop.getBody());
+      Value crtL1Address = loadTileLoop.getRegionIterArgs()[0];
+      Value crtTileIndex = loadTileLoop.getRegionIterArgs()[1];
+      // TODO: should the offset be const0 here? the only examples we have are
+      // TensorAccessor...
+      Value nocAddr = InterleavedAddrGenFastGetNocAddrOp::create(
+          rewriter, loc, addrGen, crtTileIndex, const0, Value());
+      NocAsyncReadOp::create(rewriter, loc, nocAddr, crtL1Address,
+                                       pageSize);
+      Value nextL1Address =
+          arith::AddIOp::create(rewriter, loc, crtL1Address, pageSize);
+      Value nextTileIndex =
+          arith::AddIOp::create(rewriter, loc, crtTileIndex,
+                                rewriter.create<arith::ConstantIntOp>(
+                                    loc, rewriter.getI32Type(), 1));
+      scf::YieldOp::create(rewriter, loc,
+                           ValueRange{nextL1Address, nextTileIndex});
+    }
+
+    rewriter.setInsertionPointAfter(loadTileLoop);
  
- 
+     //barrier
+     NocAsyncReadBarrierOp::create(rewriter, loc); 
      rewriter.eraseOp(op);
      return success();
    }
@@ -381,7 +415,7 @@ struct ConvertStoreOp : public OpConversionPattern<memref::CopyOp> {
        rewriter.setInsertionPointToStart(storeTileLoop.getBody());
        Value crtL1Address = storeTileLoop.getRegionIterArgs()[0];
        Value crtTileIndex = storeTileLoop.getRegionIterArgs()[1];
- 
+      
        Value nocAddr = InterleavedAddrGenFastGetNocAddrOp::create(
            rewriter, loc, addrGen, crtTileIndex, const0, Value());
  
