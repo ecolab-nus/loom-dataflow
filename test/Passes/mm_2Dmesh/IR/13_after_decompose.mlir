@@ -1,5 +1,5 @@
 module {
-  %0 = df.mat "FPU" {shape = [32, 32, 32]}
+  %0 = df.mat "FPU" {shape = [32, 32, 32], throughput = 128}
   %1 = df.vec "SFPU" {shape = [32]}
   %2 = df.spatial_dim "x", 8
   %3 = df.spatial_dim "y", 8
@@ -28,6 +28,11 @@ module {
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -93,12 +98,17 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -164,12 +174,17 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -241,6 +256,11 @@ module {
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -306,14 +326,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -385,13 +410,18 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -470,6 +500,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -540,14 +575,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -626,6 +666,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -696,14 +741,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_1__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -774,14 +824,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_1__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -860,6 +915,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f01__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -930,12 +990,17 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1002,11 +1067,16 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1072,12 +1142,17 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1144,11 +1219,16 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1215,13 +1295,18 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1292,7 +1377,7 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
@@ -1300,6 +1385,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1370,14 +1460,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1448,14 +1543,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1526,14 +1626,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1604,14 +1709,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_1__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1682,14 +1792,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_1__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1760,14 +1875,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i0__f10__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1838,12 +1958,17 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1914,8 +2039,13 @@ module {
       %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -1983,11 +2113,16 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -2060,6 +2195,11 @@ module {
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -2126,14 +2266,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -2213,6 +2358,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -2284,14 +2434,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_0__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -2371,6 +2526,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_0__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -2442,14 +2602,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -2521,14 +2686,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -2608,6 +2778,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -2679,14 +2854,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f01__hoist_block_1__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -2758,12 +2938,17 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -2831,11 +3016,16 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -2902,12 +3092,17 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -2975,11 +3170,16 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -3046,14 +3246,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -3129,10 +3334,15 @@ module {
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_0__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -3204,14 +3414,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_0__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -3283,14 +3498,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_0__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -3370,6 +3590,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -3441,14 +3666,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_1__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -3528,6 +3758,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_1__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -3600,13 +3835,18 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i0_d1i1__f10__hoist_block_1__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -3684,6 +3924,11 @@ module {
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -3751,11 +3996,16 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -3822,12 +4072,17 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -3894,12 +4149,17 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -3974,6 +4234,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -4046,13 +4311,18 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -4132,6 +4402,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -4203,7 +4478,7 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
@@ -4211,6 +4486,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_0__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -4290,6 +4570,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -4369,6 +4654,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_1__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -4440,7 +4730,7 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
@@ -4448,6 +4738,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_1__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -4519,7 +4814,7 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
@@ -4527,6 +4822,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f01__hoist_block_1__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -4604,6 +4904,11 @@ module {
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -4671,11 +4976,16 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f10__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -4742,12 +5052,17 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f10__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -4820,6 +5135,11 @@ module {
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f10__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -4894,6 +5214,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -4973,6 +5298,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_0__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -5052,6 +5382,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_0__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -5131,6 +5466,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_0__v_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -5210,6 +5550,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -5289,6 +5634,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_1__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -5360,7 +5710,7 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
@@ -5368,6 +5718,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_1__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -5439,7 +5794,7 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
@@ -5447,6 +5802,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d1i0_d0i1__f10__hoist_block_1__h_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -5519,11 +5879,16 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -5589,12 +5954,17 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -5660,12 +6030,17 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -5732,11 +6107,16 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -5802,14 +6182,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -5884,10 +6269,15 @@ module {
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_0__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -5958,14 +6348,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_0__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -6044,6 +6439,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_0__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -6114,14 +6514,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
-      %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -6193,13 +6598,18 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -6278,6 +6688,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -6356,6 +6771,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f01__hoist_block_1__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -6426,12 +6846,17 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -6498,11 +6923,16 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -6569,11 +6999,16 @@ module {
       loom.align %13 by 32
       loom.align %14 by 32
       %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
-      %16 = loom.expression(%14, %15) {coeffs = [1, 1], logic = "mul"} : index
+      %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -6645,6 +7080,11 @@ module {
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%17, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
+      %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %20 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%14, %21) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %19, %20, %21, %22) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -6718,6 +7158,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -6788,14 +7233,19 @@ module {
       loom.align %12 by 32
       loom.align %13 by 32
       loom.align %14 by 32
-      %15 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %15 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
       %16 = loom.expression(%15, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %13, %14, %15, %16) {monomials = [{coeff = -1 : i64, vars = [4]}], upper_bound = -262144 : i64}
       %17 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "add"} : index
       %18 = loom.expression(%14, %17) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
-      %19 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__a_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -6874,6 +7324,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__h_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -6952,6 +7407,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%12, %14, %13, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 256 : i64, vars = [3]}, {coeff = 960 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_0__v_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -7030,6 +7490,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%14, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 64 : i64, vars = [3]}, {coeff = 64 : i64, vars = [4]}, {coeff = -1 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_d(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -7108,6 +7573,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_a(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -7186,6 +7656,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%14, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%13, %12) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_h(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {
@@ -7264,6 +7739,11 @@ module {
       loom.polynomial_constraint(%12, %14, %13, %17, %18) {monomials = [{coeff = 1 : i64, vars = [4]}], upper_bound = 374784 : i64}
       %19 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
       loom.polynomial_constraint(%13, %12, %14, %19) {monomials = [{coeff = 512 : i64, vars = [0]}, {coeff = 1 : i64, vars = [3]}], upper_bound = 374784 : i64}
+      %20 = loom.expression(%12, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %21 = loom.expression(%13, %14) {coeffs = [1, 1], logic = "mul"} : index
+      %22 = loom.expression(%12, %13) {coeffs = [1, 1], logic = "mul"} : index
+      %23 = loom.expression(%14, %22) {coeffs = [1, 1], logic = "mul"} : index
+      loom.polynomial_constraint(%12, %13, %14, %20, %21, %22, %23) {monomials = [{coeff = 960 : i64, vars = [3]}, {coeff = 256 : i64, vars = [4]}, {coeff = -15 : i64, vars = [6]}], upper_bound = 0 : i64}
     }
     func.func @matmul_kernel__d0i1_d1i1__f10__hoist_block_1__d_v(%arg0: memref<*xf32> {tt.divisibility = 16 : i32}, %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
       affine.parallel (%arg9) = (0) to (8) {

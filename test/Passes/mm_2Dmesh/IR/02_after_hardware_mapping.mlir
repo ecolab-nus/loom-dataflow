@@ -1,5 +1,5 @@
 module {
-  %0 = df.mat "FPU" {shape = [32, 32, 32]}
+  %0 = df.mat "FPU" {shape = [32, 32, 32], throughput = 128}
   %1 = df.vec "SFPU" {shape = [32]}
   %2 = df.spatial_dim "x", 8
   %3 = df.spatial_dim "y", 8
