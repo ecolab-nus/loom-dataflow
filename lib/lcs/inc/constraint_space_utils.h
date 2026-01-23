@@ -183,6 +183,26 @@ void setPassNameAttr(mlir::ModuleOp module, llvm::StringRef passName);
 /// @return The pass name if set, empty string otherwise.
 llvm::StringRef getPassNameAttr(mlir::ModuleOp module);
 
+/// @brief Add compute-bound constraint combining A and B block memory access.
+///
+/// Generates constraint: BW_B*sizeA + BW_A*sizeB - BW_A*BW_B*compute/T <= 0
+/// where sizeA = BM*BK*elemSize, sizeB = BK*BN*elemSize, compute =
+/// flopCoeff*BM*BN*BK
+///
+/// @param csOp The constraint space to add the constraint to.
+/// @param varNames Symbolic variable names in order {"BM", "BN", "BK"}.
+/// @param bwA Effective bandwidth for A block (after DRAM contention).
+/// @param bwB Effective bandwidth for B block.
+/// @param throughput FPU throughput.
+/// @param elemSize Element size in bytes (typically 4 for f32).
+/// @param flopCoeff FLOP coefficient (2 for matmul FMA).
+/// @return The created PolynomialConstraintOp, or nullptr on failure.
+PolynomialConstraintOp
+addComputeMemoryConstraint(ConstraintSpaceOp csOp,
+                           llvm::ArrayRef<llvm::StringRef> varNames,
+                           int64_t bwA, int64_t bwB, int64_t throughput,
+                           int64_t elemSize = 4, int64_t flopCoeff = 2);
+
 } // namespace lcs
 } // namespace loom
 

@@ -288,5 +288,58 @@ llvm::StringRef getPassNameAttr(ModuleOp module) {
   return "";
 }
 
+PolynomialConstraintOp
+addComputeMemoryConstraint(ConstraintSpaceOp csOp,
+                           llvm::ArrayRef<llvm::StringRef> varNames,
+                           int64_t bwA, int64_t bwB, int64_t throughput,
+                           int64_t elemSize, int64_t flopCoeff) {
+  // Constraint: T * BW_B * sizeA + T * BW_A * sizeB - BW_A * BW_B * compute <=
+  // 0 where: sizeA = BM*BK*elemSize (varNames[0] * varNames[2])
+  //        sizeB = BK*BN*elemSize (varNames[2] * varNames[1])
+  //        compute = flopCoeff * BM*BN*BK (all three vars)
+  //
+  // Monomials:
+  // 1: coeff=throughput*bwB*elemSize, vars=[0,2] (BM*BK)
+  // 2: coeff=throughput*bwA*elemSize, vars=[2,1] (BK*BN)
+  // 3: coeff=-flopCoeff*bwA*bwB, vars=[0,1,2] (BM*BN*BK)
+
+  if (varNames.size() < 3) {
+    LLVM_DEBUG(llvm::dbgs()
+               << "addComputeMemoryConstraint requires 3 variables\n");
+    return nullptr;
+  }
+
+  // Calculate monomial coefficients
+  int64_t coeffA = throughput * bwB * elemSize;    // Memory A term
+  int64_t coeffB = throughput * bwA * elemSize;    // Memory B term
+  int64_t coeffCompute = -(flopCoeff * bwA * bwB); // Compute term
+
+  llvm::SmallVector<Monomial> monomials;
+
+  // Monomial 1: BM*BK (A block size)
+  Monomial mA;
+  mA.varIndices = {0, 2}; // BM * BK
+  mA.coeff = coeffA;
+  monomials.push_back(mA);
+
+  // Monomial 2: BK*BN (B block size)
+  Monomial mB;
+  mB.varIndices = {1, 2}; // BN * BK (sorted as [1,2])
+  mB.coeff = coeffB;
+  monomials.push_back(mB);
+
+  // Monomial 3: BM*BN*BK (compute)
+  Monomial mCompute;
+  mCompute.varIndices = {0, 1, 2}; // BM * BN * BK
+  mCompute.coeff = coeffCompute;
+  monomials.push_back(mCompute);
+
+  LLVM_DEBUG(llvm::dbgs() << "Adding compute-memory constraint: " << coeffA
+                          << "*BM*BK + " << coeffB << "*BK*BN + "
+                          << coeffCompute << "*BM*BN*BK <= 0\n");
+
+  return addPolynomialConstraint(csOp, varNames, monomials, 0);
+}
+
 } // namespace lcs
 } // namespace loom

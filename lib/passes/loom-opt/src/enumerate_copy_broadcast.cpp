@@ -10,6 +10,7 @@
  */
 
 #include "Passes.h"
+#include "compute_unit_registry.h"
 #include "constraint_exporter.h"
 #include "constraint_space_utils.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -17,7 +18,6 @@
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/IRMapping.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Pass/Pass.h"
@@ -42,6 +42,49 @@ namespace {
 // interconnect types)
 constexpr StringLiteral kHorizontalLinks = "horizontal_links";
 constexpr StringLiteral kVerticalLinks = "vertical_links";
+
+/**
+ * @brief Extract hardware timing information from the module.
+ * @details Walks the module to find df.mat (FPU throughput), df.memory (L1 and
+ * DRAM bandwidth), and df.spatial_dim (core counts) operations.
+ * @param module The module containing dataflow hardware description.
+ * @return HardwareTiming struct with extracted parameters.
+ */
+static loom::HardwareTiming extractHardwareTiming(ModuleOp module) {
+  loom::HardwareTiming hw;
+
+  // Find FPU throughput from df.mat
+  module.walk([&](loom::df::MatOp matOp) {
+    if (matOp.getName() == "FPU") {
+      if (auto throughput = matOp.getThroughput()) {
+        hw.fpuThroughput = *throughput;
+      }
+    }
+  });
+
+  // Find L1 and DRAM bandwidth from df.memory
+  module.walk([&](loom::df::MemoryOp memOp) {
+    StringRef name = memOp.getSymName();
+    if (name == "L1") {
+      hw.l1Bandwidth = memOp.getBandwidth();
+    } else if (name == "DRAM") {
+      hw.dramBandwidth = memOp.getBandwidth();
+    }
+  });
+
+  // Calculate total cores from df.core scaleout
+  module.walk([&](loom::df::CoreOp coreOp) {
+    int64_t cores = 1;
+    for (Value dimValue : coreOp.getScaleout()) {
+      if (auto dimOp = dimValue.getDefiningOp<loom::df::SpatialDimOp>()) {
+        cores *= dimOp.getSize();
+      }
+    }
+    hw.totalCores = cores;
+  });
+
+  return hw;
+}
 
 /**
  * @brief Structure representing an interconnect choice for a copy operation.
@@ -605,7 +648,8 @@ static SmallVector<loom::CopyOp> findCopyOpsInFunc(func::FuncOp func) {
 class CopyBroadcastEnumerator {
 public:
   CopyBroadcastEnumerator(ModuleOp module)
-      : module(module), builder(module.getBodyRegion()) {}
+      : module(module), builder(module.getBodyRegion()),
+        hwTiming(extractHardwareTiming(module)) {}
 
   /// @brief Enumerate choices for all functions in the module.
   void enumerate() {
@@ -637,8 +681,9 @@ private:
         func::FuncOp clonedFunc = loom::utils::cloneFuncWithConstraints(
             builder, originalFunc, newName, moduleAttrs,
             "EnumerateCopyBroadcast",
-            [&](func::FuncOp func, loom::ConstraintSpaceOp /*cs*/) {
-              return applyChoices(func, choice1, choice2);
+            [&](func::FuncOp func, loom::ConstraintSpaceOp cs) {
+              return applyChoicesAndInjectConstraint(func, cs, choice1,
+                                                     choice2);
             },
             insertAfter);
 
@@ -655,12 +700,15 @@ private:
       originalFunc.erase();
   }
 
-  LogicalResult applyChoices(func::FuncOp func, const InterconnectChoice &c1,
-                             const InterconnectChoice &c2) {
+  LogicalResult applyChoicesAndInjectConstraint(func::FuncOp func,
+                                                loom::ConstraintSpaceOp csOp,
+                                                const InterconnectChoice &c1,
+                                                const InterconnectChoice &c2) {
     auto copyOps = findCopyOpsInFunc(func);
     if (copyOps.size() != 2)
       return failure();
 
+    // Apply broadcast choices
     OpBuilder b1(copyOps[0]);
     if (!c1.apply(copyOps[0], module, b1))
       return failure();
@@ -669,11 +717,32 @@ private:
     if (!c2.apply(copyOps[1], module, b2))
       return failure();
 
+    // Inject compute-memory constraint if we have valid hardware timing
+    if (csOp && hwTiming.fpuThroughput > 0 && hwTiming.totalCores > 0) {
+      // Get broadcast values for each copy operation after choices are applied
+      auto broadcastA = getBroadcastAttribute(copyOps[0]);
+      auto broadcastB = getBroadcastAttribute(copyOps[1]);
+
+      // Calculate effective bandwidths based on broadcast patterns
+      int64_t bwA =
+          hwTiming.getEffectiveBandwidth(broadcastA[0], broadcastA[1]);
+      int64_t bwB =
+          hwTiming.getEffectiveBandwidth(broadcastB[0], broadcastB[1]);
+
+      // Add compute-memory constraint: BW_B*sizeA + BW_A*sizeB -
+      // BW_A*BW_B*compute/T <= 0 Variable order: BM (index 0), BN (index 1), BK
+      // (index 2)
+      loom::lcs::addComputeMemoryConstraint(csOp, {"BM", "BN", "BK"}, bwA, bwB,
+                                            hwTiming.fpuThroughput,
+                                            /*elemSize=*/4, /*flopCoeff=*/2);
+    }
+
     return success();
   }
 
   ModuleOp module;
   OpBuilder builder;
+  loom::HardwareTiming hwTiming;
 };
 
 /**

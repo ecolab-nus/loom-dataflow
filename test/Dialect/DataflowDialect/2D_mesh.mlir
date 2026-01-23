@@ -1,6 +1,6 @@
 module {
     // functional untis description
-    %mat_unit = df.mat "FPU" {shape = [32, 32, 32]}
+    %mat_unit = df.mat "FPU" {shape = [32, 32, 32], throughput = 128}
     %vec_unit = df.vec "SFPU" {shape = [32]}
     // scale-out description
     %x = df.spatial_dim "x", 8
