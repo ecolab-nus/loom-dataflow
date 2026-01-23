@@ -1,15 +1,17 @@
 /**
  * @file FuncOpToTTKernel.h
  * @brief Header for function specialization pass that splits functions into
- *        compute, reader, and writer kernels.
+ *        compute, reader, writer, and host kernels.
  *
- * @details This pass clones each func::FuncOp into three specialized versions:
+ * @details This pass clones each func::FuncOp into four specialized versions:
  *          - `__compute`: retains compute ops (e.g., linalg.matmul), erases
  *                        memory stores
  *          - `__reader` : retains memory *load* ops, erases memory stores and
  *                        compute ops
  *          - `__writer` : retains memory *store* ops, erases memory loads and
  *                        compute ops
+ *          - `__host`   : erases all compute, load, and store ops, retaining
+ *                        only control flow and other operations
  *          This separation happens before MemoryOp/ComputeOp lowering so each
  *          specialized function can be lowered independently, following the
  *          compute/reader/writer split used in the Triton-Tenstorrent flow.
@@ -157,12 +159,13 @@ private:
 };
 
 /**
- * @brief Specialize functions into compute and data variants.
+ * @brief Specialize functions into compute, data, and host variants.
  *
- * @details For each func::FuncOp in the module, this creates three clones:
+ * @details For each func::FuncOp in the module, this creates four clones:
  *          - `<name>__compute`: compute-only kernel (stores erased)
  *          - `<name>__reader` : reader kernel (loads only)
  *          - `<name>__writer` : writer kernel (stores only)
+ *          - `<name>__host`   : host kernel (all compute/load/store erased)
  *          The original function is erased after cloning.
  *
  * @param module The module containing functions to specialize.

@@ -2,10 +2,11 @@
  * @file FuncOpToTTKernel.cpp
  * @brief Implementation for function specialization pass.
  *
- * @details This pass clones each func::FuncOp into three specialized versions:
+ * @details This pass clones each func::FuncOp into four specialized versions:
  *          - `__compute`: retains compute ops, erases store operations
  *          - `__reader` : retains memory load ops, erases stores & compute ops
  *          - `__writer` : retains memory store ops, erases loads & compute ops
+ *          - `__host`   : erases all compute, load, and store operations
  *          This loosely mimics the CoreSpecialize pattern from
  *          triton-tenstorrent while remaining TileLoom-specific.
  */
@@ -372,10 +373,60 @@ static func::FuncOp makeWriterFunc(func::FuncOp func) {
 }
 
 /**
+ * @brief Specialize a function for host-only execution (no compute/load/store).
+ *
+ * @details Clones the function with `__host` suffix and erases all
+ *          compute operations (linalg.matmul etc.), load operations
+ *          (memref.copy where source is reinterpret_cast), and store
+ *          operations (memref.copy where target is reinterpret_cast).
+ *          This creates a host function with only control flow and
+ *          other non-compute/memory operations.
+ *
+ * @param func The original function to specialize.
+ * @return The specialized host function.
+ */
+static func::FuncOp makeHostFunc(func::FuncOp func) {
+  IRMapping mapping;
+  auto hostFunc = cast<func::FuncOp>(func->clone(mapping));
+  hostFunc.setName((func.getName() + "__host").str());
+
+  // Collect all compute, load, and store operations to erase
+  SmallVector<Operation *, 8> opsToErase;
+  hostFunc.walk([&](Operation *op) {
+    if (isComputeOp(op)) {
+      opsToErase.push_back(op);
+    } else if (auto copyOp = dyn_cast<memref::CopyOp>(op)) {
+      if (isLoadOp(copyOp) || isStoreOp(copyOp)) {
+        opsToErase.push_back(op);
+      }
+    }
+  });
+
+  // Remove all collected operations first
+  for (Operation *op : llvm::reverse(opsToErase)) {
+    op->erase();
+  }
+
+  // Clean up unused reinterpret_cast ops that were only used by erased ops
+  SmallVector<Operation *, 8> unusedRcOps;
+  hostFunc.walk([&](memref::ReinterpretCastOp rcOp) {
+    if (rcOp.getResult().use_empty()) {
+      unusedRcOps.push_back(rcOp);
+    }
+  });
+
+  for (Operation *op : unusedRcOps) {
+    op->erase();
+  }
+
+  return hostFunc;
+}
+
+/**
  * @brief Specializer class that manages function cloning and specialization.
  *
  * @details Follows the CoreSpecialize pattern from triton-tenstorrent.
- *          For each function, creates compute, reader, and writer
+ *          For each function, creates compute, reader, writer, and host
  *          specialized versions, inserts them into the module, and
  *          erases the original.
  */
@@ -387,6 +438,7 @@ public:
     auto computeFunc = makeComputeFunc(func);
     auto readerFunc = makeReaderFunc(func);
     auto writerFunc = makeWriterFunc(func);
+    auto hostFunc = makeHostFunc(func);
 
     // Attach TTKernel thread type attributes so downstream TTKernelToCpp
     // translation can recognize these as kernel entry points.
@@ -399,11 +451,13 @@ public:
     computeFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, computeAttr);
     readerFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
     writerFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
+    hostFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
 
     // Insert specialized functions into the module (before the original)
     module.insert(func, computeFunc);
     module.insert(func, readerFunc);
     module.insert(func, writerFunc);
+    module.insert(func, hostFunc);
   }
 
 private:
@@ -421,7 +475,7 @@ void mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
     // Skip functions that are already specialized
     StringRef name = func.getName();
     if (name.ends_with("__compute") || name.ends_with("__reader") ||
-        name.ends_with("__writer"))
+        name.ends_with("__writer") || name.ends_with("__host"))
       continue;
 
     // Skip external/declaration-only functions
