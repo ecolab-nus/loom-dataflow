@@ -305,6 +305,16 @@ public:
       }
     }
 
+
+    // postprocessing optimizations
+    PassManager postPm(context);
+    postPm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
+    postPm.addNestedPass<func::FuncOp>(createCSEPass());
+    if (failed(postPm.run(module))) {
+      signalPassFailure();
+      return;
+    }
+
     // Final stage: strip all Dataflow (df) dialect ops from the module.
     eraseAllDfOps(module);
   }
