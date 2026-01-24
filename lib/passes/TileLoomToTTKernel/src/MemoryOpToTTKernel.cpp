@@ -33,14 +33,43 @@ using namespace mlir::loom;
 using namespace tt::ttkernel;
 using namespace tt::ttcore;
 
+//===----------------------------------------------------------------------===//
+// Helper Functions
+//===----------------------------------------------------------------------===//
+
 /**
- * @brief Convert `memref.copy` with `loom.copy.choice` into TTKernel load ops.
+ * @brief Check if the operation is inside a compute kernel function.
+ *
+ * @details Determines kernel type by checking the ThreadTypeAttr on the parent
+ *          function. Compute kernels have ThreadType::Compute, while reader/writer
+ *          kernels have ThreadType::Noc.
+ *
+ * @param op The operation to check.
+ * @return true if the operation is inside a compute kernel, false otherwise.
+ */
+static bool isComputeKernel(Operation *op) {
+  auto parentFunc = op->getParentOfType<func::FuncOp>();
+  if (!parentFunc)
+    return false;
+
+  auto threadAttr =
+      parentFunc->getAttrOfType<ThreadTypeAttr>(ThreadTypeAttr::name);
+  return threadAttr && threadAttr.getValue() == ThreadType::Compute;
+}
+
+//===----------------------------------------------------------------------===//
+// Memory Kernel Patterns (Reader/Writer)
+//===----------------------------------------------------------------------===//
+
+/**
+ * @brief Convert `memref.copy` into TTKernel NOC read ops for reader kernels.
  *
  * @details The conversion uses CompileArgTracker to get the pre-created base
  *          address value from the source memref. It then emits a TTKernel NOC
  *          read sequence to populate the destination circular buffer (CB).
+ *          This pattern is used for reader kernels (Noc thread type).
  */
-struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
+struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
   using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
 
   /**
@@ -49,8 +78,8 @@ struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
    * @param context MLIR context.
    * @param tracker Shared tracker for compile-arg values.
    */
-  ConvertLoadOp(TypeConverter &typeConverter, MLIRContext *context,
-                std::shared_ptr<CompileArgTracker> tracker)
+  ConvertMemoryLoadOp(TypeConverter &typeConverter, MLIRContext *context,
+                      std::shared_ptr<CompileArgTracker> tracker)
       : OpConversionPattern<memref::CopyOp>(typeConverter, context),
         tracker(std::move(tracker)) {}
  
@@ -243,14 +272,15 @@ private:
 };
 
 /**
- * @brief Convert `memref.copy` with `loom.copy.choice` into TTKernel store ops.
+ * @brief Convert `memref.copy` into TTKernel NOC write ops for writer kernels.
  *
  * @details The conversion handles store operations where data flows from L1/CB
  *          (source) to external memory (target). It uses the pre-created base
  *          address value and emits a TTKernel NOC write sequence to transfer
  *          data from the circular buffer to DRAM.
+ *          This pattern is used for writer kernels (Noc thread type).
  */
-struct ConvertStoreOp : public OpConversionPattern<memref::CopyOp> {
+struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
   using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
 
   /**
@@ -259,8 +289,8 @@ struct ConvertStoreOp : public OpConversionPattern<memref::CopyOp> {
    * @param context MLIR context.
    * @param tracker Shared tracker for compile-arg values.
    */
-  ConvertStoreOp(TypeConverter &typeConverter, MLIRContext *context,
-                 std::shared_ptr<CompileArgTracker> tracker)
+  ConvertMemoryStoreOp(TypeConverter &typeConverter, MLIRContext *context,
+                       std::shared_ptr<CompileArgTracker> tracker)
       : OpConversionPattern<memref::CopyOp>(typeConverter, context),
         tracker(std::move(tracker)) {}
  
@@ -435,17 +465,255 @@ struct ConvertStoreOp : public OpConversionPattern<memref::CopyOp> {
      rewriter.setInsertionPointAfter(storeTileLoop);
      NocAsyncWriteBarrierOp::create(rewriter, loc);
  
-    // Pop the tiles from the CB after writing
-    CBPopFrontOp::create(rewriter, loc, cb, numPages);
+   // Pop the tiles from the CB after writing
+   CBPopFrontOp::create(rewriter, loc, cb, numPages);
 
-   // Remove the original memref.copy op.
-   rewriter.eraseOp(op);
-   return success();
-  }
+  // Remove the original memref.copy op.
+  rewriter.eraseOp(op);
+  return success();
+ }
  private:
    /// Shared tracker for compile-arg values.
    std::shared_ptr<CompileArgTracker> tracker;
  };
+
+//===----------------------------------------------------------------------===//
+// Compute Kernel Patterns
+//===----------------------------------------------------------------------===//
+
+/**
+ * @brief Convert `memref.copy` to CB synchronization for compute kernels (load).
+ *
+ * @details Compute kernels don't have direct NOC access. Instead of performing
+ *          NOC reads, compute kernels wait for the reader kernel to load data
+ *          into the circular buffer via cb_wait_front.
+ *          This pattern handles the "load" side (source is reinterpret_cast).
+ */
+struct ConvertComputeLoadOp : public OpConversionPattern<memref::CopyOp> {
+  using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
+
+  /**
+   * @brief Construct the pattern with a type converter and context.
+   * @param typeConverter Type converter for the conversion pipeline.
+   * @param context MLIR context.
+   * @param tracker Shared tracker for compile-arg values.
+   */
+  ConvertComputeLoadOp(TypeConverter &typeConverter, MLIRContext *context,
+                       std::shared_ptr<CompileArgTracker> tracker)
+      : OpConversionPattern<memref::CopyOp>(typeConverter, context),
+        tracker(std::move(tracker)) {}
+
+  /**
+   * @brief Match and rewrite `memref.copy` into CB wait operations for compute.
+   *
+   * @details This pattern handles `memref.copy` operations in compute kernels
+   *          where the source is a `memref.reinterpret_cast`. Instead of NOC
+   *          operations, it emits cb_wait_front to wait for reader kernel.
+   *
+   * @todo Implement cb_wait_front emission when TTKernel ops are available.
+   */
+  LogicalResult
+  matchAndRewrite(memref::CopyOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    // TODO: Implement cb_wait_front to wait for reader kernel to load data.
+    // For now, return failure() - will be implemented in follow-up.
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+private:
+  /// Shared tracker for compile-arg values.
+  std::shared_ptr<CompileArgTracker> tracker;
+};
+
+/**
+ * @brief Convert `memref.copy` to CB synchronization for compute kernels (store).
+ *
+ * @details Compute kernels don't have direct NOC access. Instead of performing
+ *          NOC writes, compute kernels signal completion via cb_push_back so
+ *          the writer kernel can consume the data.
+ *          This pattern handles the "store" side (target is reinterpret_cast).
+ */
+struct ConvertComputeStoreOp : public OpConversionPattern<memref::CopyOp> {
+  using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
+
+  /**
+   * @brief Construct the pattern with a type converter and context.
+   * @param typeConverter Type converter for the conversion pipeline.
+   * @param context MLIR context.
+   * @param tracker Shared tracker for compile-arg values.
+   */
+  ConvertComputeStoreOp(TypeConverter &typeConverter, MLIRContext *context,
+                        std::shared_ptr<CompileArgTracker> tracker)
+      : OpConversionPattern<memref::CopyOp>(typeConverter, context),
+        tracker(std::move(tracker)) {}
+
+  /**
+   * @brief Match and rewrite `memref.copy` into CB push operations for compute.
+   *
+   * @details This pattern handles `memref.copy` operations in compute kernels
+   *          where the target is a `memref.reinterpret_cast`. Instead of NOC
+   *          operations, it emits cb_push_back to signal data ready for writer.
+   *
+   * @todo Implement cb_push_back emission when TTKernel ops are available.
+   */
+  LogicalResult
+  matchAndRewrite(memref::CopyOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+    
+    // Get the CB from the remapped source value (the alloc that was converted to CB).
+    // The source is the L1 buffer (alloc), the target is the external memory (reinterpret_cast).
+    Value outcb = rewriter.getRemappedValue(op.getSource());
+    if (!outcb || !isa<CBType>(outcb.getType()))
+      return failure();
+    
+    auto outcbType = cast<CBType>(outcb.getType());
+    // Use getNumElements() which works for both tiled and scalar CBs
+    // (getNumTiles() just calls getNumElements() but asserts element type is TileType)
+    int32_t numTiles = static_cast<int32_t>(outcbType.getNumElements());
+    Value outcbNumInputTilesValue = rewriter.create<arith::ConstantIntOp>(
+        loc, numTiles, 32);
+    
+    CBReserveBackOp::create(rewriter, loc, outcb, outcbNumInputTilesValue);
+    //commit tile regs
+    TileRegsCommitOp::create(rewriter, loc);
+    TileRegsWaitOp::create(rewriter, loc);
+    //pack tile using scf.for loop
+    Value lowerBound = rewriter.create<arith::ConstantIntOp>(loc, 0, 32);
+    Value step = rewriter.create<arith::ConstantIntOp>(loc, 1, 32);
+    unsigned dstIndexOffset = 0;
+    
+    scf::ForOp packLoop = scf::ForOp::create(
+        rewriter, loc, lowerBound, outcbNumInputTilesValue, step);
+    {
+      rewriter.setInsertionPointToStart(packLoop.getBody());
+      Value i = packLoop.getInductionVar();
+      
+      // dstIdx = i + dstIndexOffset
+      Value dstIdx = i;
+      if (dstIndexOffset != 0) {
+        Value offsetVal = rewriter.create<arith::ConstantIntOp>(
+            loc, static_cast<int32_t>(dstIndexOffset), 32);
+        dstIdx = arith::AddIOp::create(rewriter, loc, i, offsetVal);
+      }
+      // outIdx = i
+      PackTileOp::create(rewriter, loc, dstIdx, outcb, i);
+    }
+    rewriter.setInsertionPointAfter(packLoop);
+    //release tile regs
+    TileRegsReleaseOp::create(rewriter, loc);
+    CBPushBackOp::create(rewriter, loc, outcb, outcbNumInputTilesValue);
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+private:
+  /// Shared tracker for compile-arg values.
+  std::shared_ptr<CompileArgTracker> tracker;
+};
+
+//===----------------------------------------------------------------------===//
+// Dispatcher Patterns
+//===----------------------------------------------------------------------===//
+
+/**
+ * @brief Dispatcher pattern for load operations.
+ *
+ * @details Routes memref.copy (load) operations to the appropriate pattern
+ *          based on kernel type:
+ *          - Compute kernels: delegates to ConvertComputeLoadOp
+ *          - Memory kernels (reader): delegates to ConvertMemoryLoadOp
+ */
+struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
+  using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
+
+  /**
+   * @brief Construct the pattern with a type converter and context.
+   * @param typeConverter Type converter for the conversion pipeline.
+   * @param context MLIR context.
+   * @param tracker Shared tracker for compile-arg values.
+   */
+  ConvertLoadOp(TypeConverter &typeConverter, MLIRContext *context,
+                std::shared_ptr<CompileArgTracker> tracker)
+      : OpConversionPattern<memref::CopyOp>(typeConverter, context),
+        computePattern(typeConverter, context, tracker),
+        memoryPattern(typeConverter, context, tracker) {}
+
+  /**
+   * @brief Match and dispatch to appropriate load pattern based on kernel type.
+   */
+  LogicalResult
+  matchAndRewrite(memref::CopyOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    // Must be a load operation (source is reinterpret_cast)
+    Value source = op.getSource();
+    if (!source.getDefiningOp<memref::ReinterpretCastOp>())
+      return failure();
+
+    if (isComputeKernel(op)) {
+      return computePattern.matchAndRewrite(op, adaptor, rewriter);
+    }
+    return memoryPattern.matchAndRewrite(op, adaptor, rewriter);
+  }
+
+private:
+  /// Pattern for compute kernel loads.
+  ConvertComputeLoadOp computePattern;
+  /// Pattern for memory kernel loads.
+  ConvertMemoryLoadOp memoryPattern;
+};
+
+/**
+ * @brief Dispatcher pattern for store operations.
+ *
+ * @details Routes memref.copy (store) operations to the appropriate pattern
+ *          based on kernel type:
+ *          - Compute kernels: delegates to ConvertComputeStoreOp
+ *          - Memory kernels (writer): delegates to ConvertMemoryStoreOp
+ */
+struct ConvertStoreOp : public OpConversionPattern<memref::CopyOp> {
+  using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
+
+  /**
+   * @brief Construct the pattern with a type converter and context.
+   * @param typeConverter Type converter for the conversion pipeline.
+   * @param context MLIR context.
+   * @param tracker Shared tracker for compile-arg values.
+   */
+  ConvertStoreOp(TypeConverter &typeConverter, MLIRContext *context,
+                 std::shared_ptr<CompileArgTracker> tracker)
+      : OpConversionPattern<memref::CopyOp>(typeConverter, context),
+        computePattern(typeConverter, context, tracker),
+        memoryPattern(typeConverter, context, tracker) {}
+
+  /**
+   * @brief Match and dispatch to appropriate store pattern based on kernel type.
+   */
+  LogicalResult
+  matchAndRewrite(memref::CopyOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    // Must be a store operation (target is reinterpret_cast)
+    Value target = op.getTarget();
+    if (!target.getDefiningOp<memref::ReinterpretCastOp>())
+      return failure();
+
+    if (isComputeKernel(op)) {
+      return computePattern.matchAndRewrite(op, adaptor, rewriter);
+    }
+    return memoryPattern.matchAndRewrite(op, adaptor, rewriter);
+  }
+
+private:
+  /// Pattern for compute kernel stores.
+  ConvertComputeStoreOp computePattern;
+  /// Pattern for memory kernel stores.
+  ConvertMemoryStoreOp memoryPattern;
+};
+
+//===----------------------------------------------------------------------===//
+// Other Patterns
+//===----------------------------------------------------------------------===//
  
  struct ConvertReuseReinterpretCastOp
      : public OpConversionPattern<memref::ReinterpretCastOp> {

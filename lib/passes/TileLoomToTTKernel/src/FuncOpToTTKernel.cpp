@@ -249,44 +249,25 @@ static bool isComputeOp(Operation *op) {
  * @param func The original function to specialize.
  * @return The specialized compute function.
  */
+/**
+ * @brief Specialize a function for compute-only execution.
+ *
+ * @details Clones the function with `__compute` suffix. Both load and store
+ *          operations are retained - they will be lowered to CB synchronization
+ *          operations (cb_wait_front/cb_push_back) by the ConvertComputeLoadOp
+ *          and ConvertComputeStoreOp patterns instead of NOC operations.
+ *
+ * @param func The original function to specialize.
+ * @return The specialized compute function.
+ */
 static func::FuncOp makeComputeFunc(func::FuncOp func) {
   IRMapping mapping;
   auto computeFunc = cast<func::FuncOp>(func->clone(mapping));
   computeFunc.setName((func.getName() + "__compute").str());
 
-  // Collect and erase store operations (keep loads for reading from CBs)
-  SmallVector<Operation *, 8> opsToErase;
-  computeFunc.walk([&](memref::CopyOp copyOp) {
-    if (isStoreOp(copyOp)) {
-      opsToErase.push_back(copyOp);
-    }
-  });
-
-  // Also erase reinterpret_cast ops that were targets of erased stores
-  // (they become unused after store removal)
-  computeFunc.walk([&](memref::ReinterpretCastOp rcOp) {
-    // Check if this reinterpret_cast was the target of a store
-    // by seeing if all uses are in the opsToErase list
-    bool allUsesErased = true;
-    for (OpOperand &use : rcOp.getResult().getUses()) {
-      if (auto copyOp = dyn_cast<memref::CopyOp>(use.getOwner())) {
-        if (!isStoreOp(copyOp)) {
-          allUsesErased = false;
-          break;
-        }
-      } else {
-        allUsesErased = false;
-        break;
-      }
-    }
-    if (allUsesErased && !rcOp.getResult().getUses().empty()) {
-      opsToErase.push_back(rcOp);
-    }
-  });
-
-  for (Operation *op : opsToErase) {
-    op->erase();
-  }
+  // Compute kernels keep both loads and stores - they will be lowered to
+  // CB synchronization operations (cb_wait_front/cb_push_back) by the
+  // ConvertComputeLoadOp and ConvertComputeStoreOp patterns.
 
   return computeFunc;
 }

@@ -20,6 +20,7 @@
 
 #include "ComputeOpToTTKernel.h"
 
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -78,11 +79,57 @@ public:
     Value ktDim = oneI32;
     Value ntDim = oneI32;
 
+
+    // init matmul block at the beginning of the function (after CB definitions)
+    auto parentFunc = op->getParentOfType<func::FuncOp>();
+    if (parentFunc) {
+      auto &entryBlock = parentFunc.getBody().front();
+      auto savedInsertionPt = rewriter.saveInsertionPoint();
+      
+      // Find insertion point after all CB definitions
+      // CBs are defined by GetCompileArgValOp or similar ops at function start
+      Operation *insertAfter = nullptr;
+      for (Operation &entryOp : entryBlock) {
+        if (entryOp.getNumResults() > 0 && 
+            isa<CBType>(entryOp.getResult(0).getType())) {
+          insertAfter = &entryOp;
+        }
+      }
+      
+      if (insertAfter) {
+        rewriter.setInsertionPointAfter(insertAfter);
+      } else {
+        rewriter.setInsertionPointToStart(&entryBlock);
+      }
+      
+      rewriter.create<MatmulBlockInitOp>(
+          loc, TypeRange{},
+          ValueRange{in0Cb, in1Cb, outCb, transpose,
+                     ctDim, rtDim, ktDim});
+      rewriter.restoreInsertionPoint(savedInsertionPt);
+    }
+    // cb wait front - get number of tiles/pages for each CB
+    auto in0CbType = cast<CBType>(in0Cb.getType());
+    auto in1CbType = cast<CBType>(in1Cb.getType());
+    
+    // Use getNumElements() which works for both tiled and scalar CBs
+    // (getNumTiles() just calls getNumElements() but asserts element type is TileType)
+    Value in0NumInputTilesValue = rewriter.create<arith::ConstantIntOp>(
+        loc, static_cast<int32_t>(in0CbType.getNumElements()), 32);
+    Value in1NumInputTilesValue = rewriter.create<arith::ConstantIntOp>(
+        loc, static_cast<int32_t>(in1CbType.getNumElements()), 32);
+    CBWaitFrontOp::create(rewriter, loc, in0Cb, in0NumInputTilesValue);
+    CBWaitFrontOp::create(rewriter, loc, in1Cb, in1NumInputTilesValue);
+
     // Emit experimental::matmul_block. Core semantics and tuning are deferred.
     rewriter.create<ExperimentalMatmulBlockOp>(
         loc, TypeRange{},
         ValueRange{in0Cb, in1Cb, in0TileIdx, in1TileIdx, dstTileIdx, transpose,
                    ctDim, rtDim, ktDim, ntDim});
+    
+    //pop input cb
+    CBPopFrontOp::create(rewriter, loc, in0Cb, in0NumInputTilesValue);
+    CBPopFrontOp::create(rewriter, loc, in1Cb, in1NumInputTilesValue);
 
     rewriter.eraseOp(op);
     return success();
