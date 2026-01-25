@@ -256,13 +256,9 @@ public:
     });
     
     // Mark memref operations that don't have loom.copy.choice as legal
-    // They will be type-converted but not rewritten
-    // Note: memref::AllocOp is handled dynamically above (loom.alloc makes it illegal)
-    // `memref.reinterpret_cast` is generally legal, but if it carries
-    // `loom.reuse` we treat it as requiring conversion (framework hook).
     target.addDynamicallyLegalOp<memref::ReinterpretCastOp>(
         [&](memref::ReinterpretCastOp op) {
-          return !op->hasAttr("loom.reuse");
+          return false;
         });
     target.addLegalDialect<mlir::tt::ttkernel::TTKernelDialect>();
 

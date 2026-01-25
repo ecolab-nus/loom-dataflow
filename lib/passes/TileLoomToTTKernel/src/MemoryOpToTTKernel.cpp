@@ -320,10 +320,8 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
      Value cb = rewriter.getRemappedValue(op.getSource());
      if (!cb) {
        // Fallback: create CB from type converter.
-       auto cbIdxAttr = rewriter.getI32IntegerAttr(0);
-       auto cbType =
-           cast<CBType>(typeConverter->convertType(op.getSource().getType()));
-       cb = rewriter.create<GetCompileArgValOp>(loc, cbType, cbIdxAttr);
+       llvm::errs() << "No CB found for MemoryStoreOp source: " << op.getSource() << "\n";
+       return failure();
      }
 
  
@@ -562,11 +560,25 @@ struct ConvertComputeStoreOp : public OpConversionPattern<memref::CopyOp> {
                   ConversionPatternRewriter &rewriter) const override {
     Location loc = op.getLoc();
     
-    // Get the CB from the remapped source value (the alloc that was converted to CB).
-    // The source is the L1 buffer (alloc), the target is the external memory (reinterpret_cast).
-    Value outcb = rewriter.getRemappedValue(op.getSource());
-    if (!outcb || !isa<CBType>(outcb.getType()))
+    // Get the target - it should be a reinterpret_cast pointing to DRAM.
+    Value target = op.getTarget();
+    auto reinterpretCastOp = target.getDefiningOp<memref::ReinterpretCastOp>();
+    if (!reinterpretCastOp)
       return failure();
+
+    // Get the source of the reinterpret_cast - this is the original output
+    // memref (function argument like %arg2).
+    Value outputMemref = reinterpretCastOp.getSource();
+
+    // Get the CB associated with this output memref from the tracker.
+    // The tracker created this CB in processInputArgs for the function argument.
+    Value outcb = tracker->getCB(outputMemref);
+    llvm::outs() << "outcb: " << outcb << "\n";
+    if (!outcb || !isa<CBType>(outcb.getType()))
+    {
+      llvm::errs() << "No CB found for ComputeStoreOp target: " << op.getTarget() << "\n";
+      return failure();
+    }
     
     auto outcbType = cast<CBType>(outcb.getType());
     // Use getNumElements() which works for both tiled and scalar CBs
