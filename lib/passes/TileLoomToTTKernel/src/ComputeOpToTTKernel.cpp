@@ -111,6 +111,9 @@ public:
     // cb wait front - get number of tiles/pages for each CB
     auto in0CbType = cast<CBType>(in0Cb.getType());
     auto in1CbType = cast<CBType>(in1Cb.getType());
+
+    //add lock for DST register
+    TileRegsAcquireOp::create(rewriter, loc);
     
     // Use getNumElements() which works for both tiled and scalar CBs
     // (getNumTiles() just calls getNumElements() but asserts element type is TileType)

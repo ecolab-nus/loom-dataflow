@@ -17,7 +17,9 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/EmitC/IR/EmitC.h"
 #include "mlir/IR/IRMapping.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -398,6 +400,168 @@ static func::FuncOp makeHostFunc(func::FuncOp func) {
 
   for (Operation *op : unusedRcOps) {
     op->erase();
+  }
+
+  // Create DRAM buffers for input and output
+  // Calculate single_tile_size: typically sizeof(bfloat16) * TILE_HEIGHT * TILE_WIDTH = 2 * 32 * 32 = 2048
+  constexpr uint32_t single_tile_size = 2 * 32 * 32; // 2 bytes * 32 * 32 = 2048 bytes
+  
+  Location loc = hostFunc.getLoc();
+  OpBuilder builder(hostFunc.getContext());
+  builder.setInsertionPointToStart(&hostFunc.getBody().front());
+  
+  // Create DeviceLocalBufferConfig struct with initializer list
+  std::string dramConfigStr = "distributed::DeviceLocalBufferConfig dram_config{"
+                               ".page_size = " + std::to_string(single_tile_size) + 
+                               ", .buffer_type = tt_metal::BufferType::DRAM};";
+  builder.create<emitc::VerbatimOp>(loc, dramConfigStr);
+  
+  // Create ReplicatedBufferConfig for each memref input argument
+  // Iterate through original function arguments to get memref types
+  // Map argument index to buffer config name
+  SmallVector<std::pair<int, std::string>> argIndexToConfig; // Store (argIndex, configName) pairs
+  
+  for (auto [argIndex, arg] : llvm::enumerate(func.getArguments())) {
+    Type argType = arg.getType();
+    
+    if (auto memrefType = dyn_cast<MemRefType>(argType)) {
+      // Get memref shape/dimensions
+      ArrayRef<int64_t> shape = memrefType.getShape();
+      
+      // Build size expression: single_tile_size * dim0 * dim1 * ...
+      std::string sizeExpr = std::to_string(single_tile_size);
+      bool hasDynamicDim = false;
+      
+      for (int64_t dim : shape) {
+        if (dim == ShapedType::kDynamic) {
+          hasDynamicDim = true;
+          break;
+        }
+        sizeExpr += " * " + std::to_string(dim);
+      }
+      
+      // Skip if has dynamic dimensions (would need runtime values)
+      if (hasDynamicDim) {
+        continue;
+      }
+      
+      // Generate variable name: buffer_config_A, buffer_config_B, etc.
+      char varName = 'A' + argIndexToConfig.size();
+      std::string configName = "buffer_config_" + std::string(1, varName);
+      std::string bufferConfigStr = "distributed::ReplicatedBufferConfig " + configName + 
+                                     "{.size = " + sizeExpr + "};";
+      
+      builder.create<emitc::VerbatimOp>(loc, bufferConfigStr);
+      argIndexToConfig.push_back({argIndex, configName});
+    }
+  }
+  
+  // Create MeshBuffer objects for each buffer config
+  // Name based on argument index: dram_buffer_0, dram_buffer_1, etc.
+  for (const auto &[argIndex, configName] : argIndexToConfig) {
+    std::string bufferName = "dram_buffer_" + std::to_string(argIndex);
+    std::string meshBufferStr = "auto " + bufferName + " = distributed::MeshBuffer::create(" +
+                                configName + ", dram_config, mesh_device.get());";
+    builder.create<emitc::VerbatimOp>(loc, meshBufferStr);
+  }
+  
+  // Create circular buffers for each memref argument
+  // Calculate tiles_per_block from memref dimensions and create CircularBufferConfig
+  builder.create<emitc::VerbatimOp>(loc, "const auto cb_data_format = tt::DataFormat::Float16_b;");
+  builder.create<emitc::VerbatimOp>(loc, "uint32_t cb_buffer_depth = 2;");
+  builder.create<emitc::VerbatimOp>(loc, "MathFidelity math_fidelity = MathFidelity::HiFi4;");
+  
+  // CBIndex mapping: arg 0 -> c_0, arg 1 -> c_1, arg 2 -> c_16, etc.
+  SmallVector<int> cbIndexMap = {0, 1, 16}; // Default mapping, can be extended
+  
+  // Generate tiles_per_block variables and print statement
+  std::string printArgs;
+  for (const auto &[argIndex, configName] : argIndexToConfig) {
+    // Get the memref type for this argument to extract dimensions
+    BlockArgument arg = func.getArgument(argIndex);
+    auto memrefType = cast<MemRefType>(arg.getType());
+    ArrayRef<int64_t> shape = memrefType.getShape();
+    
+    // Calculate tiles_per_block: multiply all dimensions
+    // For 2D: [Mt, Kt] -> Mt * Kt, [Kt, Nt] -> Kt * Nt, [Mt, Nt] -> Mt * Nt
+    std::string tilesPerBlockExpr;
+    bool firstDim = true;
+    for (int64_t dim : shape) {
+      if (dim == ShapedType::kDynamic) {
+        // Skip if dynamic - would need runtime value
+        tilesPerBlockExpr = "";
+        break;
+      }
+      if (!firstDim) {
+        tilesPerBlockExpr += " * ";
+      }
+      tilesPerBlockExpr += std::to_string(dim);
+      firstDim = false;
+    }
+    
+    if (tilesPerBlockExpr.empty()) {
+      continue; // Skip if has dynamic dimensions
+    }
+    
+    // Get CBIndex for this argument
+    int cbIndex = (argIndex < cbIndexMap.size()) ? cbIndexMap[argIndex] : argIndex;
+    std::string cbIndexStr = "CBIndex::c_" + std::to_string(cbIndex);
+    
+    // Generate variable name for tiles_per_block
+    char varName = 'A' + argIndex;
+    std::string tilesVarName = std::string(1, varName) + "_tiles_per_block";
+    std::string tilesDecl = "const uint32_t " + tilesVarName + " = " + tilesPerBlockExpr + ";";
+    builder.create<emitc::VerbatimOp>(loc, tilesDecl);
+    
+    // Collect for print statement
+    if (!printArgs.empty()) {
+      printArgs += ", ";
+    }
+    printArgs += tilesVarName;
+  }
+
+  // Create CircularBufferConfig and call CreateCircularBuffer for each memref
+  for (const auto &[argIndex, configName] : argIndexToConfig) {
+    // Get the memref type for this argument to extract dimensions
+    BlockArgument arg = func.getArgument(argIndex);
+    auto memrefType = cast<MemRefType>(arg.getType());
+    ArrayRef<int64_t> shape = memrefType.getShape();
+    
+    // Calculate tiles_per_block: multiply all dimensions
+    std::string tilesPerBlockExpr;
+    bool firstDim = true;
+    for (int64_t dim : shape) {
+      if (dim == ShapedType::kDynamic) {
+        tilesPerBlockExpr = "";
+        break;
+      }
+      if (!firstDim) {
+        tilesPerBlockExpr += " * ";
+      }
+      tilesPerBlockExpr += std::to_string(dim);
+      firstDim = false;
+    }
+    
+    if (tilesPerBlockExpr.empty()) {
+      continue; // Skip if has dynamic dimensions
+    }
+    
+    // Get CBIndex for this argument
+    int cbIndex = (argIndex < cbIndexMap.size()) ? cbIndexMap[argIndex] : argIndex;
+    std::string cbIndexStr = "CBIndex::c_" + std::to_string(cbIndex);
+    
+    // Generate variable name for tiles_per_block (matching the declaration above)
+    char varName = 'A' + argIndex;
+    std::string tilesVarName = std::string(1, varName) + "_tiles_per_block";
+    
+    // Create CircularBufferConfig and call CreateCircularBuffer
+    std::string cbConfigStr = "tt_metal::CreateCircularBuffer("
+                              "program, "
+                              "all_cores, "
+                              "CircularBufferConfig(" + tilesVarName + " * cb_buffer_depth * " + 
+                              std::to_string(single_tile_size) + ", {{" + cbIndexStr + ", cb_data_format}})"
+                              ".set_page_size(" + cbIndexStr + ", " + std::to_string(single_tile_size) + "));";
+    builder.create<emitc::VerbatimOp>(loc, cbConfigStr);
   }
 
   return hostFunc;

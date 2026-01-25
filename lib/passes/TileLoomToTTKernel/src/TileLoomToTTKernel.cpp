@@ -11,6 +11,7 @@
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/EmitC/IR/EmitC.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Func/Transforms/FuncConversions.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
@@ -125,6 +126,8 @@ public:
     // DataFormatType). Otherwise, creating such types can fail with
     // "storage uniquer isn't initialized".
     registry.insert<mlir::tt::ttkernel::TTKernelDialect>();
+    // Ensure EmitC dialect is loaded for verbatim operations in host functions.
+    registry.insert<mlir::emitc::EmitCDialect>();
   }
 
   void runOnOperation() override {
