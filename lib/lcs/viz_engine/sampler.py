@@ -9,7 +9,7 @@ def generate_continuous_grid(ranges: Dict[str, Tuple[int, int]], resolution: int
     # Assuming M, N, K are the keys
     m_range = ranges.get('M', (0, 512))
     n_range = ranges.get('N', (0, 512))
-    k_range = ranges.get('K', (0, 512))
+    k_range = ranges.get('K', (0, 1500))
     
     m = np.linspace(m_range[0], m_range[1], resolution)
     n = np.linspace(n_range[0], n_range[1], resolution)

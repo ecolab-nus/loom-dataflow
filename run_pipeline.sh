@@ -109,7 +109,7 @@ echo "Lowering Succeed"
 
 echo "1) Visualize Raw Constraint Space..."
 if ! python -m lib.lcs.viz_engine.cli \
-  --func-name matmul_kernel__d0i0_d1i0__f01__d_d \
+  --func-name matmul_kernel__d0i0_d1i1__f01__d_d \
   test/Passes/mm_2Dmesh/constraint_space/raw_constraint_space.json \
   --resolution 40 \
   --output test/Passes/mm_2Dmesh/viz/raw_constraint_space.html; then
@@ -119,7 +119,7 @@ fi
 
 echo "2) Visualize Linear Constraint Space..."
 if ! python -m lib.lcs.viz_engine.cli \
-  --func-name matmul_kernel__d0i0_d1i0__f01__d_d \
+  --func-name matmul_kernel__d0i0_d1i1__f01__d_d \
   test/Passes/mm_2Dmesh/constraint_space/linearized_constraint_space.json \
   --resolution 40 \
   --output test/Passes/mm_2Dmesh/viz/linearized_constraint_space.html; then

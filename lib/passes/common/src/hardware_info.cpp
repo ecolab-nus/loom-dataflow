@@ -200,12 +200,13 @@ static affine::AffineParallelOp getOutermostParallel(func::FuncOp func) {
   return result;
 }
 
-static LogicalResult
-applyMappingToFunction(func::FuncOp func, const loom::DimBuckets &mapping,
-                       const llvm::SmallVector<loom::SpatialDimInfo> &dims,
-                       affine::AffineParallelOp &tar_forOp,
-                       std::string &suffix) {
+static LogicalResult applyMappingToFunction(
+    func::FuncOp func, const loom::DimBuckets &mapping,
+    const llvm::SmallVector<loom::SpatialDimInfo> &dims,
+    affine::AffineParallelOp &tar_forOp, std::string &suffix,
+    llvm::SmallVector<loom::ParallelToHWMapping> &mappingInfo) {
   suffix.clear();
+  mappingInfo.clear();
 
   MLIRContext *ctx = func.getContext();
   const unsigned numIter = static_cast<unsigned>(mapping.size());
@@ -224,6 +225,14 @@ applyMappingToFunction(func::FuncOp func, const loom::DimBuckets &mapping,
       if (!suffix.empty())
         suffix += "_";
       suffix += "d" + std::to_string(dimIdx) + "i" + std::to_string(iterIdx);
+
+      // Track the mapping: iterIdx (0=M, 1=N) -> dimIdx (0=x, 1=y) with size
+      loom::ParallelToHWMapping mapInfo;
+      mapInfo.parallelIterIdx = iterIdx;
+      mapInfo.hwDimIdx = dimIdx;
+      mapInfo.hwDimSize = factor;
+      mappingInfo.push_back(mapInfo);
+
       tar_forOp = tiled_parallels.tiled_org_;
     }
   }
@@ -267,7 +276,7 @@ static LogicalResult addL1CacheConstraints(func::FuncOp func,
 }
 
 static LogicalResult
-addHardwareDerivedConstraints(loom::ConstraintSpaceOp csOp,
+addIntraCorePipelineConstraints(loom::ConstraintSpaceOp csOp,
                               const loom::HardwareInfo &hardwareInfo) {
   if (!csOp)
     return success();
@@ -299,6 +308,79 @@ addHardwareDerivedConstraints(loom::ConstraintSpaceOp csOp,
       loom::lcs::addPipelineParallelismConstraint(
           csOp, symVarNames, hardwareInfo.matUnitCount, align);
     }
+  }
+
+  return success();
+}
+
+/// Add core utilization constraints based on mapped dimensions.
+/// For each parallel iterator, aggregate all mapped hardware dims (multiply
+/// sizes) and generate constraint: (product of hw sizes) * B <= UB.
+/// E.g., if M is mapped to both x=8 and y=8, generates: 64 * BM <= 512.
+static LogicalResult addInterCoreBalanceConstraints(
+    loom::ConstraintSpaceOp csOp,
+    const llvm::SmallVector<loom::ParallelToHWMapping> &mappingInfo) {
+  if (!csOp || mappingInfo.empty())
+    return success();
+
+  // Build a map from symbolic var name to its upper bound from RangeOp
+  llvm::StringMap<int64_t> varUpperBounds;
+  llvm::SmallVector<StringRef> symVarNamesOrdered;
+  for (Operation &op : csOp.getBodyBlock()->getOperations()) {
+    if (auto symVar = dyn_cast<loom::SymbolicVarOp>(&op)) {
+      symVarNamesOrdered.push_back(symVar.getName());
+    }
+    if (auto rangeOp = dyn_cast<loom::RangeOp>(&op)) {
+      if (auto symVar =
+              rangeOp.getVariable().getDefiningOp<loom::SymbolicVarOp>()) {
+        varUpperBounds[symVar.getName()] = rangeOp.getUpperBound();
+      }
+    }
+  }
+
+  // Convention: parallelIterIdx 0 = M -> "BM", 1 = N -> "BN"
+  auto getVarNameForIter = [&](unsigned iterIdx) -> StringRef {
+    // The symbolic vars are ordered as BM, BN, BK in our convention
+    if (iterIdx < symVarNamesOrdered.size())
+      return symVarNamesOrdered[iterIdx];
+    return "";
+  };
+
+  // Aggregate hardware dimension sizes per parallel iterator
+  // Key: parallelIterIdx, Value: product of all mapped hw dim sizes
+  llvm::DenseMap<unsigned, int64_t> iterToTotalCores;
+  for (const auto &mapping : mappingInfo) {
+    auto it = iterToTotalCores.find(mapping.parallelIterIdx);
+    if (it == iterToTotalCores.end()) {
+      iterToTotalCores[mapping.parallelIterIdx] = mapping.hwDimSize;
+    } else {
+      it->second *= mapping.hwDimSize;
+    }
+  }
+
+  // For each parallel iterator, add constraint: totalCores * B <= UB
+  for (const auto &entry : iterToTotalCores) {
+    unsigned iterIdx = entry.first;
+    int64_t totalCores = entry.second;
+
+    StringRef varName = getVarNameForIter(iterIdx);
+    if (varName.empty())
+      continue;
+
+    auto it = varUpperBounds.find(varName);
+    if (it == varUpperBounds.end())
+      continue;
+
+    int64_t dimUB = it->second;
+
+    // Constraint: totalCores * Var <= dimUB
+    llvm::SmallVector<loom::lcs::Monomial> monomials;
+    loom::lcs::Monomial m;
+    m.varIndices.push_back(0); // Single variable at index 0
+    m.coeff = totalCores;
+    monomials.push_back(m);
+
+    loom::lcs::addPolynomialConstraint(csOp, {varName}, monomials, dimUB);
   }
 
   return success();
@@ -414,7 +496,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
                     addL1CacheConstraints(cloned, csOp, hardwareInfo.l1Size)))
               return failure();
 
-            if (failed(addHardwareDerivedConstraints(csOp, hardwareInfo)))
+            if (failed(addIntraCorePipelineConstraints(csOp, hardwareInfo)))
               return failure();
 
             return success();
@@ -452,9 +534,10 @@ EnumerateSpatialMappings(ModuleOp affineModule,
                   return failure();
                 }
 
+                llvm::SmallVector<loom::ParallelToHWMapping> hwMappingInfo;
                 if (failed(applyMappingToFunction(
                         cloned, mapping, hardwareInfo.spatialDimInfoVec,
-                        tar_forOp, mappingSuffix))) {
+                        tar_forOp, mappingSuffix, hwMappingInfo))) {
                   return failure();
                 }
 
@@ -465,11 +548,14 @@ EnumerateSpatialMappings(ModuleOp affineModule,
 
                 composeAndCanonicalizeAffineApplies(cloned);
 
-                if (failed(addHardwareDerivedConstraints(csOp, hardwareInfo)))
+                if (failed(addIntraCorePipelineConstraints(csOp, hardwareInfo)))
                   return failure();
 
                 if (failed(addL1CacheConstraints(cloned, csOp,
                                                  hardwareInfo.l1Size)))
+                  return failure();
+
+                if (failed(addInterCoreBalanceConstraints(csOp, hwMappingInfo)))
                   return failure();
 
                 return success();

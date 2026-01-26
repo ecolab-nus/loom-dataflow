@@ -9,18 +9,18 @@ module {
       %bn = loom.symbolic_var "BN" : index
       %bk = loom.symbolic_var "BK" : index
 
-      loom.range %bm [0, 512]
-      loom.range %bn [0, 512]
-      loom.range %bk [0, 512]
+      loom.range %bm [0, 1024]
+      loom.range %bn [0, 1024]
+      loom.range %bk [0, 1024]
     }
     func.func @matmul_kernel (
       %arg0: memref<*xf32> {tt.divisibility = 16 : i32}, 
       %arg1: memref<*xf32> {tt.divisibility = 16 : i32}, 
       %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, 
       %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: index, %arg8: index) {
-      %M_idx = arith.constant 512 : index
-      %N_idx = arith.constant 512 : index
-      %K_idx = arith.constant 512 : index
+      %M_idx = arith.constant 1024 : index
+      %N_idx = arith.constant 1024 : index
+      %K_idx = arith.constant 1024 : index
       %c1_idx = arith.constant 1 : index
       %block_m = loom.get_symbolic_block_size @constraints::@BM : index
       %block_n = loom.get_symbolic_block_size @constraints::@BN : index
@@ -28,7 +28,7 @@ module {
       %Kblk_idx = arith.ceildivsi %K_idx, %block_k : index
       %cst = arith.constant 0.000000e+00 : f32 loc(#loc1)
       %c8_idx = arith.constant 8 : index loc(#loc1)
-      %c512 = arith.constant 512 : index loc(#loc1)
+      %c1024 = arith.constant 1024 : index loc(#loc1)
       %c0_idx = arith.constant 0 : index loc(#loc1)
       %0 = tensor.empty(%block_m, %block_n) : tensor<?x?xf32> loc(#loc2)
       %1 = linalg.fill ins(%cst : f32) outs(%0 : tensor<?x?xf32>) -> tensor<?x?xf32> loc(#loc2)
@@ -36,13 +36,13 @@ module {
       %3 = arith.muli %arg7, %block_n : index loc(#loc4)
       %6 = scf.for %arg9 = %c0_idx to %Kblk_idx step %c1_idx iter_args(%arg10 = %1) -> (tensor<?x?xf32>) {
         %9 = arith.muli %arg9, %block_k : index loc(#loc9)
-        %11 = arith.muli %2, %c512 : index loc(#loc11)
+        %11 = arith.muli %2, %c1024 : index loc(#loc11)
         %12 = arith.addi %11, %9 : index loc(#loc11)
         %reinterpret_cast_0 = loom.reinterpret_cast %arg0 to offset: [%12], sizes: [%block_m, %block_k], strides: [%K_idx, %c1_idx], reuse: [seq = false, spat = false, temp =false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>> loc(#loc11)
         %alloc = loom.alloc(%block_m, %block_k) on @L1 : memref<?x?xf32> loc(#loc11)
         loom.copy %reinterpret_cast_0, %alloc, interconnect: [], broadcast: [1, 1] : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<?x?xf32> loc(#loc11)
         %13 = bufferization.to_tensor %alloc restrict writable : memref<?x?xf32> to tensor<?x?xf32> loc(#loc11)
-        %14 = arith.muli %9, %c512 : index loc(#loc10)
+        %14 = arith.muli %9, %c1024 : index loc(#loc10)
         %15 = arith.addi %14, %3 : index loc(#loc10)
         %reinterpret_cast_1 = loom.reinterpret_cast %arg1 to offset: [%15], sizes: [%block_k, %block_n], strides: [%N_idx, %c1_idx], reuse: [seq = false, spat = false, temp =false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>> loc(#loc10)
         %alloc_2 = loom.alloc(%block_k, %block_n) on @L1 : memref<?x?xf32> loc(#loc10)
@@ -56,7 +56,7 @@ module {
         } -> tensor<?x?xf32> loc(#loc2)
         scf.yield %18 : tensor<?x?xf32> loc(#loc13)
       } loc(#loc8)
-      %7 = arith.muli %2, %c512 : index loc(#loc11)
+      %7 = arith.muli %2, %c1024 : index loc(#loc11)
       %8 = arith.addi %7, %3 : index loc(#loc5)
       %reinterpret_cast = loom.reinterpret_cast %arg2 to offset: [%8], sizes: [%block_m, %block_n], strides: [%N_idx, %c1_idx], reuse: [seq = false, spat = false, temp =false] : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>> loc(#loc5)
       bufferization.materialize_in_destination %6 in writable %reinterpret_cast : (tensor<?x?xf32>, memref<?x?xf32, strided<[?, ?], offset: ?>>) -> () loc(#loc5)
