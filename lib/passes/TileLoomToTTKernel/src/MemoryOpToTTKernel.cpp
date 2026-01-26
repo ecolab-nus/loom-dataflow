@@ -112,23 +112,25 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
        cb = rewriter.getRemappedValue(op.getTarget());
      }
      if (!cb) {
-       // Still no CB - create a fallback.
-       auto cbType =
-           cast<CBType>(typeConverter->convertType(op.getTarget().getType()));
-       auto idxAttr = rewriter.getI32IntegerAttr(0);
-       cb = rewriter.create<GetCompileArgValOp>(loc, cbType, idxAttr);
+      // Still no CB - create a fallback.
+      auto cbType =
+          cast<CBType>(typeConverter->convertType(op.getTarget().getType()));
+      Value idxValue = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), 0);
+      cb = rewriter.create<GetCommonArgValOp>(loc, cbType, idxValue);
      }
 
  
      // Get the pre-created base address from the tracker.
      Value baseAddr = tracker->getBaseAddr(inputMemref);
-     if (!baseAddr) {
-       // If not found in tracker (e.g., not a function argument), create one here.
-       // This is a fallback for memrefs that weren't processed at function entry.
-       auto baseAddrIdxAttr = rewriter.getI32IntegerAttr(0);
-       baseAddr = rewriter.create<GetCompileArgValOp>(
-           loc, rewriter.getI32Type(), baseAddrIdxAttr);
-     }
+    if (!baseAddr) {
+      // If not found in tracker (e.g., not a function argument), create one here.
+      // This is a fallback for memrefs that weren't processed at function entry.
+      Value baseAddrIdxValue = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), 0);
+      baseAddr = rewriter.create<GetCommonArgValOp>(
+          loc, rewriter.getI32Type(), baseAddrIdxValue);
+    }
  
      // Determine insertion point: must be after both cb and baseAddr.
      Value insertionAnchor = cb;
@@ -326,13 +328,14 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
 
  
      // Get the pre-created base address from the tracker.
-     Value baseAddr = tracker->getBaseAddr(outputMemref);
-     if (!baseAddr) {
-       // Fallback: create base address.
-       auto baseAddrIdxAttr = rewriter.getI32IntegerAttr(0);
-       baseAddr = rewriter.create<GetCompileArgValOp>(
-           loc, rewriter.getI32Type(), baseAddrIdxAttr);
-     }
+    Value baseAddr = tracker->getBaseAddr(outputMemref);
+    if (!baseAddr) {
+      // Fallback: create base address.
+      Value baseAddrIdxValue = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), 0);
+      baseAddr = rewriter.create<GetCommonArgValOp>(
+          loc, rewriter.getI32Type(), baseAddrIdxValue);
+    }
  
      // Determine insertion point: must be after both cb and baseAddr.
      Value insertionAnchor = cb;
@@ -573,7 +576,6 @@ struct ConvertComputeStoreOp : public OpConversionPattern<memref::CopyOp> {
     // Get the CB associated with this output memref from the tracker.
     // The tracker created this CB in processInputArgs for the function argument.
     Value outcb = tracker->getCB(outputMemref);
-    llvm::outs() << "outcb: " << outcb << "\n";
     if (!outcb || !isa<CBType>(outcb.getType()))
     {
       llvm::errs() << "No CB found for ComputeStoreOp target: " << op.getTarget() << "\n";
@@ -811,11 +813,12 @@ struct ConvertAllocOp : public OpConversionPattern<memref::AllocOp> {
      if (!cb) {
        // No pre-created CB found. Create a new one.
        // For allocs with loom.alloc: this is a fallback
-       // For allocs without loom.alloc (e.g., output accumulators): create new CB
-       auto idxAttr = rewriter.getI32IntegerAttr(0); // TODO: use tracker to get unique index
-       auto cbType =
-           cast<CBType>(typeConverter->convertType(op.getResult().getType()));
-       cb = rewriter.create<GetCompileArgValOp>(loc, cbType, idxAttr);
+      // For allocs without loom.alloc (e.g., output accumulators): create new CB
+      Value idxValue = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), 0); // TODO: use tracker to get unique index
+      auto cbType =
+          cast<CBType>(typeConverter->convertType(op.getResult().getType()));
+      cb = rewriter.create<GetCommonArgValOp>(loc, cbType, idxValue);
      }
 
      // Replace all uses of the alloc result with the CB value

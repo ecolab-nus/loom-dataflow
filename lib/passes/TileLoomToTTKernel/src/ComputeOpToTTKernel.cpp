@@ -87,7 +87,7 @@ public:
       auto savedInsertionPt = rewriter.saveInsertionPoint();
       
       // Find insertion point after all CB definitions
-      // CBs are defined by GetCompileArgValOp or similar ops at function start
+      // CBs are defined by GetCommonArgValOp or similar ops at function start
       Operation *insertAfter = nullptr;
       for (Operation &entryOp : entryBlock) {
         if (entryOp.getNumResults() > 0 && 

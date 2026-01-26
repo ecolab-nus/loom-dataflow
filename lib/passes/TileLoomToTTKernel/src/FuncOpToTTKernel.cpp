@@ -56,18 +56,19 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
       int64_t cbIndex = getAndIncrementIndex(func);
       int64_t baseAddrIndex = getAndIncrementIndex(func);
 
-      // Create GetCompileArgValOp for CB.
-      auto cbIdxAttr = rewriter.getI32IntegerAttr(static_cast<int32_t>(cbIndex));
+      // Create GetCommonArgValOp for CB.
+      Value cbIdxValue = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), static_cast<int64_t>(cbIndex));
       auto cbType = typeConverter.convertType(argType);
       if (!cbType)
         return func.emitError() << "failed to convert memref type to CB type";
-      auto cbOp = rewriter.create<GetCompileArgValOp>(loc, cbType, cbIdxAttr);
+      auto cbOp = rewriter.create<GetCommonArgValOp>(loc, cbType, cbIdxValue);
 
-      // Create GetCompileArgValOp for base address.
-      auto baseAddrIdxAttr =
-          rewriter.getI32IntegerAttr(static_cast<int32_t>(baseAddrIndex));
-      auto baseAddrOp = rewriter.create<GetCompileArgValOp>(
-          loc, rewriter.getI32Type(), baseAddrIdxAttr);
+      // Create GetCommonArgValOp for base address.
+      Value baseAddrIdxValue = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), static_cast<int64_t>(baseAddrIndex));
+      auto baseAddrOp = rewriter.create<GetCommonArgValOp>(
+          loc, rewriter.getI32Type(), baseAddrIdxValue);
 
       // Create TensorAccessArgs and TensorAccess for base address.
 /*       auto pagesize = GetTileSizeOp::create(rewriter, loc, cbOp.getResult());
@@ -86,9 +87,10 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
       // Index type: create a single compile-arg.
       int64_t argIndex = getAndIncrementIndex(func);
 
-      auto idxAttr = rewriter.getI32IntegerAttr(static_cast<int32_t>(argIndex));
+      Value idxValue = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), static_cast<int64_t>(argIndex));
       auto compileArgOp =
-          rewriter.create<GetCompileArgValOp>(loc, rewriter.getI32Type(), idxAttr);
+          rewriter.create<GetCommonArgValOp>(loc, rewriter.getI32Type(), idxValue);
 
       // Cast i32 to index for compatibility.
       auto indexCast = rewriter.create<arith::IndexCastOp>(
@@ -170,9 +172,10 @@ Value loom::CompileArgTracker::createIndexCompileArg(Value value, Location loc,
   // Allocate a new compile-arg index.
   int64_t argIndex = getAndIncrementIndex(funcOp);
 
-  auto idxAttr = rewriter.getI32IntegerAttr(static_cast<int32_t>(argIndex));
+  Value idxValue = rewriter.create<arith::ConstantIntOp>(
+      loc, rewriter.getI32Type(), static_cast<int64_t>(argIndex));
   auto compileArgOp =
-      rewriter.create<GetCompileArgValOp>(loc, rewriter.getI32Type(), idxAttr);
+      rewriter.create<GetCommonArgValOp>(loc, rewriter.getI32Type(), idxValue);
 
   // Cast i32 to index for compatibility.
   auto indexCast = rewriter.create<arith::IndexCastOp>(
@@ -404,15 +407,16 @@ static func::FuncOp makeHostFunc(func::FuncOp func) {
 
   // Create DRAM buffers for input and output
   // Calculate single_tile_size: typically sizeof(bfloat16) * TILE_HEIGHT * TILE_WIDTH = 2 * 32 * 32 = 2048
-  constexpr uint32_t single_tile_size = 2 * 32 * 32; // 2 bytes * 32 * 32 = 2048 bytes
-  
   Location loc = hostFunc.getLoc();
   OpBuilder builder(hostFunc.getContext());
   builder.setInsertionPointToStart(&hostFunc.getBody().front());
   
+  // Create emitc variable for single_tile_size calculation
+  builder.create<emitc::VerbatimOp>(loc, "constexpr uint32_t single_tile_size = sizeof(bfloat16) * TILE_HEIGHT * TILE_WIDTH;");
+  
   // Create DeviceLocalBufferConfig struct with initializer list
-  std::string dramConfigStr = "distributed::DeviceLocalBufferConfig dram_config{"
-                               ".page_size = " + std::to_string(single_tile_size) + 
+  std::string dramConfigStr = std::string("distributed::DeviceLocalBufferConfig dram_config{") +
+                               ".page_size = single_tile_size" + 
                                ", .buffer_type = tt_metal::BufferType::DRAM};";
   builder.create<emitc::VerbatimOp>(loc, dramConfigStr);
   
@@ -429,7 +433,7 @@ static func::FuncOp makeHostFunc(func::FuncOp func) {
       ArrayRef<int64_t> shape = memrefType.getShape();
       
       // Build size expression: single_tile_size * dim0 * dim1 * ...
-      std::string sizeExpr = std::to_string(single_tile_size);
+      std::string sizeExpr = "single_tile_size";
       bool hasDynamicDim = false;
       
       for (int64_t dim : shape) {
@@ -559,11 +563,10 @@ static func::FuncOp makeHostFunc(func::FuncOp func) {
                               "program, "
                               "all_cores, "
                               "CircularBufferConfig(" + tilesVarName + " * cb_buffer_depth * " + 
-                              std::to_string(single_tile_size) + ", {{" + cbIndexStr + ", cb_data_format}})"
-                              ".set_page_size(" + cbIndexStr + ", " + std::to_string(single_tile_size) + "));";
+                              "single_tile_size" + ", {{" + cbIndexStr + ", cb_data_format}})"
+                              ".set_page_size(" + cbIndexStr + ", single_tile_size));";
     builder.create<emitc::VerbatimOp>(loc, cbConfigStr);
   }
-
   return hostFunc;
 }
 
