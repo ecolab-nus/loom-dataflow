@@ -23,19 +23,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -90,6 +90,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -146,19 +159,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -213,6 +226,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -269,19 +295,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -336,6 +362,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -392,19 +431,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -459,6 +498,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -515,19 +567,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -587,7 +639,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -658,19 +723,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -730,7 +795,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -801,19 +879,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -873,7 +951,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -944,19 +1035,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -1016,7 +1107,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -1087,19 +1191,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -1159,7 +1263,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -1230,19 +1347,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -1302,7 +1419,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -1373,19 +1503,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -1445,7 +1575,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -1516,19 +1659,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -1588,7 +1731,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -1659,19 +1815,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -1726,6 +1882,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -1782,19 +1951,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -1849,6 +2018,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -1905,19 +2087,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -1972,6 +2154,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -2028,19 +2223,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -2095,6 +2290,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -2151,19 +2359,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -2223,7 +2431,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -2294,19 +2515,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -2366,7 +2587,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -2437,19 +2671,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -2509,7 +2743,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -2580,19 +2827,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -2652,7 +2899,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -2723,19 +2983,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -2795,7 +3055,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -2866,19 +3139,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -2938,7 +3211,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -3009,19 +3295,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -3081,7 +3367,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -3152,19 +3451,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -3224,7 +3523,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -3295,19 +3607,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -3362,6 +3674,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -3418,19 +3756,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -3485,6 +3823,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -3541,19 +3905,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -3608,6 +3972,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -3664,19 +4054,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -3731,6 +4121,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -3787,19 +4203,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -3859,7 +4275,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -3930,19 +4372,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -4002,7 +4444,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -4073,19 +4541,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -4145,7 +4613,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -4216,19 +4710,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -4288,7 +4782,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -4359,19 +4879,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -4431,7 +4951,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -4502,19 +5048,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -4574,7 +5120,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -4645,19 +5217,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -4717,7 +5289,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -4788,19 +5386,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -4860,7 +5458,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -4931,19 +5555,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -4998,6 +5622,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -5054,19 +5704,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -5121,6 +5771,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -5177,19 +5853,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -5244,6 +5920,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -5300,19 +6002,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -5367,6 +6069,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -5423,19 +6151,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -5495,7 +6223,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -5566,19 +6320,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -5638,7 +6392,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -5709,19 +6489,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -5781,7 +6561,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -5852,19 +6658,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -5924,7 +6730,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -5995,19 +6827,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -6067,7 +6899,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -6138,19 +6996,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -6210,7 +7068,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -6281,19 +7165,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -6353,7 +7237,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -6424,19 +7334,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -6496,7 +7406,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -6567,19 +7503,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -6634,6 +7570,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -6690,19 +7652,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -6757,6 +7719,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -6813,19 +7801,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -6880,6 +7868,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -6936,19 +7950,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -7003,6 +8017,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -7059,19 +8099,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -7131,7 +8171,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -7202,19 +8268,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -7274,7 +8340,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -7345,19 +8437,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -7417,7 +8509,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -7488,19 +8606,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -7560,7 +8678,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -7631,19 +8775,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -7703,7 +8847,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -7774,19 +8944,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -7846,7 +9016,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -7917,19 +9113,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -7989,7 +9185,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -8060,19 +9282,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -8132,7 +9354,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -8203,19 +9451,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -8270,6 +9518,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -8326,19 +9600,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -8393,6 +9667,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -8449,19 +9749,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -8516,6 +9816,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -8572,19 +9898,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -8639,6 +9965,32 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -8695,19 +10047,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -8767,7 +10119,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -8838,19 +10216,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -8910,7 +10288,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -8981,19 +10385,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -9053,7 +10457,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -9124,19 +10554,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -9196,7 +10626,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -9267,19 +10723,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -9339,7 +10795,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -9410,19 +10892,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -9482,7 +10964,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -9553,19 +11061,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -9625,7 +11133,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -9696,19 +11230,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -9768,7 +11302,33 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -9839,19 +11399,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -9906,6 +11466,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -9962,19 +11535,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -10029,6 +11602,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -10085,19 +11671,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -10152,6 +11738,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -10208,19 +11807,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -10275,6 +11874,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -10331,19 +11943,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -10403,7 +12015,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -10474,19 +12099,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -10546,7 +12171,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -10617,19 +12255,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -10689,7 +12327,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -10760,19 +12411,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -10832,7 +12483,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -10903,19 +12567,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -10975,7 +12639,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -11046,19 +12723,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -11118,7 +12795,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -11189,19 +12879,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -11261,7 +12951,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -11332,19 +13035,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -11404,7 +13107,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -11475,19 +13191,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -11542,6 +13258,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -11598,19 +13327,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -11665,6 +13394,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -11721,19 +13463,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -11788,6 +13530,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -11844,19 +13599,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -11911,6 +13666,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,
@@ -11967,19 +13735,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -12039,7 +13807,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -12110,19 +13891,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -12182,7 +13963,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -12253,19 +14047,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -12325,7 +14119,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -12396,19 +14203,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -12468,7 +14275,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BM"
           ]
@@ -12539,19 +14359,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -12611,7 +14431,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -12682,19 +14515,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -12754,7 +14587,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -12825,19 +14671,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -12897,7 +14743,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -12968,19 +14827,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -13040,7 +14899,20 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 2048,
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4096,
           "variables": [
             "BN"
           ]
@@ -13111,19 +14983,19 @@
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BM"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BN"
     },
     {
       "lower_bound": 32,
       "type": "range",
-      "upper_bound": 512,
+      "upper_bound": 1024,
       "variable": "BK"
     },
     {
@@ -13178,6 +15050,19 @@
       ],
       "type": "polynomial",
       "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
     },
     {
       "is_equality": false,

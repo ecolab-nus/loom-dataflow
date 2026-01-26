@@ -21,6 +21,16 @@ struct MatUnitInfo {
   std::string name;
 };
 
+/**
+ * \brief Mapping of parallel iteration dimension to hardware spatial dimension.
+ * Used to track core utilization constraints.
+ */
+struct ParallelToHWMapping {
+  unsigned parallelIterIdx; // 0=M, 1=N (from affine.parallel order)
+  unsigned hwDimIdx;        // Index into spatialDimInfoVec (0=x, 1=y)
+  int64_t hwDimSize;        // Size of the hardware dimension (e.g., 8)
+};
+
 struct HardwareInfo {
   llvm::SmallVector<SpatialDimInfo> spatialDimInfoVec;
   bool hasBidirInterconnect = false;
