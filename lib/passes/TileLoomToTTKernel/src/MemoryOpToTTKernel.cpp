@@ -264,6 +264,7 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
  
      //barrier
      NocAsyncReadBarrierOp::create(rewriter, loc); 
+     CBPushBackOp::create(rewriter, loc, cb, numPages);
      rewriter.eraseOp(op);
      return success();
    }
@@ -585,7 +586,8 @@ struct ConvertComputeStoreOp : public OpConversionPattern<memref::CopyOp> {
     auto outcbType = cast<CBType>(outcb.getType());
     // Use getNumElements() which works for both tiled and scalar CBs
     // (getNumTiles() just calls getNumElements() but asserts element type is TileType)
-    int32_t numTiles = static_cast<int32_t>(outcbType.getNumElements());
+    //TODO: this should be a tiled CB, now is using elements
+    int32_t numTiles = static_cast<int32_t>(outcbType.getNumElements()) / 1024;
     Value outcbNumInputTilesValue = rewriter.create<arith::ConstantIntOp>(
         loc, numTiles, 32);
     

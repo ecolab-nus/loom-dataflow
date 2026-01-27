@@ -80,7 +80,7 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
       // memref.reinterpret_cast ops which need the original memref type.
       // The memory conversion patterns will use getBaseAddr() to find the
       // pre-created base address when processing load/store ops.
-      memrefArgToData[arg] = MemrefArgData{cbOp.getResult(), baseAddrOp.getResult(), Value()};
+      memrefArgToData[arg] = MemrefArgData{cbOp.getResult(), baseAddrOp.getResult(), Value(), cbIdxValue, cbType};
 
     } else if (argType.isIndex()) {
       // Index type: create a single compile-arg.
@@ -130,6 +130,18 @@ loom::IndexArgData *loom::CompileArgTracker::getIndexData(Value arg) {
 Value loom::CompileArgTracker::getCB(Value arg) {
   if (auto *data = getMemrefData(arg))
     return data->cb;
+  return nullptr;
+}
+
+Value loom::CompileArgTracker::getCBIndex(Value arg) {
+  if (auto *data = getMemrefData(arg))
+    return data->cbIndex;
+  return nullptr;
+}
+
+Type loom::CompileArgTracker::getCBType(Value arg) {
+  if (auto *data = getMemrefData(arg))
+    return data->cbType;
   return nullptr;
 }
 

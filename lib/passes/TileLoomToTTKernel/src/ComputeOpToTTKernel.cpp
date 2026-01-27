@@ -117,10 +117,11 @@ public:
     
     // Use getNumElements() which works for both tiled and scalar CBs
     // (getNumTiles() just calls getNumElements() but asserts element type is TileType)
+    //TODO: this should be a tiled CB, now is using elements
     Value in0NumInputTilesValue = rewriter.create<arith::ConstantIntOp>(
-        loc, static_cast<int32_t>(in0CbType.getNumElements()), 32);
+        loc, static_cast<int32_t>(in0CbType.getNumElements()) / 1024, 32);
     Value in1NumInputTilesValue = rewriter.create<arith::ConstantIntOp>(
-        loc, static_cast<int32_t>(in1CbType.getNumElements()), 32);
+        loc, static_cast<int32_t>(in1CbType.getNumElements()) / 1024, 32);
     CBWaitFrontOp::create(rewriter, loc, in0Cb, in0NumInputTilesValue);
     CBWaitFrontOp::create(rewriter, loc, in1Cb, in1NumInputTilesValue);
 

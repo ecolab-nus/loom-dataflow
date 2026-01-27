@@ -45,6 +45,10 @@ struct MemrefArgData {
   Value baseAddr;
   /// The tensor accessor value created for this memref argument.
   Value tensorAccessor;
+  /// The index value used to create the CB (for inlining GetCommonArgValOp).
+  Value cbIndex;
+  /// The CB type for creating inline GetCommonArgValOp.
+  Type cbType;
 };
 
 /**
@@ -106,6 +110,20 @@ public:
    * @return The CB value if found, nullptr otherwise.
    */
   Value getCB(Value arg);
+
+  /**
+   * @brief Get the CB index value for a memref argument.
+   * @param arg The memref argument (BlockArgument).
+   * @return The CB index value if found, nullptr otherwise.
+   */
+  Value getCBIndex(Value arg);
+
+  /**
+   * @brief Get the CB type for a memref argument.
+   * @param arg The memref argument (BlockArgument).
+   * @return The CB type if found, nullptr otherwise.
+   */
+  Type getCBType(Value arg);
 
   /**
    * @brief Get the base address value for a memref argument.
