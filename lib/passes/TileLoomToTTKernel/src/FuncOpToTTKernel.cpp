@@ -55,6 +55,7 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
       // CB uses nextCompileArgIndex, base address uses nextCompileArgIndex + 1.
       int64_t cbIndex = getAndIncrementIndex(func);
       int64_t baseAddrIndex = getAndIncrementIndex(func);
+      int64_t tensorAccessorArgsIndex = getAndIncrementIndex(func);
 
       // Create GetCommonArgValOp for CB.
       Value cbIdxValue = rewriter.create<arith::ConstantIntOp>(
@@ -71,16 +72,15 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
           loc, rewriter.getI32Type(), baseAddrIdxValue);
 
       // Create TensorAccessArgs and TensorAccess for base address.
-/*       auto pagesize = GetTileSizeOp::create(rewriter, loc, cbOp.getResult());
-      auto baseAddrArgs = rewriter.create<TensorAccessorArgsOp>(loc, baseAddrOp.getResult(), baseAddrOp.getResult());
-      auto baseAddrTensorAccess = rewriter.create<TensorAccessorOp>(loc, baseAddrArgs.getResult(), baseAddrOp.getResult(), pagesize); */
+      auto pagesize = GetTileSizeOp::create(rewriter, loc, cbOp.getResult());
+      Value tensorAccessorArgsIdxVal = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), static_cast<int64_t>(tensorAccessorArgsIndex));
+      auto baseAddrArgs = rewriter.create<TensorAccessorArgsOp>(loc, tensorAccessorArgsIdxVal, tensorAccessorArgsIdxVal);
+      auto baseAddrTensorAccess = rewriter.create<TensorAccessorOp>(loc, baseAddrArgs.getResult(), baseAddrOp.getResult(), pagesize);
 
-      // Store the created values keyed by the memref argument.
-      // We do NOT replace uses here - the memref argument is used by
-      // memref.reinterpret_cast ops which need the original memref type.
-      // The memory conversion patterns will use getBaseAddr() to find the
+
       // pre-created base address when processing load/store ops.
-      memrefArgToData[arg] = MemrefArgData{cbOp.getResult(), baseAddrOp.getResult(), Value(), cbIdxValue, cbType};
+      memrefArgToData[arg] = MemrefArgData{cbOp.getResult(), baseAddrOp.getResult(), baseAddrTensorAccess.getResult(), cbIdxValue, cbType};
 
     } else if (argType.isIndex()) {
       // Index type: create a single compile-arg.
@@ -202,6 +202,10 @@ Value loom::CompileArgTracker::createIndexCompileArg(Value value, Location loc,
 
 int64_t loom::CompileArgTracker::getAndIncrementIndex(Operation *funcOp) {
   return funcToNextArgIndex[funcOp]++;
+}
+
+int64_t loom::CompileArgTracker::getNextTensorAccessorArgsIndex(Operation *funcOp) {
+  return funcToNextTensorAccessorArgsIndex[funcOp]++;
 }
 
 //===----------------------------------------------------------------------===//

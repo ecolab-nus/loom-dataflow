@@ -162,12 +162,27 @@ public:
    */
   Value createIndexCompileArg(Value value, Location loc, OpBuilder &rewriter);
 
+  /**
+   * @brief Get the next unique index for TensorAccessorArgs.
+   *
+   * @details Allocates and returns a new unique index for use with
+   *          TensorAccessorArgsOp. Each tensor accessor should have different
+   *          cta_base and crta_base indices to distinguish them.
+   *
+   * @param funcOp The function operation to scope the index allocation.
+   * @return The next available tensor accessor args index.
+   */
+  int64_t getNextTensorAccessorArgsIndex(Operation *funcOp);
+
 private:
   // Helper to get and increment the compile-arg index for a specific function.
   int64_t getAndIncrementIndex(Operation *funcOp);
 
   // Map from FuncOp (as Operation*) to the next available compile-arg index.
   llvm::DenseMap<Operation *, int64_t> funcToNextArgIndex;
+
+  // Map from FuncOp (as Operation*) to the next available tensor accessor args index.
+  llvm::DenseMap<Operation *, int64_t> funcToNextTensorAccessorArgsIndex;
 
   /// Map from memref argument to its created CB and base address.
   llvm::DenseMap<Value, MemrefArgData> memrefArgToData;

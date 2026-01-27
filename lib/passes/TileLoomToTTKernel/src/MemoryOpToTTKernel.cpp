@@ -148,53 +148,42 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
      auto opInsertionPt = rewriter.saveInsertionPoint();
      rewriter.setInsertionPointAfterValue(insertionAnchor);
  
-     auto dataFormat = GetDataFormatOp::create(rewriter, loc, cb);
-     auto pageSize = GetTileSizeOp::create(rewriter, loc, cb);
-
-     Value trueVal = rewriter.create<arith::ConstantIntOp>(
-         loc, rewriter.getI1Type(), 1);
-     Value addrGen = GetInterleavedAddrGenFastOp::create(
-         rewriter, loc, /*dram=*/trueVal, baseAddr, pageSize, dataFormat);
+    auto pageSize = GetTileSizeOp::create(rewriter, loc, cb);
  
-     // Get the offset from reinterpret_cast (use first offset if multiple)
+    // Get the offset from reinterpret_cast (use first offset if multiple)
      Value offset;
      {
        auto offsets = reinterpretCastOp.getOffsets();
        if (!offsets.empty()) {
          offset = offsets[0];
        } else {
-         // If no dynamic offsets, check static offsets
-         auto mixedOffsets = reinterpretCastOp.getMixedOffsets();
-         if (!mixedOffsets.empty() && mixedOffsets[0].is<Attribute>()) {
-           // Static offset - convert to value
-           auto staticOffset = llvm::cast<IntegerAttr>(mixedOffsets[0].get<Attribute>());
-           offset = rewriter.create<arith::ConstantIndexOp>(loc, staticOffset.getInt());
-         } else {
-           // Fallback: use constant 0 (index type)
-           offset = rewriter.create<arith::ConstantIndexOp>(loc, 0);
-         }
-       }
-     }
- 
-     rewriter.restoreInsertionPoint(opInsertionPt);
- 
-     // convert bytes offset to tile index
-     //
-     // arith.divui requires operands/results to have the same type.
-     // Our `offset` is typically `index` (from memref.reinterpret_cast), while
-     // TTKernel tile size is `i32`. Convert offset to `i32` before dividing.
-     Value offsetI32 = offset;
-     if (offsetI32 && offsetI32.getType().isIndex()) {
-       offsetI32 = rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(),
-                                                       offsetI32);
-     }
-     Value baseTileIndex =
-         arith::DivUIOp::create(rewriter, loc, offsetI32, pageSize);
- 
-     Value const0 = rewriter.create<arith::ConstantIntOp>(
-         loc, rewriter.getI32Type(), 0);
- 
-     // determine how many tiles we need to load by converting the shape to tiles
+        // If no dynamic offsets, check static offsets
+        auto mixedOffsets = reinterpretCastOp.getMixedOffsets();
+        if (!mixedOffsets.empty() && isa<Attribute>(mixedOffsets[0])) {
+          // Static offset - convert to value
+          auto staticOffset = llvm::cast<IntegerAttr>(cast<Attribute>(mixedOffsets[0]));
+          offset = rewriter.create<arith::ConstantIndexOp>(loc, staticOffset.getInt());
+        } else {
+          // Fallback: error
+          llvm::errs() << "No offset found for memref.reinterpret_cast\n";
+          return failure();
+        }
+      }
+    }
+
+    rewriter.restoreInsertionPoint(opInsertionPt);
+
+    // Convert offset to i32 for use in calculations.
+    // arith.divui requires operands/results to have the same type.
+    // Our `offset` is typically `index` (from memref.reinterpret_cast), while
+    // TTKernel tile size is `i32`. Convert offset to `i32` before dividing.
+    Value offsetI32 = offset;
+    if (offsetI32 && offsetI32.getType().isIndex()) {
+      offsetI32 = rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(),
+                                                      offsetI32);
+    }
+
+    // Determine how many tiles we need to load by converting the shape to tiles.
      auto cbType = cast<CBType>(cb.getType());
      Value numPages;
      
@@ -229,42 +218,126 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
            loc, rewriter.getI32Type(), numElements * elementSizeBytes);
        numPages = arith::DivUIOp::create(rewriter, loc, totalSizeBytes, pageSize);
      }
-     //reserve space in CB and obtain write pointer
-     CBReserveBackOp::create(rewriter, loc, cb, numPages);
-     Value l1Addr = GetWritePtrOp::create(rewriter, loc, cb);
+   // Get the pre-created TensorAccessor from the tracker.
+   Value accessorOp = tracker->getTensorAccessor(inputMemref);
+   if (!accessorOp) {
+     llvm::errs() << "No TensorAccessor found for input memref\n";
+     return failure();
+   }
 
-     //copy data from source to L1
-    scf::ForOp loadTileLoop = scf::ForOp::create(
-        rewriter, loc, rewriter.create<arith::ConstantIntOp>(
-                           loc, rewriter.getI32Type(), 0), numPages,
-        rewriter.create<arith::ConstantIntOp>(
-                           loc, rewriter.getI32Type(), 1),
-        ValueRange{l1Addr, baseTileIndex});
-    {
-      rewriter.setInsertionPointToStart(loadTileLoop.getBody());
-      Value crtL1Address = loadTileLoop.getRegionIterArgs()[0];
-      Value crtTileIndex = loadTileLoop.getRegionIterArgs()[1];
-      // TODO: should the offset be const0 here? the only examples we have are
-      // TensorAccessor...
-      Value nocAddr = InterleavedAddrGenFastGetNocAddrOp::create(
-          rewriter, loc, addrGen, crtTileIndex, const0, Value());
-      NocAsyncReadOp::create(rewriter, loc, nocAddr, crtL1Address,
-                                       pageSize);
-      Value nextL1Address =
-          arith::AddIOp::create(rewriter, loc, crtL1Address, pageSize);
-      Value nextTileIndex =
-          arith::AddIOp::create(rewriter, loc, crtTileIndex,
-                                rewriter.create<arith::ConstantIntOp>(
-                                    loc, rewriter.getI32Type(), 1));
-      scf::YieldOp::create(rewriter, loc,
-                           ValueRange{nextL1Address, nextTileIndex});
+   // Reserve space in CB and obtain write pointer.
+    CBReserveBackOp::create(rewriter, loc, cb, numPages);
+    Value l1Addr = GetWritePtrOp::create(rewriter, loc, cb);
+
+    // Obtain the base offset value from the reinterpret_cast operation.
+    // The offset is in element units (from affine.apply).
+    Value baseElemOffset = offsetI32;
+
+    // Get memref shape and element type.
+    auto resultType = cast<MemRefType>(reinterpretCastOp.getResult().getType());
+    ArrayRef<int64_t> shape = resultType.getShape();
+    Type elemType = resultType.getElementType();
+
+    // Get element size in bytes.
+    int64_t elemSizeBytes = 0;
+    if (elemType.isF32()) {
+      elemSizeBytes = 4;
+    } else if (elemType.isF16() || elemType.isBF16()) {
+      elemSizeBytes = 2;
+    } else if (auto intType = dyn_cast<IntegerType>(elemType)) {
+      elemSizeBytes = (intType.getWidth() + 7) / 8;
+    } else {
+      elemSizeBytes = 4;  // Default assumption
     }
 
-    rewriter.setInsertionPointAfter(loadTileLoop);
- 
-     //barrier
-     NocAsyncReadBarrierOp::create(rewriter, loc); 
-     CBPushBackOp::create(rewriter, loc, cb, numPages);
+    // Get strides from the layout.
+    SmallVector<int64_t> strides;
+    auto layout = resultType.getLayout();
+    if (auto stridedLayout = dyn_cast<StridedLayoutAttr>(layout)) {
+      auto stridesRef = stridedLayout.getStrides();
+      strides.append(stridesRef.begin(), stridesRef.end());
+    } else {
+      // Compute default row-major strides if not available.
+      int64_t stride = 1;
+      for (int i = shape.size() - 1; i >= 0; --i) {
+        strides.insert(strides.begin(), stride);
+        stride *= shape[i];
+      }
+    }
+
+    // Tile dimension (32x32 for TTKernel).
+    constexpr int64_t kTileDim = 32;
+
+    // Calculate number of tiles in each dimension: numTiles = shape / 32.
+    // For 2D memref [H, W], we have (H/32) x (W/32) tiles.
+    int64_t numTileRows = (shape.size() > 0) ? (shape[0] + kTileDim - 1) / kTileDim : 1;
+    int64_t numTileCols = (shape.size() > 1) ? (shape[1] + kTileDim - 1) / kTileDim : 1;
+
+    // Create constants for loop bounds and calculations.
+    Value loopConst0 = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
+    Value loopConst1 = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
+    Value tileDimVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), kTileDim);
+    Value elemSizeVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), elemSizeBytes);
+    Value numTileRowsVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), numTileRows);
+    Value numTileColsVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), numTileCols);
+    Value stride0Val = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(),
+        (strides.size() > 0) ? strides[0] : 1);
+    Value stride1Val = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(),
+        (strides.size() > 1) ? strides[1] : 1);
+
+    // Create nested loops to iterate over all tiles.
+    // Outer loop: iterate over tile rows (0 to numTileRows).
+    scf::ForOp rowLoop = scf::ForOp::create(
+        rewriter, loc, loopConst0, numTileRowsVal, loopConst1, ValueRange{l1Addr});
+    {
+      rewriter.setInsertionPointToStart(rowLoop.getBody());
+      Value tileRow = rowLoop.getInductionVar();
+      Value crtL1Addr = rowLoop.getRegionIterArgs()[0];
+
+      // Inner loop: iterate over tile columns (0 to numTileCols).
+      scf::ForOp colLoop = scf::ForOp::create(
+          rewriter, loc, loopConst0, numTileColsVal, loopConst1, ValueRange{crtL1Addr});
+      {
+        rewriter.setInsertionPointToStart(colLoop.getBody());
+        Value tileCol = colLoop.getInductionVar();
+        Value innerL1Addr = colLoop.getRegionIterArgs()[0];
+
+        // Calculate element offset for this tile within the memref:
+        // tileElemOffset = tileRow * tileDim * stride0 + tileCol * tileDim * stride1
+        Value rowOffset = arith::MulIOp::create(rewriter, loc, tileRow, tileDimVal);
+        rowOffset = arith::MulIOp::create(rewriter, loc, rowOffset, stride0Val);
+
+        Value colOffset = arith::MulIOp::create(rewriter, loc, tileCol, tileDimVal);
+        colOffset = arith::MulIOp::create(rewriter, loc, colOffset, stride1Val);
+
+        Value tileElemOffset = arith::AddIOp::create(rewriter, loc, rowOffset, colOffset);
+
+        // Total element offset = baseElemOffset + tileElemOffset
+        Value totalElemOffset = arith::AddIOp::create(rewriter, loc, baseElemOffset, tileElemOffset);
+
+        // Convert to byte address: dramAddr = totalElemOffset * elemSizeBytes
+        Value dramAddr = arith::MulIOp::create(rewriter, loc, totalElemOffset, elemSizeVal);
+
+        // Calculate tile ID: tileId = dramAddr / pageSize
+        Value tileId = arith::DivUIOp::create(rewriter, loc, dramAddr, pageSize);
+
+        // Issue an async read for this tile using the tensor accessor.
+        NocAsyncReadTileOp::create(rewriter, loc, tileId, accessorOp, innerL1Addr);
+
+        // Advance L1 address to next tile by adding tile_size.
+        Value nextL1Addr = arith::AddIOp::create(rewriter, loc, innerL1Addr, pageSize);
+        scf::YieldOp::create(rewriter, loc, ValueRange(nextL1Addr));
+      }
+
+      // Yield updated L1 address from inner loop.
+      rewriter.setInsertionPointAfter(colLoop);
+      scf::YieldOp::create(rewriter, loc, colLoop.getResults());
+    }
+    rewriter.setInsertionPointAfter(rowLoop);
+
+    // Barrier to wait for all async reads to complete.
+    NocAsyncReadBarrierOp::create(rewriter, loc);
+    CBPushBackOp::create(rewriter, loc, cb, numPages);
      rewriter.eraseOp(op);
      return success();
    }
@@ -328,7 +401,7 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
      }
 
  
-     // Get the pre-created base address from the tracker.
+    // Get the pre-created base address from the tracker.
     Value baseAddr = tracker->getBaseAddr(outputMemref);
     if (!baseAddr) {
       // Fallback: create base address.
@@ -343,64 +416,50 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
      Operation* cbOp = cb.getDefiningOp();
      Operation* baseAddrOp = baseAddr.getDefiningOp();
      if (cbOp && baseAddrOp && cbOp->getBlock() == baseAddrOp->getBlock()) {
-       // If both are in the same block, insert after the later one.
+      // If both are in the same block, insert after the later one.
        if (cbOp->isBeforeInBlock(baseAddrOp)) {
          insertionAnchor = baseAddr;
        }
      }
  
-     auto opInsertionPt = rewriter.saveInsertionPoint();
-     rewriter.setInsertionPointAfterValue(insertionAnchor);
-     //TODO: should place the code here or in FuncOpToTTKernel?
-     auto dataFormat = GetDataFormatOp::create(rewriter, loc, cb);
-     auto pageSize = GetTileSizeOp::create(rewriter, loc, cb);
+    auto opInsertionPt = rewriter.saveInsertionPoint();
+    rewriter.setInsertionPointAfterValue(insertionAnchor);
+    auto pageSize = GetTileSizeOp::create(rewriter, loc, cb);
 
- 
-     // Get the base address and offset from the target (external memory)
-     Value offset;
-     if (auto reinterpretCastOp = target.getDefiningOp<memref::ReinterpretCastOp>()) {
-       // Get the offset from reinterpret_cast (use first offset if multiple)
-       auto offsets = reinterpretCastOp.getOffsets();
-       if (!offsets.empty()) {
-         offset = offsets[0];
-       } else {
-         // If no dynamic offsets, check static offsets
-         auto mixedOffsets = reinterpretCastOp.getMixedOffsets();
-         if (!mixedOffsets.empty() && mixedOffsets[0].is<Attribute>()) {
-           // Static offset - convert to value
-           auto staticOffset = llvm::cast<IntegerAttr>(mixedOffsets[0].get<Attribute>());
-           offset = rewriter.create<arith::ConstantIndexOp>(loc, staticOffset.getInt());
-         } else {
-           // Fallback: use constant 0 (index type)
-           offset = rewriter.create<arith::ConstantIndexOp>(loc, 0);
-         }
-       }
-     } else {
-       // No reinterpret_cast - use offset 0
-       offset = rewriter.create<arith::ConstantIndexOp>(loc, 0);
-     }
- 
-     Value trueVal = rewriter.create<arith::ConstantIntOp>(
-         loc, rewriter.getI1Type(), 1);
-     Value addrGen = GetInterleavedAddrGenFastOp::create(
-         rewriter, loc, /*dram=*/trueVal, baseAddr, pageSize, dataFormat);
- 
-     rewriter.restoreInsertionPoint(opInsertionPt);
- 
-     // Convert bytes offset to tile index.
-     // arith.divui requires operands/results to have the same type.
-     Value offsetI32 = offset;
-     if (offsetI32 && offsetI32.getType().isIndex()) {
-       offsetI32 = rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(),
-                                                       offsetI32);
-     }
-     Value baseTileIndex =
-         arith::DivUIOp::create(rewriter, loc, offsetI32, pageSize);
- 
-     Value const0 = rewriter.create<arith::ConstantIntOp>(
-         loc, rewriter.getI32Type(), 0);
- 
-     // Determine how many tiles we need to store.
+    // Get the base address and offset from the target (external memory)
+    Value offset;
+    if (auto reinterpretCastOp = target.getDefiningOp<memref::ReinterpretCastOp>()) {
+      // Get the offset from reinterpret_cast (use first offset if multiple)
+      auto offsets = reinterpretCastOp.getOffsets();
+      if (!offsets.empty()) {
+        offset = offsets[0];
+      } else {
+        // If no dynamic offsets, check static offsets
+        auto mixedOffsets = reinterpretCastOp.getMixedOffsets();
+        if (!mixedOffsets.empty() && isa<Attribute>(mixedOffsets[0])) {
+          // Static offset - convert to value
+          auto staticOffset = llvm::cast<IntegerAttr>(cast<Attribute>(mixedOffsets[0]));
+          offset = rewriter.create<arith::ConstantIndexOp>(loc, staticOffset.getInt());
+        } else {
+          // Fallback: use constant 0 (index type)
+          offset = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+        }
+      }
+    } else {
+      // No reinterpret_cast - use offset 0
+      offset = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    }
+
+    rewriter.restoreInsertionPoint(opInsertionPt);
+
+    // Convert bytes offset to i32 for calculations.
+    Value offsetI32 = offset;
+    if (offsetI32 && offsetI32.getType().isIndex()) {
+      offsetI32 = rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(),
+                                                      offsetI32);
+    }
+
+    // Determine how many tiles we need to store.
      auto cbType = cast<CBType>(cb.getType());
      Value numPages;
  
@@ -433,44 +492,128 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
            loc, rewriter.getI32Type(), numElements * elementSizeBytes);
        numPages = arith::DivUIOp::create(rewriter, loc, totalSizeBytes, pageSize);
      }
- 
-     // Get read pointer for store (reading from CB to write to DRAM)
-     Value l1Addr = GetReadPtrOp::create(rewriter, loc, cb);
- 
-     scf::ForOp storeTileLoop = scf::ForOp::create(
-         rewriter, loc,
-         rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0),
-         numPages,
-         rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1),
-         ValueRange{l1Addr, baseTileIndex});
-     {
-       rewriter.setInsertionPointToStart(storeTileLoop.getBody());
-       Value crtL1Address = storeTileLoop.getRegionIterArgs()[0];
-       Value crtTileIndex = storeTileLoop.getRegionIterArgs()[1];
-      
-       Value nocAddr = InterleavedAddrGenFastGetNocAddrOp::create(
-           rewriter, loc, addrGen, crtTileIndex, const0, Value());
- 
-       // Use NocAsyncWriteOp instead of NocAsyncReadOp
-       NocAsyncWriteOp::create(rewriter, loc, crtL1Address, nocAddr, pageSize);
- 
-       Value nextL1Address =
-           arith::AddIOp::create(rewriter, loc, crtL1Address, pageSize);
-       Value nextTileIndex =
-           arith::AddIOp::create(rewriter, loc, crtTileIndex,
-                                 rewriter.create<arith::ConstantIntOp>(
-                                     loc, rewriter.getI32Type(), 1));
-       scf::YieldOp::create(rewriter, loc,
-                            ValueRange{nextL1Address, nextTileIndex});
-     }
- 
-     rewriter.setInsertionPointAfter(storeTileLoop);
-     NocAsyncWriteBarrierOp::create(rewriter, loc);
- 
-   // Pop the tiles from the CB after writing
-   CBPopFrontOp::create(rewriter, loc, cb, numPages);
 
-  // Remove the original memref.copy op.
+   
+ // Get the pre-created TensorAccessor from the tracker.
+ Value accessorOp = tracker->getTensorAccessor(outputMemref);
+ if (!accessorOp) {
+   llvm::errs() << "No TensorAccessor found for output memref\n";
+   return failure();
+ }
+
+ // Wait for data in CB and get read pointer.
+ CBWaitFrontOp::create(rewriter, loc, cb, numPages);
+ Value l1Addr = GetReadPtrOp::create(rewriter, loc, cb);
+
+  // Obtain the base offset value (%13) from the reinterpret_cast operation.
+  // The offset is in element units (from affine.apply).
+  Value baseElemOffset = offsetI32;
+
+  // Get memref shape and element type.
+  auto resultType = cast<MemRefType>(reinterpretCastOp.getResult().getType());
+  ArrayRef<int64_t> shape = resultType.getShape();
+  Type elemType = resultType.getElementType();
+
+  // Get element size in bytes.
+  int64_t elemSizeBytes = 0;
+  if (elemType.isF32()) {
+    elemSizeBytes = 4;
+  } else if (elemType.isF16() || elemType.isBF16()) {
+    elemSizeBytes = 2;
+  } else if (auto intType = dyn_cast<IntegerType>(elemType)) {
+    elemSizeBytes = (intType.getWidth() + 7) / 8;
+  } else {
+    elemSizeBytes = 4;  // Default assumption
+  }
+
+  // Get strides from the layout.
+  SmallVector<int64_t> strides;
+  auto layout = resultType.getLayout();
+  if (auto stridedLayout = dyn_cast<StridedLayoutAttr>(layout)) {
+    auto stridesRef = stridedLayout.getStrides();
+    strides.append(stridesRef.begin(), stridesRef.end());
+  } else {
+    // Compute default row-major strides if not available.
+    int64_t stride = 1;
+    for (int i = shape.size() - 1; i >= 0; --i) {
+      strides.insert(strides.begin(), stride);
+      stride *= shape[i];
+    }
+  }
+
+  // Tile dimension (32x32 for TTKernel).
+  constexpr int64_t kTileDim = 32;
+
+  // Calculate number of tiles in each dimension: numTiles = shape / 32.
+  // For 2D memref [H, W], we have (H/32) x (W/32) tiles.
+  int64_t numTileRows = (shape.size() > 0) ? (shape[0] + kTileDim - 1) / kTileDim : 1;
+  int64_t numTileCols = (shape.size() > 1) ? (shape[1] + kTileDim - 1) / kTileDim : 1;
+
+  // Create constants for loop bounds and calculations.
+  Value loopConst0 = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
+  Value loopConst1 = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
+  Value tileDimVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), kTileDim);
+  Value elemSizeVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), elemSizeBytes);
+  Value numTileRowsVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), numTileRows);
+  Value numTileColsVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), numTileCols);
+  Value stride0Val = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 
+      (strides.size() > 0) ? strides[0] : 1);
+  Value stride1Val = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 
+      (strides.size() > 1) ? strides[1] : 1);
+
+  // Create nested loops to iterate over all tiles.
+  // Outer loop: iterate over tile rows (0 to numTileRows).
+  scf::ForOp rowLoop = scf::ForOp::create(
+      rewriter, loc, loopConst0, numTileRowsVal, loopConst1, ValueRange{l1Addr});
+  {
+    rewriter.setInsertionPointToStart(rowLoop.getBody());
+    Value tileRow = rowLoop.getInductionVar();
+    Value crtL1Addr = rowLoop.getRegionIterArgs()[0];
+
+    // Inner loop: iterate over tile columns (0 to numTileCols).
+    scf::ForOp colLoop = scf::ForOp::create(
+        rewriter, loc, loopConst0, numTileColsVal, loopConst1, ValueRange{crtL1Addr});
+    {
+      rewriter.setInsertionPointToStart(colLoop.getBody());
+      Value tileCol = colLoop.getInductionVar();
+      Value innerL1Addr = colLoop.getRegionIterArgs()[0];
+
+      // Calculate element offset for this tile within the memref:
+      // tileElemOffset = tileRow * tileDim * stride0 + tileCol * tileDim * stride1
+      Value rowOffset = arith::MulIOp::create(rewriter, loc, tileRow, tileDimVal);
+      rowOffset = arith::MulIOp::create(rewriter, loc, rowOffset, stride0Val);
+
+      Value colOffset = arith::MulIOp::create(rewriter, loc, tileCol, tileDimVal);
+      colOffset = arith::MulIOp::create(rewriter, loc, colOffset, stride1Val);
+
+      Value tileElemOffset = arith::AddIOp::create(rewriter, loc, rowOffset, colOffset);
+
+      // Total element offset = baseElemOffset + tileElemOffset
+      Value totalElemOffset = arith::AddIOp::create(rewriter, loc, baseElemOffset, tileElemOffset);
+
+      // Convert to byte address: dramAddr = totalElemOffset * elemSizeBytes
+      Value dramAddr = arith::MulIOp::create(rewriter, loc, totalElemOffset, elemSizeVal);
+
+      // Calculate tile ID: tileId = dramAddr / pageSize
+      Value tileId = arith::DivUIOp::create(rewriter, loc, dramAddr, pageSize);
+
+      // Issue an async write for this tile using the tensor accessor.
+      NocAsyncWriteTileOp::create(rewriter, loc, tileId, accessorOp, innerL1Addr);
+
+      // Advance L1 address to next tile.
+      Value nextL1Addr = arith::AddIOp::create(rewriter, loc, innerL1Addr, pageSize);
+      scf::YieldOp::create(rewriter, loc, ValueRange(nextL1Addr));
+    } 
+
+    // Yield updated L1 address from inner loop.
+    rewriter.setInsertionPointAfter(colLoop);
+    scf::YieldOp::create(rewriter, loc, colLoop.getResults());
+  }
+  rewriter.setInsertionPointAfter(rowLoop);
+
+  NocAsyncWriteBarrierOp::create(rewriter, loc);
+  CBPopFrontOp::create(rewriter, loc, cb, numPages);
+
   rewriter.eraseOp(op);
   return success();
  }
