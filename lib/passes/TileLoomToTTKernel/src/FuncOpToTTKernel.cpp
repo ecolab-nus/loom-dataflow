@@ -40,6 +40,15 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
   Block &entry = func.front();
   Location loc = func.getLoc();
 
+  // Detect whether this function is a compute kernel. For compute kernels
+  // we avoid creating TensorAccessor bookkeeping, since they do not perform
+  // direct NOC reads/writes and only need CB handles.
+  bool isComputeKernel = false;
+  if (auto threadAttr =
+          func->getAttrOfType<ThreadTypeAttr>(ThreadTypeAttr::name)) {
+    isComputeKernel = threadAttr.getValue() == ThreadType::Compute;
+  }
+
   // Save insertion point and set to start of function body.
   OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToStart(&entry);
@@ -55,7 +64,7 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
       // CB uses nextCompileArgIndex, base address uses nextCompileArgIndex + 1.
       int64_t cbIndex = getAndIncrementIndex(func);
       int64_t baseAddrIndex = getAndIncrementIndex(func);
-      int64_t tensorAccessorArgsIndex = getAndIncrementIndex(func);
+      int64_t tensorAccessorArgsIndex = getNextTensorAccessorArgsIndex(func);
 
       // Create GetCommonArgValOp for CB.
       Value cbIdxValue = rewriter.create<arith::ConstantIntOp>(
@@ -71,16 +80,32 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
       auto baseAddrOp = rewriter.create<GetCommonArgValOp>(
           loc, rewriter.getI32Type(), baseAddrIdxValue);
 
-      // Create TensorAccessArgs and TensorAccess for base address.
-      auto pagesize = GetTileSizeOp::create(rewriter, loc, cbOp.getResult());
-      Value tensorAccessorArgsIdxVal = rewriter.create<arith::ConstantIntOp>(
-          loc, rewriter.getI32Type(), static_cast<int64_t>(tensorAccessorArgsIndex));
-      auto baseAddrArgs = rewriter.create<TensorAccessorArgsOp>(loc, tensorAccessorArgsIdxVal, tensorAccessorArgsIdxVal);
-      auto baseAddrTensorAccess = rewriter.create<TensorAccessorOp>(loc, baseAddrArgs.getResult(), baseAddrOp.getResult(), pagesize);
-
+      // Create TensorAccessArgs and TensorAccess for base address only for
+      // non-compute kernels (reader/writer/host). Compute kernels access data
+      // via circular buffers and do not issue NOC reads/writes directly, so
+      // they don't require TensorAccessor metadata.
+      Value tensorAccessor;
+      if (!isComputeKernel) {
+        auto pagesize =
+            GetTileSizeOp::create(rewriter, loc, cbOp.getResult());
+        Value tensorAccessorArgsIdxVal = rewriter.create<arith::ConstantIntOp>(
+            loc, rewriter.getI32Type(),
+            static_cast<int64_t>(tensorAccessorArgsIndex));
+        auto baseAddrArgs = rewriter.create<TensorAccessorArgsOp>(
+            loc, tensorAccessorArgsIdxVal, tensorAccessorArgsIdxVal);
+        auto baseAddrTensorAccess =
+            rewriter.create<TensorAccessorOp>(loc, baseAddrArgs.getResult(),
+                                              baseAddrOp.getResult(),
+                                              pagesize);
+        tensorAccessor = baseAddrTensorAccess.getResult();
+      }
 
       // pre-created base address when processing load/store ops.
-      memrefArgToData[arg] = MemrefArgData{cbOp.getResult(), baseAddrOp.getResult(), baseAddrTensorAccess.getResult(), cbIdxValue, cbType};
+      memrefArgToData[arg] = MemrefArgData{cbOp.getResult(),
+                                           baseAddrOp.getResult(),
+                                           tensorAccessor,
+                                           cbIdxValue,
+                                           cbType};
 
     } else if (argType.isIndex()) {
       // Index type: create a single compile-arg.
