@@ -35,6 +35,7 @@
 #include "DataflowOps.h.inc"
 
 #include "LoomDialect.h.inc"
+#include "mlir/Interfaces/ViewLikeInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -277,7 +278,7 @@ static LogicalResult addL1CacheConstraints(func::FuncOp func,
 
 static LogicalResult
 addIntraCorePipelineConstraints(loom::ConstraintSpaceOp csOp,
-                              const loom::HardwareInfo &hardwareInfo) {
+                                const loom::HardwareInfo &hardwareInfo) {
   if (!csOp)
     return success();
 

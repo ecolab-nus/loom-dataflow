@@ -3,9 +3,10 @@
  * @brief Implementation of materialize pass for canonicalizing IR.
  * @details
  * This pass materializes all loom.get_module_attribute operations by replacing
- * them with arith.constant operations. For each loom.get_module_attribute operation,
- * it reads the attribute name from the operation, looks up the corresponding value
- * in the module's attributes, and creates an arith.constant with that value.
+ * them with arith.constant operations. For each loom.get_module_attribute
+ * operation, it reads the attribute name from the operation, looks up the
+ * corresponding value in the module's attributes, and creates an arith.constant
+ * with that value.
  */
 
 #include "Passes.h"
@@ -15,14 +16,15 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/Casting.h"
 
 // Include Loom dialect headers for GetBlockSizeOp
+#include "mlir/Interfaces/ViewLikeInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -43,9 +45,7 @@ public:
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MaterializePass)
 
   /// Command-line flag name.
-  StringRef getArgument() const override {
-    return "loom-materialize";
-  }
+  StringRef getArgument() const override { return "loom-materialize"; }
 
   /// Short pass description for diagnostics and help.
   StringRef getDescription() const override {
@@ -54,8 +54,9 @@ public:
 
   /// Declare dialect dependencies used by this pass implementation.
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<affine::AffineDialect, arith::ArithDialect,
-                    func::FuncDialect, memref::MemRefDialect, scf::SCFDialect>();
+    registry
+        .insert<affine::AffineDialect, arith::ArithDialect, func::FuncDialect,
+                memref::MemRefDialect, scf::SCFDialect>();
   }
 
   /**
@@ -79,11 +80,12 @@ public:
       // Get the attribute name from the operation
       StringRef attrName = getAttrOp.getAttr();
 
-      // Find the nearest parent ModuleOp (could be nested module containing the func)
+      // Find the nearest parent ModuleOp (could be nested module containing the
+      // func)
       ModuleOp parentModule = getAttrOp->getParentOfType<ModuleOp>();
       if (!parentModule) {
-        getAttrOp->emitWarning() << "No parent module found for attribute '" 
-                                  << attrName << "', skipping materialization";
+        getAttrOp->emitWarning() << "No parent module found for attribute '"
+                                 << attrName << "', skipping materialization";
         return;
       }
 
@@ -91,16 +93,18 @@ public:
       Attribute moduleAttr = parentModule->getAttr(attrName);
       if (!moduleAttr) {
         // If attribute not found, skip this operation
-        getAttrOp->emitWarning() << "Module attribute '" << attrName
-                                  << "' not found in parent module, skipping materialization";
+        getAttrOp->emitWarning()
+            << "Module attribute '" << attrName
+            << "' not found in parent module, skipping materialization";
         return;
       }
 
       // Verify that the attribute is an IntegerAttr with index type
       auto intAttr = llvm::dyn_cast<IntegerAttr>(moduleAttr);
       if (!intAttr || !intAttr.getType().isIndex()) {
-        getAttrOp->emitWarning() << "Module attribute '" << attrName
-                                  << "' is not an index integer attribute, skipping";
+        getAttrOp->emitWarning()
+            << "Module attribute '" << attrName
+            << "' is not an index integer attribute, skipping";
         return;
       }
 
@@ -142,6 +146,3 @@ public:
 std::unique_ptr<mlir::Pass> loom::passes::createMaterializePass() {
   return std::make_unique<MaterializePass>();
 }
-
-
-

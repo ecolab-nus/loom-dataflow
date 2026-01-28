@@ -288,5 +288,42 @@ target_compile_options(canonicalize PRIVATE -fno-rtti)
 set_target_properties(canonicalize PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
+# memory_binding: Bind memory allocations to tensor operations
+add_executable(memory_binding
+  ${CMAKE_CURRENT_LIST_DIR}/memory_binding_main.cpp
+)
+
+target_include_directories(memory_binding PRIVATE
+  ${MLIR_INCLUDE_DIRS}
+  ${LOOM_PASSES_INC}
+)
+
+target_link_libraries(memory_binding PRIVATE
+  loomTritonSharedPasses
+  MLIRIR
+  MLIRParser
+  MLIRSupport
+  LLVMSupport
+  MLIRFuncDialect
+  MLIRAffineDialect
+  MLIRMemRefDialect
+  MLIRArithDialect
+  MLIRTensorDialect
+  MLIRLinalgDialect
+  MLIRSCFDialect
+  MLIRBufferizationDialect
+  MLIRPass
+  MLIRAsmParser
+  MLIRBytecodeReader
+  loomDataflowDialect
+  loomDialect
+)
+mlir_check_all_link_libraries(memory_binding)
+
+target_compile_options(memory_binding PRIVATE -fno-rtti)
+
+set_target_properties(memory_binding PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 

@@ -6,6 +6,7 @@
 #include "llvm/ADT/SetVector.h"
 
 #include "LoomDialect.h.inc"
+#include "mlir/Interfaces/ViewLikeInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 

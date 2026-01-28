@@ -23,6 +23,7 @@ add_library(loomTritonSharedPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/triton_shared_affinize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/triton_shared_grid_to_parallel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/triton_shared_spatial_mapping_pass.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/memory_binding_pass.cpp
 )
 
 target_include_directories(loomTritonSharedPasses PUBLIC

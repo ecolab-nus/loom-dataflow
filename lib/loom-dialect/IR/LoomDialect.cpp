@@ -12,6 +12,7 @@
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OpImplementation.h"
+#include "mlir/Interfaces/ViewLikeInterface.h"
 
 #include "LoomDialect.h.inc"
 #include "llvm/ADT/TypeSwitch.h"

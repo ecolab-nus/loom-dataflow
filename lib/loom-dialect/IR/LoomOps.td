@@ -84,7 +84,11 @@ let assemblyFormat = [{
 }];
 }
 
-def ViewOp : Loom_Op<"view", [Pure, AttrSizedOperandSegments]> {
+def ViewOp : Loom_Op<"view", [
+    Pure,
+    AttrSizedOperandSegments,
+    OffsetSizeAndStrideOpInterface
+  ]> {
   let summary = "Create a logical view from a memref with coordinate metadata";
   let description = [{
     The `loom.view` operation creates a logical view (coordinate package) from
@@ -118,7 +122,10 @@ def ViewOp : Loom_Op<"view", [Pure, AttrSizedOperandSegments]> {
   let results = (outs Loom_ViewType:$result);
 
   let assemblyFormat = [{
-    $source `[` $offsets `]` `[` $sizes `]` `[` $strides `]`
+    $source ``
+    custom<DynamicIndexList>($offsets, $static_offsets)
+    custom<DynamicIndexList>($sizes, $static_sizes)
+    custom<DynamicIndexList>($strides, $static_strides)
     attr-dict `:` type($source) `->` type($result)
   }];
 
@@ -126,6 +133,15 @@ def ViewOp : Loom_Op<"view", [Pure, AttrSizedOperandSegments]> {
     /// Get the source memref type.
     ::mlir::MemRefType getSourceType() {
       return ::llvm::dyn_cast<::mlir::MemRefType>(getSource().getType());
+    }
+
+    /// Return the number of leading operands before offsets, sizes, strides.
+    static unsigned getOffsetSizeAndStrideStartOperandIndex() { return 1; }
+
+    /// Return the expected rank of each of the static attributes.
+    std::array<unsigned, 3> getArrayAttrMaxRanks() {
+      unsigned rank = getStaticOffsets().size();
+      return {rank, rank, rank};
     }
   }];
 }
@@ -230,9 +246,6 @@ def CopyFromTensorOp : Loom_Op<"copy_from_tensor", [
     (which resides in L1 buffer) back to global memory at the location
     specified by the target view.
 
-    Semantics: "将该张量背后的物理缓冲区内容，按照 View 定义的坐标，
-    同步到全局内存。"
-
     This operation has side effects as it represents a DMA write-back.
 
     Input:
@@ -259,6 +272,38 @@ def CopyFromTensorOp : Loom_Op<"copy_from_tensor", [
   let assemblyFormat = [{
     $source_tensor `,` $target_view attr-dict `:` 
     type($source_tensor) `,` type($target_view)
+  }];
+}
+
+def InitTensorOp : Loom_Op<"init_tensor", [Pure]> {
+  let summary = "Create a tensor bound to a buffer token";
+  let description = [{
+    The `loom.init_tensor` operation creates a tensor that is bound to a 
+    pre-allocated buffer identified by the buffer token. This replaces 
+    `tensor.empty` to explicitly bind memory allocation with tensor semantics.
+
+    Input:
+    - buffer_token: A `!loom.buffer_token` from loom.allocc
+
+    Output: AnyRankedTensor with specified shape
+
+    Example:
+    ```mlir
+    %token = loom.allocc(%M, %N) on @L1 : !loom.buffer_token
+    %t = loom.init_tensor %token(%M, %N) : !loom.buffer_token -> tensor<?x?xf32>
+    ```
+  }];
+
+  let arguments = (ins
+    Loom_BufferTokenType:$buffer_token,
+    Variadic<Index>:$dynamicSizes
+  );
+
+  let results = (outs AnyRankedTensor:$result);
+
+  let assemblyFormat = [{
+    $buffer_token (`(` $dynamicSizes^ `)`)? attr-dict `:` 
+    type($buffer_token) `->` type($result)
   }];
 }
 
