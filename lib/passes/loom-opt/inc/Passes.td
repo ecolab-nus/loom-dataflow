@@ -118,4 +118,13 @@ def ConstDedupCleanup : Pass<"loom-const-cleanup", "mlir::ModuleOp"> {
   let constructor = "loom::passes::createConstDedupCleanupPass()";
 }
 
+def MemoryBindingPass : Pass<"loom-memory-binding", "mlir::ModuleOp"> {
+  let summary = "Bind memory allocations to tensor operations";
+  let description = [{
+    Transform bufferization patterns to loom dialect operations that explicitly
+    bind physical memory allocations with tensor semantics for dataflow analysis.
+  }];
+  let constructor = "loom::passes::createMemoryBindingPass()";
+}
+
 #endif // LOOM_TRITON_SHARED_PASSES

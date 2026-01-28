@@ -15,6 +15,7 @@
 #include <mlir/Dialect/SCF/IR/SCF.h>
 
 // Include Loom dialect headers for CopyOp
+#include "mlir/Interfaces/ViewLikeInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 

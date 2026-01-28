@@ -25,6 +25,7 @@
 #include "llvm/ADT/SmallVector.h"
 
 // Include Loom dialect headers for CopyOp and ReinterpretCastOp
+#include "mlir/Interfaces/ViewLikeInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 

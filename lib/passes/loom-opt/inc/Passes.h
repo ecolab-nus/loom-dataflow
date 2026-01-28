@@ -17,15 +17,18 @@ namespace passes {
 // Pass factory functions
 std::unique_ptr<mlir::Pass> createTritonSharedAffinizePass();
 std::unique_ptr<mlir::Pass> createTritonSharedGridToParallelPass();
-std::unique_ptr<mlir::Pass> createTritonSharedExploreSpatialMappingsPass(bool withOuterFors = true);
+std::unique_ptr<mlir::Pass>
+createTritonSharedExploreSpatialMappingsPass(bool withOuterFors = true);
 std::unique_ptr<mlir::Pass> createHoistBlockLoadingPass();
 std::unique_ptr<mlir::Pass> createAnnotateReinterpretCastReusePass();
-std::unique_ptr<mlir::Pass> createEnumerateCopyBroadcastPass(bool analysisOnly = false);
+std::unique_ptr<mlir::Pass>
+createEnumerateCopyBroadcastPass(bool analysisOnly = false);
 std::unique_ptr<mlir::Pass> createTileScfForToL1Pass();
 std::unique_ptr<mlir::Pass> createMaterializePass();
 std::unique_ptr<mlir::Pass> createStaticizeTypesPass();
 std::unique_ptr<mlir::Pass> createLoomToMemRefLoweringPass();
 std::unique_ptr<mlir::Pass> createConstDedupCleanupPass();
+std::unique_ptr<mlir::Pass> createMemoryBindingPass();
 
 // Pass registration functions
 void registerTritonSharedAffinizePass();
@@ -39,6 +42,7 @@ void registerMaterializePass();
 void registerStaticizeTypesPass();
 void registerLoomToMemRefLoweringPass();
 void registerConstDedupCleanupPass();
+void registerMemoryBindingPass();
 
 #define GEN_PASS_REGISTRATION
 #include "Passes.h.inc"

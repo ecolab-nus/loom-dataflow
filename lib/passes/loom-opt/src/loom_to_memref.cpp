@@ -1,6 +1,7 @@
 /**
  * @file loom_to_memref.cpp
- * @brief Lowering pass for loom dialect to memref dialect with static type inference.
+ * @brief Lowering pass for loom dialect to memref dialect with static type
+ * inference.
  */
 
 #include "Passes.h"
@@ -18,6 +19,7 @@
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/SmallVector.h"
 
+#include "mlir/Interfaces/ViewLikeInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -27,8 +29,8 @@ namespace {
 
 /// Extract static values from constant operands, mark others as dynamic.
 static void processOperands(ValueRange operands,
-                             SmallVectorImpl<int64_t> &staticVals,
-                             SmallVectorImpl<Value> &dynamicVals) {
+                            SmallVectorImpl<int64_t> &staticVals,
+                            SmallVectorImpl<Value> &dynamicVals) {
   for (Value v : operands) {
     APInt value;
     if (matchPattern(v, m_ConstantInt(&value))) {
@@ -57,8 +59,7 @@ struct LoomReinterpretCastLowering
     auto sourceType = llvm::cast<BaseMemRefType>(op.getSource().getType());
     auto elementType = sourceType.getElementType();
 
-    int64_t layoutOffset =
-        staticOffsets.empty() ? 0 : staticOffsets[0];
+    int64_t layoutOffset = staticOffsets.empty() ? 0 : staticOffsets[0];
     auto layout =
         StridedLayoutAttr::get(op.getContext(), layoutOffset, staticStrides);
     auto resultType = MemRefType::get(staticSizes, elementType, layout);
@@ -94,8 +95,9 @@ public:
   }
 
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<affine::AffineDialect, arith::ArithDialect,
-                    func::FuncDialect, memref::MemRefDialect, scf::SCFDialect>();
+    registry
+        .insert<affine::AffineDialect, arith::ArithDialect, func::FuncDialect,
+                memref::MemRefDialect, scf::SCFDialect>();
   }
 
   void runOnOperation() override {
@@ -113,5 +115,3 @@ public:
 std::unique_ptr<mlir::Pass> loom::passes::createLoomToMemRefLoweringPass() {
   return std::make_unique<LoomToMemRefLoweringPass>();
 }
-
-
