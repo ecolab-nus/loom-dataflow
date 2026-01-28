@@ -17,8 +17,8 @@ def Loom_Dialect : Dialect {
 
   let name = "loom";
   let cppNamespace = "::loom";
-  // No custom types defined, so don't use default type printer/parser
-
+  // Use generated default type printer/parser from types .inc
+  let useDefaultTypePrinterParser = 1;
   let dependentDialects = [
     "memref::MemRefDialect"
   ];

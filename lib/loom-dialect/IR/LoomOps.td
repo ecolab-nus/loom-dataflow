@@ -8,11 +8,20 @@ include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
-include "LoomDialect.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
+include "LoomTypes.td"
 
 class Loom_Op<string mnemonic, list<Trait> traits = []>
   : Op<Loom_Dialect, mnemonic, traits> {}
+
+// Type constraints for Loom custom types
+def Loom_ViewType : Type<CPred<"::llvm::isa<::loom::ViewType>($_self)">,
+                         "loom view type">,
+                    BuildableType<"::loom::ViewType::get($_builder.getContext())">;
+
+def Loom_BufferTokenType : Type<CPred<"::llvm::isa<::loom::BufferTokenType>($_self)">,
+                                "loom buffer token type">,
+                           BuildableType<"::loom::BufferTokenType::get($_builder.getContext())">;
 
 /// An enhanced memref.reinterpret_cast operation.
 /// 
@@ -75,6 +84,52 @@ let assemblyFormat = [{
 }];
 }
 
+def ViewOp : Loom_Op<"view", [Pure, AttrSizedOperandSegments]> {
+  let summary = "Create a logical view from a memref with coordinate metadata";
+  let description = [{
+    The `loom.view` operation creates a logical view (coordinate package) from
+    a source memref. The view encapsulates:
+    - A reference to the source memref (physical storage in Global Memory)
+    - Offsets: logical starting coordinates
+    - Sizes: logical shape of the slice
+    - Strides: access pattern defining memory continuity
+
+    This operation is purely metadata and does not generate any runtime 
+    instructions. The returned `!loom.view` type represents a "logical 
+    perspective with coordinate information" in the SSA chain.
+
+    Example:
+    ```mlir
+    %view_a = loom.view %arg0[%0, %9][%0, %2][1, 1] 
+              : memref<128x128xf32> -> !loom.view
+    ```
+  }];
+
+  let arguments = (ins
+    AnyRankedOrUnrankedMemRef:$source,
+    Variadic<Index>:$offsets,
+    Variadic<Index>:$sizes,
+    Variadic<Index>:$strides,
+    DenseI64ArrayAttr:$static_offsets,
+    DenseI64ArrayAttr:$static_sizes,
+    DenseI64ArrayAttr:$static_strides
+  );
+
+  let results = (outs Loom_ViewType:$result);
+
+  let assemblyFormat = [{
+    $source `[` $offsets `]` `[` $sizes `]` `[` $strides `]`
+    attr-dict `:` type($source) `->` type($result)
+  }];
+
+  let extraClassDeclaration = [{
+    /// Get the source memref type.
+    ::mlir::MemRefType getSourceType() {
+      return ::llvm::dyn_cast<::mlir::MemRefType>(getSource().getType());
+    }
+  }];
+}
+
 def GetBlockSizeOp : Loom_Op<"get_module_attribute", [Pure]> {
   let summary = "Get block size from module attributes";
   let description = [{
@@ -96,54 +151,114 @@ def GetBlockSizeOp : Loom_Op<"get_module_attribute", [Pure]> {
   }];
 }
 
-def CopyOp : Loom_Op<"copy"> {
-    let summary = "A wrapper of memref.copy with provenance and dataflow hardware properties";
 
-    let arguments = (ins 
-        AnyMemRef:$src,
-        AnyMemRef:$dst,
-        Optional<Index>:$provenance,
-        OptionalAttr<ArrayAttr>:$interconnect,
-        DefaultValuedAttr<I64ArrayAttr, "{1, 1}">:$broadcast
-    );
-
-    let assemblyFormat = [{
-        $src `,` $dst 
-        ( `provenance` `:` $provenance^ )? 
-        `,` `interconnect` `:` $interconnect 
-        `,` `broadcast` `:` $broadcast 
-        attr-dict `:` type($src) `to` type($dst)
-    }];
-}
-
-def AllocOp : Loom_Op<"alloc"> {
-  let summary = "A wrapper of memref.alloc with a symbol reference to the hardware memory it is allocated on";
+def AlloccOp : Loom_Op<"allocc"> {
+  let summary = "Allocate L1 buffer and return a buffer token";
   let description = [{
-    The `loom.alloc` operation allocates a new memref on a specific hardware 
-    memory (e.g., L1, DRAM). It is essentially a wrapper around `memref.alloc` 
-    that makes the placement explicit via a symbol reference.
+    The `loom.alloc` operation allocates a buffer on a specific hardware 
+    memory (e.g., L1, DRAM) and returns a buffer token representing this
+    allocation record.
+
+    The `buffer_count` attribute specifies the number of buffers for 
+    double/multi-buffering scenarios.
 
     Example:
     ```mlir
-    %alloc = loom.alloc(%M, %K) on @L1 : memref<?x?xf32>
+    %token = loom.alloc(%M, %K) on @L1 {buffer_count = 2} : !loom.buffer_token
     ```
   }];
 
   let arguments = (ins
     Variadic<Index>:$dynamicSizes,
     SymbolRefAttr:$memory,
-    OptionalAttr<I64Attr>:$alignment
+    OptionalAttr<I64Attr>:$alignment,
+    DefaultValuedAttr<I64Attr, "1">:$buffer_count
   );
 
-  let results = (outs AnyMemRef:$result);
+  let results = (outs Loom_BufferTokenType:$result);
 
   let assemblyFormat = [{
     (`(` $dynamicSizes^ `)`)? `on` $memory attr-dict `:` type($result)
   }];
+}
 
-  let extraClassDeclaration = [{
-    /// Get the rank of the allocated memref.
-    unsigned getRank() { return ::llvm::cast<::mlir::MemRefType>(getResult().getType()).getRank(); }
+def CopyToTensorOp : Loom_Op<"copy_to_tensor", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = "Copy data from global memory to L1 and produce a tensor";
+  let description = [{
+    The `loom.copy_to_tensor` operation performs a data transfer from global
+    memory (described by the source view) to L1 memory (identified by the
+    buffer token), and returns the result as a tensor.
+
+    This operation converts physical semantics (memref + view) to logical
+    semantics (tensor). It has side effects as it represents a DMA transfer.
+
+    Input:
+    - source_view: A `!loom.view` object representing the memref reference
+      and physical coordinates (Offsets, Sizes)
+    - buffer_token: A `!loom.buffer_token` object representing L1 placeholder
+
+    Output: AnyRankedTensor
+
+    Example:
+    ```mlir
+    %t = loom.copy_to_tensor %view, %token 
+         : !loom.view, !loom.buffer_token -> tensor<64x64xf32>
+    ```
+  }];
+
+  let arguments = (ins
+    Loom_ViewType:$source_view,
+    Loom_BufferTokenType:$buffer_token
+  );
+
+  let results = (outs AnyRankedTensor:$result);
+
+  let assemblyFormat = [{
+    $source_view `,` $buffer_token attr-dict `:` 
+    type($source_view) `,` type($buffer_token) `->` type($result)
+  }];
+}
+
+def CopyFromTensorOp : Loom_Op<"copy_from_tensor", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = "Copy tensor data back to global memory via a view";
+  let description = [{
+    The `loom.copy_from_tensor` operation transfers the contents of a tensor
+    (which resides in L1 buffer) back to global memory at the location
+    specified by the target view.
+
+    Semantics: "将该张量背后的物理缓冲区内容，按照 View 定义的坐标，
+    同步到全局内存。"
+
+    This operation has side effects as it represents a DMA write-back.
+
+    Input:
+    - source_tensor: The tensor to write back (typically the final result
+      from computation), using AnyRankedTensor
+    - target_view: A `!loom.view` object encapsulating the target memref 
+      reference and physical coordinates (Offsets, Sizes)
+
+    Output: void (none)
+
+    Example:
+    ```mlir
+    loom.copy_from_tensor %tensor, %view : tensor<64x64xf32>, !loom.view
+    ```
+  }];
+
+  let arguments = (ins
+    AnyRankedTensor:$source_tensor,
+    Loom_ViewType:$target_view
+  );
+
+  let results = (outs);
+
+  let assemblyFormat = [{
+    $source_tensor `,` $target_view attr-dict `:` 
+    type($source_tensor) `,` type($target_view)
   }];
 }
 
@@ -516,4 +631,56 @@ def GetSymbolicBlockSizeOp : Loom_Op<"get_symbolic_block_size", [
   }];
   
   let hasVerifier = 1;
+}
+
+// TODO: remove the following ops after refactoring
+def CopyOp : Loom_Op<"copy"> {
+    let summary = "A wrapper of memref.copy with provenance and dataflow hardware properties";
+
+    let arguments = (ins 
+        AnyMemRef:$src,
+        AnyMemRef:$dst,
+        Optional<Index>:$provenance,
+        OptionalAttr<ArrayAttr>:$interconnect,
+        DefaultValuedAttr<I64ArrayAttr, "{1, 1}">:$broadcast
+    );
+
+    let assemblyFormat = [{
+        $src `,` $dst 
+        ( `provenance` `:` $provenance^ )? 
+        `,` `interconnect` `:` $interconnect 
+        `,` `broadcast` `:` $broadcast 
+        attr-dict `:` type($src) `to` type($dst)
+    }];
+}
+
+def AllocOp : Loom_Op<"alloc"> {
+  let summary = "A wrapper of memref.alloc with a symbol reference to the hardware memory it is allocated on";
+  let description = [{
+    The `loom.alloc` operation allocates a new memref on a specific hardware 
+    memory (e.g., L1, DRAM). It is essentially a wrapper around `memref.alloc` 
+    that makes the placement explicit via a symbol reference.
+
+    Example:
+    ```mlir
+    %alloc = loom.alloc(%M, %K) on @L1 : memref<?x?xf32>
+    ```
+  }];
+
+  let arguments = (ins
+    Variadic<Index>:$dynamicSizes,
+    SymbolRefAttr:$memory,
+    OptionalAttr<I64Attr>:$alignment
+  );
+
+  let results = (outs AnyMemRef:$result);
+
+  let assemblyFormat = [{
+    (`(` $dynamicSizes^ `)`)? `on` $memory attr-dict `:` type($result)
+  }];
+
+  let extraClassDeclaration = [{
+    /// Get the rank of the allocated memref.
+    unsigned getRank() { return ::llvm::cast<::mlir::MemRefType>(getResult().getType()).getRank(); }
+  }];
 }

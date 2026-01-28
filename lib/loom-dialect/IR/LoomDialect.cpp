@@ -14,6 +14,13 @@
 #include "mlir/IR/OpImplementation.h"
 
 #include "LoomDialect.h.inc"
+#include "llvm/ADT/TypeSwitch.h"
+// Generated type declarations
+#define GET_TYPEDEF_CLASSES
+#include "LoomTypes.h.inc"
+// Generated type definitions (TypeID, printers/parsers)
+#define GET_TYPEDEF_CLASSES
+#include "LoomTypes.cpp.inc"
 
 using namespace mlir;
 using namespace loom;
@@ -27,6 +34,10 @@ void LoomDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
 #include "LoomOps.cpp.inc"
+      >();
+  addTypes<
+#define GET_TYPEDEF_LIST
+#include "LoomTypes.cpp.inc"
       >();
 }
 
@@ -110,4 +121,28 @@ LogicalResult loom::ExpressionOp::verify() {
   }
 
   return success();
+}
+
+//===----------------------------------------------------------------------===//
+// CopyToTensorOp MemoryEffects
+//===----------------------------------------------------------------------===//
+
+void loom::CopyToTensorOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  // Read from global memory (source view), Write to L1 memory (buffer token)
+  effects.emplace_back(MemoryEffects::Read::get());
+  effects.emplace_back(MemoryEffects::Write::get());
+}
+
+//===----------------------------------------------------------------------===//
+// CopyFromTensorOp MemoryEffects
+//===----------------------------------------------------------------------===//
+
+void loom::CopyFromTensorOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  // Read from L1 memory (tensor), Write to global memory (target view)
+  effects.emplace_back(MemoryEffects::Read::get());
+  effects.emplace_back(MemoryEffects::Write::get());
 }
