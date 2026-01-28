@@ -54,8 +54,11 @@ struct ReadBlockLoadingLowering
         SymbolRefAttr::get(rewriter.getContext(), "L1"), nullptr, 1);
 
     // 3. Create loom.copy_to_tensor
-    rewriter.replaceOpWithNewOp<loom::CopyToTensorOp>(op, op.getType(), viewOp,
-                                                      alloccOp);
+    auto emptyArray = rewriter.getArrayAttr({});
+    auto defaultBroadcast = rewriter.getI64ArrayAttr({1, 1});
+    rewriter.replaceOpWithNewOp<loom::CopyToTensorOp>(
+        op, op.getType(), viewOp, alloccOp, Value(), emptyArray,
+        defaultBroadcast);
 
     // We can't safely remove subview yet if it has other uses,
     // but usually it's just used by to_tensor in this pattern.

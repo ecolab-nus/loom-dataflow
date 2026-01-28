@@ -76,10 +76,10 @@ def ReinterpretCastOp : Loom_Op<"reinterpret_cast", [
 let assemblyFormat = [{
   $source `to` `offset` `:` `[` $offsets `]` `,` 
   `sizes` `:` `[` $sizes `]` `,` 
-  `strides` `:` `[` $strides `]` `,` 
-  `reuse` `:` `[` `seq` `=` $sequential_reuse `,` 
-                  `spat` `=` $spatial_reuse `,` 
-                  `temp` `=` $temporal_reuse `]`
+  `strides` `:` `[` $strides `]`
+  ( `,` `reuse` `:` `[` `seq` `=` $sequential_reuse^ `,` 
+                   `spat` `=` $spatial_reuse `,` 
+                   `temp` `=` $temporal_reuse `]` )?
   `:` type($source) `to` type($result) attr-dict
 }];
 }
@@ -116,7 +116,11 @@ def ViewOp : Loom_Op<"view", [
     Variadic<Index>:$strides,
     DenseI64ArrayAttr:$static_offsets,
     DenseI64ArrayAttr:$static_sizes,
-    DenseI64ArrayAttr:$static_strides
+    DenseI64ArrayAttr:$static_strides,
+    // memory reuse attributes
+    DefaultValuedAttr<BoolAttr, "false">:$sequential_reuse,
+    DefaultValuedAttr<BoolAttr, "false">:$spatial_reuse,
+    DefaultValuedAttr<BoolAttr, "false">:$temporal_reuse
   );
 
   let results = (outs Loom_ViewType:$result);
@@ -126,6 +130,9 @@ def ViewOp : Loom_Op<"view", [
     custom<DynamicIndexList>($offsets, $static_offsets)
     custom<DynamicIndexList>($sizes, $static_sizes)
     custom<DynamicIndexList>($strides, $static_strides)
+    ( `,` `reuse` `:` `[` `seq` `=` $sequential_reuse^ `,`
+                        `spat` `=` $spatial_reuse `,`
+                        `temp` `=` $temporal_reuse `]` )?
     attr-dict `:` type($source) `->` type($result)
   }];
 
@@ -226,13 +233,20 @@ def CopyToTensorOp : Loom_Op<"copy_to_tensor", [
 
   let arguments = (ins
     Loom_ViewType:$source_view,
-    Loom_BufferTokenType:$buffer_token
+    Loom_BufferTokenType:$buffer_token,
+    Optional<Index>:$provenance,
+    DefaultValuedAttr<ArrayAttr, "{}">:$interconnect,
+    DefaultValuedAttr<I64ArrayAttr, "{1, 1}">:$broadcast
   );
 
   let results = (outs AnyRankedTensor:$result);
 
   let assemblyFormat = [{
-    $source_view `,` $buffer_token attr-dict `:` 
+    $source_view `,` $buffer_token 
+    ( `provenance` `:` $provenance^ )? 
+    `,` `interconnect` `:` $interconnect 
+    `,` `broadcast` `:` $broadcast 
+    attr-dict `:` 
     type($source_view) `,` type($buffer_token) `->` type($result)
   }];
 }

@@ -20,7 +20,7 @@ std::unique_ptr<mlir::Pass> createTritonSharedGridToParallelPass();
 std::unique_ptr<mlir::Pass>
 createTritonSharedExploreSpatialMappingsPass(bool withOuterFors = true);
 std::unique_ptr<mlir::Pass> createHoistBlockLoadingPass();
-std::unique_ptr<mlir::Pass> createAnnotateReinterpretCastReusePass();
+std::unique_ptr<mlir::Pass> createAnnotateViewReusePass();
 std::unique_ptr<mlir::Pass>
 createEnumerateCopyBroadcastPass(bool analysisOnly = false);
 std::unique_ptr<mlir::Pass> createTileScfForToL1Pass();
@@ -35,7 +35,7 @@ void registerTritonSharedAffinizePass();
 void registerTritonSharedGridToParallelPass();
 void registerTritonSharedExploreSpatialMappingsPass();
 void registerHoistBlockLoadingPass();
-void registerAnnotateReinterpretCastReusePass();
+void registerAnnotateViewReusePass();
 void registerEnumerateCopyBroadcastPass();
 void registerTileScfForToL1Pass();
 void registerMaterializePass();

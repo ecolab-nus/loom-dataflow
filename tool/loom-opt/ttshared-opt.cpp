@@ -364,7 +364,7 @@ int main(int argc, char **argv) {
         /*printAfterOnlyOnChange=*/false,
         /*printAfterOnlyOnFailure=*/false, llvm::errs());
   }
-  annotatePM.addPass(loom::passes::createAnnotateReinterpretCastReusePass());
+  annotatePM.addPass(loom::passes::createAnnotateViewReusePass());
   if (failed(annotatePM.run(*tsModule))) {
     llvm::WithColor::error(llvm::errs()) << "Reuse annotation pass failed\n";
     return 3;

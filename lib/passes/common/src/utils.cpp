@@ -6,6 +6,7 @@
 #include "utils.h"
 #include "constraint_space_utils.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/IRMapping.h"
 
 #include "hardware_info.h"
@@ -228,26 +229,45 @@ StringRef traceToSymbolicVar(Value val) {
 llvm::SmallVector<AllocInfo> collectL1AllocInfos(func::FuncOp func) {
   llvm::SmallVector<AllocInfo> allocInfos;
 
-  func.walk([&](loom::AllocOp alloc) {
-    // Only care about allocations on @L1
+  func.walk([&](loom::AlloccOp alloc) {
+    // 1. Only care about allocations on @L1
     if (alloc.getMemory().getLeafReference() != "L1")
       return;
 
-    auto memrefType = cast<MemRefType>(alloc.getResult().getType());
-    AllocInfo info;
-    info.elemSize = memrefType.getElementTypeBitWidth() / 8;
+    // 2. Find element type from users (loom.init_tensor or loom.copy_to_tensor)
+    Type elementType;
+    for (auto user : alloc.getResult().getUsers()) {
+      if (auto initTensor = dyn_cast<loom::InitTensorOp>(user)) {
+        elementType = cast<RankedTensorType>(initTensor.getResult().getType())
+                          .getElementType();
+        break;
+      }
+      if (auto copyToTensor = dyn_cast<loom::CopyToTensorOp>(user)) {
+        elementType = cast<RankedTensorType>(copyToTensor.getResult().getType())
+                          .getElementType();
+        break;
+      }
+    }
 
-    // Trace dynamic dimensions
+    if (!elementType)
+      return;
+
+    // Get base element size (Bytes)
+    int64_t baseElemSize = elementType.getIntOrFloatBitWidth() / 8;
+
+    AllocInfo info;
+    // 3. Consider buffer_count (multi-buffering takes more space)
+    info.elemSize = baseElemSize * alloc.getBufferCount();
+
+    // 4. Trace dynamic dimensions
     auto dynamicOperands = alloc.getDynamicSizes();
     llvm::SmallVector<StringRef> symbolicVars;
     llvm::SmallVector<std::pair<int64_t, StringRef>> ceildivs;
 
     for (Value val : dynamicOperands) {
-      if (auto getSym = val.getDefiningOp<loom::GetSymbolicBlockSizeOp>()) {
-        symbolicVars.push_back(
-            getSym.getSymbolRef().getLeafReference().getValue());
-      } else if (auto ceildiv = val.getDefiningOp<arith::CeilDivSIOp>()) {
-        // Handle (Constant / SymbolicVar) pattern
+      if (auto ceildiv = val.getDefiningOp<arith::CeilDivSIOp>()) {
+        // Handle (Constant / SymbolicVar) pattern for hoisted block
+        // cancellation
         int64_t numerator = -1;
         if (auto constOp =
                 ceildiv.getLhs().getDefiningOp<arith::ConstantIndexOp>()) {
@@ -261,39 +281,37 @@ llvm::SmallVector<AllocInfo> collectL1AllocInfos(func::FuncOp func) {
           StringRef denominator = traceToSymbolicVar(ceildiv.getRhs());
           if (!denominator.empty()) {
             ceildivs.push_back({numerator, denominator});
+            continue; // Already handled as ceildiv pattern
           }
         }
-      } else {
-        StringRef symName = traceToSymbolicVar(val);
-        if (!symName.empty()) {
-          symbolicVars.push_back(symName);
-        }
+      }
+
+      // Normal symbolic variable tracing
+      StringRef symName = traceToSymbolicVar(val);
+      if (!symName.empty()) {
+        symbolicVars.push_back(symName);
       }
     }
 
-    // Cancellation logic for hoisted blocks: block_K * (K_total / block_K) ->
-    // K_total
+    // 5. Cancellation logic for hoisted blocks: block_K * (K_total / block_K)
+    // -> K_total
     for (auto &pair : ceildivs) {
       int64_t numerator = pair.first;
       StringRef denominator = pair.second;
-      bool cancelled = false;
       for (auto it = symbolicVars.begin(); it != symbolicVars.end(); ++it) {
         if (*it == denominator) {
           symbolicVars.erase(it);
-          info.elemSize *= numerator;
-          cancelled = true;
+          info.elemSize *= numerator; // Merge total size multiplication
           break;
         }
-      }
-      if (!cancelled) {
-        // If not cancelled, it remains as a symbolic part (though complex)
-        // For now, we prioritize the cancellation case per requirements.
       }
     }
 
     info.dims = symbolicVars;
-    if (!info.dims.empty() ||
-        info.elemSize > (int64_t)(memrefType.getElementTypeBitWidth() / 8)) {
+
+    // 6. Record if it has symbolic dims or total size exceeds single element
+    // (fixed-size multi-buffer or hoisted buffer)
+    if (!info.dims.empty() || info.elemSize > baseElemSize) {
       allocInfos.push_back(std::move(info));
     }
   });
