@@ -154,7 +154,8 @@ struct InterconnectChoice {
    * @param builder OpBuilder for creating attributes.
    * @return true if successfully applied, false otherwise.
    */
-  bool apply(loom::CopyOp copyOp, ModuleOp module, OpBuilder &builder) const;
+  bool apply(loom::CopyToTensorOp copyOp, ModuleOp module,
+             OpBuilder &builder) const;
 };
 
 /**
@@ -344,24 +345,24 @@ static bool checkOffsetDependencyOnIVs(ArrayRef<Value> offsets,
  * @brief Find and verify the reinterpret_cast source operation for a copy
  * operation.
  * @details Checks if the copy operation's source operand is defined by a
- * loom.reinterpret_cast with spatial_reuse enabled. Returns the
- * reinterpret_cast operation if valid.
- * @param copyOp The loom.copy operation to analyze.
- * @return The reinterpret_cast operation if found and valid, nullptr otherwise.
+ * loom.view with spatial_reuse enabled. Returns the
+ * view operation if valid.
+ * @param copyOp The loom.copy_to_tensor operation to analyze.
+ * @return The view operation if found and valid, nullptr otherwise.
  */
-static loom::ReinterpretCastOp findReinterpretCastSource(loom::CopyOp copyOp) {
+static loom::ViewOp findViewSource(loom::CopyToTensorOp copyOp) {
   if (!copyOp)
     return nullptr;
 
-  Value src = copyOp.getSrc();
-  auto reinterpretCastOp = src.getDefiningOp<loom::ReinterpretCastOp>();
-  if (!reinterpretCastOp)
+  Value sourceView = copyOp.getSourceView();
+  auto viewOp = sourceView.getDefiningOp<loom::ViewOp>();
+  if (!viewOp)
     return nullptr;
 
-  if (!reinterpretCastOp.getSpatialReuse())
+  if (!viewOp.getSpatialReuse())
     return nullptr;
 
-  return reinterpretCastOp;
+  return viewOp;
 }
 
 /**
@@ -406,18 +407,18 @@ findMatchingInterconnects(ModuleOp module, SymbolRefAttr spatialDimRef) {
  * DRAM option).
  */
 static SmallVector<InterconnectChoice>
-findCandidateInterconnects(loom::CopyOp copyOp, ModuleOp module) {
+findCandidateInterconnects(loom::CopyToTensorOp copyOp, ModuleOp module) {
   SmallVector<InterconnectChoice> candidates;
   candidates.push_back(
       InterconnectChoice::makeDRAM()); // Always include DRAM option
 
-  auto reinterpretCastOp = findReinterpretCastSource(copyOp);
-  if (!reinterpretCastOp)
+  auto viewOp = findViewSource(copyOp);
+  if (!viewOp)
     return candidates;
 
-  // Get dynamic offsets from the reinterpret_cast operation
-  SmallVector<Value> dynamicOffsets(reinterpretCastOp.getOffsets().begin(),
-                                    reinterpretCastOp.getOffsets().end());
+  // Get dynamic offsets from the view operation
+  SmallVector<Value> dynamicOffsets(viewOp.getOffsets().begin(),
+                                    viewOp.getOffsets().end());
   if (dynamicOffsets.empty())
     return candidates;
 
@@ -509,7 +510,7 @@ static std::optional<uint64_t> getSpatialDimSize(ModuleOp module,
  * @return true if successfully set, false if interconnectOp is non-null but has
  * no symbol name.
  */
-static bool setInterconnectAttribute(loom::CopyOp copyOp,
+static bool setInterconnectAttribute(loom::CopyToTensorOp copyOp,
                                      loom::df::InterconnectsOp interconnectOp,
                                      OpBuilder &builder, bool append = false) {
   if (interconnectOp) {
@@ -586,7 +587,7 @@ updateBroadcastForInterconnect(SmallVector<int64_t> &broadcastValues,
    * operation.
    */
 static bool applyInterconnectAndBroadcastToCopy(
-    loom::CopyOp copyOp, loom::df::InterconnectsOp interconnectOp,
+    loom::CopyToTensorOp copyOp, loom::df::InterconnectsOp interconnectOp,
     ModuleOp module, OpBuilder &builder, bool append = false) {
   if (!setInterconnectAttribute(copyOp, interconnectOp, builder, append))
     return false;
@@ -612,7 +613,7 @@ static std::string generateFunctionName(StringRef baseName,
 /**
  * @brief Apply this interconnect choice and update broadcast for a copy op.
  */
-bool InterconnectChoice::apply(loom::CopyOp copyOp, ModuleOp module,
+bool InterconnectChoice::apply(loom::CopyToTensorOp copyOp, ModuleOp module,
                                OpBuilder &builder) const {
   if (type == AllDirections) {
     // First apply horizontal (replaces interconnect attribute)
@@ -636,9 +637,9 @@ bool InterconnectChoice::apply(loom::CopyOp copyOp, ModuleOp module,
  * @param func The function to search.
  * @return A vector of loom.copy operations found in the function.
  */
-static SmallVector<loom::CopyOp> findCopyOpsInFunc(func::FuncOp func) {
-  SmallVector<loom::CopyOp> copyOps;
-  func.walk([&](loom::CopyOp copyOp) { copyOps.push_back(copyOp); });
+static SmallVector<loom::CopyToTensorOp> findCopyOpsInFunc(func::FuncOp func) {
+  SmallVector<loom::CopyToTensorOp> copyOps;
+  func.walk([&](loom::CopyToTensorOp copyOp) { copyOps.push_back(copyOp); });
   return copyOps;
 }
 
@@ -710,11 +711,11 @@ private:
       return failure();
 
     // Apply broadcast choices
-    OpBuilder b1(copyOps[0]);
+    OpBuilder b1(copyOps[0].getOperation());
     if (!c1.apply(copyOps[0], module, b1))
       return failure();
 
-    OpBuilder b2(copyOps[1]);
+    OpBuilder b2(copyOps[1].getOperation());
     if (!c2.apply(copyOps[1], module, b2))
       return failure();
 

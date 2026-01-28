@@ -48,14 +48,14 @@ def HoistBlockLoading : Pass<"loom-hoist-block-loading", "mlir::ModuleOp"> {
   let constructor = "loom::passes::createHoistBlockLoadingPass()";
 }
 
-def AnnotateReinterpretCastReuse : Pass<"loom-annotate-reinterpret-cast-reuse", "mlir::ModuleOp"> {
-  let summary = "Analyze reuse pattern on loom.reinterpret_cast";
+def AnnotateViewReuse : Pass<"loom-annotate-view-reuse", "mlir::ModuleOp"> {
+  let summary = "Analyze reuse pattern on loom.view";
   let description = [{
-    Attach a loom.reuse dictionary to each memref.reinterpret_cast describing 
+    Attach a loom.reuse dictionary to each loom.view describing 
     how its offset varies with surrounding iterators, grouped by spatial 
     (affine.parallel), temporal (affine.for), and sequential (scf.for).
   }];
-  let constructor = "loom::passes::createAnnotateReinterpretCastReusePass()";
+  let constructor = "loom::passes::createAnnotateViewReusePass()";
 }
 
 def EnumerateCopyBroadcast : Pass<"loom-enumerate-copy-broadcast", "mlir::ModuleOp"> {

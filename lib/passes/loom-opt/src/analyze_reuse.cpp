@@ -1,17 +1,17 @@
 /**
  * @file analyze_reuse.cpp
- * @brief Implementation: update reuse attributes of `loom.reinterpret_cast`.
+ * @brief Implementation: update reuse attributes of `loom.view`.
  * @details
  * Strategy
- * - For each `loom.reinterpret_cast`, collect its dynamic offsets.
+ * - For each `loom.view`, collect its dynamic offsets.
  * - Walk outward to gather enclosing loops in lexical order, distinguishing
  *   `affine.parallel` (spatial), `affine.for` (temporal), and `scf.for`
  *   (sequential).
  * - For each iterator type, check whether any dynamic offset depends on the
- *   iterators of that type. If at least one iterator of a type has no dependency
- *   (has reuse), set the corresponding reuse attribute to true.
- * - Directly update the `sequential_reuse`, `spatial_reuse`, and `temporal_reuse`
- *   attributes of the operation.
+ *   iterators of that type. If at least one iterator of a type has no
+ * dependency (has reuse), set the corresponding reuse attribute to true.
+ * - Directly update the `sequential_reuse`, `spatial_reuse`, and
+ * `temporal_reuse` attributes of the operation.
  */
 
 #include "Passes.h"
@@ -33,7 +33,8 @@ namespace {
 
 /// @brief Check whether `value` depends (transitively) on `target`.
 /// @details Walks the SSA def-use graph backward from `value` to determine if
-/// `target` appears among its transitive operands. Block arguments stop the walk.
+/// `target` appears among its transitive operands. Block arguments stop the
+/// walk.
 static bool dependsOn(Value value, Value target) {
   if (!value || value == target)
     return value == target;
@@ -60,37 +61,34 @@ static bool dependsOn(Value value, Value target) {
   return false;
 }
 
-class AnnotateReinterpretCastReusePass
-    : public PassWrapper<AnnotateReinterpretCastReusePass,
-                         OperationPass<ModuleOp>> {
+class AnnotateViewReusePass
+    : public PassWrapper<AnnotateViewReusePass, OperationPass<ModuleOp>> {
 public:
   /**
-   * @brief Update reuse attributes of `loom.reinterpret_cast` operations.
+   * @brief Update reuse attributes of `loom.view` operations.
    *
-   * @details For each cast, the pass identifies surrounding iterator variables
+   * @details For each view, the pass identifies surrounding iterator variables
    * (spatial `affine.parallel`, temporal `affine.for`, sequential `scf.for`),
-   * determines whether the cast's dynamic offsets vary with iterators of each
+   * determines whether the view's dynamic offsets vary with iterators of each
    * type, and directly updates the `sequential_reuse`, `spatial_reuse`, and
    * `temporal_reuse` attributes.
    */
-  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(AnnotateReinterpretCastReusePass)
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(AnnotateViewReusePass)
 
   /// Command-line flag name.
-  StringRef getArgument() const override {
-    return "loom-annotate-reinterpret-cast-reuse";
-  }
+  StringRef getArgument() const override { return "loom-annotate-view-reuse"; }
   /// Short pass description for diagnostics and help.
   StringRef getDescription() const override {
-    return "Update reuse attributes of loom.reinterpret_cast ops";
+    return "Update reuse attributes of loom.view ops";
   }
 
   /**
    * @brief Execute the pass over the module.
    *
-   * @details Walk all `loom.reinterpret_cast` ops, collect dynamic offsets,
+   * @details Walk all `loom.view` ops, collect dynamic offsets,
    * derive enclosing iterators, and update reuse attributes based on whether
    * offsets depend on iterators of each type.
-   * 
+   *
    * Note: This pass operates directly on the existing module without creating
    * a new one, so module-level attributes are automatically preserved.
    */
@@ -99,22 +97,22 @@ public:
     MLIRContext *ctx = module.getContext();
 
     module.walk([&](Operation *op) {
-      // Check if this is a loom.reinterpret_cast operation
-      if (op->getName().getStringRef() != "loom.reinterpret_cast")
+      // Check if this is a loom.view operation
+      if (op->getName().getStringRef() != "loom.view")
         return;
-      
-      // Access offsets through operands
-      // For loom.reinterpret_cast, operands are: source, offsets, sizes, strides
-      // We need to get the offsets segment from operand_segment_sizes
-      auto segmentSizes = op->getAttrOfType<DenseI32ArrayAttr>("operand_segment_sizes");
+
+      // For loom.reinterpret_cast, operands are: source, offsets, sizes,
+      // strides We need to get the offsets segment from operand_segment_sizes
+      auto segmentSizes =
+          op->getAttrOfType<DenseI32ArrayAttr>("operand_segment_sizes");
       if (!segmentSizes || segmentSizes.size() < 4)
         return;
-      
+
       // Calculate operand indices: source=0, offsets start after source
       unsigned sourceSize = segmentSizes[0];
       unsigned offsetsSize = segmentSizes[1];
       unsigned offsetsStart = sourceSize;
-      
+
       // Collect dynamic offsets (all offsets are Values, not OpFoldResult)
       SmallVector<Value, 4> dynamicOffsets;
       for (unsigned i = 0; i < offsetsSize; ++i) {
@@ -126,12 +124,13 @@ public:
       SmallVector<Operation *, 8> loopStack;
       for (Operation *parent = op->getParentOp(); parent;
            parent = parent->getParentOp()) {
-        if (isa<affine::AffineParallelOp, affine::AffineForOp, scf::ForOp>(parent))
+        if (isa<affine::AffineParallelOp, affine::AffineForOp, scf::ForOp>(
+                parent))
           loopStack.push_back(parent);
       }
       if (loopStack.empty())
         return;
-      
+
       // Reverse to get outermost-to-innermost order.
       std::reverse(loopStack.begin(), loopStack.end());
 
@@ -146,9 +145,10 @@ public:
           // Check all IVs of this affine.parallel for spatial reuse.
           for (Value iv : par.getIVs()) {
             // Check if any dynamic offset depends on this iterator.
-            bool hasVariant = llvm::any_of(dynamicOffsets,
-                                          [&](Value v) { return dependsOn(v, iv); });
-            // If at least one spatial iterator has no dependency, mark as having reuse.
+            bool hasVariant = llvm::any_of(
+                dynamicOffsets, [&](Value v) { return dependsOn(v, iv); });
+            // If at least one spatial iterator has no dependency, mark as
+            // having reuse.
             if (!hasVariant) {
               hasSpatialReuse = true;
               break; // No need to check further if we found one with reuse
@@ -157,16 +157,16 @@ public:
         } else if (auto affFor = dyn_cast<affine::AffineForOp>(loop)) {
           // Check temporal iterator for reuse.
           Value iv = affFor.getInductionVar();
-          bool hasVariant = llvm::any_of(dynamicOffsets,
-                                        [&](Value v) { return dependsOn(v, iv); });
+          bool hasVariant = llvm::any_of(
+              dynamicOffsets, [&](Value v) { return dependsOn(v, iv); });
           if (!hasVariant) {
             hasTemporalReuse = true;
           }
         } else if (auto scfFor = dyn_cast<scf::ForOp>(loop)) {
           // Check sequential iterator for reuse.
           Value iv = scfFor.getInductionVar();
-          bool hasVariant = llvm::any_of(dynamicOffsets,
-                                        [&](Value v) { return dependsOn(v, iv); });
+          bool hasVariant = llvm::any_of(
+              dynamicOffsets, [&](Value v) { return dependsOn(v, iv); });
           if (!hasVariant) {
             hasSequentialReuse = true;
           }
@@ -183,12 +183,9 @@ public:
 
 } // namespace
 
-std::unique_ptr<mlir::Pass>
-loom::passes::createAnnotateReinterpretCastReusePass() {
+std::unique_ptr<mlir::Pass> loom::passes::createAnnotateViewReusePass() {
   /**
-   * @brief Create the reinterpret_cast reuse annotation pass.
+   * @brief Create the view reuse annotation pass.
    */
-  return std::make_unique<AnnotateReinterpretCastReusePass>();
+  return std::make_unique<AnnotateViewReusePass>();
 }
-
-
