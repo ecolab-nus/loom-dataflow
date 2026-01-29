@@ -36,7 +36,7 @@ namespace loom {
  * @brief Data created for a memref input argument.
  *
  * @details Stores the CB value and base address value created by 
- *          GetCommonArgValOp for a memref function argument.
+ *          GetArgValOp for a memref function argument.
  */
 struct MemrefArgData {
   /// The CB value created for this memref argument.
@@ -45,16 +45,16 @@ struct MemrefArgData {
   Value baseAddr;
   /// The tensor accessor value created for this memref argument.
   Value tensorAccessor;
-  /// The index value used to create the CB (for inlining GetCommonArgValOp).
+  /// The index value used to create the CB (for inlining GetArgValOp).
   Value cbIndex;
-  /// The CB type for creating inline GetCommonArgValOp.
+  /// The CB type for creating inline GetArgValOp.
   Type cbType;
 };
 
 /**
  * @brief Data created for an index input argument.
  *
- * @details Stores the compile-arg value created by GetCommonArgValOp
+ * @details Stores the compile-arg value created by GetArgValOp
  *          for an index function argument.
  */
 struct IndexArgData {
@@ -68,8 +68,8 @@ struct IndexArgData {
  * @brief Tracks input arguments and creates compile-arg values for them.
  *
  * @details This simplified tracker focuses only on input arguments:
- *          - Memref arguments: creates a CB and base address via GetCommonArgValOp
- *          - Index arguments: creates a single compile-arg value via GetCommonArgValOp
+ *          - Memref arguments: creates a CB and base address via GetArgValOp
+ *          - Index arguments: creates a single compile-arg value via GetArgValOp
  *          The created values are stored in maps for later usage.
  */
 class CompileArgTracker {
@@ -78,8 +78,8 @@ public:
    * @brief Process all input arguments of a function and create compile-arg values.
    *
    * @details For each function argument:
-   *          - Memref types: creates two GetCommonArgValOp (CB and base address)
-   *          - Index types: creates one GetCommonArgValOp and casts to index
+   *          - Memref types: creates two GetArgValOp (CB and base address)
+   *          - Index types: creates one GetArgValOp and casts to index
    *          All created values are stored in internal maps and can be retrieved later.
    *
    * @param func The function to process.
@@ -151,7 +151,7 @@ public:
   /**
    * @brief Create a compile-arg for an index-typed value (e.g., loop IV).
    *
-   * @details Allocates a new compile-arg index and creates a GetCommonArgValOp
+   * @details Allocates a new compile-arg index and creates a GetArgValOp
    *          followed by an index cast. Stores the result for later retrieval.
    *          This is used for loop induction variables that are not function args.
    *
@@ -206,11 +206,11 @@ private:
 void specializeFunctionsForTTKernel(ModuleOp module);
 
 /**
- * @brief Replace function arguments with GetCommonArgValOp operations.
+ * @brief Replace function arguments with GetArgValOp operations.
  *
  * @details For each function argument:
- *          - Memref types: replaced with GetCommonArgValOp returning CB type
- *          - Index types: replaced with GetCommonArgValOp returning i32
+ *          - Memref types: replaced with GetArgValOp returning CB type
+ *          - Index types: replaced with GetArgValOp returning i32
  *          After replacement, all function arguments are removed.
  *
  * @param func The function to process.

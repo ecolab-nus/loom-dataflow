@@ -20,7 +20,7 @@ namespace loom {
  * @details
  * This helper registers patterns that:
  * - Replace `affine.parallel` induction variables with TTKernel
- *   `GetCommonArgValOp` operations (cast to `index`), assigning each
+ *   `GetArgValOp` operations (cast to `index`), assigning each
  *   parallel loop a fresh compile-arg index via `CompileArgTracker`.
  * - Inline the bodies of such `affine.parallel` operations and erase the
  *   loop ops, effectively treating the parallel iterators as compile-time
