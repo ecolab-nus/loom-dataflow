@@ -54,23 +54,6 @@ public:
       return CBType::get(memref);
     });
     
-/*     // Add target materialization for CBType -> MemRefType (if needed)
-    addTargetMaterialization([](OpBuilder &builder, Type type,
-                                 ValueRange inputs, Location loc) -> Value {
-      // If we need to materialize a memref from a CBType, we can extract
-      // the underlying memref. For now, return nullptr to indicate no
-      // materialization is available.
-      return nullptr;
-    });
-    
-    // Add source materialization for MemRefType -> CBType (if needed)
-    addSourceMaterialization([](OpBuilder &builder, Type type,
-                                 ValueRange inputs, Location loc) -> Value {
-      // If we have a memref value that needs to be converted to CBType,
-      // we can wrap it. For now, return nullptr to indicate no
-      // materialization is available.
-      return nullptr;
-    }); */
   }
 };
 

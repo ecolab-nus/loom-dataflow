@@ -2,15 +2,6 @@
  * @file ComputeOpToTTKernel.cpp
  * @brief Skeleton conversions for compute ops (e.g., linalg.matmul) to TTKernel.
  *
- * @details Core lowering logic intentionally left empty; this file provides the
- *          pattern scaffolding so future implementations can plug in TTKernel
- *          compute lowering.
- */
-
-/**
- * @file ComputeOpToTTKernel.cpp
- * @brief Skeleton conversions for compute ops (e.g., linalg.matmul) to TTKernel.
- *
  * @details Core lowering logic for TTKernel matmul is minimal and currently
  *          emits a single `ttkernel.experimental::matmul_block` op with
  *          placeholder tiling parameters. This is sufficient to exercise the
@@ -66,9 +57,6 @@ public:
     // For now, assume a single tile/block at index 0 for inputs and output.
     Value zeroI32 = rewriter.create<arith::ConstantIntOp>(
         loc, /*value=*/0, /*width=*/32);
-    Value oneI32 = rewriter.create<arith::ConstantIntOp>(
-        loc, /*value=*/1, /*width=*/32);
-
     // Placeholder dimensions for a single CT/RT/KT/NT block.
     Value in0TileIdx = zeroI32;
     Value in1TileIdx = zeroI32;
@@ -82,10 +70,12 @@ public:
     auto rhsShapedType = dyn_cast<ShapedType>(op.getInputs()[1].getType());
     ArrayRef<int64_t> rhsShape = rhsShapedType.getShape();
     int32_t ctVal = static_cast<int32_t>(rhsShape[1] / 32);
+    auto outShapedType = dyn_cast<ShapedType>(op.getOutputs()[0].getType());
+    ArrayRef<int64_t> outShape = outShapedType.getShape();
+    int32_t ntVal = static_cast<int32_t>(outShape[1] / 32);
     Value ctDim = rewriter.create<arith::ConstantIntOp>(loc, ctVal, 32);
     Value rtDim = rewriter.create<arith::ConstantIntOp>(loc, rtVal, 32);
-    //TODO: ntDim should the number of tiles in final output N dimension
-    Value ntDim = rewriter.create<arith::ConstantIntOp>(loc, ctVal, 32);
+    Value ntDim = rewriter.create<arith::ConstantIntOp>(loc, ntVal, 32);
     Value ktDim = rewriter.create<arith::ConstantIntOp>(loc, ktVal, 32);
 
 

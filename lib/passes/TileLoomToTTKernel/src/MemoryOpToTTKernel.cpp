@@ -233,22 +233,9 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
     // The offset is in element units (from affine.apply).
     Value baseElemOffset = offsetI32;
 
-    // Get memref shape and element type.
+    // Get memref shape.
     auto resultType = cast<MemRefType>(reinterpretCastOp.getResult().getType());
     ArrayRef<int64_t> shape = resultType.getShape();
-    Type elemType = resultType.getElementType();
-
-    // Get element size in bytes.
-    int64_t elemSizeBytes = 0;
-    if (elemType.isF32()) {
-      elemSizeBytes = 4;
-    } else if (elemType.isF16() || elemType.isBF16()) {
-      elemSizeBytes = 2;
-    } else if (auto intType = dyn_cast<IntegerType>(elemType)) {
-      elemSizeBytes = (intType.getWidth() + 7) / 8;
-    } else {
-      elemSizeBytes = 4;  // Default assumption
-    }
 
     // Get strides from the layout.
     SmallVector<int64_t> strides;
@@ -277,7 +264,6 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
     Value loopConst0 = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
     Value loopConst1 = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
     Value tileDimVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), kTileDim);
-    Value elemSizeVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), elemSizeBytes);
     Value numTileRowsVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), numTileRows);
     Value numTileColsVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), numTileCols);
     Value stride0Val = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(),
@@ -529,22 +515,9 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
   // The offset is in element units (from affine.apply).
   Value baseElemOffset = offsetI32;
 
-  // Get memref shape and element type.
+  // Get memref shape.
   auto resultType = cast<MemRefType>(reinterpretCastOp.getResult().getType());
   ArrayRef<int64_t> shape = resultType.getShape();
-  Type elemType = resultType.getElementType();
-
-  // Get element size in bytes.
-  int64_t elemSizeBytes = 0;
-  if (elemType.isF32()) {
-    elemSizeBytes = 4;
-  } else if (elemType.isF16() || elemType.isBF16()) {
-    elemSizeBytes = 2;
-  } else if (auto intType = dyn_cast<IntegerType>(elemType)) {
-    elemSizeBytes = (intType.getWidth() + 7) / 8;
-  } else {
-    elemSizeBytes = 4;  // Default assumption
-  }
 
   // Get strides from the layout.
   SmallVector<int64_t> strides;
@@ -573,7 +546,6 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
   Value loopConst0 = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
   Value loopConst1 = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
   Value tileDimVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), kTileDim);
-  Value elemSizeVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), elemSizeBytes);
   Value numTileRowsVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), numTileRows);
   Value numTileColsVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), numTileCols);
   Value stride0Val = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 
@@ -631,15 +603,6 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
 
       // tileId = rowTileBase + colTile
       Value tileId = arith::AddIOp::create(rewriter, loc, rowTileBase, colTile);
-
-
-
-/*       // Convert to byte address: dramAddr = totalElemOffset * elemSizeBytes
-      Value dramAddr = arith::MulIOp::create(rewriter, loc, totalElemOffset, elemSizeVal);
-
-      // Calculate tile ID: tileId = dramAddr / pageSize
-      Value tileId = arith::DivUIOp::create(rewriter, loc, dramAddr, pageSize); */
-
       // Issue an async write for this tile using the tensor accessor.
       NocAsyncWriteTileOp::create(rewriter, loc, tileId, accessorOp, innerL1Addr);
 

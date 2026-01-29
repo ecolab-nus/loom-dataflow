@@ -60,8 +60,6 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
     if (isa<MemRefType, UnrankedMemRefType>(argType)) {
       // Memref type: create CB and base address.
       // CB uses nextCompileArgIndex, base address uses nextCompileArgIndex + 1.
-      // Memref type: create CB and base address.
-      // CB uses nextCompileArgIndex, base address uses nextCompileArgIndex + 1.
       int64_t cbIndex = getAndIncrementIndex(func);
       int64_t baseAddrIndex = getAndIncrementIndex(func);
       int64_t tensorAccessorArgsIndex = getNextTensorAccessorArgsIndex(func);
@@ -108,7 +106,6 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
                                            cbType};
 
     } else if (argType.isIndex()) {
-      // Index type: create a single compile-arg.
       // Index type: create a single compile-arg.
       int64_t argIndex = getAndIncrementIndex(func);
 
@@ -194,8 +191,7 @@ Value loom::CompileArgTracker::createIndexCompileArg(Value value, Location loc,
   if (auto *data = getIndexData(value))
     return data->indexValue;
 
-  // Allocate a new compile-arg index.
-  // Find parent function to get the correct index counter.
+  // Allocate a new compile-arg index. Find parent function to get the correct index counter.
   Operation *parentOp = rewriter.getInsertionBlock()->getParentOp();
   auto funcOp = dyn_cast<func::FuncOp>(parentOp);
   if (!funcOp)
@@ -206,7 +202,6 @@ Value loom::CompileArgTracker::createIndexCompileArg(Value value, Location loc,
     return nullptr;
   }
 
-  // Allocate a new compile-arg index.
   int64_t argIndex = getAndIncrementIndex(funcOp);
 
   Value idxValue = rewriter.create<arith::ConstantIntOp>(
@@ -288,16 +283,6 @@ static bool isComputeOp(Operation *op) {
 /**
  * @brief Specialize a function for compute-only execution.
  *
- * @details Clones the function with `__compute` suffix and erases all
- *          store operations (memref.copy where target is reinterpret_cast).
- *          Loads are kept because compute kernels need to read data from CBs.
- *
- * @param func The original function to specialize.
- * @return The specialized compute function.
- */
-/**
- * @brief Specialize a function for compute-only execution.
- *
  * @details Clones the function with `__compute` suffix. Both load and store
  *          operations are retained - they will be lowered to CB synchronization
  *          operations (cb_wait_front/cb_push_back) by the ConvertComputeLoadOp
@@ -346,17 +331,8 @@ static func::FuncOp makeReaderFunc(func::FuncOp func) {
   });
 
   // Erase compute ops in reverse order to handle dependencies
-  for (Operation *op : llvm::reverse(opsToErase)) {
-    // For linalg.matmul, the output is an "in-out" operand (read-modify-write).
-    // Before erasing, we need to forward the output operand to users of the result
-    // if any (though linalg.matmul with memref semantics doesn't produce results).
-    if (auto matmulOp = dyn_cast<linalg::MatmulOp>(op)) {
-      // linalg.matmul with memref semantics has no results, safe to erase
-      op->erase();
-    } else {
-      op->erase();
-    }
-  }
+  for (Operation *op : llvm::reverse(opsToErase))
+    op->erase();
 
   return readerFunc;
 }
@@ -387,14 +363,8 @@ static func::FuncOp makeWriterFunc(func::FuncOp func) {
     }
   });
 
-  for (Operation *op : llvm::reverse(opsToErase)) {
-    if (auto matmulOp = dyn_cast<linalg::MatmulOp>(op)) {
-      (void)matmulOp;
-      op->erase();
-    } else {
-      op->erase();
-    }
-  }
+  for (Operation *op : llvm::reverse(opsToErase))
+    op->erase();
 
   return writerFunc;
 }
