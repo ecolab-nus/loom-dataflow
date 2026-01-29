@@ -117,7 +117,7 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
           cast<CBType>(typeConverter->convertType(op.getTarget().getType()));
       Value idxValue = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), 0);
-      cb = rewriter.create<GetCommonArgValOp>(loc, cbType, idxValue);
+      cb = rewriter.create<GetArgValOp>(loc, cbType, idxValue);
      }
 
  
@@ -128,7 +128,7 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
       // This is a fallback for memrefs that weren't processed at function entry.
       Value baseAddrIdxValue = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), 0);
-      baseAddr = rewriter.create<GetCommonArgValOp>(
+      baseAddr = rewriter.create<GetArgValOp>(
           loc, rewriter.getI32Type(), baseAddrIdxValue);
     }
  
@@ -315,11 +315,26 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
         // Total element offset = baseElemOffset + tileElemOffset
         Value totalElemOffset = arith::AddIOp::create(rewriter, loc, baseElemOffset, tileElemOffset);
 
-        // Convert to byte address: dramAddr = totalElemOffset * elemSizeBytes
-        Value dramAddr = arith::MulIOp::create(rewriter, loc, totalElemOffset, elemSizeVal);
+              // rowIdx = totalElemOffset / elementsPerRow
+        Value rowIdx = arith::DivUIOp::create(rewriter, loc, totalElemOffset, stride0Val);
 
-        // Calculate tile ID: tileId = dramAddr / pageSize
-        Value tileId = arith::DivUIOp::create(rewriter, loc, dramAddr, pageSize);
+        // colIdx = totalElemOffset % elementsPerRow
+        Value colIdx = arith::RemUIOp::create(rewriter, loc, totalElemOffset, stride0Val);
+
+        // tilesPerRow = elementsPerRow / tileDim
+        Value tilesPerRow = arith::DivUIOp::create(rewriter, loc, stride0Val, tileDimVal);
+
+        // rowTile = rowIdx / tileDim
+        Value rowTile = arith::DivUIOp::create(rewriter, loc, rowIdx, tileDimVal);
+
+        // rowTileBase = rowTile * tilesPerRow
+        Value rowTileBase = arith::MulIOp::create(rewriter, loc, rowTile, tilesPerRow);
+
+        // colTile = colIdx / tileDim
+        Value colTile = arith::DivUIOp::create(rewriter, loc, colIdx, tileDimVal);
+
+        // tileId = rowTileBase + colTile
+        Value tileId = arith::AddIOp::create(rewriter, loc, rowTileBase, colTile);
 
         // Issue an async read for this tile using the tensor accessor.
         NocAsyncReadTileOp::create(rewriter, loc, tileId, accessorOp, innerL1Addr);
@@ -391,14 +406,19 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
      // Get the output memref (source of reinterpret_cast) - used for base address lookup.
      Value outputMemref = reinterpretCastOp.getSource();
 
-     // For store, the CB is associated with the L1 source (alloc), not the output memref.
-     // The source should be an alloc that was converted to a CB.
-     Value cb = rewriter.getRemappedValue(op.getSource());
-     if (!cb) {
-       // Fallback: create CB from type converter.
-       llvm::errs() << "No CB found for MemoryStoreOp source: " << op.getSource() << "\n";
-       return failure();
-     }
+    // For store, the CB is tracked per *original memref argument* (the
+    // reinterpret_cast source), not via the conversion rewriter's SSA mapping.
+    //
+    // Important: `rewriter.getRemappedValue(outputMemref)` may simply return
+    // `outputMemref` itself if no mapping exists, which would leave the original
+    // function argument (e.g. %arg2) still used and prevent
+    // `removeAllFunctionArguments()` from erasing it.
+    Value cb = tracker->getCB(outputMemref);
+    if (!cb) {
+      llvm::errs() << "No CB found for MemoryStoreOp outputMemref: "
+                   << outputMemref << "\n";
+      return failure();
+    }
 
  
     // Get the pre-created base address from the tracker.
@@ -407,7 +427,7 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
       // Fallback: create base address.
       Value baseAddrIdxValue = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), 0);
-      baseAddr = rewriter.create<GetCommonArgValOp>(
+      baseAddr = rewriter.create<GetArgValOp>(
           loc, rewriter.getI32Type(), baseAddrIdxValue);
     }
  
@@ -590,12 +610,35 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
 
       // Total element offset = baseElemOffset + tileElemOffset
       Value totalElemOffset = arith::AddIOp::create(rewriter, loc, baseElemOffset, tileElemOffset);
+      
+      // rowIdx = totalElemOffset / elementsPerRow
+      Value rowIdx = arith::DivUIOp::create(rewriter, loc, totalElemOffset, stride0Val);
 
-      // Convert to byte address: dramAddr = totalElemOffset * elemSizeBytes
+      // colIdx = totalElemOffset % elementsPerRow
+      Value colIdx = arith::RemUIOp::create(rewriter, loc, totalElemOffset, stride0Val);
+
+      // tilesPerRow = elementsPerRow / tileDim
+      Value tilesPerRow = arith::DivUIOp::create(rewriter, loc, stride0Val, tileDimVal);
+
+      // rowTile = rowIdx / tileDim
+      Value rowTile = arith::DivUIOp::create(rewriter, loc, rowIdx, tileDimVal);
+
+      // rowTileBase = rowTile * tilesPerRow
+      Value rowTileBase = arith::MulIOp::create(rewriter, loc, rowTile, tilesPerRow);
+
+      // colTile = colIdx / tileDim
+      Value colTile = arith::DivUIOp::create(rewriter, loc, colIdx, tileDimVal);
+
+      // tileId = rowTileBase + colTile
+      Value tileId = arith::AddIOp::create(rewriter, loc, rowTileBase, colTile);
+
+
+
+/*       // Convert to byte address: dramAddr = totalElemOffset * elemSizeBytes
       Value dramAddr = arith::MulIOp::create(rewriter, loc, totalElemOffset, elemSizeVal);
 
       // Calculate tile ID: tileId = dramAddr / pageSize
-      Value tileId = arith::DivUIOp::create(rewriter, loc, dramAddr, pageSize);
+      Value tileId = arith::DivUIOp::create(rewriter, loc, dramAddr, pageSize); */
 
       // Issue an async write for this tile using the tensor accessor.
       NocAsyncWriteTileOp::create(rewriter, loc, tileId, accessorOp, innerL1Addr);
@@ -963,7 +1006,7 @@ struct ConvertAllocOp : public OpConversionPattern<memref::AllocOp> {
           loc, rewriter.getI32Type(), 0); // TODO: use tracker to get unique index
       auto cbType =
           cast<CBType>(typeConverter->convertType(op.getResult().getType()));
-      cb = rewriter.create<GetCommonArgValOp>(loc, cbType, idxValue);
+      cb = rewriter.create<GetArgValOp>(loc, cbType, idxValue);
      }
 
      // Replace all uses of the alloc result with the CB value

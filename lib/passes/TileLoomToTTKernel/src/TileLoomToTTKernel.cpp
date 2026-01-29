@@ -186,10 +186,10 @@ public:
       return;
     }
 
-    // Step 3.5: Replace index-type function arguments with GetCommonArgValOp.
-    // For each function, insert GetCommonArgValOp at the beginning of the
+    // Step 3.5: Replace index-type function arguments with GetArgValOp.
+    // For each function, insert GetArgValOp at the beginning of the
     // function body to materialize compile-time arguments:
-    // - Index types: GetCommonArgValOp returning i32, then cast to index
+    // - Index types: GetArgValOp returning i32, then cast to index
     // - Memref types (DRAM pointers): create CB and base address values
     // This is done AFTER cleanup passes to avoid dangling value references.
     OpBuilder builder(context);
@@ -294,7 +294,7 @@ public:
 
     // Post-conversion: Remove all function arguments.
     // After conversion, memref args used in reinterpret_cast should be dead
-    // (the conversion patterns emit GetCommonArgValOp for base addresses).
+    // (the conversion patterns emit GetArgValOp for base addresses).
     // Index args were already replaced before conversion.
     for (func::FuncOp func : module.getOps<func::FuncOp>()) {
       if (failed(removeAllFunctionArguments(func))) {

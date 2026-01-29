@@ -74,20 +74,30 @@ public:
     Value in1TileIdx = zeroI32;
     Value dstTileIdx = zeroI32;
     Value transpose = zeroI32;
-    Value ctDim = oneI32;
-    Value rtDim = oneI32;
-    Value ktDim = oneI32;
-    Value ntDim = oneI32;
+    // Use the original linalg.matmul input type to query the tensor/memref shape.
+    auto lhsShapedType = dyn_cast<ShapedType>(op.getInputs()[0].getType());
+    ArrayRef<int64_t> lhsShape = lhsShapedType.getShape();
+    int32_t rtVal = static_cast<int32_t>(lhsShape[0] / 32);
+    int32_t ktVal = static_cast<int32_t>(lhsShape[1] / 32);
+    auto rhsShapedType = dyn_cast<ShapedType>(op.getInputs()[1].getType());
+    ArrayRef<int64_t> rhsShape = rhsShapedType.getShape();
+    int32_t ctVal = static_cast<int32_t>(rhsShape[1] / 32);
+    Value ctDim = rewriter.create<arith::ConstantIntOp>(loc, ctVal, 32);
+    Value rtDim = rewriter.create<arith::ConstantIntOp>(loc, rtVal, 32);
+    //TODO: ntDim should the number of tiles in final output N dimension
+    Value ntDim = rewriter.create<arith::ConstantIntOp>(loc, ctVal, 32);
+    Value ktDim = rewriter.create<arith::ConstantIntOp>(loc, ktVal, 32);
 
 
-    // init matmul block at the beginning of the function (after CB definitions)
+    // Init matmul block at the beginning of the function (after CB definitions)
+    // and acquire tile registers once per kernel, before the main matmul body.
     auto parentFunc = op->getParentOfType<func::FuncOp>();
     if (parentFunc) {
       auto &entryBlock = parentFunc.getBody().front();
       auto savedInsertionPt = rewriter.saveInsertionPoint();
       
       // Find insertion point after all CB definitions
-      // CBs are defined by GetCommonArgValOp or similar ops at function start
+      // CBs are defined by GetArgValOp or similar ops at function start
       Operation *insertAfter = nullptr;
       for (Operation &entryOp : entryBlock) {
         if (entryOp.getNumResults() > 0 && 
@@ -106,15 +116,16 @@ public:
           loc, TypeRange{},
           ValueRange{in0Cb, in1Cb, outCb, transpose,
                      ctDim, rtDim, ktDim});
+
+      // Acquire destination tile registers once before the matmul loop.
+      TileRegsAcquireOp::create(rewriter, loc);
+
       rewriter.restoreInsertionPoint(savedInsertionPt);
     }
     // cb wait front - get number of tiles/pages for each CB
     auto in0CbType = cast<CBType>(in0Cb.getType());
     auto in1CbType = cast<CBType>(in1Cb.getType());
 
-    //add lock for DST register
-    TileRegsAcquireOp::create(rewriter, loc);
-    
     // Use getNumElements() which works for both tiled and scalar CBs
     // (getNumTiles() just calls getNumElements() but asserts element type is TileType)
     //TODO: this should be a tiled CB, now is using elements

@@ -66,18 +66,18 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
       int64_t baseAddrIndex = getAndIncrementIndex(func);
       int64_t tensorAccessorArgsIndex = getNextTensorAccessorArgsIndex(func);
 
-      // Create GetCommonArgValOp for CB.
+      // Create GetArgValOp for CB.
       Value cbIdxValue = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), static_cast<int64_t>(cbIndex));
       auto cbType = typeConverter.convertType(argType);
       if (!cbType)
         return func.emitError() << "failed to convert memref type to CB type";
-      auto cbOp = rewriter.create<GetCommonArgValOp>(loc, cbType, cbIdxValue);
+      auto cbOp = rewriter.create<GetArgValOp>(loc, cbType, cbIdxValue);
 
-      // Create GetCommonArgValOp for base address.
+      // Create GetArgValOp for base address.
       Value baseAddrIdxValue = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), static_cast<int64_t>(baseAddrIndex));
-      auto baseAddrOp = rewriter.create<GetCommonArgValOp>(
+      auto baseAddrOp = rewriter.create<GetArgValOp>(
           loc, rewriter.getI32Type(), baseAddrIdxValue);
 
       // Create TensorAccessArgs and TensorAccess for base address only for
@@ -115,7 +115,7 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
       Value idxValue = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), static_cast<int64_t>(argIndex));
       auto compileArgOp =
-          rewriter.create<GetCommonArgValOp>(loc, rewriter.getI32Type(), idxValue);
+          rewriter.create<GetArgValOp>(loc, rewriter.getI32Type(), idxValue);
 
       // Cast i32 to index for compatibility.
       auto indexCast = rewriter.create<arith::IndexCastOp>(
@@ -212,7 +212,7 @@ Value loom::CompileArgTracker::createIndexCompileArg(Value value, Location loc,
   Value idxValue = rewriter.create<arith::ConstantIntOp>(
       loc, rewriter.getI32Type(), static_cast<int64_t>(argIndex));
   auto compileArgOp =
-      rewriter.create<GetCommonArgValOp>(loc, rewriter.getI32Type(), idxValue);
+      rewriter.create<GetArgValOp>(loc, rewriter.getI32Type(), idxValue);
 
   // Cast i32 to index for compatibility.
   auto indexCast = rewriter.create<arith::IndexCastOp>(
@@ -451,7 +451,12 @@ static func::FuncOp makeHostFunc(func::FuncOp func) {
   Location loc = hostFunc.getLoc();
   OpBuilder builder(hostFunc.getContext());
   builder.setInsertionPointToStart(&hostFunc.getBody().front());
-  
+
+  // Create emitc statements for command queue and program
+  builder.create<emitc::VerbatimOp>(
+      loc, "CommandQueue& cq = device->command_queue();");
+  builder.create<emitc::VerbatimOp>(loc, "Program program{};");
+
   // Create emitc variable for single_tile_size calculation
   builder.create<emitc::VerbatimOp>(loc, "constexpr uint32_t single_tile_size = sizeof(bfloat16) * TILE_HEIGHT * TILE_WIDTH;");
   
