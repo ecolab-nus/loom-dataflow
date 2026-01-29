@@ -24,18 +24,20 @@ module {
         %3 = tensor.empty(%0, %1) : tensor<?x?xf32>
         %4 = linalg.fill ins(%cst : f32) outs(%3 : tensor<?x?xf32>) -> tensor<?x?xf32>
         %5 = affine.for %arg5 = 0 to #map()[%2] iter_args(%arg6 = %4) -> (tensor<?x?xf32>) {
-          %9 = arith.muli %arg5, %2 : index
-          %subview_0 = memref.subview %arg0[%0, %9] [%0, %2] [1, 1] : memref<128x128xf32> to memref<?x?xf32, strided<[128, 1], offset: ?>>
-          %10 = bufferization.to_tensor %subview_0 : memref<?x?xf32, strided<[128, 1], offset: ?>> to tensor<?x?xf32>
-          %subview_1 = memref.subview %arg1[%9, %1] [%2, %1] [1, 1] : memref<128x256xf32> to memref<?x?xf32, strided<[256, 1], offset: ?>>
-          %11 = bufferization.to_tensor %subview_1 : memref<?x?xf32, strided<[256, 1], offset: ?>> to tensor<?x?xf32>
-          %12 = linalg.matmul ins(%10, %11 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%4 : tensor<?x?xf32>) -> tensor<?x?xf32>
-          %13 = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel", "parallel"]} ins(%arg6, %12 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%3 : tensor<?x?xf32>) {
+          %9 = arith.muli %arg3, %0 : index
+          %10 = arith.muli %arg5, %2 : index
+          %subview_0 = memref.subview %arg0[%9, %10] [%0, %2] [1, 1] : memref<128x128xf32> to memref<?x?xf32, strided<[128, 1], offset: ?>>
+          %11 = bufferization.to_tensor %subview_0 : memref<?x?xf32, strided<[128, 1], offset: ?>> to tensor<?x?xf32>
+          %12 = arith.muli %arg4, %1 : index
+          %subview_1 = memref.subview %arg1[%10, %12] [%2, %1] [1, 1] : memref<128x256xf32> to memref<?x?xf32, strided<[256, 1], offset: ?>>
+          %13 = bufferization.to_tensor %subview_1 : memref<?x?xf32, strided<[256, 1], offset: ?>> to tensor<?x?xf32>
+          %14 = linalg.matmul ins(%11, %13 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%4 : tensor<?x?xf32>) -> tensor<?x?xf32>
+          %15 = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel", "parallel"]} ins(%arg6, %14 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%3 : tensor<?x?xf32>) {
           ^bb0(%in: f32, %in_2: f32, %out: f32):
-          %14 = arith.addf %in, %in_2 : f32
-          linalg.yield %14 : f32
+            %16 = arith.addf %in, %in_2 : f32
+            linalg.yield %16 : f32
           } -> tensor<?x?xf32>
-          affine.yield %13 : tensor<?x?xf32>
+          affine.yield %15 : tensor<?x?xf32>
         }
         %6 = arith.muli %arg3, %0 : index
         %7 = arith.muli %arg4, %1 : index
