@@ -8,8 +8,7 @@ set(LOOM_PASSES_INC
   ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
 )
 
-# Affine tools
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/affine)
+# Triton-shared tools
 
 # Triton-shared tools
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/triton-shared/single_stage)
