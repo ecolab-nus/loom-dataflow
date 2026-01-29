@@ -37,7 +37,6 @@ target_link_libraries(loomTritonSharedPasses PUBLIC
     MLIRSCFDialect
     MLIRBufferizationDialect
     MLIRBufferizationTransforms
-    MLIRAffineTransforms
     MLIRAsmParser
     MLIRBytecodeReader
     loomDataflowDialect
