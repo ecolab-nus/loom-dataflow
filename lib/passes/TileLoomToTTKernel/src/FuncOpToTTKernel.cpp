@@ -60,32 +60,47 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
     if (isa<MemRefType, UnrankedMemRefType>(argType)) {
       // Memref type: create CB and base address.
       // CB uses nextCompileArgIndex, base address uses nextCompileArgIndex + 1.
-      int64_t cbIndex = getAndIncrementIndex(func);
-      int64_t baseAddrIndex = getAndIncrementIndex(func);
       int64_t tensorAccessorArgsIndex = getNextTensorAccessorArgsIndex(func);
 
       // Create GetArgValOp for CB.
-      Value cbIdxValue = rewriter.create<arith::ConstantIntOp>(
-          loc, rewriter.getI32Type(), static_cast<int64_t>(cbIndex));
       auto cbType = typeConverter.convertType(argType);
       if (!cbType)
         return func.emitError() << "failed to convert memref type to CB type";
-      auto cbOp = rewriter.create<GetArgValOp>(loc, cbType, cbIdxValue);
+      Value cbOp = createGetArgValOp(loc, rewriter, func, cbType);
 
       // Create GetArgValOp for base address.
-      Value baseAddrIdxValue = rewriter.create<arith::ConstantIntOp>(
-          loc, rewriter.getI32Type(), static_cast<int64_t>(baseAddrIndex));
-      auto baseAddrOp = rewriter.create<GetArgValOp>(
-          loc, rewriter.getI32Type(), baseAddrIdxValue);
+      Value baseAddrOp = createGetArgValOp(loc, rewriter, func,
+                                           rewriter.getI32Type());
+      
+      Value mcast_dest_noc_start_x_op = createGetArgValOp(
+          loc, rewriter, func, rewriter.getI32Type());
+      Value mcast_dest_noc_start_y_op = createGetArgValOp(
+          loc, rewriter, func, rewriter.getI32Type());
+      Value mcast_dest_noc_end_x_op = createGetArgValOp(
+          loc, rewriter, func, rewriter.getI32Type());
+      Value mcast_dest_noc_end_y_op = createGetArgValOp(
+          loc, rewriter, func, rewriter.getI32Type());
+      Value mcast_dest_num_op = createGetArgValOp(
+          loc, rewriter, func, rewriter.getI32Type());
+      Value mcast_sender_noc_x_op = createGetArgValOp(
+          loc, rewriter, func, rewriter.getI32Type());
+      Value mcast_sender_noc_y_op = createGetArgValOp(
+          loc, rewriter, func, rewriter.getI32Type());
+      Value mcast_sender_semaphore_addr_op = createGetArgValOp(
+          loc, rewriter, func, rewriter.getI32Type());
+      Value mcast_receiver_semaphore_addr_op = createGetArgValOp(
+        loc, rewriter, func, rewriter.getI32Type());
+
 
       // Create TensorAccessArgs and TensorAccess for base address only for
       // non-compute kernels (reader/writer/host). Compute kernels access data
       // via circular buffers and do not issue NOC reads/writes directly, so
       // they don't require TensorAccessor metadata.
       Value tensorAccessor;
+      Value mcast_receiver_semaphore_addr_ptr;
+      Value mcast_sender_semaphore_addr_ptr;
       if (!isComputeKernel) {
-        auto pagesize =
-            GetTileSizeOp::create(rewriter, loc, cbOp.getResult());
+        auto pagesize = GetTileSizeOp::create(rewriter, loc, cbOp);
         Value tensorAccessorArgsIdxVal = rewriter.create<arith::ConstantIntOp>(
             loc, rewriter.getI32Type(),
             static_cast<int64_t>(tensorAccessorArgsIndex));
@@ -93,34 +108,42 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
             loc, tensorAccessorArgsIdxVal, tensorAccessorArgsIdxVal);
         auto baseAddrTensorAccess =
             rewriter.create<TensorAccessorOp>(loc, baseAddrArgs.getResult(),
-                                              baseAddrOp.getResult(),
-                                              pagesize);
+                                              baseAddrOp, pagesize);
         tensorAccessor = baseAddrTensorAccess.getResult();
+        mcast_receiver_semaphore_addr_ptr = GetSemaphoreOp::create(rewriter, loc, mcast_receiver_semaphore_addr_op);
+        mcast_sender_semaphore_addr_ptr = GetSemaphoreOp::create(rewriter, loc, mcast_sender_semaphore_addr_op);
+
       }
 
       // pre-created base address when processing load/store ops.
-      memrefArgToData[arg] = MemrefArgData{cbOp.getResult(),
-                                           baseAddrOp.getResult(),
-                                           tensorAccessor,
-                                           cbIdxValue,
-                                           cbType};
+      memrefArgToData[arg] = MemrefArgData{
+        cbOp, // cb id
+        baseAddrOp, // base address
+        tensorAccessor, // tensor accessor
+        mcast_dest_noc_start_x_op, // multicast destination NOC start x
+        mcast_dest_noc_start_y_op, // multicast destination NOC start y
+        mcast_dest_noc_end_x_op, // multicast destination NOC end x
+        mcast_dest_noc_end_y_op, // multicast destination NOC end y
+        mcast_dest_num_op, // multicast destination number
+        mcast_sender_noc_x_op, // multicast sender NOC x
+        mcast_sender_noc_y_op, // multicast sender NOC y
+        mcast_sender_semaphore_addr_op, // multicast sender semaphore address
+        mcast_receiver_semaphore_addr_op, // multicast receiver semaphore address
+        mcast_receiver_semaphore_addr_ptr, // L1 multicast receiver semaphore address pointer
+        mcast_sender_semaphore_addr_ptr // L1 multicast sender semaphore address pointer
+      };
 
     } else if (argType.isIndex()) {
       // Index type: create a single compile-arg.
-      int64_t argIndex = getAndIncrementIndex(func);
-
-      Value idxValue = rewriter.create<arith::ConstantIntOp>(
-          loc, rewriter.getI32Type(), static_cast<int64_t>(argIndex));
-      auto compileArgOp =
-          rewriter.create<GetArgValOp>(loc, rewriter.getI32Type(), idxValue);
+      Value compileArgOp = createGetArgValOp(loc, rewriter, func,
+                                              rewriter.getI32Type());
 
       // Cast i32 to index for compatibility.
       auto indexCast = rewriter.create<arith::IndexCastOp>(
-          loc, rewriter.getIndexType(), compileArgOp.getResult());
+          loc, rewriter.getIndexType(), compileArgOp);
 
       // Store the created values.
-      indexArgToData[arg] =
-          IndexArgData{compileArgOp.getResult(), indexCast.getResult()};
+      indexArgToData[arg] = IndexArgData{compileArgOp, indexCast.getResult()};
 
       // Replace uses of the index argument with the casted value.
       arg.replaceAllUsesWith(indexCast.getResult());
@@ -152,18 +175,6 @@ loom::IndexArgData *loom::CompileArgTracker::getIndexData(Value arg) {
 Value loom::CompileArgTracker::getCB(Value arg) {
   if (auto *data = getMemrefData(arg))
     return data->cb;
-  return nullptr;
-}
-
-Value loom::CompileArgTracker::getCBIndex(Value arg) {
-  if (auto *data = getMemrefData(arg))
-    return data->cbIndex;
-  return nullptr;
-}
-
-Type loom::CompileArgTracker::getCBType(Value arg) {
-  if (auto *data = getMemrefData(arg))
-    return data->cbType;
   return nullptr;
 }
 
@@ -202,23 +213,26 @@ Value loom::CompileArgTracker::createIndexCompileArg(Value value, Location loc,
     return nullptr;
   }
 
-  int64_t argIndex = getAndIncrementIndex(funcOp);
-
-  Value idxValue = rewriter.create<arith::ConstantIntOp>(
-      loc, rewriter.getI32Type(), static_cast<int64_t>(argIndex));
-  auto compileArgOp =
-      rewriter.create<GetArgValOp>(loc, rewriter.getI32Type(), idxValue);
+  Value compileArgOp = createGetArgValOp(loc, rewriter, funcOp,
+                                        rewriter.getI32Type());
 
   // Cast i32 to index for compatibility.
   auto indexCast = rewriter.create<arith::IndexCastOp>(
-      loc, rewriter.getIndexType(), compileArgOp.getResult());
+      loc, rewriter.getIndexType(), compileArgOp);
 
   // Store the created values.
-  indexArgToData[value] =
-      IndexArgData{compileArgOp.getResult(), indexCast.getResult()};
+  indexArgToData[value] = IndexArgData{compileArgOp, indexCast.getResult()};
 
   return indexCast.getResult();
 }
+
+void loom::CompileArgTracker::appendToCoreList(Value value) {
+  coreList.push_back(value);
+}
+
+ArrayRef<Value> loom::CompileArgTracker::getCoreList() const { return coreList; }
+
+void loom::CompileArgTracker::clearCoreList() { coreList.clear(); }
 
 int64_t loom::CompileArgTracker::getAndIncrementIndex(Operation *funcOp) {
   return funcToNextArgIndex[funcOp]++;
@@ -226,6 +240,15 @@ int64_t loom::CompileArgTracker::getAndIncrementIndex(Operation *funcOp) {
 
 int64_t loom::CompileArgTracker::getNextTensorAccessorArgsIndex(Operation *funcOp) {
   return funcToNextTensorAccessorArgsIndex[funcOp]++;
+}
+
+Value loom::CompileArgTracker::createGetArgValOp(Location loc, OpBuilder &rewriter,
+                                                  Operation *funcOp,
+                                                  Type resultType) {
+  int64_t index = getAndIncrementIndex(funcOp);
+  Value idxValue = rewriter.create<arith::ConstantIntOp>(
+      loc, rewriter.getI32Type(), static_cast<int64_t>(index));
+  return rewriter.create<GetArgValOp>(loc, resultType, idxValue).getResult();
 }
 
 //===----------------------------------------------------------------------===//

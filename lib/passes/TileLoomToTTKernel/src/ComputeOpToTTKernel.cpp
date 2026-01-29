@@ -75,6 +75,7 @@ public:
     int32_t ntVal = static_cast<int32_t>(outShape[1] / 32);
     Value ctDim = rewriter.create<arith::ConstantIntOp>(loc, ctVal, 32);
     Value rtDim = rewriter.create<arith::ConstantIntOp>(loc, rtVal, 32);
+    //TODO: ntDim should the number of tiles in final output N dimension
     Value ntDim = rewriter.create<arith::ConstantIntOp>(loc, ntVal, 32);
     Value ktDim = rewriter.create<arith::ConstantIntOp>(loc, ktVal, 32);
 

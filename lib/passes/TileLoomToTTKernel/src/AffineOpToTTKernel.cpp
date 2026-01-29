@@ -83,14 +83,16 @@ public:
     // For each induction variable, create a compile-time argument and cast it
     // back to index. We materialize the compile-arg loads just before the
     // affine.parallel op so they are in the surrounding function body.
-    SmallVector<Value, 4> newIvValues;
+    SmallVector<Value, 2> newIvValues;
     newIvValues.reserve(op.getIVs().size());
 
     rewriter.setInsertionPoint(op);
+    
     for (Value iv : op.getIVs()) {
       // Create a compile-arg for this IV using the tracker.
       Value ivIndex = tracker->createIndexCompileArg(iv, loc, rewriter);
       newIvValues.push_back(ivIndex);
+      tracker->appendToCoreList(ivIndex);
     }
 
     // Replace all IV uses in the loop body with the new compile-arg-based

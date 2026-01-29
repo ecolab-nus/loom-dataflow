@@ -27,6 +27,7 @@
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallVector.h"
 #include <memory>
 
 namespace mlir {
@@ -45,12 +46,32 @@ struct MemrefArgData {
   Value baseAddr;
   /// The tensor accessor value created for this memref argument.
   Value tensorAccessor;
-  /// The index value used to create the CB (for inlining GetArgValOp).
-  Value cbIndex;
-  /// The CB type for creating inline GetArgValOp.
-  Type cbType;
+  /// The start x NOC coordinate of the multicast destination range.
+  Value mcast_dest_noc_start_x;
+  /// The start y NOC coordinate of the multicast destination range.
+  Value mcast_dest_noc_start_y;
+  /// The end x NOC coordinate of the multicast destination range.
+  Value mcast_dest_noc_end_x;
+  /// The end y NOC coordinate of the multicast destination range.
+  Value mcast_dest_noc_end_y;
+  /// The number of destinations for multicast.
+  Value mcast_dest_num;
+  /// The sender x NOC coordinate for multicast.
+  Value mcast_sender_noc_x;
+  /// The sender y NOC coordinate for multicast.
+  Value mcast_sender_noc_y;
+  /// The sender semaphore address for multicast.
+  Value mcast_sender_semaphore_addr;
+  /// The receiver semaphore address for multicast.
+  Value mcast_receiver_semaphore_addr;
+  /// The L1 multicast receiver semaphore address pointer.
+  Value mcast_receiver_semaphore_addr_ptr;
+  /// The L1 multicast sender semaphore address pointer.
+  Value mcast_sender_semaphore_addr_ptr;
+  /// The NOC ID for multicast. default is 0 first, left it to later optimization, TODO: change to dynamic later
+  int8_t noc_id = 0;
+  uint32_t num_tiles;
 };
-
 /**
  * @brief Data created for an index input argument.
  *
@@ -140,12 +161,70 @@ public:
   Value getTensorAccessor(Value arg);
 
   /**
+   * @brief Attach multicast metadata to a memref argument.
+   *
+   * @details This stores the NOC destination range and sender/receiver semaphore
+   *          information used when lowering multicast-capable NOC transactions.
+   *          Values are stored in the per-argument MemrefArgData entry and can
+   *          be queried later via the `getMcast*` accessors.
+   *
+   * @param arg The memref argument (BlockArgument).
+   * @param destNocStartX The start x NOC coordinate of the destination range.
+   * @param destNocStartY The start y NOC coordinate of the destination range.
+   * @param destNocEndX The end x NOC coordinate of the destination range.
+   * @param destNocEndY The end y NOC coordinate of the destination range.
+   * @param destNum The number of multicast destinations.
+   * @param senderNocX The sender x NOC coordinate.
+   * @param senderNocY The sender y NOC coordinate.
+   * @param senderSemaphoreAddr The sender semaphore address.
+   * @param receiverSemaphoreAddr The receiver semaphore address.
+   * @return success if the memref argument exists in the tracker, failure otherwise.
+   */
+  LogicalResult setMulticastInfo(Value arg, Value destNocStartX,
+                                Value destNocStartY, Value destNocEndX,
+                                Value destNocEndY, Value destNum,
+                                Value senderNocX, Value senderNocY,
+                                Value senderSemaphoreAddr,
+                                Value receiverSemaphoreAddr);
+
+  /**
+   * @brief Clear multicast metadata for a memref argument.
+   *
+   * @param arg The memref argument (BlockArgument).
+   * @return success if the memref argument exists in the tracker, failure otherwise.
+   */
+  LogicalResult clearMulticastInfo(Value arg);
+
+  /**
+   * @brief Check whether multicast metadata is present for a memref argument.
+   *
+   * @details Returns true if the tracker has a MemrefArgData entry for @p arg
+   *          and all multicast-related fields are non-null.
+   *
+   * @param arg The memref argument (BlockArgument).
+   * @return true if multicast metadata is fully populated, false otherwise.
+   */
+  bool hasMulticastInfo(Value arg);
+
+  /// @name Multicast getters
+  /// @{
+  Value getMcastDestNocStartX(Value arg);
+  Value getMcastDestNocStartY(Value arg);
+  Value getMcastDestNocEndX(Value arg);
+  Value getMcastDestNocEndY(Value arg);
+  Value getMcastDestNum(Value arg);
+  Value getMcastSenderNocX(Value arg);
+  Value getMcastSenderNocY(Value arg);
+  Value getMcastSenderSemaphoreAddr(Value arg);
+  Value getMcastReceiverSemaphoreAddr(Value arg);
+  /// @}
+
+  /**
    * @brief Get the index value for an index argument.
    * @param arg The index argument (BlockArgument).
    * @return The index value if found, nullptr otherwise.
    */
   Value getIndexValue(Value arg);
-
 
 
   /**
@@ -163,6 +242,31 @@ public:
   Value createIndexCompileArg(Value value, Location loc, OpBuilder &rewriter);
 
   /**
+   * @brief Append a value to the tracker core list.
+   *
+   * @details The core list is a simple ordered collection of values that
+   *          represent per-kernel coordinates/IDs (e.g., affine.parallel IVs)
+   *          materialized as compile-time arguments. This enables other
+   *          lowering patterns to query the set of core-coordinate values that
+   *          were created while lowering a kernel.
+   *
+   * @param value The value to append to the core list.
+   */
+  void appendToCoreList(Value value);
+
+  /**
+   * @brief Get the current core list.
+   *
+   * @return A read-only view of the core list values in insertion order.
+   */
+  ArrayRef<Value> getCoreList() const;
+
+  /**
+   * @brief Clear the current core list.
+   */
+  void clearCoreList();
+
+  /**
    * @brief Get the next unique index for TensorAccessorArgs.
    *
    * @details Allocates and returns a new unique index for use with
@@ -178,6 +282,23 @@ private:
   // Helper to get and increment the compile-arg index for a specific function.
   int64_t getAndIncrementIndex(Operation *funcOp);
 
+  /**
+   * @brief Create a GetArgValOp with an automatically generated index.
+   *
+   * @details Generates a new compile-arg index for the given function operation,
+   *          creates a constant i32 index value, and uses it to create a GetArgValOp
+   *          with the specified result type. This is a common pattern used throughout
+   *          the codebase for creating compile-arg operations.
+   *
+   * @param loc Location for the created operations.
+   * @param rewriter Builder for creating operations.
+   * @param funcOp The function operation to generate the index for.
+   * @param resultType The result type for the GetArgValOp.
+   * @return The result Value from the GetArgValOp.
+   */
+  Value createGetArgValOp(Location loc, OpBuilder &rewriter, Operation *funcOp,
+                          Type resultType);
+
   // Map from FuncOp (as Operation*) to the next available compile-arg index.
   llvm::DenseMap<Operation *, int64_t> funcToNextArgIndex;
 
@@ -189,6 +310,9 @@ private:
   
   /// Map from index argument to its created compile-arg value.
   llvm::DenseMap<Value, IndexArgData> indexArgToData;
+
+  /// Ordered list of "core" values (e.g., compile-arg-based core coordinates).
+  llvm::SmallVector<Value, 2> coreList;
 };
 
 /**
