@@ -11,10 +11,10 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/Debug.h"
 #include <cstddef>
+#include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
-#include <mlir/Dialect/SCF/IR/SCF.h>
 
-// Include Loom dialect headers for CopyOp
+// Include Loom dialect headers
 #include "mlir/Interfaces/ViewLikeInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
@@ -36,13 +36,14 @@ public:
    */
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(HoistBlockLoadingPass)
 
-  /// @brief Find the innermost scf.for loop in a function.
+  /// @brief Find all innermost affine.for loops in a function.
   /// @param funcOp The function to search in.
-  /// @return The innermost scf.for loop, or nullptr if not found.
-  mlir::scf::ForOp findInnermostForOp(mlir::func::FuncOp funcOp) {
-    mlir::scf::ForOp innermostForOp = nullptr;
+  /// @return A vector of innermost affine.for loops.
+  llvm::SmallVector<mlir::affine::AffineForOp>
+  findInnermostAffineForOps(mlir::func::FuncOp funcOp) {
+    llvm::SmallVector<mlir::affine::AffineForOp> innermostOps;
 
-    funcOp.walk([&](mlir::scf::ForOp forOp) {
+    funcOp.walk([&](mlir::affine::AffineForOp forOp) {
       // Check if this forOp is the innermost (no nested loops in its body)
       bool hasNestedLoop = false;
       forOp.getBody()->walk([&](mlir::Operation *op) {
@@ -54,13 +55,12 @@ public:
       });
 
       if (!hasNestedLoop) {
-        innermostForOp = forOp;
-        return mlir::WalkResult::interrupt();
+        innermostOps.push_back(forOp);
       }
       return mlir::WalkResult::advance();
     });
 
-    return innermostForOp;
+    return innermostOps;
   }
 
   /// @brief Run the hoist block loading pass on the module.
@@ -88,30 +88,49 @@ public:
       if (parentModule) {
         moduleAttrs = parentModule->getAttrDictionary();
       }
-      // Find the innermost scf.for loop
-      mlir::scf::ForOp innermostForOp = findInnermostForOp(originalFunc);
 
-      if (!innermostForOp) {
+      // Find all innermost loops
+      auto innermostOps = findInnermostAffineForOps(originalFunc);
+
+      if (innermostOps.empty()) {
         // No innermost loop found, skip this function
         continue;
       }
 
-      // Build loading blocks to determine how many variants we need
-      llvm::SmallVector<loom::affine::LoadingBlock, 2> loading_blocks;
-      if (failed(loom::affine::BuildLoadingBlocks(innermostForOp,
-                                                  loading_blocks))) {
-        continue;
+      // We need to collect ALL loading blocks from ALL innermost loops
+      // for this function variant generation logic.
+      // But typically we generate one variant per hoisted block.
+
+      struct BlockInstance {
+        mlir::affine::AffineForOp loop;
+        size_t index;
+      };
+      llvm::SmallVector<BlockInstance> all_loading_blocks;
+
+      for (auto loop : innermostOps) {
+        llvm::SmallVector<loom::affine::LoadingBlock, 2> loop_blocks;
+        if (succeeded(loom::affine::BuildLoadingBlocks(loop, loop_blocks))) {
+          for (size_t i = 0; i < loop_blocks.size(); ++i) {
+            all_loading_blocks.push_back({loop, i});
+          }
+        }
       }
+
+      if (all_loading_blocks.empty())
+        continue;
 
       // Track insertion point for consecutive clones (at module level)
       mlir::Operation *insertAfter = parentModule;
 
-      // Create clones for each block index and insert them immediately after
-      // the previous one
-      for (size_t block_idx = 0; block_idx < loading_blocks.size();
-           ++block_idx) {
+      // Create clones for each block instance
+      for (size_t block_instance_idx = 0;
+           block_instance_idx < all_loading_blocks.size();
+           ++block_instance_idx) {
+
+        auto instance = all_loading_blocks[block_instance_idx];
         std::string newName = originalFunc.getSymName().str() +
-                              "__hoist_block_" + std::to_string(block_idx);
+                              "__hoist_block_" +
+                              std::to_string(block_instance_idx);
 
         // Clone the function and apply hoisting modification with module
         // wrapper
@@ -120,16 +139,35 @@ public:
             "HoistBlockLoading",
             [&](mlir::func::FuncOp func,
                 loom::ConstraintSpaceOp csOp) -> mlir::LogicalResult {
-              // Find the innermost loop in the cloned function and hoist the
-              // block
-              mlir::scf::ForOp clonedInnermostForOp = findInnermostForOp(func);
-              if (!clonedInnermostForOp) {
+              // We need to find the EQUIVALENT loop in the cloned function.
+              // We can use the index of the loop in the original list.
+              // Wait, indices might change if we modify the function.
+              // Better: find all innermost loops again and use the same index.
+
+              auto clonedInnermostOps = findInnermostAffineForOps(func);
+
+              // Find which loop corresponds to the one we want to hoist.
+              // We can find it by matching the location or just using the same
+              // index in the walk. Since clone preserves order, the n-th
+              // innermost loop should correspond.
+
+              // Let's find the index of 'instance.loop' in 'innermostOps'
+              size_t loop_idx = 0;
+              for (; loop_idx < innermostOps.size(); ++loop_idx) {
+                if (innermostOps[loop_idx] == instance.loop)
+                  break;
+              }
+
+              if (loop_idx >= clonedInnermostOps.size()) {
                 return mlir::failure();
               }
 
+              mlir::affine::AffineForOp targetLoop =
+                  clonedInnermostOps[loop_idx];
+
               // Attempt to hoist the block
-              if (failed(loom::affine::HoistSingleBlock(clonedInnermostForOp,
-                                                        block_idx))) {
+              if (failed(loom::affine::HoistSingleBlock(targetLoop,
+                                                        instance.index))) {
                 return mlir::failure();
               }
 
@@ -171,8 +209,7 @@ public:
             },
             insertAfter);
 
-        // Update insertion point for next clone (should point to the wrapper
-        // module)
+        // Update insertion point for next clone
         if (clonedFunc) {
           mlir::ModuleOp clonedParentModule =
               loom::utils::getParentModule(clonedFunc);
@@ -180,7 +217,6 @@ public:
             insertAfter = clonedParentModule;
           }
         }
-        // If clonedFunc is nullptr, keep insertAfter as-is for next attempt
       }
     }
   }
@@ -192,5 +228,3 @@ std::unique_ptr<mlir::Pass> createHoistBlockLoadingPass() {
 
 } // namespace passes
 } // namespace loom
-
-/// @brief Register the hoist block loading pass with MLIR.
