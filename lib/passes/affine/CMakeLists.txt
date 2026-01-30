@@ -4,7 +4,6 @@
 add_library(loomAffinePasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/affine_parallel_to_for.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/affine_tile.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/affine_tile_pass.cpp
 )
 
 target_include_directories(loomAffinePasses PUBLIC

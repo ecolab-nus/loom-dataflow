@@ -8,6 +8,7 @@
 #include "affine_parallel_to_for.h"
 #include "affine_tile.h"
 #include "constraint_space_utils.h"
+#include "index_mapping.h"
 #include "utils.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -211,6 +212,11 @@ static LogicalResult applyMappingToFunction(
 
   MLIRContext *ctx = func.getContext();
   const unsigned numIter = static_cast<unsigned>(mapping.size());
+
+  // Maps original iteration index -> list of HW mappings (factor and IV)
+  llvm::DenseMap<unsigned, llvm::SmallVector<loom::HWDimMapping>>
+      iterIdxToHWMappings;
+
   for (unsigned iterIdx = 0; iterIdx < numIter; ++iterIdx) {
     for (unsigned dimIdx : mapping[iterIdx]) {
       const auto &sd = dims[dimIdx];
@@ -219,6 +225,7 @@ static LogicalResult applyMappingToFunction(
       if (failed(loom_affine::tileAffineParallel(tar_forOp, factor, iterIdx,
                                                  tiled_parallels)))
         return failure();
+
       StringRef symbolName =
           sd.symbolName.empty() ? StringRef("dim") : StringRef(sd.symbolName);
       tiled_parallels.tiled_new_->setAttr("loom.mapped_to",
@@ -234,9 +241,63 @@ static LogicalResult applyMappingToFunction(
       mapInfo.hwDimSize = factor;
       mappingInfo.push_back(mapInfo);
 
+      // Track the HW IV for index reconstruction
+      loom::HWDimMapping hwMap;
+      hwMap.hwDimIdx = dimIdx;
+      hwMap.hwDimSize = factor;
+      hwMap.iv = tiled_parallels.tiled_new_.getBody()->getArgument(0);
+      iterIdxToHWMappings[iterIdx].push_back(hwMap);
+
       tar_forOp = tiled_parallels.tiled_org_;
     }
   }
+
+  // Final step: Reconstruct absolute indices in the innermost loop body.
+  // After multiple tilings, tar_forOp is the final residual (wave) loop.
+  // The body operations now refer to the induction variables of tar_forOp.
+  OpBuilder builder(ctx);
+  builder.setInsertionPointToStart(tar_forOp.getBody());
+  Location loc = tar_forOp.getLoc();
+
+  for (unsigned i = 0; i < tar_forOp.getNumDims(); ++i) {
+    Value waveIV = tar_forOp.getBody()->getArgument(i);
+    Value reconstructedIV = nullptr;
+
+    auto it = iterIdxToHWMappings.find(i);
+    if (it != iterIdxToHWMappings.end()) {
+      auto &hwmVec = it->second;
+      int64_t totalCores = 1;
+      for (const auto &hwm : hwmVec)
+        totalCores *= hwm.hwDimSize;
+
+      if (hwmVec.size() >= 2) {
+        // 2D mapping: use linearization logic
+        // We only support 2D for now as per plan
+        reconstructedIV = loom::emitGlobalIndex2d(
+            builder, loc, hwmVec[0].iv, hwmVec[1].iv, hwmVec[0].hwDimSize,
+            waveIV, 1, static_cast<unsigned>(totalCores));
+      } else if (hwmVec.size() == 1) {
+        // 1D version: reconstructedIV = hwIV + waveIV * factor
+        int64_t factor = hwmVec[0].hwDimSize;
+        AffineExpr d0 = builder.getAffineDimExpr(0); // hwIV
+        AffineExpr d1 = builder.getAffineDimExpr(1); // waveIV
+        AffineMap map = AffineMap::get(2, 0, d0 + d1 * factor, ctx);
+        reconstructedIV = builder.create<affine::AffineApplyOp>(
+            loc, map, ValueRange{hwmVec[0].iv, waveIV});
+      }
+    }
+
+    if (reconstructedIV) {
+      // Replace all uses of waveIV with reconstructedIV, EXCEPT for the
+      // reconstructedIV op itself.
+      for (auto &use : llvm::make_early_inc_range(waveIV.getUses())) {
+        if (use.getOwner() == reconstructedIV.getDefiningOp())
+          continue;
+        use.set(reconstructedIV);
+      }
+    }
+  }
+
   return success();
 }
 
