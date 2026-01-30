@@ -110,9 +110,9 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
             rewriter.create<TensorAccessorOp>(loc, baseAddrArgs.getResult(),
                                               baseAddrOp, pagesize);
         tensorAccessor = baseAddrTensorAccess.getResult();
-        mcast_receiver_semaphore_addr_ptr = GetSemaphoreOp::create(rewriter, loc, mcast_receiver_semaphore_addr_op);
-        mcast_sender_semaphore_addr_ptr = GetSemaphoreOp::create(rewriter, loc, mcast_sender_semaphore_addr_op);
-
+        //TODO, need to generate code like "ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>" instead of ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>
+        mcast_receiver_semaphore_addr_ptr = CastToL1PtrOp::create(rewriter, loc, mcast_receiver_semaphore_addr_op);
+        mcast_sender_semaphore_addr_ptr = CastToL1PtrOp::create(rewriter, loc, mcast_sender_semaphore_addr_op);
       }
 
       // pre-created base address when processing load/store ops.

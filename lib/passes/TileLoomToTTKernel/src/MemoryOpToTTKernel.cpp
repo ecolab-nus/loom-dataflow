@@ -345,39 +345,33 @@ std::pair<Value, Value> dram_read(memref::CopyOp op,
   return std::make_pair(totalSizeBytes, multicast_l1Addr);
 }
 
-void multicast_send(ConversionPatternRewriter &rewriter, Location loc,
-                    MemrefArgData *memrefArgData, Value totalSizeBytes,
-                    Value multicast_l1Addr) {
-  // TODO: Implement semaphore operations when TTKernel ops are available
-  // wait all dests to be available
-  // NoCSemaphoreWaitOp::create(rewriter, loc,
-  //                            memrefArgData->mcast_sender_semaphore_addr_ptr,
-  //                            memrefArgData->mcast_dest_num);
-  // set the sender semaphore to 0 to indicate that the sender is ready
+void multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArgData *memrefArgData, Value totalSizeBytes, Value multicast_l1Addr) {
+  Value zero = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
   NocSemaphoreSetOp::create(rewriter, loc,
-                            memrefArgData->mcast_sender_semaphore_addr_ptr, 0);
+                            memrefArgData->mcast_sender_semaphore_addr_ptr, zero);
 
-  // Create noc_id as a Value
+ // Create noc_id as a Value
   Value nocIdVal = rewriter.create<arith::ConstantIntOp>(
-      loc, rewriter.getI32Type(), memrefArgData->noc_id);
-  Value noc_multicast_addr = GetNocMulticastAddrOp::create(
-      rewriter, loc, rewriter.getI32Type(),
+      loc, rewriter.getI8Type(), memrefArgData->noc_id);
+   Value noc_multicast_addr = GetNocMulticastAddrOp::create(
+      rewriter, loc, NocAddrType::get(rewriter.getContext()),
       memrefArgData->mcast_dest_noc_start_x,
       memrefArgData->mcast_dest_noc_start_y,
       memrefArgData->mcast_dest_noc_end_x, memrefArgData->mcast_dest_noc_end_y,
       multicast_l1Addr, nocIdVal);
   // send the data to the destinations
+  // Provide explicit false attrs when supplying noc_id to avoid asm ambiguity.
+  auto falseAttr = rewriter.getBoolAttr(false);
   NocAsyncWriteMulticastOp::create(
       rewriter, loc, multicast_l1Addr, noc_multicast_addr,
       totalSizeBytes, // total size of last read
       memrefArgData->mcast_dest_num,
-      nullptr, // linked (optional BoolAttr)
-      nullptr, // multicast_path_reserve (optional BoolAttr)
+      falseAttr, // linked (optional BoolAttr)
+      falseAttr, // multicast_path_reserve (optional BoolAttr)
       nocIdVal);
-
   Value noc_multicast_receiver_semaphore_addr =
       GetNocMulticastAddrOp::create(
-          rewriter, loc, rewriter.getI32Type(),
+          rewriter, loc, NocAddrType::get(rewriter.getContext()),
           memrefArgData->mcast_dest_noc_start_x,
           memrefArgData->mcast_dest_noc_start_y,
           memrefArgData->mcast_dest_noc_end_x,
@@ -387,11 +381,9 @@ void multicast_send(ConversionPatternRewriter &rewriter, Location loc,
 
 void multicast_receive(ConversionPatternRewriter &rewriter, Location loc,
                        MemrefArgData *memrefArgData) {
-  // TODO: Implement semaphore operations when TTKernel ops are available
-  // set the receiver semaphore to 0 to indicate that the receiver is ready for
-  // receiving data
+  Value zero = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
   NocSemaphoreSetOp::create(
-      rewriter, loc, memrefArgData->mcast_receiver_semaphore_addr_ptr, 0);
+      rewriter, loc, memrefArgData->mcast_receiver_semaphore_addr_ptr, zero);
   // get noc address of sender semaphore
   Value mcast_sender_semaphore_addr =
       GetNocAddrOp::create(rewriter, loc, memrefArgData->mcast_sender_noc_x,
@@ -400,7 +392,7 @@ void multicast_receive(ConversionPatternRewriter &rewriter, Location loc,
       // add it by 1
       Value one = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
       Value nocIdVal = rewriter.create<arith::ConstantIntOp>(
-        loc, rewriter.getI32Type(), memrefArgData->noc_id);
+        loc, rewriter.getI8Type(), memrefArgData->noc_id);
       NocSemaphoreIncOp::create(rewriter, loc, mcast_sender_semaphore_addr, one, nocIdVal);
       // wait all data arrived
       NocSemaphoreWaitOp::create(rewriter, loc,
@@ -488,7 +480,7 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
         dram_read(op, rewriter, memrefArgData, tracker, getTypeConverter());
 
     if (isBroadcast) {
-      auto coreList = tracker->getCoreList();
+/*       auto coreList = tracker->getCoreList();
       Value zero = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), 0);
       Value cond;
@@ -500,21 +492,20 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
         // broadcast along y dimension
         cond = arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::eq,
                                      coreList[1], zero);
-      }
+      } */
 
-      auto ifOp = rewriter.create<scf::IfOp>(loc, TypeRange{}, cond, true);
-      rewriter.setInsertionPointToStart(ifOp.thenBlock());
+      //auto ifOp = rewriter.create<scf::IfOp>(loc, TypeRange{}, cond, true);
+      //rewriter.setInsertionPointToStart(ifOp.thenBlock());
       // code for sender
-      multicast_send(rewriter, loc, memrefArgData, totalSizeBytes,
-                     multicast_l1Addr);
-      rewriter.create<scf::YieldOp>(loc);
+      multicast_send(rewriter, loc, memrefArgData, totalSizeBytes, multicast_l1Addr);
+      //rewriter.create<scf::YieldOp>(loc);
 
-      rewriter.setInsertionPointToStart(ifOp.elseBlock());
+      //rewriter.setInsertionPointToStart(ifOp.elseBlock());
       // code for receiver
-      multicast_receive(rewriter, loc, memrefArgData);
-      rewriter.create<scf::YieldOp>(loc);
+      //multicast_receive(rewriter, loc, memrefArgData);
+      //rewriter.create<scf::YieldOp>(loc);
 
-      rewriter.setInsertionPointAfter(ifOp);
+      //rewriter.setInsertionPointAfter(ifOp);
     }
     // push the data to the cb
     CBPushBackOp::create(rewriter, loc, memrefArgData->cb, numTilesVal);
