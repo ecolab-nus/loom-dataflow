@@ -240,5 +240,10 @@ llvm::SmallVector<AllocInfo> collectL1AllocInfos(mlir::func::FuncOp func);
  */
 llvm::StringRef traceToSymbolicVar(mlir::Value val);
 
+/**
+ * @brief Compose and canonicalize all affine.apply operations in a function.
+ */
+void composeAndCanonicalizeAffineApplies(mlir::func::FuncOp func);
+
 } // namespace utils
 } // namespace loom

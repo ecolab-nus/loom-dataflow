@@ -35,7 +35,6 @@ target_include_directories(loomTritonSharedPasses PUBLIC
 # Triton-shared passes depend on affine passes and common utilities
 target_link_libraries(loomTritonSharedPasses PUBLIC
     LoomPassesCommon
-    loomAffinePasses
     MLIRIR
     MLIRPass
     MLIRParser

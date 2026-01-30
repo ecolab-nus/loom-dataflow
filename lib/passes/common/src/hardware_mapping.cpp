@@ -1,14 +1,8 @@
-/**
- * @file hardware_info.cpp
- * @brief Implementation for hardware information discovery and spatial mapping
- * enumeration.
- */
-
-#include "hardware_info.h"
-#include "affine_parallel_to_for.h"
-#include "affine_tile.h"
+#include "affine_utils.h"
 #include "constraint_space_utils.h"
+#include "hardware_info.h"
 #include "index_mapping.h"
+#include "mapping_enumeration.h"
 #include "utils.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -29,14 +23,7 @@
 #include <algorithm>
 #include <numeric>
 
-#include "DataflowDialect.h.inc"
-#define GET_TYPEDEF_CLASSES
-#include "DataflowTypes.h.inc"
-#define GET_OP_CLASSES
-#include "DataflowOps.h.inc"
-
 #include "LoomDialect.h.inc"
-#include "mlir/Interfaces/ViewLikeInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -44,154 +31,11 @@ using namespace mlir;
 
 namespace {
 
-static LogicalResult
-GetSpatialDimInfo(loom::df::SpatialDimOp sdOp,
-                  llvm::SmallVector<loom::SpatialDimInfo> &dimVec) {
-  loom::SpatialDimInfo info;
-  if (auto nameAttr = sdOp.getSymNameAttr()) {
-    info.name = nameAttr.getValue().str();
-    info.symbolName = nameAttr.getValue().str();
-  } else {
-    info.name = "dim";
-    info.symbolName = "dim";
-  }
-  uint64_t sz = sdOp.getSize();
-  if (sz > 0)
-    info.size = static_cast<int64_t>(sz);
-  else
-    info.size = std::nullopt;
-  dimVec.push_back(std::move(info));
-  return success();
-}
-
-static std::pair<bool, bool> AnalyzeInterconnectDirection(AffineMap map) {
-  if (map.getNumResults() < 2)
-    return {false, false};
-
-  bool d0Connected = false;
-  bool d1Connected = false;
-  for (unsigned i = 0; i < map.getNumResults(); ++i) {
-    AffineExpr expr = map.getResult(i);
-    if (i == 0 && expr != getAffineDimExpr(0, map.getContext()))
-      d0Connected = true;
-    if (i == 1 && expr != getAffineDimExpr(1, map.getContext()))
-      d1Connected = true;
-  }
-  return {d0Connected, d1Connected};
-}
-
-/**
- * \brief Compose and canonicalize all affine.apply operations in a function.
- */
-static void composeAndCanonicalizeAffineApplies(func::FuncOp func) {
-  SmallVector<affine::AffineApplyOp> applies;
-  func.walk([&](affine::AffineApplyOp op) { applies.push_back(op); });
-  for (affine::AffineApplyOp op : applies) {
-    OpBuilder b(op);
-    AffineMap map = op.getAffineMap();
-    SmallVector<Value> operands(op.getOperands().begin(),
-                                op.getOperands().end());
-    affine::fullyComposeAffineMapAndOperands(&map, &operands);
-    affine::canonicalizeMapAndOperands(&map, &operands);
-    bool sameMap = (map == op.getAffineMap());
-    bool sameOperands =
-        operands.size() == op.getNumOperands() &&
-        std::equal(operands.begin(), operands.end(), op.getOperands().begin());
-    if (sameMap && sameOperands)
-      continue;
-    auto newOp = b.create<affine::AffineApplyOp>(op.getLoc(), map, operands);
-    op.replaceAllUsesWith(newOp.getResult());
-    op.erase();
-  }
-
-  SmallVector<Operation *> toErase;
-  func.walk([&](Operation *op) {
-    if (mlir::isOpTriviallyDead(op))
-      toErase.push_back(op);
-  });
-  for (Operation *op : toErase)
-    op->erase();
-}
-
-static void EnumerateBucketingRec(unsigned dimIdx, unsigned numDims,
-                                  loom::DimBuckets &currentBuckets,
-                                  llvm::SmallVector<loom::DimBuckets> &out) {
-  if (dimIdx == numDims) {
-    out.push_back(currentBuckets);
-    return;
-  }
-  for (unsigned it = 0; it < currentBuckets.size(); ++it) {
-    currentBuckets[it].push_back(dimIdx);
-    EnumerateBucketingRec(dimIdx + 1, numDims, currentBuckets, out);
-    currentBuckets[it].pop_back();
-  }
-}
-
-static llvm::SmallVector<loom::DimBuckets>
-GenerateAllPossibleParallelBuckets(unsigned numParelleIter, unsigned numDims) {
-  llvm::SmallVector<loom::DimBuckets> bucketing_results;
-  loom::DimBuckets currentBuckets(numParelleIter);
-  EnumerateBucketingRec(0, numDims, currentBuckets, bucketing_results);
-  return bucketing_results;
-}
-
-static void CartesianProductOfBuckets(
-    unsigned iterIdx, loom::DimBuckets &current,
-    const llvm::SmallVector<loom::DimBuckets> &bucketsPerIter,
-    llvm::SmallVector<loom::DimBuckets> &out) {
-  if (iterIdx == current.size()) {
-    out.push_back(current);
-    return;
-  }
-
-  const auto &buckets = bucketsPerIter[iterIdx];
-  auto saved = current[iterIdx];
-
-  if (buckets.empty()) {
-    current[iterIdx].clear();
-    CartesianProductOfBuckets(iterIdx + 1, current, bucketsPerIter, out);
-    current[iterIdx] = saved;
-    return;
-  }
-
-  for (const auto &dims : buckets) {
-    current[iterIdx] = dims;
-    CartesianProductOfBuckets(iterIdx + 1, current, bucketsPerIter, out);
-  }
-
-  current[iterIdx] = saved;
-}
-
-static llvm::SmallVector<loom::DimBuckets> GenerateAllPossibleMappings(
-    const llvm::SmallVector<loom::DimBuckets> &permutedBucketsPerIter) {
-  llvm::SmallVector<loom::DimBuckets> result;
-  loom::DimBuckets currentBuckets(permutedBucketsPerIter.size());
-  CartesianProductOfBuckets(0, currentBuckets, permutedBucketsPerIter, result);
-  return result;
-}
-
-static llvm::SmallVector<loom::DimBuckets>
-PermuteBucket(const loom::DimBuckets &baseBuckets,
-              const loom::HardwareInfo &hardwareInfo) {
-  const unsigned numIters = static_cast<unsigned>(baseBuckets.size());
-  llvm::SmallVector<loom::DimBuckets> permutedBucketsPerIter(numIters);
-
-  for (unsigned it = 0; it < numIters; ++it) {
-    SmallVector<unsigned> dims = baseBuckets[it];
-    if (dims.size() <= 1 ||
-        (dims.size() == hardwareInfo.spatialDimInfoVec.size() &&
-         hardwareInfo.skipPermutation())) {
-      permutedBucketsPerIter[it].push_back(dims);
-    } else {
-      std::sort(dims.begin(), dims.end());
-      do {
-        permutedBucketsPerIter[it].push_back(dims);
-      } while (std::next_permutation(dims.begin(), dims.end()));
-    }
-  }
-
-  return GenerateAllPossibleMappings(permutedBucketsPerIter);
-}
+struct HWDimMapping {
+  unsigned hwDimIdx;
+  int64_t hwDimSize;
+  Value iv;
+};
 
 static affine::AffineParallelOp getOutermostParallel(func::FuncOp func) {
   affine::AffineParallelOp result = nullptr;
@@ -213,9 +57,7 @@ static LogicalResult applyMappingToFunction(
   MLIRContext *ctx = func.getContext();
   const unsigned numIter = static_cast<unsigned>(mapping.size());
 
-  // Maps original iteration index -> list of HW mappings (factor and IV)
-  llvm::DenseMap<unsigned, llvm::SmallVector<loom::HWDimMapping>>
-      iterIdxToHWMappings;
+  llvm::DenseMap<unsigned, llvm::SmallVector<HWDimMapping>> iterIdxToHWMappings;
 
   for (unsigned iterIdx = 0; iterIdx < numIter; ++iterIdx) {
     for (unsigned dimIdx : mapping[iterIdx]) {
@@ -234,15 +76,13 @@ static LogicalResult applyMappingToFunction(
         suffix += "_";
       suffix += "d" + std::to_string(dimIdx) + "i" + std::to_string(iterIdx);
 
-      // Track the mapping: iterIdx (0=M, 1=N) -> dimIdx (0=x, 1=y) with size
       loom::ParallelToHWMapping mapInfo;
       mapInfo.parallelIterIdx = iterIdx;
       mapInfo.hwDimIdx = dimIdx;
       mapInfo.hwDimSize = factor;
       mappingInfo.push_back(mapInfo);
 
-      // Track the HW IV for index reconstruction
-      loom::HWDimMapping hwMap;
+      HWDimMapping hwMap;
       hwMap.hwDimIdx = dimIdx;
       hwMap.hwDimSize = factor;
       hwMap.iv = tiled_parallels.tiled_new_.getBody()->getArgument(0);
@@ -252,9 +92,6 @@ static LogicalResult applyMappingToFunction(
     }
   }
 
-  // Final step: Reconstruct absolute indices in the innermost loop body.
-  // After multiple tilings, tar_forOp is the final residual (wave) loop.
-  // The body operations now refer to the induction variables of tar_forOp.
   OpBuilder builder(ctx);
   builder.setInsertionPointToStart(tar_forOp.getBody());
   Location loc = tar_forOp.getLoc();
@@ -271,16 +108,13 @@ static LogicalResult applyMappingToFunction(
         totalCores *= hwm.hwDimSize;
 
       if (hwmVec.size() >= 2) {
-        // 2D mapping: use linearization logic
-        // We only support 2D for now as per plan
         reconstructedIV = loom::emitGlobalIndex2d(
             builder, loc, hwmVec[0].iv, hwmVec[1].iv, hwmVec[0].hwDimSize,
             waveIV, 1, static_cast<unsigned>(totalCores));
       } else if (hwmVec.size() == 1) {
-        // 1D version: reconstructedIV = hwIV + waveIV * factor
         int64_t factor = hwmVec[0].hwDimSize;
-        AffineExpr d0 = builder.getAffineDimExpr(0); // hwIV
-        AffineExpr d1 = builder.getAffineDimExpr(1); // waveIV
+        AffineExpr d0 = builder.getAffineDimExpr(0);
+        AffineExpr d1 = builder.getAffineDimExpr(1);
         AffineMap map = AffineMap::get(2, 0, d0 + d1 * factor, ctx);
         reconstructedIV = builder.create<affine::AffineApplyOp>(
             loc, map, ValueRange{hwmVec[0].iv, waveIV});
@@ -288,8 +122,6 @@ static LogicalResult applyMappingToFunction(
     }
 
     if (reconstructedIV) {
-      // Replace all uses of waveIV with reconstructedIV, EXCEPT for the
-      // reconstructedIV op itself.
       for (auto &use : llvm::make_early_inc_range(waveIV.getUses())) {
         if (use.getOwner() == reconstructedIV.getDefiningOp())
           continue;
@@ -343,23 +175,14 @@ addIntraCorePipelineConstraints(loom::ConstraintSpaceOp csOp,
   if (!csOp)
     return success();
 
-  // Task 1: BM BN BK 32-alignment and range LB=32
   if (!hardwareInfo.matUnits.empty()) {
-    int64_t align = hardwareInfo.matUnits[0].shape[0]; // e.g., 32
+    int64_t align = hardwareInfo.matUnits[0].shape[0];
     loom::lcs::updateRangeLowerBounds(csOp, align);
     loom::lcs::addAlignConstraintsForAllVars(csOp, align);
   }
 
-  // Task 2: BM*BN*BK / 32^3 >= 8
   if (hardwareInfo.matUnitCount > 0 && !hardwareInfo.matUnits.empty()) {
-    int64_t align = hardwareInfo.matUnits[0].shape[0]; // e.g., 32
-    // We assume M, N, K are the symbolic variables in order.
-    // In mm_2Dmesh, they are "M", "N", "K".
-    // We should ideally find them by name or use a heuristic.
-    // The requirement says BM BN BK Need 32-element alignment.
-    // In our test case they are %0, %1, %2 but they correspond to M, N, K.
-    // Actually, we can just apply it to all symbolic variables if there are
-    // exactly 3.
+    int64_t align = hardwareInfo.matUnits[0].shape[0];
     llvm::SmallVector<StringRef> symVarNames;
     for (Operation &op : csOp.getBodyBlock()->getOperations()) {
       if (auto symVar = dyn_cast<loom::SymbolicVarOp>(&op)) {
@@ -375,17 +198,12 @@ addIntraCorePipelineConstraints(loom::ConstraintSpaceOp csOp,
   return success();
 }
 
-/// Add core utilization constraints based on mapped dimensions.
-/// For each parallel iterator, aggregate all mapped hardware dims (multiply
-/// sizes) and generate constraint: (product of hw sizes) * B <= UB.
-/// E.g., if M is mapped to both x=8 and y=8, generates: 64 * BM <= 512.
 static LogicalResult addInterCoreBalanceConstraints(
     loom::ConstraintSpaceOp csOp,
     const llvm::SmallVector<loom::ParallelToHWMapping> &mappingInfo) {
   if (!csOp || mappingInfo.empty())
     return success();
 
-  // Build a map from symbolic var name to its upper bound from RangeOp
   llvm::StringMap<int64_t> varUpperBounds;
   llvm::SmallVector<StringRef> symVarNamesOrdered;
   for (Operation &op : csOp.getBodyBlock()->getOperations()) {
@@ -400,16 +218,12 @@ static LogicalResult addInterCoreBalanceConstraints(
     }
   }
 
-  // Convention: parallelIterIdx 0 = M -> "BM", 1 = N -> "BN"
   auto getVarNameForIter = [&](unsigned iterIdx) -> StringRef {
-    // The symbolic vars are ordered as BM, BN, BK in our convention
     if (iterIdx < symVarNamesOrdered.size())
       return symVarNamesOrdered[iterIdx];
     return "";
   };
 
-  // Aggregate hardware dimension sizes per parallel iterator
-  // Key: parallelIterIdx, Value: product of all mapped hw dim sizes
   llvm::DenseMap<unsigned, int64_t> iterToTotalCores;
   for (const auto &mapping : mappingInfo) {
     auto it = iterToTotalCores.find(mapping.parallelIterIdx);
@@ -420,7 +234,6 @@ static LogicalResult addInterCoreBalanceConstraints(
     }
   }
 
-  // For each parallel iterator, add constraint: totalCores * B <= UB
   for (const auto &entry : iterToTotalCores) {
     unsigned iterIdx = entry.first;
     int64_t totalCores = entry.second;
@@ -435,10 +248,9 @@ static LogicalResult addInterCoreBalanceConstraints(
 
     int64_t dimUB = it->second;
 
-    // Constraint: totalCores * Var <= dimUB
     llvm::SmallVector<loom::lcs::Monomial> monomials;
     loom::lcs::Monomial m;
-    m.varIndices.push_back(0); // Single variable at index 0
+    m.varIndices.push_back(0);
     m.coeff = totalCores;
     monomials.push_back(m);
 
@@ -451,48 +263,6 @@ static LogicalResult addInterCoreBalanceConstraints(
 } // namespace
 
 namespace loom {
-
-LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp dfModule,
-                                            HardwareInfo &hardwareInfo) {
-  bool res = false;
-  bool d0Connected = false;
-  bool d1Connected = false;
-  dfModule.walk([&](Operation *op) {
-    if (auto sd = dyn_cast<loom::df::SpatialDimOp>(op)) {
-      res =
-          res || failed(GetSpatialDimInfo(sd, hardwareInfo.spatialDimInfoVec));
-    } else if (auto mem = dyn_cast<loom::df::MemoryOp>(op)) {
-      if (mem.getLabel() == "L1") {
-        hardwareInfo.l1Size = mem.getSize();
-      }
-    } else if (auto mat = dyn_cast<loom::df::MatOp>(op)) {
-      MatUnitInfo info;
-      info.name = mat.getName().str();
-      auto shape = mat.getShape();
-      for (auto dim : shape)
-        info.shape.push_back(dim);
-      hardwareInfo.matUnits.push_back(std::move(info));
-    } else if (auto core = dyn_cast<loom::df::CoreOp>(op)) {
-      if (auto countsAttr = core.getScaleinCountsAttr()) {
-        auto counts = countsAttr.asArrayRef();
-        if (!counts.empty())
-          hardwareInfo.matUnitCount = counts[0]; // First unit is mat_unit
-      }
-    } else if (auto ic = dyn_cast<loom::df::InterconnectsOp>(op)) {
-      AffineMap map = ic.getMapAttr().getValue();
-      auto [x, y] = AnalyzeInterconnectDirection(map);
-      if (x && !y) {
-        d0Connected = true;
-      }
-      if (y && !x) {
-        d1Connected = true;
-      }
-      res = res || x || y;
-    }
-  });
-  hardwareInfo.hasBidirInterconnect = d0Connected && d1Connected;
-  return success(res);
-}
 
 OwningOpRef<ModuleOp>
 EnumerateSpatialMappings(ModuleOp affineModule,
@@ -507,6 +277,8 @@ EnumerateSpatialMappings(ModuleOp affineModule,
   llvm::SmallVector<func::FuncOp> allFuncs =
       loom::utils::collectFunctions(affineModule);
 
+  MappingEnumerator enumerator(hardwareInfo);
+
   for (func::FuncOp func : allFuncs) {
     ModuleOp parentModule = loom::utils::getParentModule(func);
     DictionaryAttr moduleAttrs = nullptr;
@@ -518,6 +290,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
       if (!par->getParentOfType<affine::AffineParallelOp>())
         roots.push_back(par);
     });
+
     if (roots.empty()) {
       builder.setInsertionPointToEnd(out.getBody());
       (void)loom::utils::cloneFuncWithConstraints(
@@ -531,6 +304,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
     const unsigned P = root.getNumDims();
     const unsigned D =
         static_cast<unsigned>(hardwareInfo.spatialDimInfoVec.size());
+
     if (D == 0) {
       SmallVector<unsigned> order(P);
       std::iota(order.begin(), order.end(), 0);
@@ -570,11 +344,11 @@ EnumerateSpatialMappings(ModuleOp affineModule,
       continue;
     }
 
-    llvm::SmallVector<loom::DimBuckets> allBuckets =
-        GenerateAllPossibleParallelBuckets(P, D);
+    llvm::SmallVector<loom::DimBuckets> allBucketingResults =
+        enumerator.generateAllPossibleBuckets(P, D);
 
-    for (auto &bucketing : allBuckets) {
-      auto mappings = PermuteBucket(bucketing, hardwareInfo);
+    for (auto &bucketing : allBucketingResults) {
+      auto mappings = enumerator.permuteBuckets(bucketing);
       for (const auto &mapping : mappings) {
         SmallVector<unsigned> order(P);
         std::iota(order.begin(), order.end(), 0);
@@ -608,7 +382,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
                   return failure();
                 }
 
-                composeAndCanonicalizeAffineApplies(cloned);
+                loom::utils::composeAndCanonicalizeAffineApplies(cloned);
 
                 if (failed(addIntraCorePipelineConstraints(csOp, hardwareInfo)))
                   return failure();
@@ -641,4 +415,5 @@ EnumerateSpatialMappings(ModuleOp affineModule,
 
   return out;
 }
+
 } // namespace loom

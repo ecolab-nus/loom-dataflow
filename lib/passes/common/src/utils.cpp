@@ -320,4 +320,35 @@ llvm::SmallVector<AllocInfo> collectL1AllocInfos(func::FuncOp func) {
 }
 
 } // namespace utils
+
+void utils::composeAndCanonicalizeAffineApplies(func::FuncOp func) {
+  SmallVector<affine::AffineApplyOp> applies;
+  func.walk([&](affine::AffineApplyOp op) { applies.push_back(op); });
+  for (affine::AffineApplyOp op : applies) {
+    OpBuilder b(op);
+    AffineMap map = op.getAffineMap();
+    SmallVector<Value> operands(op.getOperands().begin(),
+                                op.getOperands().end());
+    affine::fullyComposeAffineMapAndOperands(&map, &operands);
+    affine::canonicalizeMapAndOperands(&map, &operands);
+    bool sameMap = (map == op.getAffineMap());
+    bool sameOperands =
+        operands.size() == op.getNumOperands() &&
+        std::equal(operands.begin(), operands.end(), op.getOperands().begin());
+    if (sameMap && sameOperands)
+      continue;
+    auto newOp = b.create<affine::AffineApplyOp>(op.getLoc(), map, operands);
+    op.replaceAllUsesWith(newOp.getResult());
+    op.erase();
+  }
+
+  SmallVector<Operation *> toErase;
+  func.walk([&](Operation *op) {
+    if (mlir::isOpTriviallyDead(op))
+      toErase.push_back(op);
+  });
+  for (Operation *op : toErase)
+    op->erase();
+}
+
 } // namespace loom
