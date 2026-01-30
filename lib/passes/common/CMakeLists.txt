@@ -4,7 +4,10 @@
 add_library(LoomPassesCommon
   src/utils.cpp
   src/block_loading_pattern.cpp
-  src/hardware_info.cpp
+  src/hardware_discovery.cpp
+  src/hardware_mapping.cpp
+  src/mapping_enumeration.cpp
+  src/affine_utils.cpp
   src/index_mapping.cpp
 )
 
@@ -18,8 +21,8 @@ target_include_directories(LoomPassesCommon
     ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
     # Include the generated Dataflow dialect headers
     ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
-    # Include affine directory for tiling and parallel-to-for
-    ${CMAKE_SOURCE_DIR}/lib/passes/affine/inc
+    # Include the generated Dataflow dialect headers
+    ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
 )
 
 target_link_libraries(LoomPassesCommon
