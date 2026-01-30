@@ -15,16 +15,24 @@ mlir_tablegen(LoomDialect.h.inc -gen-dialect-decls -dialect=loom ${TBLGEN_INCLUD
 mlir_tablegen(LoomDialect.cpp.inc -gen-dialect-defs -dialect=loom ${TBLGEN_INCLUDES})
 add_public_tablegen_target(LOOMLoomDialectIncGen)
 
+# Types
+set(LLVM_TARGET_DEFINITIONS LoomTypes.td)
+mlir_tablegen(LoomTypes.h.inc -gen-typedef-decls -typedefs-dialect=loom ${TBLGEN_INCLUDES})
+mlir_tablegen(LoomTypes.cpp.inc -gen-typedef-defs -typedefs-dialect=loom ${TBLGEN_INCLUDES})
+add_public_tablegen_target(LOOMLoomTypesIncGen)
+
 add_mlir_dialect_library(loomDialect
   LoomDialect.cpp
 
   DEPENDS
   LOOMLoomOpsIncGen
   LOOMLoomDialectIncGen
+  LOOMLoomTypesIncGen
 
   LINK_LIBS PUBLIC
   MLIRIR
   MLIRMemRefDialect
+  MLIRAffineDialect
 )
 
 target_include_directories(loomDialect PUBLIC ${MLIR_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})

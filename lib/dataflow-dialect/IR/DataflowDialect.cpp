@@ -415,9 +415,9 @@ void VecOp::print(OpAsmPrinter &p) {
 /// Parse MemoryOp with custom syntax:
 ///   df.memory "L1" {scaleout=(%x, %y), size = 32768, bandwidth = 64}
 ParseResult MemoryOp::parse(OpAsmParser &parser, OperationState &result) {
-  // Parse label attribute
-  StringAttr label;
-  if (parser.parseAttribute(label, "label", result.attributes))
+  // Parse sym_name attribute
+  StringAttr symName;
+  if (parser.parseAttribute(symName, "sym_name", result.attributes))
     return failure();
 
   // Parse attributes dictionary which may contain scaleout, size, and bandwidth
@@ -542,14 +542,14 @@ void MemoryOp::print(OpAsmPrinter &p) {
       p << getBandwidth();
     }
     
-    // Print any other attributes (excluding label, size, bandwidth)
-    SmallVector<StringRef> elidedAttrs = {"label", "size", "bandwidth"};
+    // Print any other attributes (excluding sym_name, size, bandwidth)
+    SmallVector<StringRef> elidedAttrs = {"sym_name", "size", "bandwidth"};
     p.printOptionalAttrDict((*this)->getAttrs(), elidedAttrs);
     
     p << "}";
   } else {
     // No attributes, just print empty dict or other attributes
-    p.printOptionalAttrDict((*this)->getAttrs(), {"label"});
+    p.printOptionalAttrDict((*this)->getAttrs(), {"sym_name"});
   }
 }
 

@@ -76,3 +76,6 @@ _deps/
 
 # Build directory
 build/
+
+# Python cache
+lib/lcs/viz_engine/__pycache__/

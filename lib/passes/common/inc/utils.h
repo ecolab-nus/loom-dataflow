@@ -27,6 +27,11 @@
 #include "llvm/ADT/SmallVector.h"
 #include <functional>
 
+// Forward declarations for Loom operations
+namespace loom {
+class ConstraintSpaceOp;
+} // namespace loom
+
 namespace loom {
 namespace utils {
 
@@ -34,7 +39,8 @@ namespace utils {
  * @brief Get the parent module operation that directly contains a function.
  *
  * @details Returns the immediate parent ModuleOp of a function. This is useful
- * for extracting attributes from the wrapper module in nested module structures.
+ * for extracting attributes from the wrapper module in nested module
+ * structures.
  *
  * @param func Function to get the parent module for
  * @return The parent ModuleOp, or nullptr if the function is not in a module
@@ -55,11 +61,10 @@ mlir::ModuleOp getParentModule(mlir::func::FuncOp func);
  * @param insertAfter Insert after this operation (nullptr uses current point)
  * @return The cloned function with the new name
  */
-mlir::func::FuncOp cloneAndInsertFunction(
-    mlir::OpBuilder &builder,
-    mlir::func::FuncOp originalFunc,
-    llvm::StringRef newName,
-    mlir::Operation *insertAfter = nullptr);
+mlir::func::FuncOp
+cloneAndInsertFunction(mlir::OpBuilder &builder,
+                       mlir::func::FuncOp originalFunc, llvm::StringRef newName,
+                       mlir::Operation *insertAfter = nullptr);
 
 /**
  * @brief Clone a function with module wrapper and insert it with a new name.
@@ -76,10 +81,8 @@ mlir::func::FuncOp cloneAndInsertFunction(
  * @return The cloned function with the new name (inside its wrapper module)
  */
 mlir::func::FuncOp cloneAndInsertFunctionWithModuleWrapper(
-    mlir::OpBuilder &builder,
-    mlir::func::FuncOp originalFunc,
-    llvm::StringRef newName,
-    mlir::DictionaryAttr moduleAttrs,
+    mlir::OpBuilder &builder, mlir::func::FuncOp originalFunc,
+    llvm::StringRef newName, mlir::DictionaryAttr moduleAttrs,
     mlir::Operation *insertAfter = nullptr);
 
 /**
@@ -115,14 +118,14 @@ mlir::func::FuncOp cloneAndInsertFunctionWithModuleWrapper(
  * @return Cloned and modified function, or nullptr if modifier returned failure
  */
 mlir::func::FuncOp cloneModifyAndInsertFunction(
-    mlir::OpBuilder &builder,
-    mlir::func::FuncOp originalFunc,
+    mlir::OpBuilder &builder, mlir::func::FuncOp originalFunc,
     llvm::StringRef newName,
     std::function<mlir::LogicalResult(mlir::func::FuncOp)> modifier,
     mlir::Operation *insertAfter = nullptr);
 
 /**
- * @brief Clone function with module wrapper, apply modifications, then insert if valid.
+ * @brief Clone function with module wrapper, apply modifications, then insert
+ * if valid.
  *
  * @details Creates a wrapper ModuleOp with the specified attributes, clones
  * the function into it, applies the modifier callback, and manages insertion.
@@ -138,10 +141,8 @@ mlir::func::FuncOp cloneModifyAndInsertFunction(
  * @return Cloned and modified function, or nullptr if modifier returned failure
  */
 mlir::func::FuncOp cloneModifyAndInsertFunctionWithModuleWrapper(
-    mlir::OpBuilder &builder,
-    mlir::func::FuncOp originalFunc,
-    llvm::StringRef newName,
-    mlir::DictionaryAttr moduleAttrs,
+    mlir::OpBuilder &builder, mlir::func::FuncOp originalFunc,
+    llvm::StringRef newName, mlir::DictionaryAttr moduleAttrs,
     std::function<mlir::LogicalResult(mlir::func::FuncOp)> modifier,
     mlir::Operation *insertAfter = nullptr);
 
@@ -161,11 +162,88 @@ mlir::func::FuncOp cloneModifyAndInsertFunctionWithModuleWrapper(
  * }
  * @endcode
  *
- * @param module Module to collect functions from (recursively searches nested modules)
+ * @param module Module to collect functions from (recursively searches nested
+ * modules)
  * @return Vector containing all functions in the module and its nested modules
  */
 llvm::SmallVector<mlir::func::FuncOp> collectFunctions(mlir::ModuleOp module);
 
+/**
+ * @brief Clone function with module wrapper including deep-cloned constraint
+ * space.
+ *
+ * @details Creates a wrapper ModuleOp with the specified attributes, clones the
+ * function and constraint space into it, applies the modifier callback, and
+ * checks feasibility. If the modified constraint space is infeasible (empty
+ * solution set), the wrapper module is erased and nullptr is returned.
+ *
+ * This is the primary entry point for constraint-aware function variant
+ * generation. The modifier callback receives both the cloned function and the
+ * cloned constraint space, allowing it to add new constraints based on
+ * pass-specific logic.
+ *
+ * Typical usage:
+ * @code
+ * auto cloned = cloneFuncWithConstraints(
+ *     builder, originalFunc, "new_name", moduleAttrs, "MyPass",
+ *     [&](func::FuncOp func, loom::ConstraintSpaceOp csOp) -> LogicalResult {
+ *         // Add new constraints based on pass logic
+ *         loom::lcs::addLinearConstraint(csOp, {"M", "N"}, constraintMap);
+ *         return success();
+ *     },
+ *     insertAfter);
+ * if (cloned) {
+ *     // Function was valid and inserted
+ * }
+ * @endcode
+ *
+ * @param builder OpBuilder for cloning and insertion operations
+ * @param originalFunc Original function to clone
+ * @param newName New name for the cloned function
+ * @param moduleAttrs Attributes to set on the wrapper module
+ * @param passName Name of the pass for provenance tracking
+ * @param modifier Callback that can modify the func and add constraints to csOp
+ * @param insertAfter Insert after this operation (nullptr uses current point)
+ * @return Cloned function if feasible, nullptr if infeasible or modifier failed
+ */
+mlir::func::FuncOp cloneFuncWithConstraints(
+    mlir::OpBuilder &builder, mlir::func::FuncOp originalFunc,
+    llvm::StringRef newName, mlir::DictionaryAttr moduleAttrs,
+    llvm::StringRef passName,
+    std::function<mlir::LogicalResult(mlir::func::FuncOp,
+                                      loom::ConstraintSpaceOp)>
+        modifier,
+    mlir::Operation *insertAfter = nullptr);
+
+struct AllocInfo {
+  llvm::SmallVector<llvm::StringRef> dims;
+  int64_t elemSize;
+};
+
+/**
+ * @brief Collect all loom.alloc operations on @L1 and analyze their dimensions.
+ *
+ * @details This function walks the function to find all loom.alloc operations
+ * that are allocated on @L1. For each such operation, it traces its dynamic
+ * dimensions back to symbolic variable names.
+ *
+ * @param func The function to analyze.
+ * @return Vector of AllocInfo for each L1 allocation.
+ */
+llvm::SmallVector<AllocInfo> collectL1AllocInfos(mlir::func::FuncOp func);
+
+/**
+ * @brief Trace an SSA value back to a symbolic block size name.
+ *
+ * @param val The SSA value to trace.
+ * @return The symbolic variable name if found, empty string otherwise.
+ */
+llvm::StringRef traceToSymbolicVar(mlir::Value val);
+
+/**
+ * @brief Compose and canonicalize all affine.apply operations in a function.
+ */
+void composeAndCanonicalizeAffineApplies(mlir::func::FuncOp func);
+
 } // namespace utils
 } // namespace loom
-
