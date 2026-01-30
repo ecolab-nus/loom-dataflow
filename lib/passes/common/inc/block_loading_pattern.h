@@ -24,7 +24,7 @@
 
 // Forward declaration for loom ops
 namespace loom {
-class CopyToTensorOp;
+class PackToTensorOp;
 class AlloccOp;
 class ViewOp;
 } // namespace loom
@@ -117,6 +117,36 @@ private:
    * @return The view operation, or nullptr if not found.
    */
   loom::ViewOp FindView();
+
+  /**
+   * @brief Determine which dimension of the view depends on the loop IV.
+   * @return The dimension index (0 or 1), or -1 if neither depends on IV.
+   */
+  int getMovingDimension();
+
+  /**
+   * @brief Compute the expanded shape for hoisted view.
+   * @details Replaces the loop-varying dimension size with (loopUB *
+   * blockSize).
+   * @param builder The OpBuilder to use.
+   * @return Vector of values representing the new shape.
+   */
+  llvm::SmallVector<mlir::Value, 2>
+  inferHoistedViewShape(mlir::OpBuilder &builder);
+
+  /**
+   * @brief Generate outer_dims_perm for pack_to_tensor based on moving
+   * dimension.
+   * @return Permutation vector (e.g., [1, 0] or [0, 1]).
+   */
+  llvm::SmallVector<int64_t, 2> computePackPermutation();
+
+  /**
+   * @brief Get the inner tile size for pack_to_tensor.
+   * @details This corresponds to the block size of the moving dimension.
+   * @return The tile size value.
+   */
+  mlir::Value getInnerTileSize();
 
   /**
    * @brief Create hoisted operations before the loop.

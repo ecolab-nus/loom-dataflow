@@ -346,17 +346,17 @@ def Loom_PackToTensorOp : Loom_Op<"pack_to_tensor", [
   let arguments = (ins 
     Loom_ViewType:$source,
     Loom_BufferTokenType:$buffer_token,
-    DenseI64ArrayAttr:$inner_tiles,
+    Variadic<Index>:$inner_tiles,
     DenseI64ArrayAttr:$outer_dims_perm
   );
 
   let results = (outs 
-    AnyStaticShapeTensor:$result
+    AnyRankedTensor:$result
   );
 
   let assemblyFormat = [{
     $source `,` $buffer_token 
-    `inner_tiles` `=` $inner_tiles 
+    `inner_tiles` `=` `[` $inner_tiles `]`
     `outer_dims_perm` `=` $outer_dims_perm
     attr-dict `:` 
     type($source) `,` type($buffer_token) `->` type($result)
