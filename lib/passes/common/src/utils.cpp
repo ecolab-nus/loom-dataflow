@@ -266,8 +266,7 @@ llvm::SmallVector<AllocInfo> collectL1AllocInfos(func::FuncOp func) {
 
     for (Value val : dynamicOperands) {
       if (auto ceildiv = val.getDefiningOp<arith::CeilDivSIOp>()) {
-        // Handle (Constant / SymbolicVar) pattern for hoisted block
-        // cancellation
+        // ... (existing arith.ceildivsi handling) ...
         int64_t numerator = -1;
         if (auto constOp =
                 ceildiv.getLhs().getDefiningOp<arith::ConstantIndexOp>()) {
@@ -281,7 +280,35 @@ llvm::SmallVector<AllocInfo> collectL1AllocInfos(func::FuncOp func) {
           StringRef denominator = traceToSymbolicVar(ceildiv.getRhs());
           if (!denominator.empty()) {
             ceildivs.push_back({numerator, denominator});
-            continue; // Already handled as ceildiv pattern
+            continue;
+          }
+        }
+      } else if (auto apply =
+                     val.getDefiningOp<mlir::affine::AffineApplyOp>()) {
+        // Handle affine.apply affine_map<()[s0] -> (Constant ceildiv
+        // s0)>()[%sym]
+        auto map = apply.getAffineMap();
+        if (map.getNumResults() == 1) {
+          auto expr = map.getResult(0);
+          if (expr.getKind() == mlir::AffineExprKind::CeilDiv) {
+            auto binary = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
+            auto lhs = binary.getLHS();
+            auto rhs = binary.getRHS();
+            if (lhs.getKind() == mlir::AffineExprKind::Constant &&
+                rhs.getKind() == mlir::AffineExprKind::SymbolId) {
+              int64_t numerator =
+                  mlir::cast<mlir::AffineConstantExpr>(lhs).getValue();
+              unsigned symIdx =
+                  mlir::cast<mlir::AffineSymbolExpr>(rhs).getPosition();
+              if (symIdx < apply.getNumOperands()) {
+                StringRef denominator =
+                    traceToSymbolicVar(apply.getOperand(symIdx));
+                if (!denominator.empty()) {
+                  ceildivs.push_back({numerator, denominator});
+                  continue;
+                }
+              }
+            }
           }
         }
       }

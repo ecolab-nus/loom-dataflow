@@ -6,9 +6,9 @@
 
 #include "block_loading_pattern.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-// Include Loom dialect headers for CopyOp and ReinterpretCastOp
+// Include Loom dialect headers
 #include "mlir/Interfaces/ViewLikeInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
@@ -36,52 +36,34 @@
 namespace loom::affine {
 
 /**
- * @brief Set loop attributes from the outer_for_op_ variant.
+ * @brief Set loop attributes from the outer_for_op_.
  */
-void LoadingBlock::SetLoopAttr() {
-  loop_iv_ =
-      std::visit([](auto &op) -> mlir::Value { return op.getInductionVar(); },
-                 outer_for_op_);
+void LoadingBlock::SetLoopAttr() { loop_iv_ = outer_for_op_.getInductionVar(); }
 
-  loop_ub_ = std::visit(
-      [](auto &op) -> mlir::Value {
-        if constexpr (std::is_same_v<std::decay_t<decltype(op)>,
-                                     mlir::scf::ForOp>) {
-          return op.getUpperBound();
-        } else {
-          return mlir::Value{};
-        }
-      },
-      outer_for_op_);
+/**
+ * @brief Get or reify the loop upper bound.
+ */
+mlir::Value LoadingBlock::getOrReifyLoopUB(mlir::OpBuilder &builder) {
+  if (outer_for_op_.hasConstantUpperBound()) {
+    return builder.create<mlir::arith::ConstantIndexOp>(
+        outer_for_op_.getLoc(), outer_for_op_.getConstantUpperBound());
+  }
+  return builder.create<mlir::affine::AffineApplyOp>(
+      outer_for_op_.getLoc(), outer_for_op_.getUpperBoundMap(),
+      outer_for_op_.getUpperBoundOperands());
 }
 
 /**
  * @brief Clear all loop-related attributes.
  */
-void LoadingBlock::ClearLoopAttr() {
-  loop_iv_ = nullptr;
-  loop_ub_ = nullptr;
-}
-
-/**
- * @brief Reset loop attributes to a new outer affine for loop.
- */
-void LoadingBlock::ResetLoopAttr(mlir::affine::AffineForOp new_outer_for) {
-  ClearLoopAttr();
-  if (new_outer_for) {
-    outer_for_op_ = new_outer_for;
-    SetLoopAttr();
-  }
-}
+void LoadingBlock::ClearLoopAttr() { loop_iv_ = nullptr; }
 
 /**
  * @brief Find the outer affine for loop that contains the current
  * outer_for_op_.
  */
 mlir::affine::AffineForOp LoadingBlock::FindOuterAffineFor() {
-  mlir::Operation *current_op = std::visit(
-      [](auto &&forOp) -> mlir::Operation * { return forOp.getOperation(); },
-      outer_for_op_);
+  mlir::Operation *current_op = outer_for_op_.getOperation();
 
   if (!current_op) {
     return mlir::affine::AffineForOp(nullptr);
@@ -141,33 +123,30 @@ bool LoadingBlock::DependsOnLoopIV(mlir::Value value) {
 }
 
 /**
- * @brief Collect backward slice of the copy operation.
- * @details Collects all operations that the copy operation depends on,
+ * @brief Collect backward slice of the loading chain.
+ * @details Collects all operations that the loading chain depends on,
  * stopping at block arguments or operations defined outside the loop.
  */
 void LoadingBlock::CollectBackwardSlice() {
   backward_slice_.clear();
 
-  if (!copy_op_)
+  if (!allocc_op_ || !copy_to_tensor_op_)
     return;
 
-  // Get the parent block of the loop
-  mlir::Operation *loop_op = std::visit(
-      [](auto &&forOp) -> mlir::Operation * { return forOp.getOperation(); },
-      outer_for_op_);
-
-  mlir::Block *loop_body =
-      std::visit([](auto &&forOp) -> mlir::Block * { return forOp.getBody(); },
-                 outer_for_op_);
-
+  mlir::Block *loop_body = outer_for_op_.getBody();
   if (!loop_body)
     return;
 
   llvm::SmallVector<mlir::Operation *, 16> worklist;
   llvm::SmallPtrSet<mlir::Operation *, 16> visited;
 
-  // Start from the copy operation's operands
-  for (mlir::Value operand : copy_op_->getOperands()) {
+  // Start from allocc_op_ and copy_to_tensor_op_ operands
+  for (mlir::Value operand : allocc_op_->getOperands()) {
+    if (mlir::Operation *defOp = operand.getDefiningOp()) {
+      worklist.push_back(defOp);
+    }
+  }
+  for (mlir::Value operand : copy_to_tensor_op_->getOperands()) {
     if (mlir::Operation *defOp = operand.getDefiningOp()) {
       worklist.push_back(defOp);
     }
@@ -185,8 +164,8 @@ void LoadingBlock::CollectBackwardSlice() {
     if (op->getBlock() != loop_body)
       continue;
 
-    // Don't include the copy operation itself in the backward slice
-    if (op == copy_op_)
+    // Don't include the anchor operations themselves in the backward slice
+    if (op == allocc_op_ || op == copy_to_tensor_op_)
       continue;
 
     backward_slice_.insert(op);
@@ -202,7 +181,7 @@ void LoadingBlock::CollectBackwardSlice() {
   }
 
   LLVM_DEBUG({
-    llvm::dbgs() << "Backward slice for copy operation:\n";
+    llvm::dbgs() << "Backward slice for loading block:\n";
     for (mlir::Operation *op : backward_slice_) {
       llvm::dbgs() << "  - " << op->getName() << "\n";
     }
@@ -210,54 +189,33 @@ void LoadingBlock::CollectBackwardSlice() {
 }
 
 /**
- * @brief Find the loom.reinterpret_cast in the backward slice.
+ * @brief Find the loom.allocc operation.
  */
-mlir::Operation *LoadingBlock::FindReinterpretCast() {
-  for (mlir::Operation *op : backward_slice_) {
-    if (mlir::isa<loom::ReinterpretCastOp>(op)) {
-      return op;
-    }
-  }
-  return nullptr;
+loom::AlloccOp LoadingBlock::FindAllocc() {
+  return mlir::dyn_cast_or_null<loom::AlloccOp>(allocc_op_);
 }
 
 /**
- * @brief Find the memref.alloc operation.
+ * @brief Find the loom.view consumed by copy_to_tensor.
  */
-loom::AllocOp LoadingBlock::FindAlloc() {
-  // First check in backward slice
-  for (mlir::Operation *op : backward_slice_) {
-    if (auto alloc = mlir::dyn_cast<loom::AllocOp>(op)) {
-      return alloc;
-    }
+loom::ViewOp LoadingBlock::FindView() {
+  if (auto copy_op =
+          mlir::dyn_cast_or_null<loom::CopyToTensorOp>(copy_to_tensor_op_)) {
+    return copy_op.getSourceView().getDefiningOp<loom::ViewOp>();
   }
-
-  // Check the dst operand of the copy operation
-  if (auto loomCopy = mlir::dyn_cast<loom::CopyOp>(copy_op_)) {
-    if (auto alloc = loomCopy.getDst().getDefiningOp<loom::AllocOp>()) {
-      return alloc;
-    }
-  }
-
   return nullptr;
 }
 
 /**
  * @brief Check if a value is defined in a block that dominates the target
  * block.
- * @param value The value to check.
- * @param targetBlock The target block where we want to use the value.
- * @return true if value can be used in targetBlock, false otherwise.
  */
 static bool isVisibleIn(mlir::Value value, mlir::Block *targetBlock) {
   if (!value || !targetBlock)
     return false;
 
-  // Block arguments are visible if they belong to the target block or an
-  // ancestor
   if (auto blockArg = mlir::dyn_cast<mlir::BlockArgument>(value)) {
     mlir::Block *defBlock = blockArg.getOwner();
-    // Check if defBlock is an ancestor of targetBlock
     mlir::Block *curr = targetBlock;
     while (curr) {
       if (curr == defBlock)
@@ -271,10 +229,8 @@ static bool isVisibleIn(mlir::Value value, mlir::Block *targetBlock) {
     return false;
   }
 
-  // For values defined by operations
   if (mlir::Operation *defOp = value.getDefiningOp()) {
     mlir::Block *defBlock = defOp->getBlock();
-    // Check if defBlock is the same as or an ancestor of targetBlock
     mlir::Block *curr = targetBlock;
     while (curr) {
       if (curr == defBlock)
@@ -293,12 +249,6 @@ static bool isVisibleIn(mlir::Value value, mlir::Block *targetBlock) {
 
 /**
  * @brief Clone an operation and all its dependencies to a target block.
- * @param builder OpBuilder positioned at the target insertion point.
- * @param op The operation to clone.
- * @param targetBlock The block where the operation will be inserted.
- * @param mapping IRMapping to track cloned values.
- * @param cloned Set of already cloned operations.
- * @return The cloned operation, or nullptr if cloning failed.
  */
 static mlir::Operation *
 cloneWithDependencies(mlir::OpBuilder &builder, mlir::Operation *op,
@@ -308,25 +258,18 @@ cloneWithDependencies(mlir::OpBuilder &builder, mlir::Operation *op,
   if (!op || cloned.contains(op))
     return nullptr;
 
-  // First, clone all dependencies
   for (mlir::Value operand : op->getOperands()) {
     if (mapping.contains(operand))
       continue;
 
-    if (isVisibleIn(operand, targetBlock)) {
-      // Value is already visible, no need to clone
+    if (isVisibleIn(operand, targetBlock))
       continue;
-    }
 
     if (mlir::Operation *defOp = operand.getDefiningOp()) {
-      // Recursively clone the defining operation
-      if (!cloned.contains(defOp)) {
-        cloneWithDependencies(builder, defOp, targetBlock, mapping, cloned);
-      }
+      cloneWithDependencies(builder, defOp, targetBlock, mapping, cloned);
     }
   }
 
-  // Now clone the operation itself
   mlir::Operation *clonedOp = builder.clone(*op, mapping);
   cloned.insert(op);
 
@@ -337,210 +280,148 @@ cloneWithDependencies(mlir::OpBuilder &builder, mlir::Operation *op,
  * @brief Create hoisted operations before the loop.
  */
 void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
-  auto reinterpret_op =
-      mlir::dyn_cast_or_null<loom::ReinterpretCastOp>(FindReinterpretCast());
-  auto alloc_op = FindAlloc();
-  auto loom_copy = mlir::dyn_cast<loom::CopyOp>(copy_op_);
+  auto allocc = FindAllocc();
+  auto copy_to_tensor =
+      mlir::dyn_cast_or_null<loom::CopyToTensorOp>(copy_to_tensor_op_);
+  auto view = FindView();
 
-  if (!reinterpret_op || !alloc_op || !loom_copy) {
+  if (!allocc || !copy_to_tensor || !view) {
     LLVM_DEBUG(llvm::dbgs() << "Missing required operations for hoisting\n");
     return;
   }
 
-  // Get the target block (where we're inserting)
   mlir::Block *targetBlock = builder.getInsertionBlock();
+  mlir::Value ub = getOrReifyLoopUB(builder);
 
-  // Get loop upper bound
-  mlir::Value ub = loop_ub_;
-  if (!ub) {
-    LLVM_DEBUG(llvm::dbgs() << "No loop upper bound available\n");
+  if (!ub || !isVisibleIn(ub, targetBlock)) {
+    LLVM_DEBUG(llvm::dbgs() << "Loop upper bound not visible\n");
     return;
   }
 
-  // Check if upper bound is visible in target block
-  if (!isVisibleIn(ub, targetBlock)) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "Loop upper bound is not visible in target block\n");
-    return;
-  }
-
-  // Collect values that need to be available
   mlir::IRMapping mapping;
   llvm::DenseSet<mlir::Operation *> clonedOps;
 
-  // Get original sizes and strides from reinterpret_cast
-  auto orig_sizes = reinterpret_op.getSizes();
-  auto orig_strides = reinterpret_op.getStrides();
-  auto orig_offsets = reinterpret_op.getOffsets();
+  // 1. Hoist view index calculations and view itself
+  auto orig_view_offsets = view.getOffsets();
+  auto orig_view_sizes = view.getSizes();
+  auto orig_view_strides = view.getStrides();
 
-  if (orig_sizes.size() < 2) {
-    LLVM_DEBUG(llvm::dbgs() << "Reinterpret cast has less than 2 dimensions\n");
-    return;
-  }
-
-  // Clone sizes if needed
-  llvm::SmallVector<mlir::Value> new_sizes;
-  new_sizes.push_back(ub);
-  for (mlir::Value size : orig_sizes) {
-    if (isVisibleIn(size, targetBlock)) {
-      new_sizes.push_back(size);
-    } else if (mlir::Operation *defOp = size.getDefiningOp()) {
-      cloneWithDependencies(builder, defOp, targetBlock, mapping, clonedOps);
-      new_sizes.push_back(mapping.lookupOrDefault(size));
-    } else {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Size value not visible and cannot be cloned\n");
-      return;
-    }
-  }
-
-  // Clone strides if needed
-  llvm::SmallVector<mlir::Value> cloned_strides;
-  for (mlir::Value stride : orig_strides) {
-    if (isVisibleIn(stride, targetBlock)) {
-      cloned_strides.push_back(stride);
-    } else if (mlir::Operation *defOp = stride.getDefiningOp()) {
-      cloneWithDependencies(builder, defOp, targetBlock, mapping, clonedOps);
-      cloned_strides.push_back(mapping.lookupOrDefault(stride));
-    } else {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Stride value not visible and cannot be cloned\n");
-      return;
-    }
-  }
-
-  // Build new strides: [orig_sizes[0] * orig_strides[0], orig_strides[0],
-  // orig_strides[1]]
-  llvm::SmallVector<mlir::Value> new_strides;
-
-  // Calculate stride for new dimension: size[0] * stride[0]
-  mlir::Value size0 = new_sizes[1]; // First original size (after ub)
-  mlir::Value stride0 = cloned_strides[0];
-  mlir::Value new_dim_stride = builder.create<mlir::arith::MulIOp>(
-      reinterpret_op.getLoc(), size0, stride0);
-  new_strides.push_back(new_dim_stride);
-
-  for (mlir::Value stride : cloned_strides) {
-    new_strides.push_back(stride);
-  }
-
-  // Calculate new offset: remove dependency on loop IV
-  llvm::SmallVector<mlir::Value> new_offsets;
-  for (mlir::Value offset : orig_offsets) {
+  llvm::SmallVector<mlir::Value> new_view_offsets;
+  for (mlir::Value offset : orig_view_offsets) {
     if (DependsOnLoopIV(offset)) {
-      // For offsets that depend on loop IV, we need to compute the base offset
-      // by substituting loop IV = 0
+      // Substitute loop IV = 0 for base offset computation
       mlir::IRMapping offsetMapping = mapping;
       offsetMapping.map(loop_iv_, builder.create<mlir::arith::ConstantIndexOp>(
-                                      reinterpret_op.getLoc(), 0));
-
+                                      view.getLoc(), 0));
       if (mlir::Operation *defOp = offset.getDefiningOp()) {
-        // Clone the entire computation with loop_iv = 0
-        llvm::DenseSet<mlir::Operation *> offsetCloned = clonedOps;
         cloneWithDependencies(builder, defOp, targetBlock, offsetMapping,
-                              offsetCloned);
-        new_offsets.push_back(offsetMapping.lookupOrDefault(offset));
+                              clonedOps);
+        new_view_offsets.push_back(offsetMapping.lookupOrDefault(offset));
       } else {
-        new_offsets.push_back(offset);
+        new_view_offsets.push_back(offset);
       }
     } else if (isVisibleIn(offset, targetBlock)) {
-      new_offsets.push_back(offset);
+      new_view_offsets.push_back(offset);
     } else if (mlir::Operation *defOp = offset.getDefiningOp()) {
       cloneWithDependencies(builder, defOp, targetBlock, mapping, clonedOps);
-      new_offsets.push_back(mapping.lookupOrDefault(offset));
+      new_view_offsets.push_back(mapping.lookupOrDefault(offset));
     } else {
-      new_offsets.push_back(offset);
+      new_view_offsets.push_back(offset);
     }
   }
 
-  // Create new result type with additional dimension
-  auto orig_result_type =
-      mlir::cast<mlir::MemRefType>(reinterpret_op.getResult().getType());
-  llvm::SmallVector<int64_t> new_shape;
-  new_shape.push_back(mlir::ShapedType::kDynamic); // loop_ub dimension
-  for (int64_t dim : orig_result_type.getShape()) {
-    new_shape.push_back(dim);
-  }
-
-  // Create strided layout for new type
-  llvm::SmallVector<int64_t> new_static_strides(new_shape.size(),
-                                                mlir::ShapedType::kDynamic);
-  auto new_layout = mlir::StridedLayoutAttr::get(
-      builder.getContext(), mlir::ShapedType::kDynamic, new_static_strides);
-
-  auto new_result_type = mlir::MemRefType::get(
-      new_shape, orig_result_type.getElementType(), new_layout);
-
-  // Clone source if needed
-  mlir::Value source = reinterpret_op.getSource();
-  if (!isVisibleIn(source, targetBlock)) {
-    LLVM_DEBUG(llvm::dbgs() << "Source value not visible in target block\n");
-    return;
-  }
-
-  // Create new reinterpret_cast
-  auto new_reinterpret = builder.create<loom::ReinterpretCastOp>(
-      reinterpret_op.getLoc(), new_result_type, source, new_offsets, new_sizes,
-      new_strides, reinterpret_op.getSequentialReuse(),
-      reinterpret_op.getSpatialReuse(), reinterpret_op.getTemporalReuse());
-
-  // Create new alloc with additional dimension
-  if (!alloc_op)
-    return;
-
-  auto orig_alloc_type = mlir::cast<mlir::MemRefType>(alloc_op.getType());
-  auto dynamicSizes = alloc_op.getDynamicSizes();
-
-  llvm::SmallVector<int64_t> new_alloc_shape;
-  new_alloc_shape.push_back(mlir::ShapedType::kDynamic); // loop_ub dimension
-  for (int64_t dim : orig_alloc_type.getShape()) {
-    new_alloc_shape.push_back(dim);
-  }
-
-  auto new_alloc_type =
-      mlir::MemRefType::get(new_alloc_shape, orig_alloc_type.getElementType());
-
-  // Clone alloc dynamic sizes
-  llvm::SmallVector<mlir::Value> alloc_dyn_sizes;
-  alloc_dyn_sizes.push_back(ub);
-  for (mlir::Value size : dynamicSizes) {
+  llvm::SmallVector<mlir::Value> new_view_sizes;
+  new_view_sizes.push_back(ub); // New outer dimension
+  for (mlir::Value size : orig_view_sizes) {
     if (isVisibleIn(size, targetBlock)) {
-      alloc_dyn_sizes.push_back(size);
+      new_view_sizes.push_back(size);
     } else if (mlir::Operation *defOp = size.getDefiningOp()) {
       cloneWithDependencies(builder, defOp, targetBlock, mapping, clonedOps);
-      alloc_dyn_sizes.push_back(mapping.lookupOrDefault(size));
+      new_view_sizes.push_back(mapping.lookupOrDefault(size));
     } else {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Alloc size value not visible and cannot be cloned\n");
-      return;
+      new_view_sizes.push_back(size);
     }
   }
 
-  auto new_alloc = builder.create<loom::AllocOp>(
-      alloc_op.getLoc(), new_alloc_type, alloc_dyn_sizes,
-      mlir::SymbolRefAttr::get(builder.getContext(), "L1"), nullptr);
+  // Strides for the new view.
+  // Typically we want the new dimension to be contiguous with the original
+  // ones.
+  llvm::SmallVector<mlir::Value> new_view_strides;
+  for (mlir::Value stride : orig_view_strides) {
+    if (isVisibleIn(stride, targetBlock)) {
+      new_view_strides.push_back(stride);
+    } else if (mlir::Operation *defOp = stride.getDefiningOp()) {
+      cloneWithDependencies(builder, defOp, targetBlock, mapping, clonedOps);
+      new_view_strides.push_back(mapping.lookupOrDefault(stride));
+    } else {
+      new_view_strides.push_back(stride);
+    }
+  }
 
-  // Create new loom.copy
-  auto new_copy = builder.create<loom::CopyOp>(
-      loom_copy.getLoc(), new_reinterpret.getResult(), new_alloc.getResult(),
-      loom_copy.getProvenance(), loom_copy.getInterconnectAttr(),
-      loom_copy.getBroadcastAttr());
+  // Clone source memref
+  if (!isVisibleIn(view.getSource(), targetBlock))
+    return;
 
-  // Mark as valid
+  // Prepend prefix to static attributes for the new dimension
+  auto updateStaticAttr = [&](llvm::ArrayRef<int64_t> attr, int64_t prefix) {
+    llvm::SmallVector<int64_t> vals;
+    vals.push_back(prefix);
+    for (int64_t v : attr)
+      vals.push_back(v);
+    return builder.getDenseI64ArrayAttr(vals);
+  };
+
+  auto new_static_offsets = updateStaticAttr(view.getStaticOffsets(), 0);
+  auto new_static_sizes =
+      updateStaticAttr(view.getStaticSizes(), mlir::ShapedType::kDynamic);
+  auto new_static_strides = updateStaticAttr(view.getStaticStrides(), 1);
+
+  auto new_view = builder.create<loom::ViewOp>(
+      view.getLoc(), view.getResult().getType(), view.getSource(),
+      new_view_offsets, new_view_sizes, new_view_strides, new_static_offsets,
+      new_static_sizes, new_static_strides, view.getSequentialReuse(),
+      view.getSpatialReuse(), view.getTemporalReuse());
+
+  // 2. Hoist AlloccOp
+  llvm::SmallVector<mlir::Value> new_allocc_sizes;
+  new_allocc_sizes.push_back(ub);
+  for (mlir::Value size : allocc.getDynamicSizes()) {
+    if (isVisibleIn(size, targetBlock)) {
+      new_allocc_sizes.push_back(size);
+    } else if (mlir::Operation *defOp = size.getDefiningOp()) {
+      cloneWithDependencies(builder, defOp, targetBlock, mapping, clonedOps);
+      new_allocc_sizes.push_back(mapping.lookupOrDefault(size));
+    } else {
+      new_allocc_sizes.push_back(size);
+    }
+  }
+
+  auto new_allocc = builder.create<loom::AlloccOp>(
+      allocc.getLoc(), allocc.getResult().getType(), new_allocc_sizes,
+      allocc.getMemoryAttr(), allocc.getAlignmentAttr(),
+      allocc.getBufferCountAttr());
+
+  // 3. Hoist CopyToTensorOp
+  // The result type needs to be updated (add dimension)
+  auto orig_tensor_type =
+      mlir::cast<mlir::RankedTensorType>(copy_to_tensor.getResult().getType());
+  llvm::SmallVector<int64_t> new_tensor_shape;
+  new_tensor_shape.push_back(mlir::ShapedType::kDynamic);
+  for (int64_t dim : orig_tensor_type.getShape()) {
+    new_tensor_shape.push_back(dim);
+  }
+  auto new_tensor_type = mlir::RankedTensorType::get(
+      new_tensor_shape, orig_tensor_type.getElementType());
+
+  auto new_copy = builder.create<loom::CopyToTensorOp>(
+      copy_to_tensor.getLoc(), new_tensor_type, new_view.getResult(),
+      new_allocc.getResult(), copy_to_tensor.getProvenance(),
+      copy_to_tensor.getInterconnect(), copy_to_tensor.getBroadcast());
+
   is_valid_ = true;
-
-  // Store for replacement block creation
-  replacement_block_.clear();
-  replacement_block_.push_back(new_reinterpret);
-  replacement_block_.push_back(new_alloc);
+  replacement_block_.push_back(new_view);
+  replacement_block_.push_back(new_allocc);
   replacement_block_.push_back(new_copy);
-
-  LLVM_DEBUG({
-    llvm::dbgs() << "Created hoisted operations:\n";
-    llvm::dbgs() << "  reinterpret_cast: " << new_reinterpret << "\n";
-    llvm::dbgs() << "  alloc: " << new_alloc << "\n";
-    llvm::dbgs() << "  copy: " << new_copy << "\n";
-  });
 }
 
 /**
@@ -550,187 +431,92 @@ void LoadingBlock::SetReplacementBlock() {
   if (replacement_block_.size() < 3)
     return;
 
-  auto new_alloc = mlir::dyn_cast<loom::AllocOp>(replacement_block_[1]);
-  auto to_tensor =
-      mlir::dyn_cast_or_null<mlir::bufferization::ToTensorOp>(to_tensor_op_);
-  auto old_alloc = FindAlloc();
-  if (!old_alloc)
+  auto hoisted_copy =
+      mlir::dyn_cast<loom::CopyToTensorOp>(replacement_block_[2]);
+  if (!hoisted_copy)
     return;
 
-  auto old_reinterpret = FindReinterpretCast();
+  mlir::OpBuilder builder(copy_to_tensor_op_);
+  auto loc = copy_to_tensor_op_->getLoc();
 
-  if (!new_alloc || !copy_op_)
-    return;
+  // Create tensor.extract_slice inside the loop
+  auto hoisted_tensor = hoisted_copy.getResult();
+  auto hoisted_type =
+      mlir::cast<mlir::RankedTensorType>(hoisted_tensor.getType());
+  auto rank = hoisted_type.getRank();
 
-  mlir::OpBuilder builder(copy_op_);
-
-  // Create subview to access the slice for current loop iteration
-  // subview %alloc[%loop_iv, 0, 0][1, dim0, dim1][1, 1, 1]
-
-  auto alloc_type = new_alloc.getType();
-  auto rank = alloc_type.getRank();
-
-  if (rank < 2) {
-    LLVM_DEBUG(llvm::dbgs() << "Alloc has less than 2 dimensions\n");
-    return;
-  }
-
-  // Offsets: [loop_iv, 0, 0, ...]
-  llvm::SmallVector<mlir::OpFoldResult> offsets;
+  llvm::SmallVector<mlir::OpFoldResult> offsets, sizes, strides;
   offsets.push_back(loop_iv_);
-  for (unsigned i = 1; i < rank; ++i) {
-    offsets.push_back(builder.getIndexAttr(0));
-  }
-
-  // Get dynamic sizes from the NEW alloc
-  auto dyn_sizes = new_alloc.getDynamicSizes();
-  unsigned dyn_idx = 0;
-
-  // Sizes: [1, original_sizes...]
-  llvm::SmallVector<mlir::OpFoldResult> sizes;
   sizes.push_back(builder.getIndexAttr(1));
+  strides.push_back(builder.getIndexAttr(1));
 
-  // Skip first dynamic dimension (loop_ub)
-  if (alloc_type.isDynamicDim(0)) {
-    dyn_idx++;
-  }
-
-  // Get old alloc's dynamic sizes once
-  mlir::ValueRange oldDynamicSizes = old_alloc.getDynamicSizes();
-
-  for (unsigned i = 1; i < rank; ++i) {
-    if (alloc_type.isDynamicDim(i)) {
-      if (dyn_idx < dyn_sizes.size()) {
-        sizes.push_back(dyn_sizes[dyn_idx++]);
-      } else {
-        // Fallback: use old alloc's dynamic sizes
-        // The index for oldDynamicSizes should be (i - 1) because the new alloc
-        // has an extra leading dimension.
-        if (old_alloc && (i - 1) < oldDynamicSizes.size()) {
-          sizes.push_back(oldDynamicSizes[i - 1]);
-        } else {
-          sizes.push_back(builder.getIndexAttr(mlir::ShapedType::kDynamic));
-        }
-      }
+  for (int i = 1; i < rank; ++i) {
+    offsets.push_back(builder.getIndexAttr(0));
+    if (hoisted_type.isDynamicDim(i)) {
+      // Use original dynamic sizes from the old copy op's result type if
+      // available Or just re-retrieve from the hoisted tensor
+      sizes.push_back(
+          builder.create<mlir::tensor::DimOp>(loc, hoisted_tensor, i)
+              .getResult());
     } else {
-      sizes.push_back(builder.getIndexAttr(alloc_type.getDimSize(i)));
+      sizes.push_back(builder.getIndexAttr(hoisted_type.getDimSize(i)));
     }
+    strides.push_back(builder.getIndexAttr(1));
   }
 
-  // Strides: all 1s
-  llvm::SmallVector<mlir::OpFoldResult> strides(rank, builder.getIndexAttr(1));
-
-  // Compute reduced shape (drop the first dimension of size 1)
-  // Note: We use kDynamic for all dimensions, but must use
-  // inferRankReducedResultType to get a layout compatible with the source
-  // memref (MLIR validation requirement)
   llvm::SmallVector<int64_t> reduced_shape;
-  for (unsigned i = 1; i < rank; ++i) {
-    reduced_shape.push_back(mlir::ShapedType::kDynamic);
+  for (int i = 1; i < rank; ++i) {
+    reduced_shape.push_back(hoisted_type.getDimSize(i));
   }
+  auto reduced_type =
+      mlir::RankedTensorType::get(reduced_shape, hoisted_type.getElementType());
 
-  auto reduced_type = mlir::memref::SubViewOp::inferRankReducedResultType(
-      reduced_shape, alloc_type, offsets, sizes, strides);
+  auto slice = builder.create<mlir::tensor::ExtractSliceOp>(
+      loc, reduced_type, hoisted_tensor, offsets, sizes, strides);
 
-  auto subview = builder.create<mlir::memref::SubViewOp>(
-      copy_op_->getLoc(), reduced_type, new_alloc.getResult(), offsets, sizes,
-      strides);
-
-  LLVM_DEBUG({ llvm::dbgs() << "Created subview: " << subview << "\n"; });
-
-  // Update to_tensor if present
-  if (to_tensor) {
-    builder.setInsertionPointAfter(to_tensor);
-    auto new_to_tensor = builder.create<mlir::bufferization::ToTensorOp>(
-        to_tensor.getLoc(), to_tensor.getType(), subview.getResult(),
-        to_tensor.getRestrict(), to_tensor.getWritable());
-
-    to_tensor.getResult().replaceAllUsesWith(new_to_tensor.getResult());
-    to_tensor.erase();
-    to_tensor_op_ = new_to_tensor;
-
-    LLVM_DEBUG({
-      llvm::dbgs() << "Created new to_tensor: " << new_to_tensor << "\n";
-    });
-  }
+  copy_to_tensor_op_->getResult(0).replaceAllUsesWith(slice.getResult());
 
   // Erase original operations
-  // First, erase the copy
-  if (copy_op_) {
-    copy_op_->erase();
-    copy_op_ = nullptr;
-  }
+  copy_to_tensor_op_->erase();
+  allocc_op_->erase();
 
-  // Then erase alloc if it has no other uses
-  if (old_alloc && old_alloc->use_empty()) {
-    old_alloc->erase();
-  }
-
-  // Then erase reinterpret_cast if it has no other uses
-  if (old_reinterpret && old_reinterpret->use_empty()) {
-    old_reinterpret->erase();
-  }
-
-  // Erase backward slice operations that have no uses
   for (auto it = backward_slice_.rbegin(); it != backward_slice_.rend(); ++it) {
     mlir::Operation *op = *it;
-    if (op && op->use_empty() && op->getBlock()) {
+    if (op && op->use_empty()) {
       op->erase();
     }
   }
-
-  LLVM_DEBUG(llvm::dbgs() << "SetReplacementBlock completed\n");
 }
 
 /**
  * @brief Hoist the loading block operations to the outer loop.
  */
 void LoadingBlock::HoistLoadingBlock() {
-  mlir::OpBuilder builder = std::visit(
-      [](auto &&forOp) -> mlir::OpBuilder { return mlir::OpBuilder(forOp); },
-      outer_for_op_);
-
-  // Collect backward slice first
+  mlir::OpBuilder builder(outer_for_op_);
   CollectBackwardSlice();
-
-  // Create hoisted operations
   CreateHoistedOps(builder);
 }
 
 /**
- * @brief Construct a LoadingBlock from a loom.copy operation.
+ * @brief Construct a LoadingBlock from a loom.allocc operation.
  */
-LoadingBlock::LoadingBlock(mlir::Operation *copy_op, mlir::scf::ForOp for_op,
-                           mlir::Operation *to_tensor_op)
-    : outer_for_op_(for_op), copy_op_(copy_op), to_tensor_op_(to_tensor_op),
-      loop_iv_(nullptr), loop_ub_(nullptr), is_valid_(false) {
+LoadingBlock::LoadingBlock(mlir::Operation *allocc_op, mlir::Operation *copy_op,
+                           mlir::affine::AffineForOp for_op)
+    : outer_for_op_(for_op), allocc_op_(allocc_op), copy_to_tensor_op_(copy_op),
+      loop_iv_(nullptr), is_valid_(false) {
   SetLoopAttr();
   CollectBackwardSlice();
-
-  LLVM_DEBUG({
-    llvm::dbgs() << "Created LoadingBlock for copy: " << *copy_op << "\n";
-    llvm::dbgs() << "  Backward slice size: " << backward_slice_.size() << "\n";
-  });
 }
 
 /**
  * @brief Recursively hoist the loading block to outer loops.
  */
 void LoadingBlock::HoistRec(mlir::affine::AffineForOp new_outer_for) {
+  // Single step hoisting for now
   HoistLoadingBlock();
-
-  // After hoisting, create replacement operations at the original location
-  // Only do this once (on the first hoist step)
-  if (is_valid_ && !replacement_block_.empty()) {
+  if (is_valid_) {
     SetReplacementBlock();
   }
-
-  // For now, don't recursively hoist to outer loops
-  // This would require more complex handling of values visibility
-  // ResetLoopAttr(new_outer_for);
-  // if (auto next_outer_for = FindOuterAffineFor()) {
-  //     HoistRec(next_outer_for);
-  // }
 }
 
 /**
@@ -744,38 +530,30 @@ void LoadingBlock::Hoist() {
 }
 
 /**
- * @brief Build loading blocks by finding loom.copy operations in a for loop.
+ * @brief Build loading blocks in an affine for loop.
  */
 mlir::LogicalResult
-BuildLoadingBlocks(mlir::scf::ForOp inner_most_for_op,
+BuildLoadingBlocks(mlir::affine::AffineForOp inner_most_for_op,
                    llvm::SmallVector<LoadingBlock, 2> &block_vec) {
   mlir::Block *body = inner_most_for_op.getBody();
   if (!body)
     return mlir::failure();
 
-  // Find all loom.copy operations in the loop body
   for (mlir::Operation &op : *body) {
-    if (auto copy_op = mlir::dyn_cast<loom::CopyOp>(&op)) {
-      // Look for a following bufferization.to_tensor operation
-      mlir::Operation *to_tensor_op = nullptr;
-
-      // Check if dst has a to_tensor user
-      for (mlir::Operation *user : copy_op.getDst().getUsers()) {
-        if (mlir::isa<mlir::bufferization::ToTensorOp>(user)) {
-          to_tensor_op = user;
+    if (auto allocc = mlir::dyn_cast<loom::AlloccOp>(&op)) {
+      // Find its CopyToTensorOp user
+      mlir::Operation *copy_op = nullptr;
+      for (auto &user : allocc.getResult().getUses()) {
+        if (auto copy = mlir::dyn_cast<loom::CopyToTensorOp>(user.getOwner())) {
+          copy_op = copy.getOperation();
           break;
         }
       }
 
-      block_vec.emplace_back(copy_op.getOperation(), inner_most_for_op,
-                             to_tensor_op);
-
-      LLVM_DEBUG({
-        llvm::dbgs() << "Found loom.copy operation: " << *copy_op << "\n";
-        if (to_tensor_op) {
-          llvm::dbgs() << "  with to_tensor: " << *to_tensor_op << "\n";
-        }
-      });
+      if (copy_op) {
+        block_vec.emplace_back(allocc.getOperation(), copy_op,
+                               inner_most_for_op);
+      }
     }
   }
 
@@ -785,7 +563,7 @@ BuildLoadingBlocks(mlir::scf::ForOp inner_most_for_op,
 /**
  * @brief Hoist a single loading block at the specified index.
  */
-mlir::LogicalResult HoistSingleBlock(mlir::scf::ForOp inner_most_loop,
+mlir::LogicalResult HoistSingleBlock(mlir::affine::AffineForOp inner_most_loop,
                                      size_t block_index) {
   llvm::SmallVector<LoadingBlock, 2> loading_blocks;
   if (failed(BuildLoadingBlocks(inner_most_loop, loading_blocks)) ||

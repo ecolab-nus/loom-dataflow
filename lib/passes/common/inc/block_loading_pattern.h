@@ -5,7 +5,7 @@
  * @brief Block loading pattern detection and hoisting for loom dialect.
  * @details
  * This module provides functionality to:
- * 1. Identify loom.copy operations within scf.for loops
+ * 1. Identify loom.copy_to_tensor operations within affine.for loops
  * 2. Collect backward slice dependencies of copy operations
  * 3. Hoist copy operations and their dependencies outside the loop
  */
@@ -13,7 +13,6 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
@@ -22,34 +21,37 @@
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include <optional>
-#include <variant>
 
-// Forward declaration for loom::CopyOp
+// Forward declaration for loom ops
 namespace loom {
-class CopyOp;
-class ReinterpretCastOp;
-class AllocOp;
+class CopyToTensorOp;
+class AlloccOp;
+class ViewOp;
 } // namespace loom
 
 namespace loom::affine {
 
 /**
- * @brief Represents a loading block pattern centered around a loom.copy
+ * @brief Represents a loading block pattern centered around a loom.allocc
  * operation.
  * @details
  * A LoadingBlock captures:
- * - The loom.copy operation itself
+ * - The loom.allocc operation that anchors this block
+ * - The loom.copy_to_tensor operation that uses the allocc
  * - All operations in the backward slice (dependencies)
- * - The containing scf.for loop information
+ * - The containing affine.for loop information
  * - Operations needed for hoisting transformation
  */
 class LoadingBlock {
 private:
   /// The outer for loop containing this loading block
-  std::variant<mlir::scf::ForOp, mlir::affine::AffineForOp> outer_for_op_;
+  mlir::affine::AffineForOp outer_for_op_;
 
-  /// The loom.copy operation that anchors this loading block
-  mlir::Operation *copy_op_;
+  /// The loom.allocc operation that anchors this loading block
+  mlir::Operation *allocc_op_;
+
+  /// The loom.copy_to_tensor operation that uses the allocc
+  mlir::Operation *copy_to_tensor_op_;
 
   /// All operations in the backward slice (dependencies of copy)
   llvm::SetVector<mlir::Operation *> backward_slice_;
@@ -57,14 +59,8 @@ private:
   /// Operations created for replacement after hoisting
   llvm::SmallVector<mlir::Operation *, 4> replacement_block_;
 
-  /// The bufferization.to_tensor operation following the copy
-  mlir::Operation *to_tensor_op_;
-
   /// Loop induction variable
   mlir::Value loop_iv_;
-
-  /// Loop upper bound
-  mlir::Value loop_ub_;
 
   /// Whether this block has been successfully hoisted
   bool is_valid_;
@@ -82,10 +78,11 @@ private:
   void ClearLoopAttr();
 
   /**
-   * @brief Reset loop attributes to a new outer affine for loop.
-   * @param new_outer_for The new outer affine for loop operation.
+   * @brief Get or reify the loop upper bound.
+   * @param builder The OpBuilder to use.
+   * @return The upper bound value.
    */
-  void ResetLoopAttr(mlir::affine::AffineForOp new_outer_for);
+  mlir::Value getOrReifyLoopUB(mlir::OpBuilder &builder);
 
   /**
    * @brief Find the outer affine for loop that contains the current
@@ -102,23 +99,24 @@ private:
   bool DependsOnLoopIV(mlir::Value value);
 
   /**
-   * @brief Collect backward slice of a copy operation.
+   * @brief Collect backward slice of the loading chain.
    * @details Traverses the def-use chain backward to collect all operations
-   * that the copy depends on, excluding operations defined outside the loop.
+   * that the loading chain depends on, excluding operations defined outside the
+   * loop.
    */
   void CollectBackwardSlice();
 
   /**
-   * @brief Find the loom.reinterpret_cast in the backward slice.
-   * @return The reinterpret_cast operation, or nullptr if not found.
+   * @brief Find the loom.allocc in the backward slice or as anchor.
+   * @return The allocc operation, or nullptr if not found.
    */
-  mlir::Operation *FindReinterpretCast();
+  loom::AlloccOp FindAllocc();
 
   /**
-   * @brief Find the memref.alloc in the backward slice or as dst of copy.
-   * @return The alloc operation, or nullptr if not found.
+   * @brief Find the loom.view consumed by the copy_to_tensor.
+   * @return The view operation, or nullptr if not found.
    */
-  loom::AllocOp FindAlloc();
+  loom::ViewOp FindView();
 
   /**
    * @brief Create hoisted operations before the loop.
@@ -128,19 +126,19 @@ private:
 
   /**
    * @brief Create replacement operations at the original location.
-   * @details Creates subview operations to access hoisted data using loop IV.
+   * @details Creates slice operations to access hoisted data using loop IV.
    */
   void SetReplacementBlock();
 
 public:
   /**
-   * @brief Construct a LoadingBlock from a loom.copy operation.
-   * @param copy_op The loom.copy operation.
-   * @param for_op The containing scf.for loop.
-   * @param to_tensor_op Optional bufferization.to_tensor operation.
+   * @brief Construct a LoadingBlock from a loom.allocc operation.
+   * @param allocc_op The loom.allocc operation.
+   * @param copy_op The loom.copy_to_tensor operation.
+   * @param for_op The containing affine.for loop.
    */
-  LoadingBlock(mlir::Operation *copy_op, mlir::scf::ForOp for_op,
-               mlir::Operation *to_tensor_op = nullptr);
+  LoadingBlock(mlir::Operation *allocc_op, mlir::Operation *copy_op,
+               mlir::affine::AffineForOp for_op);
 
   /**
    * @brief Recursively hoist the loading block to outer loops.
@@ -178,26 +176,27 @@ public:
    * @brief Get the copy operation.
    * @return The copy operation.
    */
-  mlir::Operation *GetCopyOp() const { return copy_op_; }
+  mlir::Operation *GetCopyOp() const { return copy_to_tensor_op_; }
 };
 
 /**
- * @brief Build loading blocks by finding loom.copy operations in a for loop.
- * @param inner_most_for_op The innermost scf.for loop operation.
+ * @brief Build loading blocks by finding loom.allocc operations in an affine
+ * for loop.
+ * @param inner_most_for_op The innermost affine.for loop operation.
  * @param block_vec Output vector to store the found loading blocks.
  * @return LogicalResult indicating success or failure.
  */
 mlir::LogicalResult
-BuildLoadingBlocks(mlir::scf::ForOp inner_most_for_op,
+BuildLoadingBlocks(mlir::affine::AffineForOp inner_most_for_op,
                    llvm::SmallVector<LoadingBlock, 2> &block_vec);
 
 /**
- * @brief Check if an operation is a loop operation (AffineForOp or scf::ForOp).
+ * @brief Check if an operation is a loop operation (AffineForOp).
  * @param op The operation to check.
  * @return true if the operation is a loop operation.
  */
 static inline bool isInWhitelist(mlir::Operation *op) {
-  return mlir::isa<mlir::affine::AffineForOp, mlir::scf::ForOp>(op);
+  return mlir::isa<mlir::affine::AffineForOp>(op);
 }
 
 /**
@@ -211,11 +210,11 @@ static inline bool isInBlacklist(mlir::Operation *op) {
 
 /**
  * @brief Hoist a single loading block at the specified index.
- * @param inner_most_loop The innermost scf.for loop operation.
+ * @param inner_most_loop The innermost affine.for loop operation.
  * @param block_index The index of the block to hoist.
  * @return LogicalResult indicating success or failure.
  */
-mlir::LogicalResult HoistSingleBlock(mlir::scf::ForOp inner_most_loop,
+mlir::LogicalResult HoistSingleBlock(mlir::affine::AffineForOp inner_most_loop,
                                      size_t block_index);
 
 } // namespace loom::affine
