@@ -3,6 +3,18 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+# Default values
+CONSTRAINT_LINEARIZATION=true
+
+# Parse arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --constraint_linearization) CONSTRAINT_LINEARIZATION="$2"; shift ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
+
 echo "Starting build..."
 if ! ./build.sh; then
     echo "Error: ./build.sh failed."
@@ -15,16 +27,16 @@ mkdir -p test/Passes/mm_2Dmesh/constraint_space
 mkdir -p test/Passes/mm_2Dmesh/viz
 
 echo "1) Replace grid indices with a 3-D affine.parallel..."
-if ! build/tool/loom-opt/single_stage/grid_to_parallel \
-  --input test/Passes/mm_2Dmesh/IR/00_temp_manual_symbolic.mlir  \
-  > test/Passes/mm_2Dmesh/IR/01_after_grid_to_parallel.mlir; then
+if ! build/tool/loom-opt/single_stage/memory_binding \
+  --input test/Passes/mm_2Dmesh/IR/00_from_helion_frontend.mlir  \
+  > test/Passes/mm_2Dmesh/IR/01_explicit_memory_access.mlir; then
     echo "Error: Step 1 failed."
     exit 1
 fi
 
 echo "2) Enumerate spatial mappings and merge DF declarations..."
 if ! build/tool/loom-opt/single_stage/enumerate_hw_mapping \
-  --input test/Passes/mm_2Dmesh/IR/01_after_grid_to_parallel.mlir \
+  --input test/Passes/mm_2Dmesh/IR/01_explicit_memory_access.mlir \
   --df test/Dialect/DataflowDialect/2D_mesh.mlir \
   > test/Passes/mm_2Dmesh/IR/02_after_hardware_mapping.mlir; then
     echo "Error: Step 2 failed."
@@ -54,6 +66,11 @@ if ! build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
   2> test/Passes/mm_2Dmesh/constraint_space/raw_constraint_space.json; then
     echo "Error: Step 5 failed."
     exit 1
+fi
+
+if [ "$CONSTRAINT_LINEARIZATION" = "false" ]; then
+    echo "Constraint linearization is disabled. Terminating pipeline after Step 5."
+    exit 0
 fi
 
 echo "6) Canonicalize constraints..."
