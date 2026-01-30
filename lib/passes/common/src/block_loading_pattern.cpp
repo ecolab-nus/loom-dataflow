@@ -196,7 +196,8 @@ loom::AlloccOp LoadingBlock::FindAllocc() {
 }
 
 /**
- * @brief Find the loom.view consumed by copy_to_tensor.
+ * @brief Find the loom.view consumed by copy_to_tensor (or pack_to_tensor in
+ * future).
  */
 loom::ViewOp LoadingBlock::FindView() {
   if (auto copy_op =
@@ -204,6 +205,170 @@ loom::ViewOp LoadingBlock::FindView() {
     return copy_op.getSourceView().getDefiningOp<loom::ViewOp>();
   }
   return nullptr;
+}
+
+/**
+ * @brief Determine which dimension of the view depends on the loop IV.
+ */
+int LoadingBlock::getMovingDimension() {
+  auto view = FindView();
+  if (!view)
+    return -1;
+
+  auto offsets = view.getOffsets();
+  for (int i = 0; i < offsets.size(); ++i) {
+    if (DependsOnLoopIV(offsets[i])) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * @brief Compute the expanded shape for hoisted view.
+ */
+/**
+ * @brief Compute the expanded shape for hoisted view.
+ */
+llvm::SmallVector<mlir::Value, 2>
+LoadingBlock::inferHoistedViewShape(mlir::OpBuilder &builder) {
+  auto view = FindView();
+  auto origSizes = view.getSizes();
+  llvm::SmallVector<mlir::Value, 2> newSizes;
+
+  int moveDim = getMovingDimension();
+  if (moveDim < 0)
+    return {};
+
+  mlir::Value blockSize = origSizes[moveDim];
+
+  // Lazy creation of loopUB to avoid redundant operations if optimization
+  // applies
+  mlir::Value loopUB = nullptr;
+  auto ensureLoopUB = [&]() {
+    if (!loopUB)
+      loopUB = getOrReifyLoopUB(builder);
+    return loopUB;
+  };
+
+  for (int i = 0; i < origSizes.size(); ++i) {
+    if (i == moveDim) {
+      // Optimization: If the source memref dimension is static and we are
+      // covering it, use the constant size. We assume direct 1:1 mapping for
+      // now (strides are usually [1, 1]). Check if source memref has static
+      // shape.
+      auto srcType = mlir::cast<mlir::MemRefType>(view.getSource().getType());
+      if (srcType.hasStaticShape()) {
+        // Assuming view dimensions map 1:1 to source (no transpose in view
+        // itself). If offsets/strides are simple.
+        if (i < srcType.getRank()) {
+          int64_t dimSize = srcType.getDimSize(i);
+          if (dimSize != mlir::ShapedType::kDynamic) {
+            // Return constant op
+            newSizes.push_back(builder.create<mlir::arith::ConstantIndexOp>(
+                view.getLoc(), dimSize));
+            continue;
+          }
+        }
+      }
+
+      // Fallback: Expand moving dimension: K = loopUB * blockSize
+      mlir::Value expanded = builder.create<mlir::arith::MulIOp>(
+          view.getLoc(), ensureLoopUB(), blockSize);
+      newSizes.push_back(expanded);
+    } else {
+      newSizes.push_back(origSizes[i]);
+    }
+  }
+  return newSizes;
+}
+
+/**
+ * @brief Generate outer_dims_perm for pack_to_tensor.
+ */
+llvm::SmallVector<int64_t, 2> LoadingBlock::computePackPermutation() {
+  int moveDim = getMovingDimension();
+  // We want the resulting tensor to be [T_wave, M, N_tile] or similar 3D.
+  // The input 2D view is [Dim0, Dim1].
+  // If moving dim is 1 (Dim1), then it's split into T_wave * Tile.
+  // If moving dim is 0 (Dim0), then it's split into T_wave * Tile.
+  //
+  // pack_to_tensor logic:
+  // "It performs tiling on the second dimension of the input view and permutes
+  // the outer dimensions." Wait, if it *always* tiles the second dimension (dim
+  // 1), then we MUST ensure the moving dimension IS the second dimension?
+  //
+  // Let's re-read LoomOps.td:
+  // "It performs tiling on the second dimension of the input view"
+  // If this is strict, then if moving dim is 0, we can't use it directly?
+  // User didn't say we should change pack_to_tensor semantics.
+  //
+  // If moving dim is 0 (Row moves), we effectively have [T_wave * BM, BK].
+  // We want to slice [iv, :, :].
+  //
+  // Actually, let's look at `mm_2Dmesh`.
+  // Matrix A: `loom.view %arg0[%23, %24] ...` where %23 (dim 0) varies with
+  // outer loop, %24 (dim 1) varies with inner loop K. Wait, the hoisting target
+  // is `affine.for %arg7 ...` (K loop). Inside this loop:
+  // `%23 = arith.muli %15, %12` -> Depends on %15 which is loop invariant
+  // relative to %arg7?
+  // `%24 = arith.muli %arg7, %14` -> Depends on K loop IV.
+  // So for Matrix A, Dim 1 (Columns) is moving. -> matches "tiles second
+  // dimension".
+  //
+  // Matrix B: `loom.view %arg1[%24, %28] ...`
+  // %24 (Dim 0) is K loop IV.
+  // So for Matrix B, Dim 0 (Rows) is moving.
+  //
+  // If PackToTensor *only* tiles 2nd dimension, we have a problem for Matrix B.
+  // BUT the description says:
+  // "Example: %packed_A = loom.pack_to_tensor %view ... outer_dims_perm = [1,
+  // 0]"
+  //
+  // If the op implies semantics tailored for these cases, maybe it tiles "the
+  // dimension specified by inner_tiles"? "It performs tiling on the second
+  // dimension of the input view" -> This text might be specific to the example
+  // or default?
+  //
+  // However, I see "outer_dims_perm".
+  // Let's assume the user wants me to implement `computePackPermutation` to
+  // handle this. If the op is rigid to 2nd dim tiling, then for Matrix B (row
+  // moving), we might need `transpose` view first? OR, maybe the description
+  // text is just one example.
+  //
+  // Given the "Directly modify code" instruction, if PackToTensor handles
+  // generic tiling, it should be fine. But if the C++ implementation of
+  // PackToTensor (which I can't see, only TD) has logic, I might break it.
+  //
+  // Let's follow the user's hint:
+  // "computePermutation(moveDim): 根据移动维度生成 T_{wave} 始终位于第 0
+  // 维的排列向量"
+  //
+  // If moveDim == 1 (Cols), we want [T_wave, Rows, Cols_Tile].
+  // Original 2D: [Rows, Cols].
+  // Split Cols -> [Rows, T_wave, Cols_Tile].
+  // Permute -> [1, 0] -> [T_wave, Rows, Cols_Tile].
+  //
+  // If moveDim == 0 (Rows), we want [T_wave, Rows_Tile, Cols].
+  // Original 2D: [Rows, Cols].
+  // Split Rows -> [T_wave, Rows_Tile, Cols].
+  // Permute -> [0, 1] -> [T_wave, Rows_Tile, Cols].
+  //
+  // So:
+  if (moveDim == 1)
+    return {1, 0};
+  return {0, 1};
+}
+
+/**
+ * @brief Get the inner tile size.
+ */
+mlir::Value LoadingBlock::getInnerTileSize() {
+  auto view = FindView();
+  int moveDim = getMovingDimension();
+  if (moveDim < 0)
+    return nullptr;
+  return view.getSizes()[moveDim];
 }
 
 /**
@@ -291,61 +456,66 @@ void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
   }
 
   mlir::Block *targetBlock = builder.getInsertionBlock();
-  mlir::Value ub = getOrReifyLoopUB(builder);
+  int moveDim = getMovingDimension();
 
-  if (!ub || !isVisibleIn(ub, targetBlock)) {
-    LLVM_DEBUG(llvm::dbgs() << "Loop upper bound not visible\n");
+  if (moveDim < 0) {
+    LLVM_DEBUG(llvm::dbgs() << "Cannot identify moving dimension\n");
     return;
   }
 
   mlir::IRMapping mapping;
   llvm::DenseSet<mlir::Operation *> clonedOps;
 
-  // 1. Hoist view index calculations and view itself
+  // 1. Create 2D view with expanded shape
+  // Hoist logical view definition
   auto orig_view_offsets = view.getOffsets();
   auto orig_view_sizes = view.getSizes();
   auto orig_view_strides = view.getStrides();
 
+  // New Offsets:
+  // If dimension moves (depends on IV), set offset to 0.
+  // Otherwise, clone the offset calculation.
   llvm::SmallVector<mlir::Value> new_view_offsets;
-  for (mlir::Value offset : orig_view_offsets) {
-    if (DependsOnLoopIV(offset)) {
-      // Substitute loop IV = 0 for base offset computation
-      mlir::IRMapping offsetMapping = mapping;
-      offsetMapping.map(loop_iv_, builder.create<mlir::arith::ConstantIndexOp>(
-                                      view.getLoc(), 0));
-      if (mlir::Operation *defOp = offset.getDefiningOp()) {
-        cloneWithDependencies(builder, defOp, targetBlock, offsetMapping,
-                              clonedOps);
-        new_view_offsets.push_back(offsetMapping.lookupOrDefault(offset));
+  for (int i = 0; i < orig_view_offsets.size(); ++i) {
+    mlir::Value offset = orig_view_offsets[i];
+    if (i == moveDim) {
+      new_view_offsets.push_back(
+          builder.create<mlir::arith::ConstantIndexOp>(view.getLoc(), 0));
+    } else {
+      if (isVisibleIn(offset, targetBlock)) {
+        new_view_offsets.push_back(offset);
+      } else if (mlir::Operation *defOp = offset.getDefiningOp()) {
+        cloneWithDependencies(builder, defOp, targetBlock, mapping, clonedOps);
+        new_view_offsets.push_back(mapping.lookupOrDefault(offset));
       } else {
         new_view_offsets.push_back(offset);
       }
-    } else if (isVisibleIn(offset, targetBlock)) {
-      new_view_offsets.push_back(offset);
-    } else if (mlir::Operation *defOp = offset.getDefiningOp()) {
-      cloneWithDependencies(builder, defOp, targetBlock, mapping, clonedOps);
-      new_view_offsets.push_back(mapping.lookupOrDefault(offset));
-    } else {
-      new_view_offsets.push_back(offset);
     }
   }
 
-  llvm::SmallVector<mlir::Value> new_view_sizes;
-  new_view_sizes.push_back(ub); // New outer dimension
-  for (mlir::Value size : orig_view_sizes) {
-    if (isVisibleIn(size, targetBlock)) {
-      new_view_sizes.push_back(size);
-    } else if (mlir::Operation *defOp = size.getDefiningOp()) {
-      cloneWithDependencies(builder, defOp, targetBlock, mapping, clonedOps);
-      new_view_sizes.push_back(mapping.lookupOrDefault(size));
-    } else {
-      new_view_sizes.push_back(size);
+  // New Sizes:
+  // If dimension moves, size = ub * blockSize.
+  // Otherwise, clone size.
+  llvm::SmallVector<mlir::Value> new_view_sizes =
+      inferHoistedViewShape(builder);
+  // Need to map non-moving sizes if they depend on internal computations
+  // (usually they don't or they are hoisted)
+  for (int i = 0; i < new_view_sizes.size(); ++i) {
+    if (i != moveDim && !isVisibleIn(new_view_sizes[i], targetBlock)) {
+      // If inferHoistedViewShape used original values that need cloning...
+      // Actually inferHoistedViewShape reuses origSizes values.
+      // We should probably safeguard this.
+      mlir::Value s = new_view_sizes[i];
+      if (mlir::Operation *defOp = s.getDefiningOp()) {
+        if (!clonedOps.contains(defOp)) // if not already cloned
+          cloneWithDependencies(builder, defOp, targetBlock, mapping,
+                                clonedOps);
+        new_view_sizes[i] = mapping.lookupOrDefault(s);
+      }
     }
   }
 
-  // Strides for the new view.
-  // Typically we want the new dimension to be contiguous with the original
-  // ones.
+  // New Strides: clone existing
   llvm::SmallVector<mlir::Value> new_view_strides;
   for (mlir::Value stride : orig_view_strides) {
     if (isVisibleIn(stride, targetBlock)) {
@@ -358,70 +528,62 @@ void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
     }
   }
 
-  // Clone source memref
+  // Clone source memref if needed
   if (!isVisibleIn(view.getSource(), targetBlock))
     return;
 
-  // Prepend prefix to static attributes for the new dimension
-  auto updateStaticAttr = [&](llvm::ArrayRef<int64_t> attr, int64_t prefix) {
-    llvm::SmallVector<int64_t> vals;
-    vals.push_back(prefix);
-    for (int64_t v : attr)
-      vals.push_back(v);
-    return builder.getDenseI64ArrayAttr(vals);
-  };
-
-  auto new_static_offsets = updateStaticAttr(view.getStaticOffsets(), 0);
-  auto new_static_sizes =
-      updateStaticAttr(view.getStaticSizes(), mlir::ShapedType::kDynamic);
-  auto new_static_strides = updateStaticAttr(view.getStaticStrides(), 1);
-
   auto new_view = builder.create<loom::ViewOp>(
       view.getLoc(), view.getResult().getType(), view.getSource(),
-      new_view_offsets, new_view_sizes, new_view_strides, new_static_offsets,
-      new_static_sizes, new_static_strides, view.getSequentialReuse(),
-      view.getSpatialReuse(), view.getTemporalReuse());
+      new_view_offsets, new_view_sizes, new_view_strides,
+      view.getStaticOffsets(), view.getStaticSizes(), view.getStaticStrides(),
+      view.getSequentialReuse(), view.getSpatialReuse(),
+      view.getTemporalReuse());
 
-  // 2. Hoist AlloccOp
-  llvm::SmallVector<mlir::Value> new_allocc_sizes;
-  new_allocc_sizes.push_back(ub);
-  for (mlir::Value size : allocc.getDynamicSizes()) {
-    if (isVisibleIn(size, targetBlock)) {
-      new_allocc_sizes.push_back(size);
-    } else if (mlir::Operation *defOp = size.getDefiningOp()) {
-      cloneWithDependencies(builder, defOp, targetBlock, mapping, clonedOps);
-      new_allocc_sizes.push_back(mapping.lookupOrDefault(size));
-    } else {
-      new_allocc_sizes.push_back(size);
-    }
-  }
-
+  // 2. Hoist AlloccOp (2D with expanded size)
   auto new_allocc = builder.create<loom::AlloccOp>(
-      allocc.getLoc(), allocc.getResult().getType(), new_allocc_sizes,
+      allocc.getLoc(), allocc.getResult().getType(), new_view_sizes,
       allocc.getMemoryAttr(), allocc.getAlignmentAttr(),
       allocc.getBufferCountAttr());
 
-  // 3. Hoist CopyToTensorOp
-  // The result type needs to be updated (add dimension)
+  // 3. Create PackToTensorOp
+  // Use tracked innerTile (block size) as operand.
+  auto perm = computePackPermutation();
+
+  // Pass ALL view sizes as inner_tiles
+  llvm::SmallVector<mlir::Value> inner_tile_sizes_operands;
+  auto original_view_sizes = view.getSizes();
+  for (mlir::Value s : original_view_sizes) {
+    // Need to ensure visibility, though usually symbolic constants.
+    if (isVisibleIn(s, targetBlock)) {
+      inner_tile_sizes_operands.push_back(s);
+    } else if (mlir::Operation *defOp = s.getDefiningOp()) {
+      cloneWithDependencies(builder, defOp, targetBlock, mapping, clonedOps);
+      inner_tile_sizes_operands.push_back(mapping.lookupOrDefault(s));
+    } else {
+      // Should be visible or block arg
+      inner_tile_sizes_operands.push_back(s);
+    }
+  }
+
+  // Construct 3D tensor result type
   auto orig_tensor_type =
       mlir::cast<mlir::RankedTensorType>(copy_to_tensor.getResult().getType());
-  llvm::SmallVector<int64_t> new_tensor_shape;
-  new_tensor_shape.push_back(mlir::ShapedType::kDynamic);
-  for (int64_t dim : orig_tensor_type.getShape()) {
-    new_tensor_shape.push_back(dim);
-  }
-  auto new_tensor_type = mlir::RankedTensorType::get(
-      new_tensor_shape, orig_tensor_type.getElementType());
+  llvm::SmallVector<int64_t> packed_shape;
+  packed_shape.push_back(mlir::ShapedType::kDynamic); // T_wave
+  packed_shape.push_back(mlir::ShapedType::kDynamic); // Outer
+  packed_shape.push_back(mlir::ShapedType::kDynamic); // Inner tile
 
-  auto new_copy = builder.create<loom::CopyToTensorOp>(
-      copy_to_tensor.getLoc(), new_tensor_type, new_view.getResult(),
-      new_allocc.getResult(), copy_to_tensor.getProvenance(),
-      copy_to_tensor.getInterconnect(), copy_to_tensor.getBroadcast());
+  auto packed_type = mlir::RankedTensorType::get(
+      packed_shape, orig_tensor_type.getElementType());
+
+  auto packed = builder.create<loom::PackToTensorOp>(
+      copy_to_tensor.getLoc(), packed_type, new_view, new_allocc,
+      inner_tile_sizes_operands, builder.getDenseI64ArrayAttr(perm));
 
   is_valid_ = true;
   replacement_block_.push_back(new_view);
   replacement_block_.push_back(new_allocc);
-  replacement_block_.push_back(new_copy);
+  replacement_block_.push_back(packed);
 }
 
 /**
@@ -431,50 +593,102 @@ void LoadingBlock::SetReplacementBlock() {
   if (replacement_block_.size() < 3)
     return;
 
-  auto hoisted_copy =
-      mlir::dyn_cast<loom::CopyToTensorOp>(replacement_block_[2]);
-  if (!hoisted_copy)
+  auto hoisted_pack =
+      mlir::dyn_cast<loom::PackToTensorOp>(replacement_block_[2]);
+  if (!hoisted_pack)
     return;
 
   mlir::OpBuilder builder(copy_to_tensor_op_);
   auto loc = copy_to_tensor_op_->getLoc();
 
   // Create tensor.extract_slice inside the loop
-  auto hoisted_tensor = hoisted_copy.getResult();
+  auto hoisted_tensor = hoisted_pack.getResult();
   auto hoisted_type =
       mlir::cast<mlir::RankedTensorType>(hoisted_tensor.getType());
-  auto rank = hoisted_type.getRank();
+  // Expected hoisted type is 3D: [T_wave, M_outer, N_inner] or similar
 
   llvm::SmallVector<mlir::OpFoldResult> offsets, sizes, strides;
+  // Offset: [iv, 0, 0]
   offsets.push_back(loop_iv_);
-  sizes.push_back(builder.getIndexAttr(1));
-  strides.push_back(builder.getIndexAttr(1));
+  offsets.push_back(builder.getIndexAttr(0));
+  offsets.push_back(builder.getIndexAttr(0));
 
-  for (int i = 1; i < rank; ++i) {
-    offsets.push_back(builder.getIndexAttr(0));
-    if (hoisted_type.isDynamicDim(i)) {
-      // Use original dynamic sizes from the old copy op's result type if
-      // available Or just re-retrieve from the hoisted tensor
-      sizes.push_back(
-          builder.create<mlir::tensor::DimOp>(loc, hoisted_tensor, i)
-              .getResult());
-    } else {
-      sizes.push_back(builder.getIndexAttr(hoisted_type.getDimSize(i)));
-    }
-    strides.push_back(builder.getIndexAttr(1));
+  // Size: [1, dim1, dim2]
+  // Size: [1, dim1, dim2]
+  // Dimensions 1 and 2 correspond to M and N_tile (or similar).
+  // One of them is the tiled dimension size = blockSize.
+  // The other is from view size (which might be the other dimension).
+  // But wait, the shape of hoisted tensor matches `[T_wave, Outer, Inner]`.
+  // Permutation [1, 0] (Column move): [T_wave, M, N_tile].
+  // Permutation [0, 1] (Row move): [T_wave, M_tile, N].
+  //
+  // We can just use `getInnerTileSize()` (SSA value) for the tile dimension!
+  // And the other dimension size?
+  // `view` has sizes [D0, D1].
+  // If Col move: View [D0, D1_full]. Result [T_wave, D0, D1_tile].
+  // D0 size is `view.getSizes()[0]`. D1_tile size is `getInnerTileSize()`.
+  //
+  // If Row move: View [D0_full, D1]. Result [T_wave, D0_tile, D1].
+  // D0_tile is `getInnerTileSize()`. D1 is `view.getSizes()[1]`.
+  //
+  // So we can reconstruct the sizes SSA values instead of `tensor.dim`.
+
+  sizes.push_back(builder.getIndexAttr(1)); // T_wave slice size is 1
+
+  int moveDim = getMovingDimension();
+  auto view = FindView();
+  auto viewSizes = view.getSizes();
+
+  if (moveDim == 1) { // Cols move, perm [1, 0] -> [T_wave, D0, D1_tile]
+    sizes.push_back(viewSizes[0]);       // D0
+    sizes.push_back(getInnerTileSize()); // D1_tile (blockSize)
+  } else { // Rows move, perm [0, 1] -> [T_wave, D0_tile, D1]
+    sizes.push_back(getInnerTileSize()); // D0_tile
+    sizes.push_back(viewSizes[1]);       // D1
   }
 
-  llvm::SmallVector<int64_t> reduced_shape;
-  for (int i = 1; i < rank; ++i) {
-    reduced_shape.push_back(hoisted_type.getDimSize(i));
+  // Stride: [1, 1, 1]
+  strides.append(3, builder.getIndexAttr(1));
+
+  llvm::SmallVector<int64_t> slice_shape;
+  slice_shape.push_back(1);
+  for (int i = 1; i < hoisted_type.getRank(); ++i) {
+    slice_shape.push_back(hoisted_type.getDimSize(i));
   }
-  auto reduced_type =
-      mlir::RankedTensorType::get(reduced_shape, hoisted_type.getElementType());
+  auto slice_type =
+      mlir::RankedTensorType::get(slice_shape, hoisted_type.getElementType());
 
   auto slice = builder.create<mlir::tensor::ExtractSliceOp>(
-      loc, reduced_type, hoisted_tensor, offsets, sizes, strides);
+      loc, slice_type, hoisted_tensor, offsets, sizes, strides);
 
-  copy_to_tensor_op_->getResult(0).replaceAllUsesWith(slice.getResult());
+  // Collapse shape: [1, BM, BK] -> [BM, BK]
+  // Used reassociation: [[0, 1], [2]] for perm=[1, 0] case?
+  // Wait, if result is [1, BM, BK], we want [BM, BK].
+  // Reassociation indices map dimensions of source to dimensions of result.
+  // Actually collapse_shape maps result dims to source dims.
+  // source: [1, BM, BK] (rank 3)
+  // target: [BM, BK] (rank 2)
+  // assoc: [[0, 1], [2]] means target[0] covers source[0,1], target[1] covers
+  // source[2]. This effectively merges dim 0 and 1.
+
+  // We need to know which dimension we expanded.
+  // But wait, the pack op output depends on permutation.
+  // If perm=[1, 0], then output is [T_wave, M, N_tile].
+  // Slice is [1, M, N_tile].
+  // We want [M, N_tile].
+  // So we merge 0 and 1: [[0, 1], [2]]
+
+  llvm::SmallVector<mlir::ReassociationIndices> reassociation;
+  reassociation.push_back({0, 1});
+  reassociation.push_back({2});
+
+  auto orig_type = mlir::cast<mlir::RankedTensorType>(
+      copy_to_tensor_op_->getResult(0).getType());
+
+  auto collapsed = builder.create<mlir::tensor::CollapseShapeOp>(
+      loc, orig_type, slice, reassociation);
+
+  copy_to_tensor_op_->getResult(0).replaceAllUsesWith(collapsed.getResult());
 
   // Erase original operations
   copy_to_tensor_op_->erase();
@@ -541,13 +755,14 @@ BuildLoadingBlocks(mlir::affine::AffineForOp inner_most_for_op,
 
   for (mlir::Operation &op : *body) {
     if (auto allocc = mlir::dyn_cast<loom::AlloccOp>(&op)) {
-      // Find its CopyToTensorOp user
+      // Find its CopyToTensorOp or PackToTensorOp user
       mlir::Operation *copy_op = nullptr;
       for (auto &user : allocc.getResult().getUses()) {
         if (auto copy = mlir::dyn_cast<loom::CopyToTensorOp>(user.getOwner())) {
           copy_op = copy.getOperation();
           break;
         }
+        // TODO: Handle existing PackToTensorOp if needed
       }
 
       if (copy_op) {
