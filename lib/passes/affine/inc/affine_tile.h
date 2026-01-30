@@ -35,9 +35,23 @@ namespace loom_affine {
  *   dimension produces nested inner loops of size `tilingFactor`, and index
  *   expressions are formed via composition of `affine.apply` operations.
  */
+/**
+ * Metadata about a single tiling operation for a dimension
+ */
+struct TilingMetadata {
+  unsigned originalDimIdx; // Which dimension was tiled
+  int64_t tilingFactor;    // The tiling factor used
+  mlir::Value outerIV;     // IV of the outer loop created
+  mlir::Value innerIV;     // IV of the inner loop created
+};
+
+/**
+ * Extended result struct with tiling metadata
+ */
 struct TiledParallels {
   mlir::affine::AffineParallelOp tiled_org_;
   mlir::affine::AffineParallelOp tiled_new_;
+  llvm::SmallVector<TilingMetadata> tilingMetadata;
 };
 
 /**

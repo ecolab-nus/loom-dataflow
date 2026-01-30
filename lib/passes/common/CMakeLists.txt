@@ -5,6 +5,7 @@ add_library(LoomPassesCommon
   src/utils.cpp
   src/block_loading_pattern.cpp
   src/hardware_info.cpp
+  src/index_mapping.cpp
 )
 
 target_include_directories(LoomPassesCommon

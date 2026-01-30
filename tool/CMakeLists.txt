@@ -11,7 +11,7 @@ set(LOOM_PASSES_INC
 )
 
 # Affine tools
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/affine)
+# add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/affine)
 
 # Triton-shared tools
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/loom-opt/single_stage)
