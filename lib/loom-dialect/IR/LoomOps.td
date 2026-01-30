@@ -11,6 +11,8 @@ include "mlir/IR/RegionKindInterface.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 include "LoomTypes.td"
 
+
+
 class Loom_Op<string mnemonic, list<Trait> traits = []>
   : Op<Loom_Dialect, mnemonic, traits> {}
 
@@ -318,6 +320,46 @@ def InitTensorOp : Loom_Op<"init_tensor", [Pure]> {
   let assemblyFormat = [{
     $buffer_token (`(` $dynamicSizes^ `)`)? attr-dict `:` 
     type($buffer_token) `->` type($result)
+  }];
+}
+
+def Loom_PackToTensorOp : Loom_Op<"pack_to_tensor", [
+    Pure
+  ]> {
+  let summary = "Packs a 2D view into a 3D tiled tensor in a specific memory space.";
+  let description = [{
+    This op takes a 2D !loom.view and a !loom.buffer_token, and produces a 3D tensor.
+    It represents the physical move and layout transformation from Global Memory to L1.
+
+    It performs tiling on the second dimension of the input view and permutes the
+    outer dimensions.
+
+    Example:
+    ```mlir
+    %packed_A = loom.pack_to_tensor %view, %token 
+                inner_tiles = [64] 
+                outer_dims_perm = [1, 0]
+                : !loom.view, !loom.buffer_token -> tensor<8x128x64xf32>
+    ```
+  }];
+
+  let arguments = (ins 
+    Loom_ViewType:$source,
+    Loom_BufferTokenType:$buffer_token,
+    DenseI64ArrayAttr:$inner_tiles,
+    DenseI64ArrayAttr:$outer_dims_perm
+  );
+
+  let results = (outs 
+    AnyStaticShapeTensor:$result
+  );
+
+  let assemblyFormat = [{
+    $source `,` $buffer_token 
+    `inner_tiles` `=` $inner_tiles 
+    `outer_dims_perm` `=` $outer_dims_perm
+    attr-dict `:` 
+    type($source) `,` type($buffer_token) `->` type($result)
   }];
 }
 
