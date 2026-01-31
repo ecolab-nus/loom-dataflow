@@ -25,19 +25,19 @@
 // Forward declaration for loom ops
 namespace loom {
 class PackToTensorOp;
-class AlloccOp;
+class AllocOp;
 class ViewOp;
 } // namespace loom
 
 namespace loom::affine {
 
 /**
- * @brief Represents a loading block pattern centered around a loom.allocc
+ * @brief Represents a loading block pattern centered around a loom.alloc
  * operation.
  * @details
  * A LoadingBlock captures:
- * - The loom.allocc operation that anchors this block
- * - The loom.copy_to_tensor operation that uses the allocc
+ * - The loom.alloc operation that anchors this block
+ * - The loom.copy_to_tensor operation that uses the alloc
  * - All operations in the backward slice (dependencies)
  * - The containing affine.for loop information
  * - Operations needed for hoisting transformation
@@ -47,10 +47,10 @@ private:
   /// The outer for loop containing this loading block
   mlir::affine::AffineForOp outer_for_op_;
 
-  /// The loom.allocc operation that anchors this loading block
-  mlir::Operation *allocc_op_;
+  /// The loom.alloc operation that anchors this loading block
+  mlir::Operation *alloc_op_;
 
-  /// The loom.copy_to_tensor operation that uses the allocc
+  /// The loom.copy_to_tensor operation that uses the alloc
   mlir::Operation *copy_to_tensor_op_;
 
   /// All operations in the backward slice (dependencies of copy)
@@ -107,10 +107,10 @@ private:
   void CollectBackwardSlice();
 
   /**
-   * @brief Find the loom.allocc in the backward slice or as anchor.
-   * @return The allocc operation, or nullptr if not found.
+   * @brief Find the loom.alloc in the backward slice or as anchor.
+   * @return The alloc operation, or nullptr if not found.
    */
-  loom::AlloccOp FindAllocc();
+  loom::AllocOp FindAlloc();
 
   /**
    * @brief Find the loom.view consumed by the copy_to_tensor.
@@ -162,12 +162,12 @@ private:
 
 public:
   /**
-   * @brief Construct a LoadingBlock from a loom.allocc operation.
-   * @param allocc_op The loom.allocc operation.
+   * @brief Construct a LoadingBlock from a loom.alloc operation.
+   * @param alloc_op The loom.alloc operation.
    * @param copy_op The loom.copy_to_tensor operation.
    * @param for_op The containing affine.for loop.
    */
-  LoadingBlock(mlir::Operation *allocc_op, mlir::Operation *copy_op,
+  LoadingBlock(mlir::Operation *alloc_op, mlir::Operation *copy_op,
                mlir::affine::AffineForOp for_op);
 
   /**
@@ -210,7 +210,7 @@ public:
 };
 
 /**
- * @brief Build loading blocks by finding loom.allocc operations in an affine
+ * @brief Build loading blocks by finding loom.alloc operations in an affine
  * for loop.
  * @param inner_most_for_op The innermost affine.for loop operation.
  * @param block_vec Output vector to store the found loading blocks.

@@ -130,7 +130,7 @@ bool LoadingBlock::DependsOnLoopIV(mlir::Value value) {
 void LoadingBlock::CollectBackwardSlice() {
   backward_slice_.clear();
 
-  if (!allocc_op_ || !copy_to_tensor_op_)
+  if (!alloc_op_ || !copy_to_tensor_op_)
     return;
 
   mlir::Block *loop_body = outer_for_op_.getBody();
@@ -140,8 +140,8 @@ void LoadingBlock::CollectBackwardSlice() {
   llvm::SmallVector<mlir::Operation *, 16> worklist;
   llvm::SmallPtrSet<mlir::Operation *, 16> visited;
 
-  // Start from allocc_op_ and copy_to_tensor_op_ operands
-  for (mlir::Value operand : allocc_op_->getOperands()) {
+  // Start from alloc_op_ and copy_to_tensor_op_ operands
+  for (mlir::Value operand : alloc_op_->getOperands()) {
     if (mlir::Operation *defOp = operand.getDefiningOp()) {
       worklist.push_back(defOp);
     }
@@ -165,7 +165,7 @@ void LoadingBlock::CollectBackwardSlice() {
       continue;
 
     // Don't include the anchor operations themselves in the backward slice
-    if (op == allocc_op_ || op == copy_to_tensor_op_)
+    if (op == alloc_op_ || op == copy_to_tensor_op_)
       continue;
 
     backward_slice_.insert(op);
@@ -189,10 +189,10 @@ void LoadingBlock::CollectBackwardSlice() {
 }
 
 /**
- * @brief Find the loom.allocc operation.
+ * @brief Find the loom.alloc operation.
  */
-loom::AlloccOp LoadingBlock::FindAllocc() {
-  return mlir::dyn_cast_or_null<loom::AlloccOp>(allocc_op_);
+loom::AllocOp LoadingBlock::FindAlloc() {
+  return mlir::dyn_cast_or_null<loom::AllocOp>(alloc_op_);
 }
 
 /**
@@ -445,12 +445,12 @@ cloneWithDependencies(mlir::OpBuilder &builder, mlir::Operation *op,
  * @brief Create hoisted operations before the loop.
  */
 void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
-  auto allocc = FindAllocc();
+  auto alloc = FindAlloc();
   auto copy_to_tensor =
       mlir::dyn_cast_or_null<loom::CopyToTensorOp>(copy_to_tensor_op_);
   auto view = FindView();
 
-  if (!allocc || !copy_to_tensor || !view) {
+  if (!alloc || !copy_to_tensor || !view) {
     LLVM_DEBUG(llvm::dbgs() << "Missing required operations for hoisting\n");
     return;
   }
@@ -539,11 +539,11 @@ void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
       view.getSequentialReuse(), view.getSpatialReuse(),
       view.getTemporalReuse());
 
-  // 2. Hoist AlloccOp (2D with expanded size)
-  auto new_allocc = builder.create<loom::AlloccOp>(
-      allocc.getLoc(), allocc.getResult().getType(), new_view_sizes,
-      allocc.getMemoryAttr(), allocc.getAlignmentAttr(),
-      allocc.getBufferCountAttr());
+  // 2. Hoist AllocOp (2D with expanded size)
+  auto new_alloc = builder.create<loom::AllocOp>(
+      alloc.getLoc(), alloc.getResult().getType(), new_view_sizes,
+      alloc.getMemoryAttr(), alloc.getAlignmentAttr(),
+      alloc.getBufferCountAttr());
 
   // 3. Create PackToTensorOp
   // Use tracked innerTile (block size) as operand.
@@ -577,12 +577,12 @@ void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
       packed_shape, orig_tensor_type.getElementType());
 
   auto packed = builder.create<loom::PackToTensorOp>(
-      copy_to_tensor.getLoc(), packed_type, new_view, new_allocc,
+      copy_to_tensor.getLoc(), packed_type, new_view, new_alloc,
       inner_tile_sizes_operands, builder.getDenseI64ArrayAttr(perm));
 
   is_valid_ = true;
   replacement_block_.push_back(new_view);
-  replacement_block_.push_back(new_allocc);
+  replacement_block_.push_back(new_alloc);
   replacement_block_.push_back(packed);
 }
 
@@ -692,7 +692,7 @@ void LoadingBlock::SetReplacementBlock() {
 
   // Erase original operations
   copy_to_tensor_op_->erase();
-  allocc_op_->erase();
+  alloc_op_->erase();
 
   for (auto it = backward_slice_.rbegin(); it != backward_slice_.rend(); ++it) {
     mlir::Operation *op = *it;
@@ -712,11 +712,11 @@ void LoadingBlock::HoistLoadingBlock() {
 }
 
 /**
- * @brief Construct a LoadingBlock from a loom.allocc operation.
+ * @brief Construct a LoadingBlock from a loom.alloc operation.
  */
-LoadingBlock::LoadingBlock(mlir::Operation *allocc_op, mlir::Operation *copy_op,
+LoadingBlock::LoadingBlock(mlir::Operation *alloc_op, mlir::Operation *copy_op,
                            mlir::affine::AffineForOp for_op)
-    : outer_for_op_(for_op), allocc_op_(allocc_op), copy_to_tensor_op_(copy_op),
+    : outer_for_op_(for_op), alloc_op_(alloc_op), copy_to_tensor_op_(copy_op),
       loop_iv_(nullptr), is_valid_(false) {
   SetLoopAttr();
   CollectBackwardSlice();
@@ -754,10 +754,10 @@ BuildLoadingBlocks(mlir::affine::AffineForOp inner_most_for_op,
     return mlir::failure();
 
   for (mlir::Operation &op : *body) {
-    if (auto allocc = mlir::dyn_cast<loom::AlloccOp>(&op)) {
+    if (auto alloc = mlir::dyn_cast<loom::AllocOp>(&op)) {
       // Find its CopyToTensorOp or PackToTensorOp user
       mlir::Operation *copy_op = nullptr;
-      for (auto &user : allocc.getResult().getUses()) {
+      for (auto &user : alloc.getResult().getUses()) {
         if (auto copy = mlir::dyn_cast<loom::CopyToTensorOp>(user.getOwner())) {
           copy_op = copy.getOperation();
           break;
@@ -766,7 +766,7 @@ BuildLoadingBlocks(mlir::affine::AffineForOp inner_most_for_op,
       }
 
       if (copy_op) {
-        block_vec.emplace_back(allocc.getOperation(), copy_op,
+        block_vec.emplace_back(alloc.getOperation(), copy_op,
                                inner_most_for_op);
       }
     }

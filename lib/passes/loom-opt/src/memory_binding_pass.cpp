@@ -26,7 +26,7 @@ using namespace mlir;
 namespace {
 
 /// Pattern 1: Lower memref.subview + bufferization.to_tensor
-/// to loom.view + loom.allocc + loom.copy_to_tensor
+/// to loom.view + loom.alloc + loom.copy_to_tensor
 struct ReadBlockLoadingLowering
     : public OpRewritePattern<bufferization::ToTensorOp> {
   using OpRewritePattern::OpRewritePattern;
@@ -47,9 +47,9 @@ struct ReadBlockLoadingLowering
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
         subviewOp.getStaticStrides(), false, false, false);
 
-    // 2. Create loom.allocc on @L1
+    // 2. Create loom.alloc on @L1
     auto tokenType = loom::BufferTokenType::get(rewriter.getContext());
-    auto alloccOp = rewriter.create<loom::AlloccOp>(
+    auto allocOp = rewriter.create<loom::AllocOp>(
         loc, tokenType, subviewOp.getSizes(),
         SymbolRefAttr::get(rewriter.getContext(), "L1"), nullptr, 1);
 
@@ -57,7 +57,7 @@ struct ReadBlockLoadingLowering
     auto emptyArray = rewriter.getArrayAttr({});
     auto defaultBroadcast = rewriter.getI64ArrayAttr({1, 1});
     rewriter.replaceOpWithNewOp<loom::CopyToTensorOp>(
-        op, op.getType(), viewOp, alloccOp, Value(), emptyArray,
+        op, op.getType(), viewOp, allocOp, Value(), emptyArray,
         defaultBroadcast);
 
     // We can't safely remove subview yet if it has other uses,
@@ -71,7 +71,7 @@ struct ReadBlockLoadingLowering
 };
 
 /// Pattern 2: Transform tensor.empty (source of iter_args chain)
-/// to loom.allocc + loom.init_tensor
+/// to loom.alloc + loom.init_tensor
 struct OutputTensorInitLowering : public OpRewritePattern<tensor::EmptyOp> {
   using OpRewritePattern::OpRewritePattern;
 
@@ -99,14 +99,14 @@ struct OutputTensorInitLowering : public OpRewritePattern<tensor::EmptyOp> {
       return failure();
 
     Location loc = op.getLoc();
-    // 1. Create loom.allocc on @L1
+    // 1. Create loom.alloc on @L1
     auto tokenType = loom::BufferTokenType::get(rewriter.getContext());
-    auto alloccOp = rewriter.create<loom::AlloccOp>(
+    auto allocOp = rewriter.create<loom::AllocOp>(
         loc, tokenType, op.getDynamicSizes(),
         SymbolRefAttr::get(rewriter.getContext(), "L1"), nullptr, 1);
 
     // 2. Create loom.init_tensor
-    rewriter.replaceOpWithNewOp<loom::InitTensorOp>(op, op.getType(), alloccOp,
+    rewriter.replaceOpWithNewOp<loom::InitTensorOp>(op, op.getType(), allocOp,
                                                     op.getDynamicSizes());
 
     return success();
