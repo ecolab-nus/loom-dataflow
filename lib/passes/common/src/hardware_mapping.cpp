@@ -24,6 +24,10 @@
 #include <numeric>
 
 #include "LoomDialect.h.inc"
+#include "LoomEnums.h.inc"
+#define GET_ATTRDEF_CLASSES
+#include "LoomAttributes.h.inc"
+
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -36,6 +40,30 @@ struct HWDimMapping {
   int64_t hwDimSize;
   Value iv;
 };
+
+static void markLoopsSequential(func::FuncOp func) {
+  MLIRContext *ctx = func.getContext();
+  func.walk([ctx](Operation *op) {
+    if (isa<affine::AffineForOp, scf::ForOp>(op)) {
+      if (!op->hasAttr("loom.iter_type")) {
+        op->setAttr("loom.iter_type",
+                    loom::IterTypeAttr::get(ctx, loom::IterType::Sequential));
+      }
+    }
+  });
+}
+
+static void markLoopsTemporal(func::FuncOp func) {
+  MLIRContext *ctx = func.getContext();
+  func.walk([ctx](Operation *op) {
+    if (isa<affine::AffineForOp, scf::ForOp>(op)) {
+      if (!op->hasAttr("loom.iter_type")) {
+        op->setAttr("loom.iter_type",
+                    loom::IterTypeAttr::get(ctx, loom::IterType::Temporal));
+      }
+    }
+  });
+}
 
 static affine::AffineParallelOp getOutermostParallel(func::FuncOp func) {
   affine::AffineParallelOp result = nullptr;
@@ -72,6 +100,9 @@ static LogicalResult applyMappingToFunction(
           sd.symbolName.empty() ? StringRef("dim") : StringRef(sd.symbolName);
       tiled_parallels.tiled_new_->setAttr("loom.mapped_to",
                                           SymbolRefAttr::get(ctx, symbolName));
+      tiled_parallels.tiled_new_->setAttr(
+          "loom.iter_type",
+          loom::IterTypeAttr::get(ctx, loom::IterType::Spatial));
       if (!suffix.empty())
         suffix += "_";
       suffix += "d" + std::to_string(dimIdx) + "i" + std::to_string(iterIdx);
@@ -316,6 +347,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
           builder, func, newName, moduleAttrs, "EnumerateHWMapping",
           [&](func::FuncOp cloned,
               loom::ConstraintSpaceOp csOp) -> LogicalResult {
+            markLoopsSequential(cloned);
             affine::AffineParallelOp currentOuter = nullptr;
             cloned.walk([&](affine::AffineParallelOp par) {
               if (!par->getParentOfType<affine::AffineParallelOp>() &&
@@ -327,6 +359,8 @@ EnumerateSpatialMappings(ModuleOp affineModule,
             if (failed(
                     loom_affine::ConvertParallelToNested(currentOuter, order)))
               return failure();
+
+            markLoopsTemporal(cloned);
 
             if (failed(
                     addL1CacheConstraints(cloned, csOp, hardwareInfo.l1Size)))
@@ -364,6 +398,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
               builder, func, "", moduleAttrs, "EnumerateHWMapping",
               [&](func::FuncOp cloned,
                   loom::ConstraintSpaceOp csOp) -> LogicalResult {
+                markLoopsSequential(cloned);
                 affine::AffineParallelOp tar_forOp =
                     getOutermostParallel(cloned);
                 if (!tar_forOp) {
@@ -381,6 +416,8 @@ EnumerateSpatialMappings(ModuleOp affineModule,
                                       tar_forOp, orderCopy))) {
                   return failure();
                 }
+
+                markLoopsTemporal(cloned);
 
                 loom::utils::composeAndCanonicalizeAffineApplies(cloned);
 

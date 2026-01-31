@@ -56,15 +56,15 @@ module {
                   linalg.yield %34 : f32
                 } -> tensor<?x?xf32>
                 affine.yield %33 : tensor<?x?xf32>
-              }
+              } {loom.iter_type = #loom.iter_type<sequential>}
               %20 = arith.muli %15, %12 : index
               %21 = arith.muli %arg6, %13 : index
               %22 = loom.view %arg2[%20, %21] [%12, %13] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<128x256xf32> -> !loom.view
               loom.copy_from_tensor %19, %22 : tensor<?x?xf32>, !loom.view
-            }
-          }
-        } {loom.mapped_to = @y}
-      } {loom.mapped_to = @x}
+            } {loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
+      } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
       return
     }
   }
@@ -113,15 +113,15 @@ module {
                   linalg.yield %34 : f32
                 } -> tensor<?x?xf32>
                 affine.yield %33 : tensor<?x?xf32>
-              }
+              } {loom.iter_type = #loom.iter_type<sequential>}
               %20 = arith.muli %15, %12 : index
               %21 = arith.muli %arg5, %13 : index
               %22 = loom.view %arg2[%20, %21] [%12, %13] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<128x256xf32> -> !loom.view
               loom.copy_from_tensor %19, %22 : tensor<?x?xf32>, !loom.view
-            }
-          }
-        } {loom.mapped_to = @y}
-      } {loom.mapped_to = @x}
+            } {loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
+      } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
       return
     }
   }
@@ -172,15 +172,15 @@ module {
                   linalg.yield %35 : f32
                 } -> tensor<?x?xf32>
                 affine.yield %34 : tensor<?x?xf32>
-              }
+              } {loom.iter_type = #loom.iter_type<sequential>}
               %21 = arith.muli %15, %12 : index
               %22 = arith.muli %16, %13 : index
               %23 = loom.view %arg2[%21, %22] [%12, %13] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<128x256xf32> -> !loom.view
               loom.copy_from_tensor %20, %23 : tensor<?x?xf32>, !loom.view
-            }
-          }
-        } {loom.mapped_to = @y}
-      } {loom.mapped_to = @x}
+            } {loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
+      } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
       return
     }
   }
@@ -231,15 +231,15 @@ module {
                   linalg.yield %35 : f32
                 } -> tensor<?x?xf32>
                 affine.yield %34 : tensor<?x?xf32>
-              }
+              } {loom.iter_type = #loom.iter_type<sequential>}
               %21 = arith.muli %15, %12 : index
               %22 = arith.muli %16, %13 : index
               %23 = loom.view %arg2[%21, %22] [%12, %13] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<128x256xf32> -> !loom.view
               loom.copy_from_tensor %20, %23 : tensor<?x?xf32>, !loom.view
-            }
-          }
-        } {loom.mapped_to = @y}
-      } {loom.mapped_to = @x}
+            } {loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
+      } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
       return
     }
   }
@@ -290,15 +290,15 @@ module {
                   linalg.yield %35 : f32
                 } -> tensor<?x?xf32>
                 affine.yield %34 : tensor<?x?xf32>
-              }
+              } {loom.iter_type = #loom.iter_type<sequential>}
               %21 = arith.muli %15, %12 : index
               %22 = arith.muli %16, %13 : index
               %23 = loom.view %arg2[%21, %22] [%12, %13] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<128x256xf32> -> !loom.view
               loom.copy_from_tensor %20, %23 : tensor<?x?xf32>, !loom.view
-            }
-          }
-        } {loom.mapped_to = @x}
-      } {loom.mapped_to = @y}
+            } {loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
+      } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
       return
     }
   }
@@ -349,15 +349,15 @@ module {
                   linalg.yield %35 : f32
                 } -> tensor<?x?xf32>
                 affine.yield %34 : tensor<?x?xf32>
-              }
+              } {loom.iter_type = #loom.iter_type<sequential>}
               %21 = arith.muli %15, %12 : index
               %22 = arith.muli %16, %13 : index
               %23 = loom.view %arg2[%21, %22] [%12, %13] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<128x256xf32> -> !loom.view
               loom.copy_from_tensor %20, %23 : tensor<?x?xf32>, !loom.view
-            }
-          }
-        } {loom.mapped_to = @x}
-      } {loom.mapped_to = @y}
+            } {loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
+      } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
       return
     }
   }
@@ -406,15 +406,15 @@ module {
                   linalg.yield %34 : f32
                 } -> tensor<?x?xf32>
                 affine.yield %33 : tensor<?x?xf32>
-              }
+              } {loom.iter_type = #loom.iter_type<sequential>}
               %20 = arith.muli %arg5, %12 : index
               %21 = arith.muli %15, %13 : index
               %22 = loom.view %arg2[%20, %21] [%12, %13] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<128x256xf32> -> !loom.view
               loom.copy_from_tensor %19, %22 : tensor<?x?xf32>, !loom.view
-            }
-          }
-        } {loom.mapped_to = @y}
-      } {loom.mapped_to = @x}
+            } {loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
+      } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
       return
     }
   }
@@ -463,15 +463,15 @@ module {
                   linalg.yield %34 : f32
                 } -> tensor<?x?xf32>
                 affine.yield %33 : tensor<?x?xf32>
-              }
+              } {loom.iter_type = #loom.iter_type<sequential>}
               %20 = arith.muli %arg6, %12 : index
               %21 = arith.muli %15, %13 : index
               %22 = loom.view %arg2[%20, %21] [%12, %13] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<128x256xf32> -> !loom.view
               loom.copy_from_tensor %19, %22 : tensor<?x?xf32>, !loom.view
-            }
-          }
-        } {loom.mapped_to = @y}
-      } {loom.mapped_to = @x}
+            } {loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
+      } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
       return
     }
   }
