@@ -199,7 +199,7 @@ std::pair<Value, Value> dram_read(memref::CopyOp op,
     // Calculate total size in bytes and divide by page size
     totalSizeBytes = rewriter.create<arith::ConstantIntOp>(
         loc, rewriter.getI32Type(), numElements * elementSizeBytes);
-    numPages = arith::DivUIOp::create(rewriter, loc, totalSizeBytes, pageSize);
+    numPages = arith::DivSIOp::create(rewriter, loc, totalSizeBytes, pageSize);
   }
   // Get the pre-created TensorAccessor from the tracker.
   Value accessorOp = tracker->getTensorAccessor(inputMemref);
@@ -285,51 +285,60 @@ std::pair<Value, Value> dram_read(memref::CopyOp op,
       // tileElemOffset = tileRow * tileDim * stride0 + tileCol * tileDim *
       // stride1
       Value rowOffset =
-          arith::MulIOp::create(rewriter, loc, tileRow, tileDimVal);
-      rowOffset = arith::MulIOp::create(rewriter, loc, rowOffset, stride0Val);
+          arith::MulIOp::create(rewriter, loc, tileRow, tileDimVal,
+                                arith::IntegerOverflowFlags::nsw);
+      rowOffset = arith::MulIOp::create(rewriter, loc, rowOffset, stride0Val,
+                                        arith::IntegerOverflowFlags::nsw);
 
       Value colOffset =
-          arith::MulIOp::create(rewriter, loc, tileCol, tileDimVal);
-      colOffset = arith::MulIOp::create(rewriter, loc, colOffset, stride1Val);
+          arith::MulIOp::create(rewriter, loc, tileCol, tileDimVal,
+                                arith::IntegerOverflowFlags::nsw);
+      colOffset = arith::MulIOp::create(rewriter, loc, colOffset, stride1Val,
+                                        arith::IntegerOverflowFlags::nsw);
 
       Value tileElemOffset =
-          arith::AddIOp::create(rewriter, loc, rowOffset, colOffset);
+          arith::AddIOp::create(rewriter, loc, rowOffset, colOffset,
+                                arith::IntegerOverflowFlags::nsw);
 
       // Total element offset = baseElemOffset + tileElemOffset
       Value totalElemOffset =
-          arith::AddIOp::create(rewriter, loc, baseElemOffset, tileElemOffset);
+          arith::AddIOp::create(rewriter, loc, baseElemOffset, tileElemOffset,
+                                arith::IntegerOverflowFlags::nsw);
 
       // rowIdx = totalElemOffset / elementsPerRow
       Value rowIdx =
-          arith::DivUIOp::create(rewriter, loc, totalElemOffset, stride0Val);
+          arith::DivSIOp::create(rewriter, loc, totalElemOffset, stride0Val);
 
       // colIdx = totalElemOffset % elementsPerRow
       Value colIdx =
-          arith::RemUIOp::create(rewriter, loc, totalElemOffset, stride0Val);
+          arith::RemSIOp::create(rewriter, loc, totalElemOffset, stride0Val);
 
       // tilesPerRow = elementsPerRow / tileDim
       Value tilesPerRow =
-          arith::DivUIOp::create(rewriter, loc, stride0Val, tileDimVal);
+          arith::DivSIOp::create(rewriter, loc, stride0Val, tileDimVal);
 
       // rowTile = rowIdx / tileDim
-      Value rowTile = arith::DivUIOp::create(rewriter, loc, rowIdx, tileDimVal);
+      Value rowTile = arith::DivSIOp::create(rewriter, loc, rowIdx, tileDimVal);
 
       // rowTileBase = rowTile * tilesPerRow
       Value rowTileBase =
-          arith::MulIOp::create(rewriter, loc, rowTile, tilesPerRow);
+          arith::MulIOp::create(rewriter, loc, rowTile, tilesPerRow,
+                                arith::IntegerOverflowFlags::nsw);
 
       // colTile = colIdx / tileDim
-      Value colTile = arith::DivUIOp::create(rewriter, loc, colIdx, tileDimVal);
+      Value colTile = arith::DivSIOp::create(rewriter, loc, colIdx, tileDimVal);
 
       // tileId = rowTileBase + colTile
-      Value tileId = arith::AddIOp::create(rewriter, loc, rowTileBase, colTile);
+      Value tileId = arith::AddIOp::create(rewriter, loc, rowTileBase, colTile,
+                                           arith::IntegerOverflowFlags::nsw);
 
       // Issue an async read for this tile using the tensor accessor.
       NocAsyncReadTileOp::create(rewriter, loc, tileId, accessorOp, innerL1Addr);
 
       // Advance L1 address to next tile by adding tile_size.
       Value nextL1Addr =
-          arith::AddIOp::create(rewriter, loc, innerL1Addr, pageSize);
+          arith::AddIOp::create(rewriter, loc, innerL1Addr, pageSize,
+                                arith::IntegerOverflowFlags::nsw);
       scf::YieldOp::create(rewriter, loc, ValueRange(nextL1Addr));
     }
 
@@ -725,7 +734,7 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
       Value totalSizeBytes = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), numElements * elementSizeBytes);
       numPages =
-          arith::DivUIOp::create(rewriter, loc, totalSizeBytes, pageSize);
+          arith::DivSIOp::create(rewriter, loc, totalSizeBytes, pageSize);
     }
 
     // Get the pre-created TensorAccessor from the tracker.
@@ -811,54 +820,63 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
         // tileElemOffset = tileRow * tileDim * stride0 + tileCol * tileDim *
         // stride1
         Value rowOffset =
-            arith::MulIOp::create(rewriter, loc, tileRow, tileDimVal);
-        rowOffset = arith::MulIOp::create(rewriter, loc, rowOffset, stride0Val);
+            arith::MulIOp::create(rewriter, loc, tileRow, tileDimVal,
+                                  arith::IntegerOverflowFlags::nsw);
+        rowOffset = arith::MulIOp::create(rewriter, loc, rowOffset, stride0Val,
+                                          arith::IntegerOverflowFlags::nsw);
 
         Value colOffset =
-            arith::MulIOp::create(rewriter, loc, tileCol, tileDimVal);
-        colOffset = arith::MulIOp::create(rewriter, loc, colOffset, stride1Val);
+            arith::MulIOp::create(rewriter, loc, tileCol, tileDimVal,
+                                  arith::IntegerOverflowFlags::nsw);
+        colOffset = arith::MulIOp::create(rewriter, loc, colOffset, stride1Val,
+                                          arith::IntegerOverflowFlags::nsw);
 
         Value tileElemOffset =
-            arith::AddIOp::create(rewriter, loc, rowOffset, colOffset);
+            arith::AddIOp::create(rewriter, loc, rowOffset, colOffset,
+                                  arith::IntegerOverflowFlags::nsw);
 
         // Total element offset = baseElemOffset + tileElemOffset
         Value totalElemOffset = arith::AddIOp::create(
-            rewriter, loc, baseElemOffset, tileElemOffset);
+            rewriter, loc, baseElemOffset, tileElemOffset,
+            arith::IntegerOverflowFlags::nsw);
 
         // rowIdx = totalElemOffset / elementsPerRow
         Value rowIdx =
-            arith::DivUIOp::create(rewriter, loc, totalElemOffset, stride0Val);
+            arith::DivSIOp::create(rewriter, loc, totalElemOffset, stride0Val);
 
         // colIdx = totalElemOffset % elementsPerRow
         Value colIdx =
-            arith::RemUIOp::create(rewriter, loc, totalElemOffset, stride0Val);
+            arith::RemSIOp::create(rewriter, loc, totalElemOffset, stride0Val);
 
         // tilesPerRow = elementsPerRow / tileDim
         Value tilesPerRow =
-            arith::DivUIOp::create(rewriter, loc, stride0Val, tileDimVal);
+            arith::DivSIOp::create(rewriter, loc, stride0Val, tileDimVal);
 
         // rowTile = rowIdx / tileDim
         Value rowTile =
-            arith::DivUIOp::create(rewriter, loc, rowIdx, tileDimVal);
+            arith::DivSIOp::create(rewriter, loc, rowIdx, tileDimVal);
 
         // rowTileBase = rowTile * tilesPerRow
         Value rowTileBase =
-            arith::MulIOp::create(rewriter, loc, rowTile, tilesPerRow);
+            arith::MulIOp::create(rewriter, loc, rowTile, tilesPerRow,
+                                  arith::IntegerOverflowFlags::nsw);
 
         // colTile = colIdx / tileDim
         Value colTile =
-            arith::DivUIOp::create(rewriter, loc, colIdx, tileDimVal);
+            arith::DivSIOp::create(rewriter, loc, colIdx, tileDimVal);
 
         // tileId = rowTileBase + colTile
         Value tileId =
-            arith::AddIOp::create(rewriter, loc, rowTileBase, colTile);
+            arith::AddIOp::create(rewriter, loc, rowTileBase, colTile,
+                                  arith::IntegerOverflowFlags::nsw);
         // Issue an async write for this tile using the tensor accessor.
         NocAsyncWriteTileOp::create(rewriter, loc, tileId, accessorOp,
                                     innerL1Addr);
 
         // Advance L1 address to next tile.
         Value nextL1Addr =
-            arith::AddIOp::create(rewriter, loc, innerL1Addr, pageSize);
+            arith::AddIOp::create(rewriter, loc, innerL1Addr, pageSize,
+                                  arith::IntegerOverflowFlags::nsw);
         scf::YieldOp::create(rewriter, loc, ValueRange(nextL1Addr));
       }
 
