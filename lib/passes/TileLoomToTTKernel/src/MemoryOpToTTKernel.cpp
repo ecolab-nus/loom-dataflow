@@ -89,27 +89,16 @@ std::pair<Value, Value> dram_read(memref::CopyOp op,
   // Get the pre-created CB from the tracker.
   Value cb = tracker->getCB(inputMemref);
   if (!cb) {
-    // Fallback: try to get from remapped value (alloc conversion may have run).
-    cb = rewriter.getRemappedValue(op.getTarget());
+    llvm::errs() << "Error: CB not found for memref " << inputMemref << "\n";
+    return std::make_pair(Value(), Value());
   }
-  if (!cb) {
-    // Still no CB - create a fallback.
-    auto cbType =
-        cast<CBType>(typeConverter->convertType(op.getTarget().getType()));
-    Value idxValue =
-        rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
-    cb = rewriter.create<GetArgValOp>(loc, cbType, idxValue);
-  }
+
 
   // Get the pre-created base address from the tracker.
   Value baseAddr = tracker->getBaseAddr(inputMemref);
   if (!baseAddr) {
-    // If not found in tracker (e.g., not a function argument), create one here.
-    // This is a fallback for memrefs that weren't processed at function entry.
-    Value baseAddrIdxValue =
-        rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
-    baseAddr = rewriter.create<GetArgValOp>(loc, rewriter.getI32Type(),
-                                            baseAddrIdxValue);
+    llvm::errs() << "Error: base address not found for memref " << inputMemref << "\n";
+    return std::make_pair(Value(), Value());
   }
 
   // Determine insertion point: must be after both cb and baseAddr.
@@ -643,11 +632,9 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
     // Get the pre-created base address from the tracker.
     Value baseAddr = tracker->getBaseAddr(outputMemref);
     if (!baseAddr) {
-      // Fallback: create base address.
-      Value baseAddrIdxValue =
-          rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
-      baseAddr = rewriter.create<GetArgValOp>(loc, rewriter.getI32Type(),
-                                              baseAddrIdxValue);
+      llvm::errs() << "No base address found for MemoryStoreOp outputMemref: "
+                   << outputMemref << "\n";
+      return failure();
     }
 
     // Determine insertion point: must be after both cb and baseAddr.
@@ -1234,24 +1221,25 @@ struct ConvertAllocOp : public OpConversionPattern<memref::AllocOp> {
     Value cb;
     if (inputMemref) {
       cb = tracker->getCB(inputMemref);
+      rewriter.replaceOp(op, cb);
+      return success();
     }
-
-    if (!cb) {
-      // No pre-created CB found. Create a new one.
-      // For allocs with loom.alloc: this is a fallback
-      // For allocs without loom.alloc (e.g., output accumulators): create new
-      // CB
-      Value idxValue = rewriter.create<arith::ConstantIntOp>(
-          loc, rewriter.getI32Type(),
-          0); // TODO: use tracker to get unique index
-      auto cbType =
-          cast<CBType>(typeConverter->convertType(op.getResult().getType()));
-      cb = rewriter.create<GetArgValOp>(loc, cbType, idxValue);
+    else {
+      // No input memref found - this alloc is used as an output buffer
+      // (e.g., for linalg.matmul outs). We need to create a CB for it
+      // so that dependent operations (like matmul) can get a valid CB type.
+      auto memrefType = op.getType();
+      auto cbType = CBType::get(memrefType);
+      
+      // Create a placeholder CB using GetArgValOp with a new index.
+      // This CB won't have a real backing buffer, but satisfies the type
+      // requirements for operations that need a CB output operand.
+      Value argIdx = rewriter.create<arith::ConstantIntOp>(
+          loc, /*value=*/0, /*width=*/32);  // Use a high index for output CBs
+      Value newCb = GetArgValOp::create(rewriter, loc, cbType, argIdx);
+      rewriter.replaceOp(op, newCb);
+      return success();
     }
-
-    // Replace all uses of the alloc result with the CB value
-    rewriter.replaceOp(op, cb);
-    return success();
   }
 
 private:
