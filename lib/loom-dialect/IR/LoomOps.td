@@ -10,8 +10,24 @@ include "mlir/IR/SymbolInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 include "LoomTypes.td"
+include "mlir/IR/EnumAttr.td"
 
+//===----------------------------------------------------------------------===//
+// Loom Enum Attributes
+//===----------------------------------------------------------------------===//
 
+def IterTypeEnum : I32EnumAttr<"IterType", "Loom loop iteration type", [
+  I32EnumAttrCase<"Spatial", 0, "spatial">,
+  I32EnumAttrCase<"Temporal", 1, "temporal">,
+  I32EnumAttrCase<"Sequential", 2, "sequential">
+]> {
+  let genSpecializedAttr = 0;
+  let cppNamespace = "::loom";
+}
+
+def IterTypeAttr : EnumAttr<Loom_Dialect, IterTypeEnum, "iter_type"> {
+  let assemblyFormat = "`<` $value `>`";
+}
 
 class Loom_Op<string mnemonic, list<Trait> traits = []>
   : Op<Loom_Dialect, mnemonic, traits> {}
