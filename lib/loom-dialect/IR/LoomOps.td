@@ -113,7 +113,7 @@ def ViewOp : Loom_Op<"view", [
 
 
 
-def AlloccOp : Loom_Op<"allocc"> {
+def AllocOp : Loom_Op<"alloc"> {
   let summary = "Allocate L1 buffer and return a buffer token";
   let description = [{
     The `loom.alloc` operation allocates a buffer on a specific hardware 
@@ -235,13 +235,13 @@ def InitTensorOp : Loom_Op<"init_tensor", [Pure]> {
     `tensor.empty` to explicitly bind memory allocation with tensor semantics.
 
     Input:
-    - buffer_token: A `!loom.buffer_token` from loom.allocc
+    - buffer_token: A `!loom.buffer_token` from loom.alloc
 
     Output: AnyRankedTensor with specified shape
 
     Example:
     ```mlir
-    %token = loom.allocc(%M, %N) on @L1 : !loom.buffer_token
+    %token = loom.alloc(%M, %N) on @L1 : !loom.buffer_token
     %t = loom.init_tensor %token(%M, %N) : !loom.buffer_token -> tensor<?x?xf32>
     ```
   }];

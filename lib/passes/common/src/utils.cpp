@@ -229,7 +229,7 @@ StringRef traceToSymbolicVar(Value val) {
 llvm::SmallVector<AllocInfo> collectL1AllocInfos(func::FuncOp func) {
   llvm::SmallVector<AllocInfo> allocInfos;
 
-  func.walk([&](loom::AlloccOp alloc) {
+  func.walk([&](loom::AllocOp alloc) {
     // 1. Only care about allocations on @L1
     if (alloc.getMemory().getLeafReference() != "L1")
       return;
