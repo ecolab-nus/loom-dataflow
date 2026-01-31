@@ -143,6 +143,435 @@
   ]
   },
   {
+    "func_name": "matmul__d0i0_d1i0__f01__d_a",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i0_d1i0__f01__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i0_d1i0__f01__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
     "func_name": "matmul__d0i0_d1i0__f01__hoist_block_0",
     "pass_name": "HoistBlockLoading",
     "variables": [
@@ -543,6 +972,435 @@
         },
         {
           "coefficient": -32,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i0_d1i0__f10__d_a",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i0_d1i0__f10__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i0_d1i0__f10__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
           "variables": [
             "BM",
             "BN",
@@ -969,6 +1827,474 @@
         },
         {
           "coefficient": -32,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i0_d1i1__f01__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i0_d1i1__f01__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i0_d1i1__f01__h_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -450,
           "variables": [
             "BM",
             "BN",
@@ -1434,6 +2760,474 @@
   ]
   },
   {
+    "func_name": "matmul__d0i0_d1i1__f10__d_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i0_d1i1__f10__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i0_d1i1__f10__h_v",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -450,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
     "func_name": "matmul__d0i0_d1i1__f10__hoist_block_0",
     "pass_name": "HoistBlockLoading",
     "variables": [
@@ -1873,6 +3667,474 @@
         },
         {
           "coefficient": -32,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d1i0_d0i1__f01__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d1i0_d0i1__f01__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d1i0_d0i1__f01__v_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -450,
           "variables": [
             "BM",
             "BN",
@@ -2338,6 +4600,474 @@
   ]
   },
   {
+    "func_name": "matmul__d1i0_d0i1__f10__d_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d1i0_d0i1__f10__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d1i0_d0i1__f10__v_h",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BM"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 8,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -450,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
     "func_name": "matmul__d1i0_d0i1__f10__hoist_block_0",
     "pass_name": "HoistBlockLoading",
     "variables": [
@@ -2777,6 +5507,435 @@
   ]
   },
   {
+    "func_name": "matmul__d0i1_d1i1__f01__a_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i1_d1i1__f01__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i1_d1i1__f01__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
     "func_name": "matmul__d0i1_d1i1__f01__hoist_block_0",
     "pass_name": "HoistBlockLoading",
     "variables": [
@@ -3177,6 +6336,435 @@
         },
         {
           "coefficient": -32,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i1_d1i1__f10__a_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i1_d1i1__f10__h_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 0
+    }
+  ]
+  },
+  {
+    "func_name": "matmul__d0i1_d1i1__f10__v_d",
+    "pass_name": "EnumerateCopyBroadcast",
+    "variables": [
+    {
+      "index": 0,
+      "is_intermediate": false,
+      "name": "BM"
+    },
+    {
+      "index": 1,
+      "is_intermediate": false,
+      "name": "BN"
+    },
+    {
+      "index": 2,
+      "is_intermediate": false,
+      "name": "BK"
+    }
+  ],
+    "metadata": [
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BM"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BN"
+    },
+    {
+      "lower_bound": 32,
+      "type": "range",
+      "upper_bound": 1024,
+      "variable": "BK"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BM"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BN"
+    },
+    {
+      "alignment": 32,
+      "type": "align",
+      "variable": "BK"
+    }
+  ],
+    "constraints": [
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": -1,
+          "variables": [
+            "BM",
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": -262144
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BN"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 4,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1499136
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 64,
+          "variables": [
+            "BN"
+          ]
+        }
+      ],
+      "type": "polynomial",
+      "upper_bound": 1024
+    },
+    {
+      "is_equality": false,
+      "terms": [
+        {
+          "coefficient": 2048,
+          "variables": [
+            "BM",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": 7680,
+          "variables": [
+            "BN",
+            "BK"
+          ]
+        },
+        {
+          "coefficient": -120,
           "variables": [
             "BM",
             "BN",
