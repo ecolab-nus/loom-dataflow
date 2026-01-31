@@ -215,7 +215,8 @@ public:
       idxY.replaceAllUsesWith(ivY);
       idxZ.replaceAllUsesWith(ivZ);
 
-      // // Now remove the three index arguments from the function type and entry
+      // // Now remove the three index arguments from the function type and
+      // entry
       // // block, keeping the first (numArgs - 3) arguments.
       // SmallVector<Type, 8> newInputTypes;
       // newInputTypes.reserve(numArgs - 3);
@@ -284,28 +285,8 @@ public:
         OpBuilder nb(&newBody, newBody.begin());
         for (Operation &op :
              llvm::make_early_inc_range(oldBody.without_terminator())) {
-          // Special handling for loom.copy to preserve empty interconnect attribute
-          if (op.getName().getStringRef() == "loom.copy") {
-            // Get the interconnect attribute before cloning
-            auto interconnectAttr = op.getAttrOfType<ArrayAttr>("interconnect");
-            
-            // Clone the operation
-            Operation *clonedOp = nb.clone(op, mapper);
-            
-            // Ensure interconnect attribute is preserved
-            // If it was an empty array, preserve it as an empty array
-            // If it was NULL, create an empty array to match expected format
-            if (interconnectAttr) {
-              clonedOp->setAttr("interconnect", interconnectAttr);
-            } else {
-              // Create an empty array attribute to match the format: interconnect: []
-              auto emptyInterconnect = ArrayAttr::get(nb.getContext(), {});
-              clonedOp->setAttr("interconnect", emptyInterconnect);
-            }
-          } else {
-            // For other operations, use normal cloning
-            nb.clone(op, mapper);
-          }
+          // DEPRECATED: loom.copy handling removed, use normal cloning only
+          nb.clone(op, mapper);
         }
 
         par.erase();
@@ -322,8 +303,6 @@ std::unique_ptr<mlir::Pass> createTritonSharedGridToParallelPass() {
    */
   return std::make_unique<TritonSharedGridToParallelPass>();
 }
-
-
 
 } // namespace passes
 } // namespace loom

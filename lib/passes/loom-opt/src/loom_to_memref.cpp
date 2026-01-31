@@ -42,6 +42,7 @@ static void processOperands(ValueRange operands,
   }
 }
 
+#if 0
 /// Lower loom.reinterpret_cast to memref.reinterpret_cast with static types.
 struct LoomReinterpretCastLowering
     : public OpRewritePattern<loom::ReinterpretCastOp> {
@@ -71,7 +72,9 @@ struct LoomReinterpretCastLowering
     return success();
   }
 };
+#endif
 
+#if 0
 /// Lower loom.copy to memref.copy.
 struct LoomCopyLowering : public OpRewritePattern<loom::CopyOp> {
   using OpRewritePattern::OpRewritePattern;
@@ -82,6 +85,7 @@ struct LoomCopyLowering : public OpRewritePattern<loom::CopyOp> {
     return success();
   }
 };
+#endif
 
 class LoomToMemRefLoweringPass
     : public PassWrapper<LoomToMemRefLoweringPass, OperationPass<ModuleOp>> {
@@ -102,7 +106,8 @@ public:
 
   void runOnOperation() override {
     RewritePatternSet patterns(&getContext());
-    patterns.add<LoomReinterpretCastLowering, LoomCopyLowering>(&getContext());
+    // patterns.add<LoomReinterpretCastLowering,
+    // LoomCopyLowering>(&getContext());
 
     if (failed(applyPatternsGreedily(getOperation(), std::move(patterns)))) {
       signalPassFailure();

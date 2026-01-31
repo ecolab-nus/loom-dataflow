@@ -75,6 +75,9 @@ public:
     SmallVector<Operation *, 16> opsToErase;
     llvm::DenseSet<StringRef> usedAttrNames;
 
+    // DEPRECATED: GetBlockSizeOp (loom.get_module_attribute) removed
+    // The target pass chain uses loom.get_symbolic_block_size instead.
+#if 0
     // Walk through all operations in the module (including functions)
     module.walk([&](loom::GetBlockSizeOp getAttrOp) {
       // Get the attribute name from the operation
@@ -123,6 +126,7 @@ public:
       // We store a pair of (module, attrName) to handle nested modules
       usedAttrNames.insert(attrName);
     });
+#endif
 
     // Erase all replaced operations
     for (Operation *op : opsToErase) {
