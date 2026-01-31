@@ -45,7 +45,7 @@ struct ReadBlockLoadingLowering
         loc, viewType, subviewOp.getSource(), subviewOp.getOffsets(),
         subviewOp.getSizes(), subviewOp.getStrides(),
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
-        subviewOp.getStaticStrides());
+        subviewOp.getStaticStrides(), false, false, false);
 
     // 2. Create loom.allocc on @L1
     auto tokenType = loom::BufferTokenType::get(rewriter.getContext());

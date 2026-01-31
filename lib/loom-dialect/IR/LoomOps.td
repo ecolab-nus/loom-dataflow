@@ -132,9 +132,9 @@ def ViewOp : Loom_Op<"view", [
     custom<DynamicIndexList>($offsets, $static_offsets)
     custom<DynamicIndexList>($sizes, $static_sizes)
     custom<DynamicIndexList>($strides, $static_strides)
-    ( `,` `reuse` `:` `[` `seq` `=` $sequential_reuse^ `,`
+    `,` `reuse` `:` `[` `seq` `=` $sequential_reuse `,`
                         `spat` `=` $spatial_reuse `,`
-                        `temp` `=` $temporal_reuse `]` )?
+                        `temp` `=` $temporal_reuse `]`
     attr-dict `:` type($source) `->` type($result)
   }];
 

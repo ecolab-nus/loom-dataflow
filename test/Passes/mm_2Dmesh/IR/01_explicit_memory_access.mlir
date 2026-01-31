@@ -20,11 +20,11 @@ module {
         %6 = affine.for %arg5 = 0 to affine_map<()[s0] -> (128 ceildiv s0)>()[%2] iter_args(%arg6 = %5) -> (tensor<?x?xf32>) {
           %10 = arith.muli %arg3, %0 : index
           %11 = arith.muli %arg5, %2 : index
-          %12 = loom.view %arg0[%10, %11] [%0, %2] [1, 1] : memref<128x128xf32> -> !loom.view
+          %12 = loom.view %arg0[%10, %11] [%0, %2] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<128x128xf32> -> !loom.view
           %13 = loom.allocc(%0, %2) on @L1 : !loom.buffer_token
           %14 = loom.copy_to_tensor %12, %13, interconnect : [], broadcast : [1, 1] : !loom.view, !loom.buffer_token -> tensor<?x?xf32>
           %15 = arith.muli %arg4, %1 : index
-          %16 = loom.view %arg1[%11, %15] [%2, %1] [1, 1] : memref<128x256xf32> -> !loom.view
+          %16 = loom.view %arg1[%11, %15] [%2, %1] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<128x256xf32> -> !loom.view
           %17 = loom.allocc(%2, %1) on @L1 : !loom.buffer_token
           %18 = loom.copy_to_tensor %16, %17, interconnect : [], broadcast : [1, 1] : !loom.view, !loom.buffer_token -> tensor<?x?xf32>
           %19 = linalg.matmul ins(%14, %18 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%5 : tensor<?x?xf32>) -> tensor<?x?xf32>
@@ -37,7 +37,7 @@ module {
         }
         %7 = arith.muli %arg3, %0 : index
         %8 = arith.muli %arg4, %1 : index
-        %9 = loom.view %arg2[%7, %8] [%0, %1] [1, 1] : memref<128x256xf32> -> !loom.view
+        %9 = loom.view %arg2[%7, %8] [%0, %1] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<128x256xf32> -> !loom.view
         loom.copy_from_tensor %6, %9 : tensor<?x?xf32>, !loom.view
       }
       return
