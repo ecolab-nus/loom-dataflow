@@ -29,6 +29,9 @@
 
 // Loom dialect headers
 #include "LoomDialect.h.inc"
+#include "LoomEnums.h.inc"
+#define GET_ATTRDEF_CLASSES
+#include "LoomAttributes.h.inc"
 #define GET_TYPEDEF_CLASSES
 #include "LoomTypes.h.inc"
 #define GET_OP_CLASSES
@@ -129,45 +132,50 @@ public:
       if (loopStack.empty())
         return;
 
-      // Reverse to get outermost-to-innermost order.
-      std::reverse(loopStack.begin(), loopStack.end());
-
       // Track reuse status for each iterator type.
       bool hasSpatialReuse = false;
       bool hasTemporalReuse = false;
       bool hasSequentialReuse = false;
 
-      // Check each iterator type for reuse.
-      for (auto [depth, loop] : llvm::enumerate(loopStack)) {
+      // Check each loop for reuse based on its loom.iter_type attribute.
+      for (Operation *loop : loopStack) {
+        auto iterTypeAttr =
+            loop->getAttrOfType<loom::IterTypeAttr>("loom.iter_type");
+        if (!iterTypeAttr)
+          continue;
+
+        loom::IterType iterType = iterTypeAttr.getValue();
+
+        // Get induction variables (IVs) for the loop.
+        SmallVector<Value, 4> ivs;
         if (auto par = dyn_cast<affine::AffineParallelOp>(loop)) {
-          // Check all IVs of this affine.parallel for spatial reuse.
-          for (Value iv : par.getIVs()) {
-            // Check if any dynamic offset depends on this iterator.
-            bool hasVariant = llvm::any_of(
-                dynamicOffsets, [&](Value v) { return dependsOn(v, iv); });
-            // If at least one spatial iterator has no dependency, mark as
-            // having reuse.
-            if (!hasVariant) {
-              hasSpatialReuse = true;
-              break; // No need to check further if we found one with reuse
-            }
-          }
+          for (Value iv : par.getIVs())
+            ivs.push_back(iv);
         } else if (auto affFor = dyn_cast<affine::AffineForOp>(loop)) {
-          // Check temporal iterator for reuse.
-          Value iv = affFor.getInductionVar();
-          bool hasVariant = llvm::any_of(
-              dynamicOffsets, [&](Value v) { return dependsOn(v, iv); });
-          if (!hasVariant) {
-            hasTemporalReuse = true;
-          }
+          ivs.push_back(affFor.getInductionVar());
         } else if (auto scfFor = dyn_cast<scf::ForOp>(loop)) {
-          // Check sequential iterator for reuse.
-          Value iv = scfFor.getInductionVar();
-          bool hasVariant = llvm::any_of(
+          ivs.push_back(scfFor.getInductionVar());
+        }
+
+        // Check if any induction variable has reuse (i.e., offsets don't depend
+        // on it).
+        bool loopHasReuse = false;
+        for (Value iv : ivs) {
+          bool isVariant = llvm::any_of(
               dynamicOffsets, [&](Value v) { return dependsOn(v, iv); });
-          if (!hasVariant) {
-            hasSequentialReuse = true;
+          if (!isVariant) {
+            loopHasReuse = true;
+            break;
           }
+        }
+
+        if (loopHasReuse) {
+          if (iterType == loom::IterType::Spatial)
+            hasSpatialReuse = true;
+          else if (iterType == loom::IterType::Temporal)
+            hasTemporalReuse = true;
+          else if (iterType == loom::IterType::Sequential)
+            hasSequentialReuse = true;
         }
       }
 
