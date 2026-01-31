@@ -252,19 +252,19 @@ public:
    *
    * @param value The value to append to the core list.
    */
-  void appendToCoreList(Value value);
+  void appendToCoreList(Operation *funcOp, Value value);
 
   /**
    * @brief Get the current core list.
    *
    * @return A read-only view of the core list values in insertion order.
    */
-  ArrayRef<Value> getCoreList() const;
+  ArrayRef<Value> getCoreList(Operation *funcOp) const;
 
   /**
    * @brief Clear the current core list.
    */
-  void clearCoreList();
+  void clearCoreList(Operation *funcOp);
 
   /**
    * @brief Get the next unique index for TensorAccessorArgs.
@@ -311,8 +311,8 @@ private:
   /// Map from index argument to its created compile-arg value.
   llvm::DenseMap<Value, IndexArgData> indexArgToData;
 
-  /// Ordered list of "core" values (e.g., compile-arg-based core coordinates).
-  llvm::SmallVector<Value, 2> coreList;
+  /// Per-function ordered list of "core" values (e.g., compile-arg-based core coordinates).
+  llvm::DenseMap<Operation *, llvm::SmallVector<Value, 2>> funcToCoreList;
 };
 
 /**

@@ -92,7 +92,9 @@ public:
       // Create a compile-arg for this IV using the tracker.
       Value ivIndex = tracker->createIndexCompileArg(iv, loc, rewriter);
       newIvValues.push_back(ivIndex);
-      tracker->appendToCoreList(ivIndex);
+      // Append to the per-function core list using the parent function.
+      Operation *parentFunc = op->getParentOfType<func::FuncOp>();
+      tracker->appendToCoreList(parentFunc, ivIndex);
     }
 
     // Replace all IV uses in the loop body with the new compile-arg-based

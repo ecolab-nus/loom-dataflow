@@ -226,13 +226,19 @@ Value loom::CompileArgTracker::createIndexCompileArg(Value value, Location loc,
   return indexCast.getResult();
 }
 
-void loom::CompileArgTracker::appendToCoreList(Value value) {
-  coreList.push_back(value);
+void loom::CompileArgTracker::appendToCoreList(Operation *funcOp, Value value) {
+  //add type transformation to i32
+  funcToCoreList[funcOp].push_back(value);
 }
 
-ArrayRef<Value> loom::CompileArgTracker::getCoreList() const { return coreList; }
+ArrayRef<Value> loom::CompileArgTracker::getCoreList(Operation *funcOp) const {
+  auto it = funcToCoreList.find(funcOp);
+  if (it == funcToCoreList.end())
+    return ArrayRef<Value>();
+  return it->second;
+}
 
-void loom::CompileArgTracker::clearCoreList() { coreList.clear(); }
+void loom::CompileArgTracker::clearCoreList(Operation *funcOp) { funcToCoreList[funcOp].clear(); }
 
 int64_t loom::CompileArgTracker::getAndIncrementIndex(Operation *funcOp) {
   return funcToNextArgIndex[funcOp]++;

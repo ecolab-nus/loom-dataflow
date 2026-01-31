@@ -345,7 +345,7 @@ std::pair<Value, Value> dram_read(memref::CopyOp op,
   return std::make_pair(totalSizeBytes, multicast_l1Addr);
 }
 
-void multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArgData *memrefArgData, Value totalSizeBytes, Value multicast_l1Addr) {
+bool multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArgData *memrefArgData, Value totalSizeBytes, Value multicast_l1Addr) {
   Value zero = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
   NocSemaphoreSetOp::create(rewriter, loc,
                             memrefArgData->mcast_sender_semaphore_addr_ptr, zero);
@@ -377,9 +377,10 @@ void multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArg
           memrefArgData->mcast_dest_noc_end_x,
           memrefArgData->mcast_dest_noc_end_y,
           memrefArgData->mcast_receiver_semaphore_addr, nocIdVal);
+  return true;
 }
 
-void multicast_receive(ConversionPatternRewriter &rewriter, Location loc,
+bool multicast_receive(ConversionPatternRewriter &rewriter, Location loc,
                        MemrefArgData *memrefArgData) {
   Value zero = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
   NocSemaphoreSetOp::create(
@@ -397,6 +398,7 @@ void multicast_receive(ConversionPatternRewriter &rewriter, Location loc,
       // wait all data arrived
       NocSemaphoreWaitOp::create(rewriter, loc,
           memrefArgData->mcast_receiver_semaphore_addr_ptr, one);
+  return true;
 }
 
 struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
@@ -478,34 +480,85 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
     // Call dram_read and get the return values
     auto [totalSizeBytes, multicast_l1Addr] =
         dram_read(op, rewriter, memrefArgData, tracker, getTypeConverter());
-
+    
+    // Check if dram_read succeeded
+    if (!totalSizeBytes || !multicast_l1Addr) {
+      llvm::errs() << "dram_read failed to return valid values\n";
+      return failure();
+    }
+    
     if (isBroadcast) {
-/*       auto coreList = tracker->getCoreList();
+      // Get the parent function for per-function coreList lookup
+      Operation *parentFunc = op->getParentOfType<func::FuncOp>();
+      auto coreList = tracker->getCoreList(parentFunc);
+      
+      // Validate coreList has enough elements
+      if (coreList.size() < 2) {
+        llvm::errs() << "coreList does not have enough elements for broadcast (need 2, got " 
+                     << coreList.size() << ")\n";
+        return failure();
+      }
+      
+      // Cast coreList values from index to i32 if needed
+      Value coreX = coreList[0];
+      Value coreY = coreList[1];
+      
+      // Validate coreX and coreY are not null
+      if (!coreX || !coreY) {
+        llvm::errs() << "coreX or coreY is null\n";
+        return failure();
+      }
+      // Validate that all required multicast data is present before creating the if/then/else structure
+      if (!memrefArgData->mcast_sender_semaphore_addr_ptr ||
+          !memrefArgData->mcast_receiver_semaphore_addr_ptr ||
+          !memrefArgData->mcast_dest_noc_start_x ||
+          !memrefArgData->mcast_dest_noc_start_y ||
+          !memrefArgData->mcast_dest_noc_end_x ||
+          !memrefArgData->mcast_dest_noc_end_y ||
+          !memrefArgData->mcast_dest_num ||
+          !memrefArgData->mcast_sender_noc_x ||
+          !memrefArgData->mcast_sender_noc_y ||
+          !memrefArgData->mcast_sender_semaphore_addr ||
+          !memrefArgData->mcast_receiver_semaphore_addr) {
+        llvm::errs() << "Missing required multicast metadata in memrefArgData\n";
+        return failure();
+      }
+      
+      // Cast to i32 if they're index type
+      if (coreX.getType().isIndex()) {
+        coreX = rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), coreX);
+      }
+      if (coreY.getType().isIndex()) {
+        coreY = rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), coreY);
+      }
+      
       Value zero = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), 0);
       Value cond;
       if (isBroadcastX) {
-        // broadcast along x dimension, check if core_x == 0
-        cond = arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::eq,
-                                     coreList[0], zero);
+        llvm::outs() << "broadcast along x dimension\n";
+        cond = rewriter.create<arith::CmpIOp>(
+            loc, arith::CmpIPredicate::eq, coreX, zero);
       } else {
-        // broadcast along y dimension
-        cond = arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::eq,
-                                     coreList[1], zero);
-      } */
+        llvm::outs() << "broadcast along y dimension\n";
+        cond = rewriter.create<arith::CmpIOp>(
+            loc, arith::CmpIPredicate::eq, coreY, zero);
+      }
 
-      //auto ifOp = rewriter.create<scf::IfOp>(loc, TypeRange{}, cond, true);
-      //rewriter.setInsertionPointToStart(ifOp.thenBlock());
-      // code for sender
-      multicast_send(rewriter, loc, memrefArgData, totalSizeBytes, multicast_l1Addr);
-      //rewriter.create<scf::YieldOp>(loc);
-
-      //rewriter.setInsertionPointToStart(ifOp.elseBlock());
-      // code for receiver
-      //multicast_receive(rewriter, loc, memrefArgData);
-      //rewriter.create<scf::YieldOp>(loc);
-
-      //rewriter.setInsertionPointAfter(ifOp);
+      auto ifOp = rewriter.create<scf::IfOp>(loc, cond, true);
+      {
+        OpBuilder::InsertionGuard guard(rewriter);
+        // THEN - Insert before the existing yield terminator
+        rewriter.setInsertionPoint(ifOp.getThenRegion().front().getTerminator());
+        multicast_send(rewriter, loc, memrefArgData, totalSizeBytes,
+                       multicast_l1Addr);
+      
+        // ELSE - Insert before the existing yield terminator
+        rewriter.setInsertionPoint(ifOp.getElseRegion().front().getTerminator());
+        multicast_receive(rewriter, loc, memrefArgData);
+      }
+      
+      rewriter.setInsertionPointAfter(ifOp);
     }
     // push the data to the cb
     CBPushBackOp::create(rewriter, loc, memrefArgData->cb, numTilesVal);
