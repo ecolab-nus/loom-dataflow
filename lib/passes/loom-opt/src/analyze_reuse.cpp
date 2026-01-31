@@ -27,6 +27,13 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 
+// Loom dialect headers
+#include "LoomDialect.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "LoomTypes.h.inc"
+#define GET_OP_CLASSES
+#include "LoomOps.h.inc"
+
 using namespace mlir;
 
 namespace {
@@ -101,22 +108,13 @@ public:
       if (op->getName().getStringRef() != "loom.view")
         return;
 
-      // For loom.reinterpret_cast, operands are: source, offsets, sizes,
-      // strides We need to get the offsets segment from operand_segment_sizes
-      auto segmentSizes =
-          op->getAttrOfType<DenseI32ArrayAttr>("operand_segment_sizes");
-      if (!segmentSizes || segmentSizes.size() < 4)
+      auto viewOp = dyn_cast<loom::ViewOp>(op);
+      if (!viewOp)
         return;
 
-      // Calculate operand indices: source=0, offsets start after source
-      unsigned sourceSize = segmentSizes[0];
-      unsigned offsetsSize = segmentSizes[1];
-      unsigned offsetsStart = sourceSize;
-
-      // Collect dynamic offsets (all offsets are Values, not OpFoldResult)
+      // Collect dynamic offsets
       SmallVector<Value, 4> dynamicOffsets;
-      for (unsigned i = 0; i < offsetsSize; ++i) {
-        Value offsetVal = op->getOperand(offsetsStart + i);
+      for (Value offsetVal : viewOp.getOffsets()) {
         dynamicOffsets.push_back(offsetVal);
       }
 
