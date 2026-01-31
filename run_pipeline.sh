@@ -9,7 +9,7 @@ CONSTRAINT_LINEARIZATION=true
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        --constraint_linearization) CONSTRAINT_LINEARIZATION="$2"; shift ;;
+        --constraint_linearization|-cl) CONSTRAINT_LINEARIZATION="$2"; shift ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
