@@ -347,19 +347,22 @@ bool multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArg
   Value zero = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
   NocSemaphoreSetOp::create(rewriter, loc,
                             memrefArgData->mcast_sender_semaphore_addr_ptr, zero);
-
+  auto falseAttr = rewriter.getBoolAttr(false);
  // Create noc_id as a Value
   Value nocIdVal = rewriter.create<arith::ConstantIntOp>(
       loc, rewriter.getI8Type(), memrefArgData->noc_id);
-   Value noc_multicast_addr = GetNocMulticastAddrOp::create(
+  Value noc_multicast_addr = GetNocMulticastAddrOp::create(
       rewriter, loc, NocAddrType::get(rewriter.getContext()),
       memrefArgData->mcast_dest_noc_start_x,
       memrefArgData->mcast_dest_noc_start_y,
       memrefArgData->mcast_dest_noc_end_x, memrefArgData->mcast_dest_noc_end_y,
       multicast_l1Addr, nocIdVal);
+  //wait for all destinations to be ready
+  NocSemaphoreWaitOp::create(rewriter, loc, memrefArgData->mcast_sender_semaphore_addr_ptr, memrefArgData->mcast_dest_num);
+  //clean the semaphore
+  NocSemaphoreSetOp::create(rewriter, loc, memrefArgData->mcast_sender_semaphore_addr_ptr, zero);
   // send the data to the destinations
   // Provide explicit false attrs when supplying noc_id to avoid asm ambiguity.
-  auto falseAttr = rewriter.getBoolAttr(false);
   NocAsyncWriteMulticastOp::create(
       rewriter, loc, multicast_l1Addr, noc_multicast_addr,
       totalSizeBytes, // total size of last read
@@ -367,14 +370,13 @@ bool multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArg
       falseAttr, // linked (optional BoolAttr)
       falseAttr, // multicast_path_reserve (optional BoolAttr)
       nocIdVal);
-  Value noc_multicast_receiver_semaphore_addr =
-      GetNocMulticastAddrOp::create(
-          rewriter, loc, NocAddrType::get(rewriter.getContext()),
-          memrefArgData->mcast_dest_noc_start_x,
-          memrefArgData->mcast_dest_noc_start_y,
-          memrefArgData->mcast_dest_noc_end_x,
-          memrefArgData->mcast_dest_noc_end_y,
-          memrefArgData->mcast_receiver_semaphore_addr, nocIdVal);
+
+  NocSemaphoreSetMulticastOp::create(rewriter, loc, 
+    memrefArgData->mcast_receiver_semaphore_addr, 
+    memrefArgData->mcast_receiver_semaphore_noc_addr,
+    memrefArgData->mcast_dest_num,
+    falseAttr,  // linked (optional BoolAttr)
+    falseAttr); // multicast_path_reserve (optional BoolAttr)
   return true;
 }
 
@@ -383,16 +385,11 @@ bool multicast_receive(ConversionPatternRewriter &rewriter, Location loc,
   Value zero = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
   NocSemaphoreSetOp::create(
       rewriter, loc, memrefArgData->mcast_receiver_semaphore_addr_ptr, zero);
-  // get noc address of sender semaphore
-  Value mcast_sender_semaphore_addr =
-      GetNocAddrOp::create(rewriter, loc, memrefArgData->mcast_sender_noc_x,
-                           memrefArgData->mcast_sender_noc_y,
-                           memrefArgData->mcast_sender_semaphore_addr);
       // add it by 1
       Value one = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
       Value nocIdVal = rewriter.create<arith::ConstantIntOp>(
         loc, rewriter.getI8Type(), memrefArgData->noc_id);
-      NocSemaphoreIncOp::create(rewriter, loc, mcast_sender_semaphore_addr, one, nocIdVal);
+      NocSemaphoreIncOp::create(rewriter, loc, memrefArgData->mcast_sender_semaphore_noc_addr, one, nocIdVal);
       // wait all data arrived
       NocSemaphoreWaitOp::create(rewriter, loc,
           memrefArgData->mcast_receiver_semaphore_addr_ptr, one);
@@ -534,11 +531,9 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
           loc, rewriter.getI32Type(), 0);
       Value cond;
       if (isBroadcastX) {
-        llvm::outs() << "broadcast along x dimension\n";
         cond = rewriter.create<arith::CmpIOp>(
             loc, arith::CmpIPredicate::eq, coreX, zero);
       } else {
-        llvm::outs() << "broadcast along y dimension\n";
         cond = rewriter.create<arith::CmpIOp>(
             loc, arith::CmpIPredicate::eq, coreY, zero);
       }

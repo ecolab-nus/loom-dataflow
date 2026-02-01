@@ -86,10 +86,14 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
           loc, rewriter, func, rewriter.getI32Type());
       Value mcast_sender_noc_y_op = createGetArgValOp(
           loc, rewriter, func, rewriter.getI32Type());
-      Value mcast_sender_semaphore_addr_op = createGetArgValOp(
+      Value mcast_sender_semaphore_addr_arg = createGetArgValOp(
           loc, rewriter, func, rewriter.getI32Type());
-      Value mcast_receiver_semaphore_addr_op = createGetArgValOp(
+      Value mcast_sender_semaphore_addr_op = GetSemaphoreOp::create(
+          rewriter, loc, mcast_sender_semaphore_addr_arg);
+      Value mcast_receiver_semaphore_addr_arg = createGetArgValOp(
         loc, rewriter, func, rewriter.getI32Type());
+      Value mcast_receiver_semaphore_addr_op = GetSemaphoreOp::create(
+        rewriter, loc, mcast_receiver_semaphore_addr_arg);
 
 
       // Create TensorAccessArgs and TensorAccess for base address only for
@@ -97,8 +101,11 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
       // via circular buffers and do not issue NOC reads/writes directly, so
       // they don't require TensorAccessor metadata.
       Value tensorAccessor;
+      Value mcast_sender_semaphore_noc_addr_op;
+      Value mcast_receiver_semaphore_noc_addr_op;
       Value mcast_receiver_semaphore_addr_ptr;
       Value mcast_sender_semaphore_addr_ptr;
+      auto zeroVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI8Type(), 0);
       if (!isComputeKernel) {
         auto pagesize = GetTileSizeOp::create(rewriter, loc, cbOp);
         Value tensorAccessorArgsIdxVal = rewriter.create<arith::ConstantIntOp>(
@@ -113,6 +120,19 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
         //TODO, need to generate code like "ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>" instead of ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>
         mcast_receiver_semaphore_addr_ptr = CastToL1PtrOp::create(rewriter, loc, mcast_receiver_semaphore_addr_op);
         mcast_sender_semaphore_addr_ptr = CastToL1PtrOp::create(rewriter, loc, mcast_sender_semaphore_addr_op);
+        mcast_sender_semaphore_noc_addr_op = GetNocAddrOp::create(rewriter, loc, 
+                           mcast_sender_noc_x_op,
+                           mcast_sender_noc_y_op,
+                           mcast_sender_semaphore_addr_op);
+        
+        mcast_receiver_semaphore_noc_addr_op =
+          GetNocMulticastAddrOp::create(
+              rewriter, loc, NocAddrType::get(rewriter.getContext()),
+              mcast_dest_noc_start_x_op,
+              mcast_dest_noc_start_y_op,
+              mcast_dest_noc_end_x_op,
+              mcast_dest_noc_end_y_op,
+              mcast_receiver_semaphore_addr_op, zeroVal);
       }
 
       // pre-created base address when processing load/store ops.
@@ -129,8 +149,10 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
         mcast_sender_noc_y_op, // multicast sender NOC y
         mcast_sender_semaphore_addr_op, // multicast sender semaphore address
         mcast_receiver_semaphore_addr_op, // multicast receiver semaphore address
+        mcast_sender_semaphore_addr_ptr, // L1 multicast sender semaphore address pointer
         mcast_receiver_semaphore_addr_ptr, // L1 multicast receiver semaphore address pointer
-        mcast_sender_semaphore_addr_ptr // L1 multicast sender semaphore address pointer
+        mcast_sender_semaphore_noc_addr_op, // noc address of sender semaphore
+        mcast_receiver_semaphore_noc_addr_op // noc address of receiver semaphore
       };
 
     } else if (argType.isIndex()) {
