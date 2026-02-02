@@ -121,11 +121,12 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
         tensorAccessor = baseAddrTensorAccess.getResult();
         //TODO, need to generate code like "ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>" instead of ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>
         mcast_receiver_semaphore_addr_ptr = CastToL1PtrOp::create(rewriter, loc, mcast_receiver_semaphore_addr_op);
-        // Initialize receiver semaphore to VALID (1) - sender will multicast this value to receivers
-        // Use noc_semaphore_set to generate: *(mcast_receiver_semaphore_addr_ptr) = 1
-        Value one = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
-        NocSemaphoreSetOp::create(rewriter, loc, mcast_receiver_semaphore_addr_ptr, one);
+        
         mcast_sender_semaphore_addr_ptr = CastToL1PtrOp::create(rewriter, loc, mcast_sender_semaphore_addr_op);
+        // Store 1 to the semaphore pointer: *(mcast_receiver_semaphore_addr_ptr) = 1;
+        Value oneValue = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
+        Value zeroOffset = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
+        StoreToL1Op::create(rewriter, loc, oneValue, mcast_receiver_semaphore_addr_ptr, zeroOffset);
         mcast_sender_semaphore_noc_addr_op = GetNocAddrOp::create(rewriter, loc, 
                            mcast_sender_noc_x_op,
                            mcast_sender_noc_y_op,
@@ -134,10 +135,10 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
         mcast_receiver_semaphore_noc_addr_op =
           GetNocMulticastAddrOp::create(
               rewriter, loc, NocAddrType::get(rewriter.getContext()),
-              mcast_dest_noc_start_x_op,
-              mcast_dest_noc_start_y_op,
               mcast_dest_noc_end_x_op,
               mcast_dest_noc_end_y_op,
+              mcast_dest_noc_start_x_op,
+              mcast_dest_noc_start_y_op,
               mcast_receiver_semaphore_addr_op, zeroVal);
       }
 

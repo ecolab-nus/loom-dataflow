@@ -318,9 +318,10 @@ bool multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArg
       loc, rewriter.getI8Type(), memrefArgData->noc_id);
   Value noc_multicast_addr = GetNocMulticastAddrOp::create(
       rewriter, loc, NocAddrType::get(rewriter.getContext()),
-      memrefArgData->mcast_dest_noc_start_x,
+      memrefArgData->mcast_dest_noc_end_x,
+      memrefArgData->mcast_dest_noc_end_y,
+      memrefArgData->mcast_dest_noc_start_x, 
       memrefArgData->mcast_dest_noc_start_y,
-      memrefArgData->mcast_dest_noc_end_x, memrefArgData->mcast_dest_noc_end_y,
       multicast_l1Addr, nocIdVal);
   // FIRST: wait for all destinations to be ready (receivers increment this semaphore)
   NocSemaphoreWaitOp::create(rewriter, loc, memrefArgData->mcast_sender_semaphore_addr_ptr, memrefArgData->mcast_dest_num);
