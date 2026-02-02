@@ -109,6 +109,8 @@ def ViewOp : Loom_Op<"view", [
       return {rank, rank, rank};
     }
   }];
+
+  let hasCanonicalizer = 1;
 }
 
 

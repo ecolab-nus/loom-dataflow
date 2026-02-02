@@ -1,37 +1,38 @@
-//===- LoomDialect.cpp - LOOM Dialect Implementation --------------------===//
+//===- LoomOps.cpp - LOOM Dialect Operations -----------------------------===//
 //
-// Implementation of the LOOM dialect.
+// Implementation of the LOOM operations.
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/DialectImplementation.h"
-#include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/Matchers.h"
 #include "mlir/IR/OpImplementation.h"
+#include "mlir/IR/PatternMatch.h"
 #include "mlir/Interfaces/ViewLikeInterface.h"
 
 #include "LoomDialect.h.inc"
 #include "llvm/ADT/TypeSwitch.h"
-
-// 1. Declarations
 #define GET_TYPEDEF_CLASSES
-#include "LoomTypes.h.inc"
-
 #include "LoomEnums.h.inc"
-
+#include "LoomTypes.h.inc"
 #define GET_ATTRDEF_CLASSES
 #include "LoomAttributes.h.inc"
-
-#include "LoomDialect.cpp.inc"
 
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
-// 2. Definitions
+using namespace mlir;
+using namespace loom;
+
+#include "LoomDialect.cpp.inc"
+
 #define GET_TYPEDEF_CLASSES
 #include "LoomTypes.cpp.inc"
 
@@ -39,12 +40,6 @@
 
 #define GET_ATTRDEF_CLASSES
 #include "LoomAttributes.cpp.inc"
-
-#define GET_OP_CLASSES
-#include "LoomOps.cpp.inc"
-
-using namespace mlir;
-using namespace loom;
 
 void LoomDialect::initialize() {
   addOperations<
@@ -61,9 +56,15 @@ void LoomDialect::initialize() {
       >();
 }
 
+// Custom assembly format helpers are provided by mlir::parseDynamicIndexList
+// and mlir::printDynamicIndexList from ViewLikeInterface.h
+
 //===----------------------------------------------------------------------===//
-// ConstraintSpaceOp Verifier
+// Loom Operation Definitions
 //===----------------------------------------------------------------------===//
+
+#define GET_OP_CLASSES
+#include "LoomOps.cpp.inc"
 
 LogicalResult loom::ConstraintSpaceOp::verify() {
   llvm::DenseMap<StringAttr, Location> variableNames;
@@ -126,4 +127,63 @@ void loom::CopyFromTensorOp::getEffects(
         &effects) {
   effects.emplace_back(MemoryEffects::Read::get());
   effects.emplace_back(MemoryEffects::Write::get());
+}
+
+//===----------------------------------------------------------------------===//
+// ViewOp Canonicalizers
+//===----------------------------------------------------------------------===//
+
+namespace {
+struct FoldViewConstants : public OpRewritePattern<ViewOp> {
+  using OpRewritePattern<ViewOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(ViewOp op,
+                                PatternRewriter &rewriter) const override {
+    SmallVector<OpFoldResult, 4> offsets = op.getMixedOffsets();
+    SmallVector<OpFoldResult, 4> sizes = op.getMixedSizes();
+    SmallVector<OpFoldResult, 4> strides = op.getMixedStrides();
+
+    auto foldConstants = [](SmallVectorImpl<OpFoldResult> &mixedValues) {
+      bool changed = false;
+      for (auto &value : mixedValues) {
+        if (auto ssaValue = value.dyn_cast<Value>()) {
+          IntegerAttr attr;
+          if (matchPattern(ssaValue, m_Constant(&attr))) {
+            value = attr;
+            changed = true;
+          }
+        }
+      }
+      return changed;
+    };
+
+    bool changed = false;
+    changed |= foldConstants(offsets);
+    changed |= foldConstants(sizes);
+    changed |= foldConstants(strides);
+
+    if (!changed)
+      return failure();
+
+    // Reconstruct the op with new mixed values
+    SmallVector<Value, 4> dynamicOffsets, dynamicSizes, dynamicStrides;
+    SmallVector<int64_t, 4> staticOffsets, staticSizes, staticStrides;
+    dispatchIndexOpFoldResults(offsets, dynamicOffsets, staticOffsets);
+    dispatchIndexOpFoldResults(sizes, dynamicSizes, staticSizes);
+    dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
+
+    rewriter.replaceOpWithNewOp<ViewOp>(
+        op, op.getType(), op.getSource(), dynamicOffsets, dynamicSizes,
+        dynamicStrides, rewriter.getDenseI64ArrayAttr(staticOffsets),
+        rewriter.getDenseI64ArrayAttr(staticSizes),
+        rewriter.getDenseI64ArrayAttr(staticStrides), op.getSequentialReuse(),
+        op.getSpatialReuse(), op.getTemporalReuse());
+    return success();
+  }
+};
+} // namespace
+
+void ViewOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                         MLIRContext *context) {
+  results.add<FoldViewConstants>(context);
 }
