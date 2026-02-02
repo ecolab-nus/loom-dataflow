@@ -2,14 +2,11 @@
  * @file materialize.cpp
  * @brief Implementation of materialize pass for canonicalizing IR.
  * @details
- * This pass materializes all loom.get_module_attribute operations by replacing
- * them with arith.constant operations. For each loom.get_module_attribute
- * operation, it reads the attribute name from the operation, looks up the
- * corresponding value in the module's attributes, and creates an arith.constant
- * with that value.
+ * This pass refactors symbolic block sizes into concrete constant values.
  */
 
 #include "Passes.h"
+#include "constraint_space_utils.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -19,12 +16,12 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/Pass/Pass.h"
-#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/Support/Casting.h"
 
-// Include Loom dialect headers for GetBlockSizeOp
-#include "mlir/Interfaces/ViewLikeInterface.h"
+// Include Loom dialect headers
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -32,116 +29,161 @@ using namespace mlir;
 
 namespace {
 
+/// Represents a single materialized block size configuration.
+struct BlockSizeBinding {
+  llvm::StringMap<int64_t> varValues;
+
+  std::optional<int64_t> getValue(StringRef name) const {
+    auto it = varValues.find(name);
+    if (it != varValues.end())
+      return it->second;
+    return std::nullopt;
+  }
+
+  std::string getSuffix() const {
+    std::string suffix = "";
+    llvm::SmallVector<llvm::StringRef, 4> keys;
+    for (auto &entry : varValues) {
+      keys.push_back(entry.first());
+    }
+    std::sort(keys.begin(), keys.end());
+
+    for (auto key : keys) {
+      suffix += "__" + key.str() + std::to_string(varValues.lookup(key));
+    }
+    return suffix;
+  }
+};
+
+/// Enumerate all valid (BM, BN, BK) combinations satisfying constraints.
+/// Placeholder implementation with hardcoded values as requested.
+llvm::SmallVector<BlockSizeBinding>
+enumerateBlockSizeBindings(loom::ConstraintSpaceOp /*csOp*/) {
+  llvm::SmallVector<BlockSizeBinding> bindings;
+
+  // Combination 1: (32, 32, 32)
+  BlockSizeBinding b1;
+  b1.varValues["BM"] = 32;
+  b1.varValues["BN"] = 32;
+  b1.varValues["BK"] = 32;
+  bindings.push_back(b1);
+
+  // Combination 2: (32, 32, 64)
+  BlockSizeBinding b2;
+  b2.varValues["BM"] = 32;
+  b2.varValues["BN"] = 32;
+  b2.varValues["BK"] = 64;
+  bindings.push_back(b2);
+
+  return bindings;
+}
+
+/// Materialize a function with a specific block size binding.
+LogicalResult materializeFunction(func::FuncOp func,
+                                  const BlockSizeBinding &binding) {
+  OpBuilder builder(func.getContext());
+  SmallVector<Operation *, 16> opsToErase;
+
+  func.walk([&](loom::GetSymbolicBlockSizeOp op) {
+    SymbolRefAttr ref = op.getSymbolRef();
+    StringRef varName;
+    if (ref.getNestedReferences().size() > 0) {
+      varName = ref.getNestedReferences().back().getLeafReference();
+    } else {
+      varName = ref.getLeafReference();
+    }
+
+    auto valueOpt = binding.getValue(varName);
+    if (!valueOpt) {
+      op.emitWarning() << "No concrete value found for symbolic variable '"
+                       << varName << "'";
+      return;
+    }
+
+    builder.setInsertionPoint(op);
+    auto constant =
+        builder.create<arith::ConstantIndexOp>(op.getLoc(), *valueOpt);
+    op.getResult().replaceAllUsesWith(constant.getResult());
+    opsToErase.push_back(op);
+  });
+
+  for (auto *op : opsToErase) {
+    op->erase();
+  }
+
+  return success();
+}
+
 class MaterializePass
     : public PassWrapper<MaterializePass, OperationPass<ModuleOp>> {
 public:
-  /**
-   * @brief Materialize and canonicalize IR operations.
-   *
-   * @details This pass materializes all loom.get_module_attribute operations
-   * by replacing them with arith.constant operations. This simplifies the IR
-   * by converting symbolic attribute references into concrete constant values.
-   */
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MaterializePass)
 
-  /// Command-line flag name.
   StringRef getArgument() const override { return "loom-materialize"; }
 
-  /// Short pass description for diagnostics and help.
   StringRef getDescription() const override {
-    return "Materialize and canonicalize IR operations";
+    return "Materialize symbolic block sizes into concrete constants";
   }
 
-  /// Declare dialect dependencies used by this pass implementation.
   void getDependentDialects(DialectRegistry &registry) const override {
     registry
         .insert<affine::AffineDialect, arith::ArithDialect, func::FuncDialect,
                 memref::MemRefDialect, scf::SCFDialect>();
   }
 
-  /**
-   * @brief Execute the pass over the module.
-   *
-   * @details This pass materializes all loom.get_module_attribute operations
-   * by replacing them with arith.constant operations. For each
-   * loom.get_module_attribute operation, it reads the attribute name from the
-   * operation, looks up the corresponding value in the module's attributes, and
-   * creates an arith.constant with that value. After all operations are
-   * replaced, the corresponding module attributes are removed since they are
-   * no longer needed.
-   */
   void runOnOperation() override {
     ModuleOp module = getOperation();
-    SmallVector<Operation *, 16> opsToErase;
-    llvm::DenseSet<StringRef> usedAttrNames;
+    OpBuilder builder(module.getContext());
 
-    // DEPRECATED: GetBlockSizeOp (loom.get_module_attribute) removed
-    // The target pass chain uses loom.get_symbolic_block_size instead.
-#if 0
-    // Walk through all operations in the module (including functions)
-    module.walk([&](loom::GetBlockSizeOp getAttrOp) {
-      // Get the attribute name from the operation
-      StringRef attrName = getAttrOp.getAttr();
-
-      // Find the nearest parent ModuleOp (could be nested module containing the
-      // func)
-      ModuleOp parentModule = getAttrOp->getParentOfType<ModuleOp>();
-      if (!parentModule) {
-        getAttrOp->emitWarning() << "No parent module found for attribute '"
-                                 << attrName << "', skipping materialization";
-        return;
+    SmallVector<ModuleOp, 4> mappingModules;
+    for (auto nestedModule : module.getOps<ModuleOp>()) {
+      if (loom::lcs::findConstraintSpace(nestedModule)) {
+        mappingModules.push_back(nestedModule);
       }
-
-      // Look up the attribute in the nearest parent module
-      Attribute moduleAttr = parentModule->getAttr(attrName);
-      if (!moduleAttr) {
-        // If attribute not found, skip this operation
-        getAttrOp->emitWarning()
-            << "Module attribute '" << attrName
-            << "' not found in parent module, skipping materialization";
-        return;
-      }
-
-      // Verify that the attribute is an IntegerAttr with index type
-      auto intAttr = llvm::dyn_cast<IntegerAttr>(moduleAttr);
-      if (!intAttr || !intAttr.getType().isIndex()) {
-        getAttrOp->emitWarning()
-            << "Module attribute '" << attrName
-            << "' is not an index integer attribute, skipping";
-        return;
-      }
-
-      // Create arith.constant operation to replace the get_module_attribute
-      OpBuilder builder(getAttrOp);
-      auto constant = builder.create<arith::ConstantIndexOp>(
-          getAttrOp->getLoc(), intAttr.getInt());
-
-      // Replace all uses of the original operation with the constant
-      getAttrOp.getResult().replaceAllUsesWith(constant.getResult());
-
-      // Mark the original operation for deletion
-      opsToErase.push_back(getAttrOp);
-
-      // Record the attribute name for later removal from the parent module
-      // We store a pair of (module, attrName) to handle nested modules
-      usedAttrNames.insert(attrName);
-    });
-#endif
-
-    // Erase all replaced operations
-    for (Operation *op : opsToErase) {
-      op->erase();
     }
 
-    // Remove used attributes from all nested modules
-    // Walk all nested modules and remove the used attributes
-    module.walk([&](ModuleOp nestedModule) {
-      for (StringRef attrName : usedAttrNames) {
-        if (nestedModule->getAttr(attrName)) {
-          nestedModule->removeAttr(attrName);
+    for (auto nestedModule : mappingModules) {
+      loom::ConstraintSpaceOp csOp =
+          loom::lcs::findConstraintSpace(nestedModule);
+      auto bindings = enumerateBlockSizeBindings(csOp);
+
+      // Collect functions to clone
+      SmallVector<func::FuncOp, 4> funcs;
+      for (auto func : nestedModule.getOps<func::FuncOp>()) {
+        funcs.push_back(func);
+      }
+
+      // Create a single nested module in the output to contain all variants
+      builder.setInsertionPoint(nestedModule);
+      auto variantsModule = builder.create<ModuleOp>(nestedModule.getLoc());
+
+      // Copy attributes from the original nested module
+      if (!nestedModule->getAttrs().empty()) {
+        variantsModule->setAttrs(nestedModule->getAttrs());
+      }
+      variantsModule->setAttr("loom.pass_name",
+                              builder.getStringAttr("Materialize"));
+
+      OpBuilder variantsBuilder(variantsModule.getBodyRegion());
+
+      for (const auto &binding : bindings) {
+        for (auto func : funcs) {
+          IRMapping funcMapping;
+          auto clonedFunc =
+              cast<func::FuncOp>(variantsBuilder.clone(*func, funcMapping));
+
+          // Rename with suffix
+          std::string newName = func.getName().str() + binding.getSuffix();
+          clonedFunc.setName(newName);
+
+          // Materialize
+          (void)materializeFunction(clonedFunc, binding);
         }
       }
-    });
+
+      // Remove the original nested module
+      nestedModule.erase();
+    }
   }
 };
 

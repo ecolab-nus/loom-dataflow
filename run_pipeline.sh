@@ -68,6 +68,15 @@ if ! build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
     exit 1
 fi
 
+# optional) Materialize symbolic block sizes
+echo "(optional) Materialize symbolic block sizes..."
+if ! build/tool/loom-opt/single_stage/materialize \
+  --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
+  > test/Passes/mm_2Dmesh/IR/06_after_materialize.mlir; then
+    echo "Error: (optional) Materialize symbolic block sizes failed."
+    exit 1
+fi
+
 if [ "$CONSTRAINT_LINEARIZATION" = "false" ]; then
     echo "Constraint linearization is disabled. Terminating pipeline after Step 5."
     exit 0

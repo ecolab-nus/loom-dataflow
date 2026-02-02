@@ -155,6 +155,13 @@ build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
   2> test/Passes/mm_2Dmesh/constraint_space/raw_constraint_space.json
 ```
 
+(optional) Materialize symbolic block sizes
+```bash
+build/tool/loom-opt/single_stage/materialize \
+  --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
+  > test/Passes/mm_2Dmesh/IR/06_after_materialize.mlir
+```
+
 6) Canonicalize constraints
 ```bash
 ./build/tool/loom-constraint/single_stage/constraint_canonicalize \
