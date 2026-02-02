@@ -133,17 +133,17 @@ build/tool/loom-opt/single_stage/enumerate_hw_mapping \
   > test/Passes/mm_2Dmesh/IR/02_after_hardware_mapping.mlir
 ```
 
-3) Hoist loading A, B blocks
+<!-- 3) Hoist loading A, B blocks
 ```bash
 build/tool/loom-opt/single_stage/hoist_block_loading \
   --input test/Passes/mm_2Dmesh/IR/02_after_hardware_mapping.mlir \
   > test/Passes/mm_2Dmesh/IR/03_after_block_hoisting.mlir
-```
+``` -->
 
 4) Analyze reuse pattern on `loom.view`
 ```bash
 build/tool/loom-opt/single_stage/analyze_reuse \
-  --input test/Passes/mm_2Dmesh/IR/03_after_block_hoisting.mlir \
+  --input test/Passes/mm_2Dmesh/IR/02_after_hardware_mapping.mlir \
   > test/Passes/mm_2Dmesh/IR/04_after_reuse_analyzation.mlir
 ```
 
