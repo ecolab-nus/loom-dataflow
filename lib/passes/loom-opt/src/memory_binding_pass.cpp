@@ -57,7 +57,7 @@ struct ReadBlockLoadingLowering
     auto emptyArray = rewriter.getArrayAttr({});
     auto defaultBroadcast = rewriter.getI64ArrayAttr({1, 1});
     rewriter.replaceOpWithNewOp<loom::CopyToTensorOp>(
-        op, op.getType(), viewOp, allocOp, Value(), emptyArray,
+        op, op.getType(), viewOp, allocOp, nullptr, Value(), emptyArray,
         defaultBroadcast);
 
     // We can't safely remove subview yet if it has other uses,
@@ -138,8 +138,8 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
         subviewOp.getStaticStrides());
 
     // 2. Create loom.copy_from_tensor
-    rewriter.create<loom::CopyFromTensorOp>(loc, toBufferOp.getTensor(),
-                                            viewOp);
+    rewriter.create<loom::CopyFromTensorOp>(loc, toBufferOp.getTensor(), viewOp,
+                                            nullptr);
 
     // Erase original ops
     rewriter.eraseOp(op);

@@ -172,6 +172,7 @@ def CopyToTensorOp : Loom_Op<"copy_to_tensor", [
   let arguments = (ins
     Loom_ViewType:$source_view,
     Loom_BufferTokenType:$buffer_token,
+    OptionalAttr<SymbolRefAttr>:$memory,
     Optional<Index>:$provenance,
     DefaultValuedAttr<ArrayAttr, "{}">:$interconnect,
     DefaultValuedAttr<I64ArrayAttr, "{1, 1}">:$broadcast
@@ -182,6 +183,7 @@ def CopyToTensorOp : Loom_Op<"copy_to_tensor", [
   let assemblyFormat = [{
     $source_view `,` $buffer_token 
     ( `provenance` `:` $provenance^ )? 
+    ( `to` $memory^ )?
     `,` `interconnect` `:` $interconnect 
     `,` `broadcast` `:` $broadcast 
     attr-dict `:` 
@@ -216,13 +218,14 @@ def CopyFromTensorOp : Loom_Op<"copy_from_tensor", [
 
   let arguments = (ins
     AnyRankedTensor:$source_tensor,
-    Loom_ViewType:$target_view
+    Loom_ViewType:$target_view,
+    OptionalAttr<SymbolRefAttr>:$memory
   );
 
   let results = (outs);
 
   let assemblyFormat = [{
-    $source_tensor `,` $target_view attr-dict `:` 
+    $source_tensor `,` $target_view ( `to` $memory^ )? attr-dict `:` 
     type($source_tensor) `,` type($target_view)
   }];
 }
