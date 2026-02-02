@@ -199,6 +199,7 @@ std::pair<Value, Value> dram_read(memref::CopyOp op,
 
   // Reserve space in CB and obtain write pointer.
   CBReserveBackOp::create(rewriter, loc, cb, numPages);
+  memrefArgData->num_tiles = numPages;
   Value l1Addr = GetWritePtrOp::create(rewriter, loc, cb);
   Value multicast_l1Addr = GetWritePtrOp::create(rewriter, loc, cb);
 
@@ -345,10 +346,8 @@ std::pair<Value, Value> dram_read(memref::CopyOp op,
 
 bool multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArgData *memrefArgData, Value totalSizeBytes, Value multicast_l1Addr) {
   Value zero = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
-  NocSemaphoreSetOp::create(rewriter, loc,
-                            memrefArgData->mcast_sender_semaphore_addr_ptr, zero);
   auto falseAttr = rewriter.getBoolAttr(false);
- // Create noc_id as a Value
+  // Create noc_id as a Value
   Value nocIdVal = rewriter.create<arith::ConstantIntOp>(
       loc, rewriter.getI8Type(), memrefArgData->noc_id);
   Value noc_multicast_addr = GetNocMulticastAddrOp::create(
@@ -357,9 +356,9 @@ bool multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArg
       memrefArgData->mcast_dest_noc_start_y,
       memrefArgData->mcast_dest_noc_end_x, memrefArgData->mcast_dest_noc_end_y,
       multicast_l1Addr, nocIdVal);
-  //wait for all destinations to be ready
+  // FIRST: wait for all destinations to be ready (receivers increment this semaphore)
   NocSemaphoreWaitOp::create(rewriter, loc, memrefArgData->mcast_sender_semaphore_addr_ptr, memrefArgData->mcast_dest_num);
-  //clean the semaphore
+  // THEN: reset the semaphore to 0 for the next iteration
   NocSemaphoreSetOp::create(rewriter, loc, memrefArgData->mcast_sender_semaphore_addr_ptr, zero);
   // send the data to the destinations
   // Provide explicit false attrs when supplying noc_id to avoid asm ambiguity.
@@ -439,11 +438,6 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
       llvm::errs() << "No MemrefArgData found for input memref\n";
       return failure();
     }
-
-    // reserve the back of the cb
-    Value numTilesVal = rewriter.create<arith::ConstantIntOp>(
-        loc, rewriter.getI32Type(), memrefArgData->num_tiles);
-    CBReserveBackOp::create(rewriter, loc, memrefArgData->cb, numTilesVal);
 
     // based on the option in memref.copy to decide which function to call
     //  Check if this is a broadcast operation
@@ -527,13 +521,43 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
         coreY = rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), coreY);
       }
       
+      
       Value zero = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), 0);
       Value cond;
+/*       Value physicalCoreX = ConvertLogicalXToTranslatedOp::create(
+        rewriter, loc, coreX);
+      Value physicalCoreY = ConvertLogicalYToTranslatedOp::create(
+        rewriter, loc, coreY); */
       if (isBroadcastX) {
+/*         Value physicalCoreXLeft = ConvertLogicalXToTranslatedOp::create(
+          rewriter, loc, 0);
+        Value physicalCoreXLeftPlusOne = ConvertLogicalXToTranslatedOp::create(
+          rewriter, loc, 1);
+        Value physicalCoreXRight = ConvertLogicalXToTranslatedOp::create(
+          rewriter, loc, 7);
+        Value 
+        memrefArgData->mcast_dest_noc_start_x = physicalCoreXLeftPlusOne;
+        memrefArgData->mcast_dest_noc_end_x = physicalCoreXRight;
+        memrefArgData->mcast_dest_noc_start_y = physicalCoreY;
+        memrefArgData->mcast_dest_noc_end_y = physicalCoreY;
+        memrefArgData->mcast_sender_noc_x = physicalCoreXLeft;
+        memrefArgData->mcast_sender_noc_y = physicalCoreY; */
         cond = rewriter.create<arith::CmpIOp>(
             loc, arith::CmpIPredicate::eq, coreX, zero);
       } else {
+/*         Value physicalCoreYTop = ConvertLogicalXToTranslatedOp::create(
+          rewriter, loc, 0);
+        Value physicalCoreYTopPlusOne = ConvertLogicalXToTranslatedOp::create(
+          rewriter, loc, 1);
+        Value physicalCoreYBottom = ConvertLogicalXToTranslatedOp::create(
+          rewriter, loc, 7);
+        memrefArgData->mcast_dest_noc_start_x = physicalCoreX;
+        memrefArgData->mcast_dest_noc_end_x = physicalCoreX;
+        memrefArgData->mcast_dest_noc_start_y = physicalCoreYTop;
+        memrefArgData->mcast_dest_noc_end_y = physicalCoreYBottom;
+        memrefArgData->mcast_sender_noc_x = physicalCoreX;
+        memrefArgData->mcast_sender_noc_y = physicalCoreYTop; */
         cond = rewriter.create<arith::CmpIOp>(
             loc, arith::CmpIPredicate::eq, coreY, zero);
       }
@@ -553,8 +577,9 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
       
       rewriter.setInsertionPointAfter(ifOp);
     }
+    
     // push the data to the cb
-    CBPushBackOp::create(rewriter, loc, memrefArgData->cb, numTilesVal);
+    CBPushBackOp::create(rewriter, loc, memrefArgData->cb, memrefArgData->num_tiles);
     rewriter.eraseOp(op);
     return success();
   }

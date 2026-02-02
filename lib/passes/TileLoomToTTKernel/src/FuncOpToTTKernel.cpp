@@ -88,12 +88,10 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
           loc, rewriter, func, rewriter.getI32Type());
       Value mcast_sender_semaphore_addr_arg = createGetArgValOp(
           loc, rewriter, func, rewriter.getI32Type());
-      Value mcast_sender_semaphore_addr_op = GetSemaphoreOp::create(
-          rewriter, loc, mcast_sender_semaphore_addr_arg);
+      Value mcast_sender_semaphore_addr_op;
       Value mcast_receiver_semaphore_addr_arg = createGetArgValOp(
         loc, rewriter, func, rewriter.getI32Type());
-      Value mcast_receiver_semaphore_addr_op = GetSemaphoreOp::create(
-        rewriter, loc, mcast_receiver_semaphore_addr_arg);
+      Value mcast_receiver_semaphore_addr_op;
 
 
       // Create TensorAccessArgs and TensorAccess for base address only for
@@ -107,6 +105,10 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
       Value mcast_sender_semaphore_addr_ptr;
       auto zeroVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI8Type(), 0);
       if (!isComputeKernel) {
+        mcast_sender_semaphore_addr_op = GetSemaphoreOp::create(
+          rewriter, loc, mcast_sender_semaphore_addr_arg);
+        mcast_receiver_semaphore_addr_op = GetSemaphoreOp::create(
+          rewriter, loc, mcast_receiver_semaphore_addr_arg);
         auto pagesize = GetTileSizeOp::create(rewriter, loc, cbOp);
         Value tensorAccessorArgsIdxVal = rewriter.create<arith::ConstantIntOp>(
             loc, rewriter.getI32Type(),
@@ -119,6 +121,10 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
         tensorAccessor = baseAddrTensorAccess.getResult();
         //TODO, need to generate code like "ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>" instead of ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>
         mcast_receiver_semaphore_addr_ptr = CastToL1PtrOp::create(rewriter, loc, mcast_receiver_semaphore_addr_op);
+        // Initialize receiver semaphore to VALID (1) - sender will multicast this value to receivers
+        // Use noc_semaphore_set to generate: *(mcast_receiver_semaphore_addr_ptr) = 1
+        Value one = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
+        NocSemaphoreSetOp::create(rewriter, loc, mcast_receiver_semaphore_addr_ptr, one);
         mcast_sender_semaphore_addr_ptr = CastToL1PtrOp::create(rewriter, loc, mcast_sender_semaphore_addr_op);
         mcast_sender_semaphore_noc_addr_op = GetNocAddrOp::create(rewriter, loc, 
                            mcast_sender_noc_x_op,

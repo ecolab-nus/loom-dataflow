@@ -64,17 +64,18 @@ struct MemrefArgData {
   Value mcast_sender_semaphore_addr;
   /// The receiver semaphore address for multicast.
   Value mcast_receiver_semaphore_addr;
-  /// The L1 multicast receiver semaphore address pointer.
-  Value mcast_receiver_semaphore_addr_ptr;
   /// The L1 multicast sender semaphore address pointer.
   Value mcast_sender_semaphore_addr_ptr;
+  /// The L1 multicast receiver semaphore address pointer.
+  Value mcast_receiver_semaphore_addr_ptr;
   /// The noc address of sender semaphore
   Value mcast_sender_semaphore_noc_addr;
   /// The noc address of receiver semaphore
   Value mcast_receiver_semaphore_noc_addr;
   /// The NOC ID for multicast. default is 0 first, left it to later optimization, TODO: change to dynamic later
   int8_t noc_id = 0;
-  uint32_t num_tiles;
+  /// The number of tiles for this memref (stored as Value for use in CB ops).
+  Value num_tiles;
 };
 /**
  * @brief Data created for an index input argument.
