@@ -362,6 +362,15 @@ EnumerateSpatialMappings(ModuleOp affineModule,
 
             markLoopsTemporal(cloned);
 
+            // Assign memory attributes to copy ops
+            cloned.walk([&](Operation *op) {
+              if (auto copyTo = dyn_cast<loom::CopyToTensorOp>(op)) {
+                copyTo.setMemoryAttr(SymbolRefAttr::get(ctx, "L1"));
+              } else if (auto copyFrom = dyn_cast<loom::CopyFromTensorOp>(op)) {
+                copyFrom.setMemoryAttr(SymbolRefAttr::get(ctx, "DRAM"));
+              }
+            });
+
             if (failed(
                     addL1CacheConstraints(cloned, csOp, hardwareInfo.l1Size)))
               return failure();
@@ -418,6 +427,16 @@ EnumerateSpatialMappings(ModuleOp affineModule,
                 }
 
                 markLoopsTemporal(cloned);
+
+                // Assign memory attributes to copy ops
+                cloned.walk([&](Operation *op) {
+                  if (auto copyTo = dyn_cast<loom::CopyToTensorOp>(op)) {
+                    copyTo.setMemoryAttr(SymbolRefAttr::get(ctx, "L1"));
+                  } else if (auto copyFrom =
+                                 dyn_cast<loom::CopyFromTensorOp>(op)) {
+                    copyFrom.setMemoryAttr(SymbolRefAttr::get(ctx, "DRAM"));
+                  }
+                });
 
                 loom::utils::composeAndCanonicalizeAffineApplies(cloned);
 
