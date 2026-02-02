@@ -152,44 +152,11 @@ std::pair<Value, Value> dram_read(memref::CopyOp op,
                                                     offsetI32);
   }
 
-  // Determine how many tiles we need to load by converting the shape to tiles.
-  auto cbType = cast<CBType>(cb.getType());
-  Value numPages;
-  Value totalSizeBytes;
+  // Use num_tiles from memrefArgData (pre-computed by caller for domination correctness)
+  // If not set yet (non-broadcast case), compute it now.
+  Value numPages = memrefArgData->num_tiles;
+  Value totalSizeBytes = arith::MulIOp::create(rewriter, loc, numPages, pageSize);
 
-  // Check if CB is tiled (element type is TileType) or scalar
-  auto elementType = cbType.getElementType();
-  if (auto tileType = llvm::dyn_cast<TileType>(elementType)) {
-    // Tiled CB: use getNumTiles() directly
-    const int32_t numTiles = cbType.getNumTiles();
-    numPages = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(),
-                                                     numTiles);
-    // For tiled CB, calculate total size: numTiles * pageSize
-    totalSizeBytes = arith::MulIOp::create(rewriter, loc, numPages, pageSize);
-  } else {
-    // Scalar CB: calculate numTiles = (numElements * elementSizeInBytes) /
-    // pageSizeInBytes Get number of elements and element size
-    const int64_t numElements = cbType.getNumElements();
-
-    // Get element size in bytes
-    int32_t elementSizeBytes = 0;
-    if (elementType.isF32()) {
-      elementSizeBytes = 4;
-    } else if (elementType.isF16() || elementType.isBF16()) {
-      elementSizeBytes = 2;
-    } else if (auto intType = llvm::dyn_cast<IntegerType>(elementType)) {
-      elementSizeBytes = (intType.getWidth() + 7) / 8; // Round up to bytes
-    } else {
-      // Default: try to infer from type
-      // For now, assume 4 bytes if unknown
-      elementSizeBytes = 4;
-    }
-
-    // Calculate total size in bytes and divide by page size
-    totalSizeBytes = rewriter.create<arith::ConstantIntOp>(
-        loc, rewriter.getI32Type(), numElements * elementSizeBytes);
-    numPages = arith::DivSIOp::create(rewriter, loc, totalSizeBytes, pageSize);
-  }
   // Get the pre-created TensorAccessor from the tracker.
   Value accessorOp = tracker->getTensorAccessor(inputMemref);
   if (!accessorOp) {
@@ -199,7 +166,6 @@ std::pair<Value, Value> dram_read(memref::CopyOp op,
 
   // Reserve space in CB and obtain write pointer.
   CBReserveBackOp::create(rewriter, loc, cb, numPages);
-  memrefArgData->num_tiles = numPages;
   Value l1Addr = GetWritePtrOp::create(rewriter, loc, cb);
   Value multicast_l1Addr = GetWritePtrOp::create(rewriter, loc, cb);
 
@@ -466,15 +432,44 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
       }
     }
 
-    // Call dram_read and get the return values
-    auto [totalSizeBytes, multicast_l1Addr] =
-        dram_read(op, rewriter, memrefArgData, tracker, getTypeConverter());
     
-    // Check if dram_read succeeded
-    if (!totalSizeBytes || !multicast_l1Addr) {
-      llvm::errs() << "dram_read failed to return valid values\n";
+    // Pre-compute num_tiles BEFORE the if/else to ensure it dominates CBPushBackOp
+    // Get the CB from the tracker
+    Value cb = tracker->getCB(inputMemref);
+    if (!cb) {
+      llvm::errs() << "Error: CB not found for memref " << inputMemref << "\n";
       return failure();
     }
+    
+    // Compute numPages based on CB type (must be done before if/else for domination)
+    auto cbType = cast<CBType>(cb.getType());
+    auto elementType = cbType.getElementType();
+    Value numPages;
+    
+    if (auto tileType = llvm::dyn_cast<TileType>(elementType)) {
+      // Tiled CB: use getNumTiles() directly
+      const int32_t numTiles = cbType.getNumTiles();
+      numPages = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), numTiles);
+    } else {
+      // Scalar CB: calculate numTiles from element count
+      const int64_t numElements = cbType.getNumElements();
+      int32_t elementSizeBytes = 4;  // default
+      if (elementType.isF16() || elementType.isBF16()) {
+        elementSizeBytes = 2;
+      } else if (elementType.isF32()) {
+        elementSizeBytes = 4;
+      } else if (auto intType = llvm::dyn_cast<IntegerType>(elementType)) {
+        elementSizeBytes = (intType.getWidth() + 7) / 8;
+      }
+      // Get page size to calculate number of pages
+      Value pageSize = GetTileSizeOp::create(rewriter, loc, cb);
+      Value totalSize = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), numElements * elementSizeBytes);
+      numPages = arith::DivSIOp::create(rewriter, loc, totalSize, pageSize);
+    }
+    
+    // Set memrefArgData->num_tiles here before any branching
+    memrefArgData->num_tiles = numPages;
     
     if (isBroadcast) {
       // Get the parent function for per-function coreList lookup
@@ -567,6 +562,15 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
         OpBuilder::InsertionGuard guard(rewriter);
         // THEN - Insert before the existing yield terminator
         rewriter.setInsertionPoint(ifOp.getThenRegion().front().getTerminator());
+        // Call dram_read and get the return values
+        auto [totalSizeBytes, multicast_l1Addr] =
+            dram_read(op, rewriter, memrefArgData, tracker, getTypeConverter());
+        
+        // Check if dram_read succeeded
+        if (!totalSizeBytes || !multicast_l1Addr) {
+          llvm::errs() << "dram_read failed to return valid values\n";
+          return failure();
+        }
         multicast_send(rewriter, loc, memrefArgData, totalSizeBytes,
                        multicast_l1Addr);
       
@@ -576,6 +580,17 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
       }
       
       rewriter.setInsertionPointAfter(ifOp);
+    }
+    else{
+      // Call dram_read and get the return values
+      auto [totalSizeBytes, multicast_l1Addr] =
+          dram_read(op, rewriter, memrefArgData, tracker, getTypeConverter());
+      
+      // Check if dram_read succeeded
+      if (!totalSizeBytes || !multicast_l1Addr) {
+        llvm::errs() << "dram_read failed to return valid values\n";
+        return failure();
+    }
     }
     
     // push the data to the cb
