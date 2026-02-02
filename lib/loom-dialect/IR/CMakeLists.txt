@@ -26,7 +26,7 @@ mlir_tablegen(LoomTypes.cpp.inc -gen-typedef-defs -typedefs-dialect=loom ${TBLGE
 add_public_tablegen_target(LOOMLoomTypesIncGen)
 
 add_mlir_dialect_library(loomDialect
-  LoomDialect.cpp
+  LoomOps.cpp
 
   DEPENDS
   LOOMLoomOpsIncGen
