@@ -115,6 +115,107 @@ LogicalResult loom::ExpressionOp::verify() {
   return success();
 }
 
+//===----------------------------------------------------------------------===//
+// ViewOp Type Inference
+//===----------------------------------------------------------------------===//
+
+MemRefType loom::ViewOp::inferResultType(MemRefType sourceType,
+                                         ArrayRef<int64_t> staticOffsets,
+                                         ArrayRef<int64_t> staticSizes,
+                                         ArrayRef<int64_t> staticStrides) {
+
+  // Extract element type and memory space from source
+  Type elementType = sourceType.getElementType();
+  Attribute memorySpace = sourceType.getMemorySpace();
+
+  // Compute result shape from static sizes
+  // Dynamic dimensions use ShapedType::kDynamic
+  SmallVector<int64_t> resultShape(staticSizes.begin(), staticSizes.end());
+
+  // Compute strides for the result memref
+  // For a view, strides come from the source memref
+  // Result stride[i] = source_stride[i] * view_stride[i]
+  auto sourceLayout = sourceType.getLayout();
+  SmallVector<int64_t> resultStrides;
+  int64_t resultOffset = 0;
+
+  if (auto stridedLayout = dyn_cast<StridedLayoutAttr>(sourceLayout)) {
+    ArrayRef<int64_t> sourceStrides = stridedLayout.getStrides();
+    resultOffset = stridedLayout.getOffset();
+
+    // Compute new offset: offset += sum(static_offset[i] * source_stride[i])
+    for (size_t i = 0; i < staticOffsets.size(); ++i) {
+      if (staticOffsets[i] != ShapedType::kDynamic &&
+          sourceStrides[i] != ShapedType::kDynamic &&
+          resultOffset != ShapedType::kDynamic) {
+        resultOffset += staticOffsets[i] * sourceStrides[i];
+      } else {
+        resultOffset = ShapedType::kDynamic;
+      }
+    }
+
+    // Result strides inherit source strides (view strides are access
+    // multipliers)
+    for (size_t i = 0; i < staticStrides.size(); ++i) {
+      if (staticStrides[i] != ShapedType::kDynamic &&
+          sourceStrides[i] != ShapedType::kDynamic) {
+        resultStrides.push_back(sourceStrides[i] * staticStrides[i]);
+      } else {
+        resultStrides.push_back(ShapedType::kDynamic);
+      }
+    }
+  } else {
+    // Assume default row-major layout for source
+    // Compute strides from source shape
+    int64_t stride = 1;
+    for (int i = sourceType.getRank() - 1; i >= 0; --i) {
+      int64_t currentStride = stride;
+      if (i < (int)staticStrides.size()) {
+        if (staticStrides[i] != ShapedType::kDynamic &&
+            currentStride != ShapedType::kDynamic) {
+          resultStrides.insert(resultStrides.begin(),
+                               currentStride * staticStrides[i]);
+        } else {
+          resultStrides.insert(resultStrides.begin(), ShapedType::kDynamic);
+        }
+      }
+      if (sourceType.getDimSize(i) != ShapedType::kDynamic &&
+          stride != ShapedType::kDynamic) {
+        stride *= sourceType.getDimSize(i);
+      } else {
+        stride = ShapedType::kDynamic;
+      }
+    }
+
+    // Offset is 0 for initial default layout
+    resultOffset = 0;
+    for (size_t i = 0; i < staticOffsets.size(); ++i) {
+      // Recompute original stride for offset calculation
+      int64_t sourceStride = 1;
+      for (size_t j = i + 1; j < (size_t)sourceType.getRank(); ++j) {
+        if (sourceType.getDimSize(j) == ShapedType::kDynamic) {
+          sourceStride = ShapedType::kDynamic;
+          break;
+        }
+        sourceStride *= sourceType.getDimSize(j);
+      }
+
+      if (staticOffsets[i] != ShapedType::kDynamic &&
+          sourceStride != ShapedType::kDynamic &&
+          resultOffset != ShapedType::kDynamic) {
+        resultOffset += staticOffsets[i] * sourceStride;
+      } else {
+        resultOffset = ShapedType::kDynamic;
+      }
+    }
+  }
+
+  auto layout = StridedLayoutAttr::get(sourceType.getContext(), resultOffset,
+                                       resultStrides);
+
+  return MemRefType::get(resultShape, elementType, layout, memorySpace);
+}
+
 void loom::CopyToTensorOp::getEffects(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects) {
@@ -174,8 +275,11 @@ struct FoldViewConstants : public OpRewritePattern<ViewOp> {
     dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
 
     rewriter.replaceOpWithNewOp<ViewOp>(
-        op, op.getType(), op.getSource(), dynamicOffsets, dynamicSizes,
-        dynamicStrides, rewriter.getDenseI64ArrayAttr(staticOffsets),
+        op,
+        ViewOp::inferResultType(op.getSourceType(), staticOffsets, staticSizes,
+                                staticStrides),
+        op.getSource(), dynamicOffsets, dynamicSizes, dynamicStrides,
+        rewriter.getDenseI64ArrayAttr(staticOffsets),
         rewriter.getDenseI64ArrayAttr(staticSizes),
         rewriter.getDenseI64ArrayAttr(staticStrides),
         op.getSequentialReuseAttr(), op.getSpatialReuseAttr(),

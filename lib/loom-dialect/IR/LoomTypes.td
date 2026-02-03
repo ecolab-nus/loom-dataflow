@@ -7,15 +7,11 @@ include "LoomDialect.td"
 
 def ViewType : TypeDef<Loom_Dialect, "View"> {
   let mnemonic = "view";
-  let summary = "Logical view type encapsulating coordinate metadata";
+  let summary = "(DEPRECATED) Logical view type - use memref instead";
   let description = [{
-    An opaque type representing a logical view (coordinate package).
-    It encapsulates a reference to a source memref along with offsets, 
-    sizes, and strides for defining a slice.
-    
-    This type acts as SSA chain glue without producing any runtime 
-    instructions. It represents a "logical perspective with coordinate 
-    information" in the SSA graph.
+    DEPRECATED: This type is no longer used by `loom.view`. 
+    The `loom.view` operation now returns standard `memref` types.
+    This type is kept only for backward compatibility with older MLIR files.
     
     Syntax: `!loom.view`
   }];

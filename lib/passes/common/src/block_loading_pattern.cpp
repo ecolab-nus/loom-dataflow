@@ -532,22 +532,27 @@ void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
   if (!isVisibleIn(view.getSource(), targetBlock))
     return;
 
+  // Build result type for hoisted view
+  auto srcType = view.getSourceType();
+  auto hoistedViewType = loom::ViewOp::inferResultType(
+      srcType, view.getStaticOffsets(),
+      mlir::SmallVector<int64_t>(new_view_sizes.size(),
+                                 mlir::ShapedType::kDynamic),
+      view.getStaticStrides());
+
   auto new_view = builder.create<loom::ViewOp>(
-      view.getLoc(), view.getResult().getType(), view.getSource(),
-      new_view_offsets, new_view_sizes, new_view_strides,
-      view.getStaticOffsets(), view.getStaticSizes(), view.getStaticStrides(),
-      view.getSequentialReuse(), view.getSpatialReuse(),
-      view.getTemporalReuse());
+      view.getLoc(), hoistedViewType, view.getSource(), new_view_offsets,
+      new_view_sizes, new_view_strides, view.getStaticOffsets(),
+      view.getStaticSizes(), view.getStaticStrides(), view.getSequentialReuse(),
+      view.getSpatialReuse(), view.getTemporalReuse());
 
   // 2. Hoist AllocOp (2D with expanded size)
   auto new_alloc = builder.create<loom::AllocOp>(
-      alloc.getLoc(), alloc.getResult().getType(),
-      new_view_sizes, 
+      alloc.getLoc(), alloc.getResult().getType(), new_view_sizes,
       builder.getDenseI64ArrayAttr(mlir::SmallVector<int64_t>(
           new_view_sizes.size(), mlir::ShapedType::kDynamic)),
       alloc.getAlignmentAttr(), alloc.getBufferCountAttr(),
-      alloc.getMemoryAttr()
-    );
+      alloc.getMemoryAttr());
 
   // 3. Create PackToTensorOp
   // Use tracked innerTile (block size) as operand.

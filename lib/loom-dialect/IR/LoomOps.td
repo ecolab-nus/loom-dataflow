@@ -57,13 +57,13 @@ def ViewOp : Loom_Op<"view", [
     - Strides: access pattern defining memory continuity
 
     This operation is purely metadata and does not generate any runtime 
-    instructions. The returned `!loom.view` type represents a "logical 
+    instructions. The returned `memref` type represents a "logical 
     perspective with coordinate information" in the SSA chain.
 
     Example:
     ```mlir
     %view_a = loom.view %arg0[%0, %9][%0, %2][1, 1] 
-              : memref<128x128xf32> -> !loom.view
+              : memref<128x128xf32> to memref<?x?xf32>
     ```
   }];
 
@@ -81,7 +81,7 @@ def ViewOp : Loom_Op<"view", [
     DefaultValuedAttr<BoolAttr, "false">:$temporal_reuse
   );
 
-  let results = (outs Loom_ViewType:$result);
+  let results = (outs AnyMemRef:$result);
 
   let assemblyFormat = [{
     $source ``
@@ -91,7 +91,7 @@ def ViewOp : Loom_Op<"view", [
     `,` `reuse` `:` `[` `seq` `=` $sequential_reuse `,`
                         `spat` `=` $spatial_reuse `,`
                         `temp` `=` $temporal_reuse `]`
-    attr-dict `:` type($source) `->` type($result)
+    attr-dict `:` type($source) `to` type($result)
   }];
 
   let extraClassDeclaration = [{
@@ -99,6 +99,13 @@ def ViewOp : Loom_Op<"view", [
     ::mlir::MemRefType getSourceType() {
       return ::llvm::dyn_cast<::mlir::MemRefType>(getSource().getType());
     }
+
+    /// Infer the result type from source type and static parameters.
+    static ::mlir::MemRefType inferResultType(
+        ::mlir::MemRefType sourceType,
+        ::llvm::ArrayRef<int64_t> staticOffsets,
+        ::llvm::ArrayRef<int64_t> staticSizes,
+        ::llvm::ArrayRef<int64_t> staticStrides);
 
     /// Return the number of leading operands before offsets, sizes, strides.
     static unsigned getOffsetSizeAndStrideStartOperandIndex() { return 1; }
@@ -169,7 +176,7 @@ def CopyToTensorOp : Loom_Op<"copy_to_tensor", [
     semantics (tensor). It has side effects as it represents a DMA transfer.
 
     Input:
-    - source_view: A `!loom.view` object representing the memref reference
+    - source_view: A `memref` object representing the memref reference
       and physical coordinates (Offsets, Sizes)
     - buffer_token: A `!loom.buffer_token` object representing L1 placeholder
 
@@ -178,12 +185,12 @@ def CopyToTensorOp : Loom_Op<"copy_to_tensor", [
     Example:
     ```mlir
     %t = loom.copy_to_tensor %view, %token 
-         : !loom.view, !loom.buffer_token -> tensor<64x64xf32>
+         : memref<?x?xf32>, !loom.buffer_token -> tensor<64x64xf32>
     ```
   }];
 
   let arguments = (ins
-    Loom_ViewType:$source_view,
+    AnyMemRef:$source_view,
     Loom_BufferTokenType:$buffer_token,
     OptionalAttr<SymbolRefAttr>:$memory,
     Optional<Index>:$provenance,
@@ -218,20 +225,20 @@ def CopyFromTensorOp : Loom_Op<"copy_from_tensor", [
     Input:
     - source_tensor: The tensor to write back (typically the final result
       from computation), using AnyRankedTensor
-    - target_view: A `!loom.view` object encapsulating the target memref 
+    - target_view: A `memref` object encapsulating the target memref 
       reference and physical coordinates (Offsets, Sizes)
 
     Output: void (none)
 
     Example:
     ```mlir
-    loom.copy_from_tensor %tensor, %view : tensor<64x64xf32>, !loom.view
+    loom.copy_from_tensor %tensor, %view : tensor<64x64xf32>, memref<?x?xf32>
     ```
   }];
 
   let arguments = (ins
     AnyRankedTensor:$source_tensor,
-    Loom_ViewType:$target_view,
+    AnyMemRef:$target_view,
     OptionalAttr<SymbolRefAttr>:$memory
   );
 
@@ -291,7 +298,7 @@ def Loom_PackToTensorOp : Loom_Op<"pack_to_tensor", [
   ]> {
   let summary = "Packs a 2D view into a 3D tiled tensor in a specific memory space.";
   let description = [{
-    This op takes a 2D !loom.view and a !loom.buffer_token, and produces a 3D tensor.
+    This op takes a 2D memref and a !loom.buffer_token, and produces a 3D tensor.
     It represents the physical move and layout transformation from Global Memory to L1.
 
     It performs tiling on the second dimension of the input view and permutes the
@@ -302,12 +309,12 @@ def Loom_PackToTensorOp : Loom_Op<"pack_to_tensor", [
     %packed_A = loom.pack_to_tensor %view, %token 
                 inner_tiles = [64] 
                 outer_dims_perm = [1, 0]
-                : !loom.view, !loom.buffer_token -> tensor<8x128x64xf32>
+                : memref<?x?xf32>, !loom.buffer_token -> tensor<8x128x64xf32>
     ```
   }];
 
   let arguments = (ins 
-    Loom_ViewType:$source,
+    AnyMemRef:$source,
     Loom_BufferTokenType:$buffer_token,
     Variadic<Index>:$inner_tiles,
     DenseI64ArrayAttr:$outer_dims_perm

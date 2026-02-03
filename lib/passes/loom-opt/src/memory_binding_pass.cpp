@@ -40,10 +40,13 @@ struct ReadBlockLoadingLowering
     Location loc = op.getLoc();
 
     // 1. Create loom.view
-    auto viewType = loom::ViewType::get(rewriter.getContext());
+    auto viewResultType = loom::ViewOp::inferResultType(
+        cast<MemRefType>(subviewOp.getSource().getType()),
+        subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
+        subviewOp.getStaticStrides());
     auto viewOp = loom::ViewOp::create(
-        rewriter, loc, viewType, subviewOp.getSource(), subviewOp.getOffsets(),
-        subviewOp.getSizes(), subviewOp.getStrides(),
+        rewriter, loc, viewResultType, subviewOp.getSource(),
+        subviewOp.getOffsets(), subviewOp.getSizes(), subviewOp.getStrides(),
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
         subviewOp.getStaticStrides(), false, false, false);
 
@@ -134,13 +137,16 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
     if (!toBufferOp || !subviewOp)
       return failure();
 
-    Location loc = op.getLoc();
+    Location loc = subviewOp.getLoc();
 
-    // 1. Create loom.view for the target
-    auto viewType = loom::ViewType::get(rewriter.getContext());
+    // 1. Create loom.view
+    auto viewResultType = loom::ViewOp::inferResultType(
+        cast<MemRefType>(subviewOp.getSource().getType()),
+        subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
+        subviewOp.getStaticStrides());
     auto viewOp = loom::ViewOp::create(
-        rewriter, loc, viewType, subviewOp.getSource(), subviewOp.getOffsets(),
-        subviewOp.getSizes(), subviewOp.getStrides(),
+        rewriter, loc, viewResultType, subviewOp.getSource(),
+        subviewOp.getOffsets(), subviewOp.getSizes(), subviewOp.getStrides(),
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
         subviewOp.getStaticStrides(), false, false, false);
 
