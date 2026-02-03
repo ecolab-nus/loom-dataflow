@@ -260,7 +260,7 @@ llvm::SmallVector<AllocInfo> collectL1AllocInfos(func::FuncOp func) {
     info.elemSize = baseElemSize * alloc.getBufferCount();
 
     // 4. Trace dynamic dimensions
-    auto dynamicOperands = alloc.getDynamicSizes();
+    auto dynamicOperands = alloc.getSizes();
     llvm::SmallVector<StringRef> symbolicVars;
     llvm::SmallVector<std::pair<int64_t, StringRef>> ceildivs;
 
