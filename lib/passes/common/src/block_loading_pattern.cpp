@@ -541,9 +541,13 @@ void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
 
   // 2. Hoist AllocOp (2D with expanded size)
   auto new_alloc = builder.create<loom::AllocOp>(
-      alloc.getLoc(), alloc.getResult().getType(), new_view_sizes,
-      alloc.getMemoryAttr(), alloc.getAlignmentAttr(),
-      alloc.getBufferCountAttr());
+      alloc.getLoc(), alloc.getResult().getType(),
+      new_view_sizes, 
+      builder.getDenseI64ArrayAttr(mlir::SmallVector<int64_t>(
+          new_view_sizes.size(), mlir::ShapedType::kDynamic)),
+      alloc.getAlignmentAttr(), alloc.getBufferCountAttr(),
+      alloc.getMemoryAttr()
+    );
 
   // 3. Create PackToTensorOp
   // Use tracked innerTile (block size) as operand.

@@ -127,21 +127,32 @@ def AllocOp : Loom_Op<"alloc"> {
 
     Example:
     ```mlir
-    %token = loom.alloc(%M, %K) on @L1 {buffer_count = 2} : !loom.buffer_token
+    %token = loom.alloc(32, 32) on @L1 {buffer_count = 2} : !loom.buffer_token
     ```
   }];
 
   let arguments = (ins
-    Variadic<Index>:$dynamicSizes,
-    SymbolRefAttr:$memory,
+    Variadic<Index>:$sizes,
+    DenseI64ArrayAttr:$static_sizes,
     OptionalAttr<I64Attr>:$alignment,
-    DefaultValuedAttr<I64Attr, "1">:$buffer_count
+    DefaultValuedAttr<I64Attr, "1">:$buffer_count,
+    SymbolRefAttr:$memory
   );
 
   let results = (outs Loom_BufferTokenType:$result);
 
   let assemblyFormat = [{
-    (`(` $dynamicSizes^ `)`)? `on` $memory attr-dict `:` type($result)
+    custom<DynamicIndexList>($sizes, $static_sizes) 
+    `on` $memory attr-dict `:` type($result)
+  }];
+
+  let hasCanonicalizer = 1;
+
+  let extraClassDeclaration = [{
+    ::mlir::SmallVector<::mlir::OpFoldResult, 4> getMixedSizes() {
+      ::mlir::Builder builder(getContext());
+      return ::mlir::getMixedValues(getStaticSizes(), getSizes(), builder);
+    }
   }];
 }
 
@@ -246,21 +257,31 @@ def InitTensorOp : Loom_Op<"init_tensor", [Pure]> {
 
     Example:
     ```mlir
-    %token = loom.alloc(%M, %N) on @L1 : !loom.buffer_token
-    %t = loom.init_tensor %token(%M, %N) : !loom.buffer_token -> tensor<?x?xf32>
+    %token = loom.alloc(32, 32) on @L1 : !loom.buffer_token
+    %t = loom.init_tensor %token(32, 32) : !loom.buffer_token -> tensor<32x32xf32>
     ```
   }];
 
   let arguments = (ins
     Loom_BufferTokenType:$buffer_token,
-    Variadic<Index>:$dynamicSizes
+    Variadic<Index>:$sizes,
+    DenseI64ArrayAttr:$static_sizes
   );
 
   let results = (outs AnyRankedTensor:$result);
 
   let assemblyFormat = [{
-    $buffer_token (`(` $dynamicSizes^ `)`)? attr-dict `:` 
+    $buffer_token custom<DynamicIndexList>($sizes, $static_sizes) attr-dict `:` 
     type($buffer_token) `->` type($result)
+  }];
+
+  let hasCanonicalizer = 1;
+
+  let extraClassDeclaration = [{
+    ::mlir::SmallVector<::mlir::OpFoldResult, 4> getMixedSizes() {
+      ::mlir::Builder builder(getContext());
+      return ::mlir::getMixedValues(getStaticSizes(), getSizes(), builder);
+    }
   }];
 }
 

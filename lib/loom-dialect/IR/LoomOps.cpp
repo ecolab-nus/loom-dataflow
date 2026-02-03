@@ -134,6 +134,21 @@ void loom::CopyFromTensorOp::getEffects(
 //===----------------------------------------------------------------------===//
 
 namespace {
+
+bool foldConstantDimensions(SmallVectorImpl<OpFoldResult> &mixedValues) {
+  bool changed = false;
+  for (OpFoldResult &ofp : mixedValues) {
+    if (auto ssaValue = ofp.dyn_cast<Value>()) {
+      IntegerAttr attr;
+      if (matchPattern(ssaValue, m_Constant(&attr))) {
+        ofp = attr;
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+
 struct FoldViewConstants : public OpRewritePattern<ViewOp> {
   using OpRewritePattern<ViewOp>::OpRewritePattern;
 
@@ -143,24 +158,10 @@ struct FoldViewConstants : public OpRewritePattern<ViewOp> {
     SmallVector<OpFoldResult, 4> sizes = op.getMixedSizes();
     SmallVector<OpFoldResult, 4> strides = op.getMixedStrides();
 
-    auto foldConstants = [](SmallVectorImpl<OpFoldResult> &mixedValues) {
-      bool changed = false;
-      for (auto &value : mixedValues) {
-        if (auto ssaValue = value.dyn_cast<Value>()) {
-          IntegerAttr attr;
-          if (matchPattern(ssaValue, m_Constant(&attr))) {
-            value = attr;
-            changed = true;
-          }
-        }
-      }
-      return changed;
-    };
-
     bool changed = false;
-    changed |= foldConstants(offsets);
-    changed |= foldConstants(sizes);
-    changed |= foldConstants(strides);
+    changed |= foldConstantDimensions(offsets);
+    changed |= foldConstantDimensions(sizes);
+    changed |= foldConstantDimensions(strides);
 
     if (!changed)
       return failure();
@@ -176,8 +177,52 @@ struct FoldViewConstants : public OpRewritePattern<ViewOp> {
         op, op.getType(), op.getSource(), dynamicOffsets, dynamicSizes,
         dynamicStrides, rewriter.getDenseI64ArrayAttr(staticOffsets),
         rewriter.getDenseI64ArrayAttr(staticSizes),
-        rewriter.getDenseI64ArrayAttr(staticStrides), op.getSequentialReuse(),
-        op.getSpatialReuse(), op.getTemporalReuse());
+        rewriter.getDenseI64ArrayAttr(staticStrides),
+        op.getSequentialReuseAttr(), op.getSpatialReuseAttr(),
+        op.getTemporalReuseAttr());
+    return success();
+  }
+};
+
+struct FoldAllocConstants : public OpRewritePattern<AllocOp> {
+  using OpRewritePattern<AllocOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(AllocOp op,
+                                PatternRewriter &rewriter) const override {
+    SmallVector<OpFoldResult, 4> sizes = op.getMixedSizes();
+
+    if (!foldConstantDimensions(sizes))
+      return failure();
+
+    SmallVector<Value, 4> dynamicSizes;
+    SmallVector<int64_t, 4> staticSizes;
+    dispatchIndexOpFoldResults(sizes, dynamicSizes, staticSizes);
+
+    rewriter.replaceOpWithNewOp<AllocOp>(
+        op, op.getType(), dynamicSizes,
+        rewriter.getDenseI64ArrayAttr(staticSizes), op.getAlignmentAttr(),
+        op.getBufferCountAttr(), op.getMemoryAttr());
+    return success();
+  }
+};
+
+struct FoldInitTensorConstants : public OpRewritePattern<InitTensorOp> {
+  using OpRewritePattern<InitTensorOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(InitTensorOp op,
+                                PatternRewriter &rewriter) const override {
+    SmallVector<OpFoldResult, 4> sizes = op.getMixedSizes();
+
+    if (!foldConstantDimensions(sizes))
+      return failure();
+
+    SmallVector<Value, 4> dynamicSizes;
+    SmallVector<int64_t, 4> staticSizes;
+    dispatchIndexOpFoldResults(sizes, dynamicSizes, staticSizes);
+
+    rewriter.replaceOpWithNewOp<InitTensorOp>(
+        op, op.getType(), op.getBufferToken(), dynamicSizes,
+        rewriter.getDenseI64ArrayAttr(staticSizes));
     return success();
   }
 };
@@ -186,4 +231,14 @@ struct FoldViewConstants : public OpRewritePattern<ViewOp> {
 void ViewOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                          MLIRContext *context) {
   results.add<FoldViewConstants>(context);
+}
+
+void AllocOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                          MLIRContext *context) {
+  results.add<FoldAllocConstants>(context);
+}
+
+void InitTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                               MLIRContext *context) {
+  results.add<FoldInitTensorConstants>(context);
 }

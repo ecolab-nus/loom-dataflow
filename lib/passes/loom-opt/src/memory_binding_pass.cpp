@@ -41,24 +41,26 @@ struct ReadBlockLoadingLowering
 
     // 1. Create loom.view
     auto viewType = loom::ViewType::get(rewriter.getContext());
-    auto viewOp = rewriter.create<loom::ViewOp>(
-        loc, viewType, subviewOp.getSource(), subviewOp.getOffsets(),
+    auto viewOp = loom::ViewOp::create(
+        rewriter, loc, viewType, subviewOp.getSource(), subviewOp.getOffsets(),
         subviewOp.getSizes(), subviewOp.getStrides(),
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
         subviewOp.getStaticStrides(), false, false, false);
 
     // 2. Create loom.alloc on @L1
     auto tokenType = loom::BufferTokenType::get(rewriter.getContext());
-    auto allocOp = rewriter.create<loom::AllocOp>(
-        loc, tokenType, subviewOp.getSizes(),
-        SymbolRefAttr::get(rewriter.getContext(), "L1"), nullptr, 1);
+    auto allocOp = loom::AllocOp::create(
+        rewriter, loc, tokenType, subviewOp.getSizes(),
+        subviewOp.getStaticSizesAttr(), nullptr, rewriter.getI64IntegerAttr(1),
+        SymbolRefAttr::get(rewriter.getContext(), "L1"));
 
     // 3. Create loom.copy_to_tensor
     auto emptyArray = rewriter.getArrayAttr({});
     auto defaultBroadcast = rewriter.getI64ArrayAttr({1, 1});
-    rewriter.replaceOpWithNewOp<loom::CopyToTensorOp>(
-        op, op.getType(), viewOp, allocOp, nullptr, Value(), emptyArray,
-        defaultBroadcast);
+    rewriter.replaceOp(op, loom::CopyToTensorOp::create(
+                               rewriter, loc, op.getType(), viewOp.getResult(),
+                               allocOp.getResult(), nullptr, Value(),
+                               emptyArray, defaultBroadcast));
 
     // We can't safely remove subview yet if it has other uses,
     // but usually it's just used by to_tensor in this pattern.
@@ -101,13 +103,18 @@ struct OutputTensorInitLowering : public OpRewritePattern<tensor::EmptyOp> {
     Location loc = op.getLoc();
     // 1. Create loom.alloc on @L1
     auto tokenType = loom::BufferTokenType::get(rewriter.getContext());
-    auto allocOp = rewriter.create<loom::AllocOp>(
-        loc, tokenType, op.getDynamicSizes(),
-        SymbolRefAttr::get(rewriter.getContext(), "L1"), nullptr, 1);
+    auto allocOp = loom::AllocOp::create(
+        rewriter, loc, tokenType, op.getDynamicSizes(),
+        rewriter.getDenseI64ArrayAttr(op.getType().getShape()), nullptr,
+        rewriter.getI64IntegerAttr(1),
+        SymbolRefAttr::get(rewriter.getContext(), "L1"));
 
     // 2. Create loom.init_tensor
-    rewriter.replaceOpWithNewOp<loom::InitTensorOp>(op, op.getType(), allocOp,
-                                                    op.getDynamicSizes());
+    rewriter.replaceOp(
+        op, loom::InitTensorOp::create(
+                rewriter, loc, op.getType(), allocOp.getResult(),
+                op.getDynamicSizes(),
+                rewriter.getDenseI64ArrayAttr(op.getType().getShape())));
 
     return success();
   }
@@ -131,15 +138,15 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
 
     // 1. Create loom.view for the target
     auto viewType = loom::ViewType::get(rewriter.getContext());
-    auto viewOp = rewriter.create<loom::ViewOp>(
-        loc, viewType, subviewOp.getSource(), subviewOp.getOffsets(),
+    auto viewOp = loom::ViewOp::create(
+        rewriter, loc, viewType, subviewOp.getSource(), subviewOp.getOffsets(),
         subviewOp.getSizes(), subviewOp.getStrides(),
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
-        subviewOp.getStaticStrides());
+        subviewOp.getStaticStrides(), false, false, false);
 
     // 2. Create loom.copy_from_tensor
-    rewriter.create<loom::CopyFromTensorOp>(loc, toBufferOp.getTensor(), viewOp,
-                                            nullptr);
+    loom::CopyFromTensorOp::create(rewriter, loc, toBufferOp.getTensor(),
+                                   viewOp.getResult(), nullptr);
 
     // Erase original ops
     rewriter.eraseOp(op);
