@@ -410,7 +410,6 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
     //  Check if this is a broadcast operation
     bool isBroadcast = false;
     bool isBroadcastX = false;
-    bool isBroadcastY = false;
     if (auto choiceAttr =
             op->getAttrOfType<DictionaryAttr>("loom.copy.choice")) {
       if (auto kindAttr = choiceAttr.get("kind")) {
@@ -423,9 +422,8 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
                 StringRef dimValue = dimStr.getValue();
                 if (dimValue == "x") {
                   isBroadcastX = true;
-                } else if (dimValue == "y") {
-                  isBroadcastY = true;
                 }
+                // Note: "y" dimension is handled by !isBroadcastX
               }
             }
           }
@@ -521,39 +519,10 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
       Value zero = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), 0);
       Value cond;
-/*       Value physicalCoreX = ConvertLogicalXToTranslatedOp::create(
-        rewriter, loc, coreX);
-      Value physicalCoreY = ConvertLogicalYToTranslatedOp::create(
-        rewriter, loc, coreY); */
       if (isBroadcastX) {
-/*         Value physicalCoreXLeft = ConvertLogicalXToTranslatedOp::create(
-          rewriter, loc, 0);
-        Value physicalCoreXLeftPlusOne = ConvertLogicalXToTranslatedOp::create(
-          rewriter, loc, 1);
-        Value physicalCoreXRight = ConvertLogicalXToTranslatedOp::create(
-          rewriter, loc, 7);
-        Value 
-        memrefArgData->mcast_dest_noc_start_x = physicalCoreXLeftPlusOne;
-        memrefArgData->mcast_dest_noc_end_x = physicalCoreXRight;
-        memrefArgData->mcast_dest_noc_start_y = physicalCoreY;
-        memrefArgData->mcast_dest_noc_end_y = physicalCoreY;
-        memrefArgData->mcast_sender_noc_x = physicalCoreXLeft;
-        memrefArgData->mcast_sender_noc_y = physicalCoreY; */
         cond = rewriter.create<arith::CmpIOp>(
             loc, arith::CmpIPredicate::eq, coreX, zero);
       } else {
-/*         Value physicalCoreYTop = ConvertLogicalXToTranslatedOp::create(
-          rewriter, loc, 0);
-        Value physicalCoreYTopPlusOne = ConvertLogicalXToTranslatedOp::create(
-          rewriter, loc, 1);
-        Value physicalCoreYBottom = ConvertLogicalXToTranslatedOp::create(
-          rewriter, loc, 7);
-        memrefArgData->mcast_dest_noc_start_x = physicalCoreX;
-        memrefArgData->mcast_dest_noc_end_x = physicalCoreX;
-        memrefArgData->mcast_dest_noc_start_y = physicalCoreYTop;
-        memrefArgData->mcast_dest_noc_end_y = physicalCoreYBottom;
-        memrefArgData->mcast_sender_noc_x = physicalCoreX;
-        memrefArgData->mcast_sender_noc_y = physicalCoreYTop; */
         cond = rewriter.create<arith::CmpIOp>(
             loc, arith::CmpIPredicate::eq, coreY, zero);
       }

@@ -138,20 +138,6 @@ public:
   Value getCB(Value arg);
 
   /**
-   * @brief Get the CB index value for a memref argument.
-   * @param arg The memref argument (BlockArgument).
-   * @return The CB index value if found, nullptr otherwise.
-   */
-  Value getCBIndex(Value arg);
-
-  /**
-   * @brief Get the CB type for a memref argument.
-   * @param arg The memref argument (BlockArgument).
-   * @return The CB type if found, nullptr otherwise.
-   */
-  Type getCBType(Value arg);
-
-  /**
    * @brief Get the base address value for a memref argument.
    * @param arg The memref argument (BlockArgument).
    * @return The base address value if found, nullptr otherwise.
@@ -164,65 +150,6 @@ public:
    * @return The tensor accessor value if found, nullptr otherwise.
    */
   Value getTensorAccessor(Value arg);
-
-  /**
-   * @brief Attach multicast metadata to a memref argument.
-   *
-   * @details This stores the NOC destination range and sender/receiver semaphore
-   *          information used when lowering multicast-capable NOC transactions.
-   *          Values are stored in the per-argument MemrefArgData entry and can
-   *          be queried later via the `getMcast*` accessors.
-   *
-   * @param arg The memref argument (BlockArgument).
-   * @param destNocStartX The start x NOC coordinate of the destination range.
-   * @param destNocStartY The start y NOC coordinate of the destination range.
-   * @param destNocEndX The end x NOC coordinate of the destination range.
-   * @param destNocEndY The end y NOC coordinate of the destination range.
-   * @param destNum The number of multicast destinations.
-   * @param senderNocX The sender x NOC coordinate.
-   * @param senderNocY The sender y NOC coordinate.
-   * @param senderSemaphoreAddr The sender semaphore address.
-   * @param receiverSemaphoreAddr The receiver semaphore address.
-   * @return success if the memref argument exists in the tracker, failure otherwise.
-   */
-  LogicalResult setMulticastInfo(Value arg, Value destNocStartX,
-                                Value destNocStartY, Value destNocEndX,
-                                Value destNocEndY, Value destNum,
-                                Value senderNocX, Value senderNocY,
-                                Value senderSemaphoreAddr,
-                                Value receiverSemaphoreAddr);
-
-  /**
-   * @brief Clear multicast metadata for a memref argument.
-   *
-   * @param arg The memref argument (BlockArgument).
-   * @return success if the memref argument exists in the tracker, failure otherwise.
-   */
-  LogicalResult clearMulticastInfo(Value arg);
-
-  /**
-   * @brief Check whether multicast metadata is present for a memref argument.
-   *
-   * @details Returns true if the tracker has a MemrefArgData entry for @p arg
-   *          and all multicast-related fields are non-null.
-   *
-   * @param arg The memref argument (BlockArgument).
-   * @return true if multicast metadata is fully populated, false otherwise.
-   */
-  bool hasMulticastInfo(Value arg);
-
-  /// @name Multicast getters
-  /// @{
-  Value getMcastDestNocStartX(Value arg);
-  Value getMcastDestNocStartY(Value arg);
-  Value getMcastDestNocEndX(Value arg);
-  Value getMcastDestNocEndY(Value arg);
-  Value getMcastDestNum(Value arg);
-  Value getMcastSenderNocX(Value arg);
-  Value getMcastSenderNocY(Value arg);
-  Value getMcastSenderSemaphoreAddr(Value arg);
-  Value getMcastReceiverSemaphoreAddr(Value arg);
-  /// @}
 
   /**
    * @brief Get the index value for an index argument.

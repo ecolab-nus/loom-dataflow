@@ -103,7 +103,6 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
       Value mcast_receiver_semaphore_noc_addr_op;
       Value mcast_receiver_semaphore_addr_ptr;
       Value mcast_sender_semaphore_addr_ptr;
-      auto zeroVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI8Type(), 0);
       if (!isComputeKernel) {
         mcast_sender_semaphore_addr_op = GetSemaphoreOp::create(
           rewriter, loc, mcast_sender_semaphore_addr_arg);
@@ -132,6 +131,7 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
                            mcast_sender_noc_y_op,
                            mcast_sender_semaphore_addr_op);
         
+        auto zeroVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI8Type(), 0);
         mcast_receiver_semaphore_noc_addr_op =
           GetNocMulticastAddrOp::create(
               rewriter, loc, NocAddrType::get(rewriter.getContext()),
