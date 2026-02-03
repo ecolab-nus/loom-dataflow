@@ -63,16 +63,16 @@ enumerateBlockSizeBindings(loom::ConstraintSpaceOp /*csOp*/) {
 
   // Combination 1: (32, 32, 32)
   BlockSizeBinding b1;
-  b1.varValues["BM"] = 32;
-  b1.varValues["BN"] = 32;
-  b1.varValues["BK"] = 32;
+  b1.varValues["BM"] = 64;
+  b1.varValues["BN"] = 64;
+  b1.varValues["BK"] = 64;
   bindings.push_back(b1);
 
   // Combination 2: (32, 32, 64)
   BlockSizeBinding b2;
   b2.varValues["BM"] = 32;
   b2.varValues["BN"] = 32;
-  b2.varValues["BK"] = 64;
+  b2.varValues["BK"] = 256;
   bindings.push_back(b2);
 
   return bindings;
