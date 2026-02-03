@@ -1037,8 +1037,18 @@ struct ConvertComputeStoreOp : public OpConversionPattern<memref::CopyOp> {
     Value outcbNumInputTilesValue =
         rewriter.create<arith::ConstantIntOp>(loc, numTiles, 32);
 
+    // Insert TileRegsAcquireOp at the beginning of the parent block body.
+    // This ensures tile_regs_acquire is the first operation in the parent scope,
+    // while tile_regs_commit stays after cb_reserve_back.
+    if (Block *parentBlock = op->getBlock()) {
+      auto savedPt = rewriter.saveInsertionPoint();
+      rewriter.setInsertionPointToStart(parentBlock);
+      TileRegsAcquireOp::create(rewriter, loc);
+      rewriter.restoreInsertionPoint(savedPt);
+    }
+
     CBReserveBackOp::create(rewriter, loc, outcb, outcbNumInputTilesValue);
-    // commit tile regs
+    // Commit tile regs for compute kernel
     TileRegsCommitOp::create(rewriter, loc);
     TileRegsWaitOp::create(rewriter, loc);
     // pack tile using scf.for loop

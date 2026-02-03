@@ -108,9 +108,6 @@ public:
           ValueRange{in0Cb, in1Cb, outCb, transpose,
                      ctDim, rtDim, ktDim});
 
-      // Acquire destination tile registers once before the matmul loop.
-      TileRegsAcquireOp::create(rewriter, loc);
-
       rewriter.restoreInsertionPoint(savedInsertionPt);
     }
     // cb wait front - get number of tiles/pages for each CB
