@@ -21,7 +21,7 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c64 : index
@@ -61,7 +61,7 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c32 : index
@@ -102,7 +102,7 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c64 : index
@@ -142,7 +142,7 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c32 : index
@@ -183,7 +183,7 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c64 : index
@@ -223,7 +223,7 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c32 : index
@@ -264,7 +264,7 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c64 : index
@@ -304,7 +304,7 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c32 : index
@@ -345,7 +345,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c64 : index
@@ -385,7 +385,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c32 : index
@@ -426,7 +426,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c64 : index
@@ -466,7 +466,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c32 : index
@@ -507,7 +507,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c64 : index
@@ -547,7 +547,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c32 : index
@@ -588,7 +588,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c64 : index
@@ -628,7 +628,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %12, %c32 : index
@@ -670,7 +670,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -711,7 +711,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -753,7 +753,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -794,7 +794,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -836,7 +836,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -877,7 +877,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -919,7 +919,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -960,7 +960,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -1002,7 +1002,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -1043,7 +1043,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -1085,7 +1085,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -1126,7 +1126,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -1168,7 +1168,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -1209,7 +1209,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -1251,7 +1251,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -1292,7 +1292,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -1334,7 +1334,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -1375,7 +1375,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -1417,7 +1417,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -1458,7 +1458,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -1500,7 +1500,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -1541,7 +1541,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -1583,7 +1583,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -1624,7 +1624,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -1666,7 +1666,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -1707,7 +1707,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -1749,7 +1749,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -1790,7 +1790,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -1832,7 +1832,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -1873,7 +1873,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -1915,7 +1915,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c64 : index
@@ -1956,7 +1956,7 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
                 %21 = arith.muli %12, %c32 : index
@@ -1997,7 +1997,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg5, %c64 : index
@@ -2037,7 +2037,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg5, %c32 : index
@@ -2078,7 +2078,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg5, %c64 : index
@@ -2118,7 +2118,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg5, %c32 : index
@@ -2159,7 +2159,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg5, %c64 : index
@@ -2199,7 +2199,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg5, %c32 : index
@@ -2240,7 +2240,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg5, %c64 : index
@@ -2280,7 +2280,7 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg5, %c32 : index
@@ -2321,7 +2321,7 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg6, %c64 : index
@@ -2361,7 +2361,7 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg6, %c32 : index
@@ -2402,7 +2402,7 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg6, %c64 : index
@@ -2442,7 +2442,7 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg6, %c32 : index
@@ -2483,7 +2483,7 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg6, %c64 : index
@@ -2523,7 +2523,7 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg6, %c32 : index
@@ -2564,7 +2564,7 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [64, 64] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg6, %c64 : index
@@ -2604,7 +2604,7 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13 [32, 32] : !loom.buffer_token -> tensor<?x?xf32>
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
               %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
               %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
                 %20 = arith.muli %arg6, %c32 : index

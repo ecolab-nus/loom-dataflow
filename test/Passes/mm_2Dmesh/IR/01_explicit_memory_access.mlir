@@ -15,7 +15,7 @@ module {
       %2 = loom.get_symbolic_block_size @constraints::@BK : index
       affine.parallel (%arg3, %arg4) = (0, 0) to (512 ceildiv symbol(%0), 512 ceildiv symbol(%1)) {
         %3 = loom.alloc [%0, %1] on @L1 : !loom.buffer_token
-        %4 = loom.init_tensor %3 [%0, %1] : !loom.buffer_token -> tensor<?x?xf32>
+        %4 = loom.init_tensor %3[%0, %1] : !loom.buffer_token -> tensor<?x?xf32>
         %5 = linalg.fill ins(%cst : f32) outs(%4 : tensor<?x?xf32>) -> tensor<?x?xf32>
         %6 = affine.for %arg5 = 0 to affine_map<()[s0] -> (512 ceildiv s0)>()[%2] iter_args(%arg6 = %5) -> (tensor<?x?xf32>) {
           %10 = arith.muli %arg3, %0 : index

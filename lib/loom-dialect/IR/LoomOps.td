@@ -271,7 +271,8 @@ def InitTensorOp : Loom_Op<"init_tensor", [Pure]> {
   let results = (outs AnyRankedTensor:$result);
 
   let assemblyFormat = [{
-    $buffer_token custom<DynamicIndexList>($sizes, $static_sizes) attr-dict `:` 
+    $buffer_token ``
+    custom<DynamicIndexList>($sizes, $static_sizes) attr-dict `:` 
     type($buffer_token) `->` type($result)
   }];
 
