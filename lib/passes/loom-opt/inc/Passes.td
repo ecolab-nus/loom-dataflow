@@ -91,6 +91,14 @@ def Materialize : Pass<"loom-materialize", "mlir::ModuleOp"> {
   let constructor = "loom::passes::createMaterializePass()";
 }
 
+def ViewToReinterpretCast : Pass<"loom-view-to-reinterpret-cast", "mlir::ModuleOp"> {
+  let summary = "Convert loom.view to loom.reinterpret_cast";
+  let description = [{
+    Linearize multi-dimensional offsets via affine.apply and adjust strides.
+  }];
+  let constructor = "loom::passes::createViewToReinterpretCastPass()";
+}
+
 def StaticizeTypes : Pass<"loom-staticize-types", "mlir::ModuleOp"> {
   let summary = "Convert dynamic types to static";
   let description = [{
@@ -100,13 +108,6 @@ def StaticizeTypes : Pass<"loom-staticize-types", "mlir::ModuleOp"> {
   let constructor = "loom::passes::createStaticizeTypesPass()";
 }
 
-def LoomToMemRefLowering : Pass<"loom-to-memref-lowering", "mlir::ModuleOp"> {
-  let summary = "Lower loom ops to memref";
-  let description = [{
-    Lower loom dialect operations to memref dialect operations.
-  }];
-  let constructor = "loom::passes::createLoomToMemRefLoweringPass()";
-}
 
 def ConstDedupCleanup : Pass<"loom-const-cleanup", "mlir::ModuleOp"> {
   let summary = "Deduplicate and cleanup constants";

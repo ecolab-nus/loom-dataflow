@@ -67,6 +67,7 @@ int main(int argc, char **argv) {
 
   PassManager pm(&context);
   pm.addPass(loom::passes::createMaterializePass());
+  pm.addPass(loom::passes::createViewToReinterpretCastPass());
   pm.addPass(mlir::createCanonicalizerPass());
   pm.addPass(mlir::createSymbolDCEPass());
 
