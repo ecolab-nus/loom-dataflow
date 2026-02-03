@@ -203,7 +203,7 @@ def CopyToTensorOp : Loom_Op<"copy_to_tensor", [
   let assemblyFormat = [{
     $source_view `,` $buffer_token 
     ( `provenance` `:` $provenance^ )? 
-    ( `to` $memory^ )?
+    ( `on` $memory^ )?
     `,` `interconnect` `:` $interconnect 
     `,` `broadcast` `:` $broadcast 
     attr-dict `:` 
@@ -245,7 +245,7 @@ def CopyFromTensorOp : Loom_Op<"copy_from_tensor", [
   let results = (outs);
 
   let assemblyFormat = [{
-    $source_tensor `,` $target_view ( `to` $memory^ )? attr-dict `:` 
+    $source_tensor `,` $target_view ( `on` $memory^ )? attr-dict `:` 
     type($source_tensor) `,` type($target_view)
   }];
 }
