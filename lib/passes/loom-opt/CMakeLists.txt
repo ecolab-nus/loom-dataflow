@@ -11,16 +11,10 @@ mlir_tablegen(Passes.h.inc -gen-pass-decls -name LoomTritonShared ${TBLGEN_INCLU
 add_public_tablegen_target(LoomTritonSharedPassesIncGen)
 
 add_library(loomTritonSharedPasses STATIC
-    ${CMAKE_CURRENT_LIST_DIR}/src/const_dedup_cleanup.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/enumerate_copy_broadcast.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/hoist_block_loading.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/input_sharing_analysis.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/materialize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/analyze_reuse.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/staticize_types.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/tile_scf_for_to_l1.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/triton_shared_affinize.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/triton_shared_grid_to_parallel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/triton_shared_spatial_mapping_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/memory_binding_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/view_to_reinterpret_cast.cpp

@@ -95,14 +95,14 @@ cmake --build . --config Release
 
 ## Running Tools & Passes
 All binaries live under `build/tool/` after a build. Useful entry points include:
-- `loom-opt/single_stage/affinize` – run the Triton-shared affinization pass.
-- `loom-opt/single_stage/grid_to_parallel` – replace grid indices with a 3-D `affine.parallel`.
+- `loom-opt/single_stage/affinize` (deprecated) – run the Triton-shared affinization pass.
+- `loom-opt/single_stage/grid_to_parallel` (deprecated) – replace grid indices with a 3-D `affine.parallel`.
 - `loom-opt/single_stage/enumerate_hw_mapping` – enumerate spatial mappings and merge a DF module.
 - `loom-opt/single_stage/hoist_block_loading` – hoist block loading operations from innermost loops.
 - `loom-opt/single_stage/analyze_reuse` – analyze and attach `loom.reuse` on `memref.reinterpret_cast`.
 - `loom-opt/single_stage/enumerate_copy_broadcast` – enumerate interconnect broadcast choices for copy operations.
-- `loom-opt/single_stage/tile_scf_for_to_l1` – tile `scf.for` loops to fit L1 memory capacity.
-- `ttshared-opt` – end-to-end Triton-shared → Affine/Dataflow pipeline driver.
+- `loom-opt/single_stage/tile_scf_for_to_l1` (deprecated) – tile `scf.for` loops to fit L1 memory capacity.
+- `ttshared-opt` (deprecated) – end-to-end Triton-shared → Affine/Dataflow pipeline driver.
 - `affine_explore`, `affine_tile`, `affine_analyze` – affine-only exploration, tiling, and reuse analysis utilities.
 
 
@@ -253,17 +253,17 @@ Options: `--warmup=N` (default: 3), `--runs=N` (default: 10), `-q/--quiet`, `-h/
 - Constant deduplication and cleanup (`loom-const-cleanup`)
   - Purpose: Deduplicate `arith.constant` and `arith.constant_index` operations by value and type, remove unused constants, and fold constant operands into `affine.apply` operations to simplify IR.
   - Limitations: Only handles constants that are directly unused or can be folded into affine operations. Does not perform cross-function constant sharing.
-  - Implementation: `lib/passes/loom-opt/const_dedup_cleanup.{h,cpp}`. This pass is automatically run after each major transformation in the pipeline.
+  - Implementation: `lib/passes/loom-opt/src/deprecated/const_dedup_cleanup.{h,cpp}`. (Deprecated)
 
 - Affinize Triton-shared indices (`loom-triton-shared-affinize`)
   - Purpose: Rewrite arithmetic index expressions into `affine.apply`, convert eligible loads/stores to affine form, and express `memref.reinterpret_cast` offsets via affine maps. Treats trailing grid/thread arguments as dims/symbols to expose GPU-style indexing to affine. Promotes 32-bit integer ABI args to `index` type where needed.
   - Limitations: Conservative—only provably affine expressions are converted. Assumes the last 6 function arguments encode grid sizes/indices; nonconforming kernels are left unchanged. Some `memref` ops remain non-affine if indices are not proven affine. Signed division is not converted to affine (to avoid trunc-vs-floor mismatch).
-  - Implementation: See `lib/passes/loom-opt/triton_shared_affinize.{h,cpp}`; pass argument is `loom-triton-shared-affinize`. CLI: `build/tool/loom-opt/single_stage/affinize`.
+  - Implementation: See `lib/passes/loom-opt/src/deprecated/triton_shared_affinize.{h,cpp}`. (Deprecated: See `affinize` tool).
 
 - Grid-to-parallel (`loom-triton-shared-grid-to-parallel`)
   - Purpose: Replace the last three grid index arguments with a 3-D `affine.parallel` with dynamic uppers `(sizeX,sizeY,sizeZ)`; erase index args from the signature and replace their uses by the parallel IVs. This makes the GPU launch grid explicit as a parallel loop structure.
   - Limitations: Requires ≥ 6 function args following `(sizeX,sizeY,sizeZ, idxX,idxY,idxZ)`; otherwise no-op. Expects sizes to be of `index` (affinization establishes this in typical flows). The resulting parallel has no reductions and yields no values.
-  - Implementation: See `lib/passes/loom-opt/triton_shared_grid_to_parallel.{h,cpp}`. CLI: `build/tool/loom-opt/single_stage/grid_to_parallel`.
+  - Implementation: See `lib/passes/loom-opt/src/deprecated/triton_shared_grid_to_parallel.{h,cpp}`. (Deprecated: See `grid_to_parallel` tool).
 
 - Spatial mapping exploration (`loom-triton-shared-explore-spatial-mappings`)
   - Purpose: Enumerate mappings from hardware `df.spatial_dim` declarations to the outermost `affine.parallel` iterators; clone per mapping, annotate inner loops with `loom.mapped_to`, and insert outer `affine.for` "waves" when the mesh cannot cover the grid in one shot. Merges DF declarations into the module.
@@ -288,7 +288,7 @@ Options: `--warmup=N` (default: 3), `--runs=N` (default: 10), `-q/--quiet`, `-h/
 - Tile scf.for loops to L1 (`loom-tile-scf-for-to-l1`)
   - Purpose: Tile `scf.for` loops so that per-tile memory fits within the single `df.memory` (L1) capacity. Computes per-iteration memory from `memref.alloc` operations annotated with `loom.alloc`, picks the largest power-of-two tile factor that fits, and rewrites loops into outer/inner tile structure.
   - Limitations: Requires fully bufferized IR (no tensor types). Assumes exactly one `df.memory`. Requires statically provable loop trip counts with exact divisibility by tile factor. Only considers allocs explicitly annotated as local to the single `df.memory`.
-  - Implementation: `lib/passes/loom-opt/tile_scf_for_to_l1.{h,cpp}`. CLI: `build/tool/loom-opt/single_stage/tile_scf_for_to_l1`.
+  - Implementation: `lib/passes/loom-opt/src/deprecated/tile_scf_for_to_l1.{h,cpp}`. (Deprecated: See `tile_scf_for_to_l1` tool).
 
 ## Tests & Examples
 ```bash
