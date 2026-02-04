@@ -17,38 +17,6 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/loom-opt/single_stage)
 # Loom-constraint tools
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/loom-constraint/single_stage)
 
-# Combined pipeline tool
-add_executable(ttshared-opt
-  ${CMAKE_CURRENT_LIST_DIR}/loom-opt/ttshared-opt.cpp
-)
-
-target_include_directories(ttshared-opt PRIVATE ${MLIR_INCLUDE_DIRS} ${LOOM_PASSES_INC})
-
-target_link_libraries(ttshared-opt PRIVATE
-  loomTritonSharedPasses
-  MLIRIR
-  MLIRParser
-  MLIRSupport
-  LLVMSupport
-  MLIRRegisterAllDialects
-  MLIRFuncDialect
-  MLIRAffineDialect
-  MLIRMemRefDialect
-  MLIRArithDialect
-  MLIRTensorDialect
-  MLIRLinalgDialect
-  MLIRSCFDialect
-  MLIRBufferizationDialect
-  MLIRBufferizationTransforms
-  MLIRPass
-  MLIRAsmParser
-  MLIRBytecodeReader
-  loomDataflowDialect
-  loomDialect
-)
-mlir_check_all_link_libraries(ttshared-opt)
-
-target_compile_options(ttshared-opt PRIVATE -fno-rtti)
 
 
 # Dataflow-dialect tools

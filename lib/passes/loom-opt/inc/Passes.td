@@ -3,26 +3,7 @@
 
 include "mlir/Pass/PassBase.td"
 
-def TritonSharedAffinize : Pass<"loom-triton-shared-affinize", "mlir::ModuleOp"> {
-  let summary = "Affinize Triton-shared indices";
-  let description = [{
-    Rewrite arithmetic index expressions into affine.apply, convert eligible 
-    loads/stores to affine form, and express memref.reinterpret_cast offsets 
-    via affine maps. Treats trailing grid/thread arguments as dims/symbols to 
-    expose GPU-style indexing to affine.
-  }];
-  let constructor = "loom::passes::createTritonSharedAffinizePass()";
-}
 
-def TritonSharedGridToParallel : Pass<"loom-triton-shared-grid-to-parallel", "mlir::ModuleOp"> {
-  let summary = "Replace grid indices with affine.parallel";
-  let description = [{
-    Replace the last three grid index arguments with a 3-D affine.parallel 
-    with dynamic uppers (sizeX,sizeY,sizeZ); erase index args from the 
-    signature and replace their uses by the parallel IVs.
-  }];
-  let constructor = "loom::passes::createTritonSharedGridToParallelPass()";
-}
 
 def TritonSharedExploreSpatialMappings : Pass<"loom-triton-shared-explore-spatial-mappings", "mlir::ModuleOp"> {
   let summary = "Enumerate spatial mappings";
@@ -72,15 +53,6 @@ def EnumerateCopyBroadcast : Pass<"loom-enumerate-copy-broadcast", "mlir::Module
   ];
 }
 
-def TileScfForToL1 : Pass<"loom-tile-scf-for-to-l1", "mlir::ModuleOp"> {
-  let summary = "Tile scf.for loops to fit L1";
-  let description = [{
-    Tile scf.for loops so that per-tile memory fits within the single df.memory 
-    (L1) capacity. Computes per-iteration memory from memref.alloc operations 
-    annotated with loom.alloc.
-  }];
-  let constructor = "loom::passes::createTileScfForToL1Pass()";
-}
 
 def Materialize : Pass<"loom-materialize", "mlir::ModuleOp"> {
   let summary = "Materialize module attributes";
@@ -99,25 +71,8 @@ def ViewToReinterpretCast : Pass<"loom-view-to-reinterpret-cast", "mlir::ModuleO
   let constructor = "loom::passes::createViewToReinterpretCastPass()";
 }
 
-def StaticizeTypes : Pass<"loom-staticize-types", "mlir::ModuleOp"> {
-  let summary = "Convert dynamic types to static";
-  let description = [{
-    Convert dynamic memref and tensor types to static types by materializing 
-    dimension sizes from symbolic values.
-  }];
-  let constructor = "loom::passes::createStaticizeTypesPass()";
-}
 
 
-def ConstDedupCleanup : Pass<"loom-const-cleanup", "mlir::ModuleOp"> {
-  let summary = "Deduplicate and cleanup constants";
-  let description = [{
-    Deduplicate arith.constant and arith.constant_index operations by value 
-    and type, remove unused constants, and fold constant operands into 
-    affine.apply operations.
-  }];
-  let constructor = "loom::passes::createConstDedupCleanupPass()";
-}
 
 def MemoryBindingPass : Pass<"loom-memory-binding", "mlir::ModuleOp"> {
   let summary = "Bind memory allocations to tensor operations";
