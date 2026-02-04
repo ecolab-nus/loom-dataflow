@@ -6,7 +6,9 @@
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -222,6 +224,12 @@ loom::CopyToTensorOp::inferResultType(::mlir::MemRefType sourceType) {
                                sourceType.getElementType());
 }
 
+::mlir::RankedTensorType
+loom::InitTensorOp::inferResultType(::llvm::ArrayRef<int64_t> staticSizes,
+                                    ::mlir::Type elementType) {
+  return RankedTensorType::get(staticSizes, elementType);
+}
+
 void loom::CopyToTensorOp::getEffects(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects) {
@@ -323,17 +331,161 @@ struct FoldInitTensorConstants : public OpRewritePattern<InitTensorOp> {
                                 PatternRewriter &rewriter) const override {
     SmallVector<OpFoldResult, 4> sizes = op.getMixedSizes();
 
-    if (!foldConstantDimensions(sizes))
-      return failure();
+    bool constantsFolded = foldConstantDimensions(sizes);
 
     SmallVector<Value, 4> dynamicSizes;
     SmallVector<int64_t, 4> staticSizes;
     dispatchIndexOpFoldResults(sizes, dynamicSizes, staticSizes);
 
-    rewriter.replaceOpWithNewOp<InitTensorOp>(
-        op, op.getType(), op.getBufferToken(), dynamicSizes,
+    // Check if all sizes are now static
+    bool allStatic = llvm::all_of(
+        staticSizes, [](int64_t s) { return s != ShapedType::kDynamic; });
+
+    auto resultType = llvm::dyn_cast<RankedTensorType>(op.getType());
+    if (!resultType)
+      return failure();
+
+    // Infer new result type if all sizes are static but current type is dynamic
+    bool needsTypeUpdate = allStatic && !resultType.hasStaticShape();
+
+    if (!constantsFolded && !needsTypeUpdate)
+      return failure();
+
+    Type newResultType = resultType;
+    if (needsTypeUpdate) {
+      newResultType = InitTensorOp::inferResultType(
+          staticSizes, resultType.getElementType());
+    }
+
+    auto newOp = rewriter.create<InitTensorOp>(
+        op.getLoc(), newResultType, op.getBufferToken(), dynamicSizes,
         rewriter.getDenseI64ArrayAttr(staticSizes));
+
+    // If type changed, insert a cast to keep IR valid for other users.
+    // Subsequent patterns should propagate the static type.
+    if (newResultType != resultType) {
+      rewriter.replaceOpWithNewOp<tensor::CastOp>(op, resultType,
+                                                  newOp.getResult());
+    } else {
+      rewriter.replaceOp(op, newOp.getResult());
+    }
     return success();
+  }
+};
+
+/// Pattern to update affine.for iter_args and results when init args are
+/// staticized.
+struct StaticizeAffineFor : public OpRewritePattern<affine::AffineForOp> {
+  using OpRewritePattern<affine::AffineForOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(affine::AffineForOp op,
+                                PatternRewriter &rewriter) const override {
+    bool needsUpdate = false;
+    SmallVector<Type> newIterTypes;
+    SmallVector<Value> newInits;
+
+    for (auto [initArg, result] : llvm::zip(op.getInits(), op.getResults())) {
+      Value source = initArg;
+      Type sourceType = initArg.getType();
+
+      if (auto cast = initArg.getDefiningOp<tensor::CastOp>()) {
+        source = cast.getSource();
+        sourceType = source.getType();
+      }
+
+      auto rankedSourceType = llvm::dyn_cast<RankedTensorType>(sourceType);
+      auto rankedResultType =
+          llvm::dyn_cast<RankedTensorType>(result.getType());
+
+      if (rankedSourceType && rankedResultType &&
+          rankedSourceType.hasStaticShape() &&
+          !rankedResultType.hasStaticShape()) {
+        needsUpdate = true;
+        newIterTypes.push_back(rankedSourceType);
+        newInits.push_back(source);
+      } else {
+        newIterTypes.push_back(result.getType());
+        newInits.push_back(initArg);
+      }
+    }
+
+    if (!needsUpdate)
+      return failure();
+
+    // Create new for loop with updated types
+    int64_t step = op.getStep().getSExtValue();
+    auto newForOp = rewriter.create<affine::AffineForOp>(
+        op.getLoc(), op.getLowerBoundOperands(), op.getLowerBoundMap(),
+        op.getUpperBoundOperands(), op.getUpperBoundMap(), step, newInits);
+
+    // Move the body of the old loop to the new one
+    newForOp.getRegion().takeBody(op.getRegion());
+
+    // Update block argument types for the iteration arguments
+    for (auto [idx, blockArg] : llvm::enumerate(newForOp.getRegionIterArgs())) {
+      blockArg.setType(newIterTypes[idx]);
+    }
+
+    // Update the yield inside the loop to use the static types
+    auto yieldOp =
+        cast<affine::AffineYieldOp>(newForOp.getBody()->getTerminator());
+    rewriter.setInsertionPoint(yieldOp);
+    SmallVector<Value> newYieldOperands;
+    for (auto [idx, yieldVal] : llvm::enumerate(yieldOp.getOperands())) {
+      if (yieldVal.getType() != newIterTypes[idx]) {
+        bool castFound = false;
+        if (auto castOp = yieldVal.getDefiningOp<tensor::CastOp>()) {
+          if (castOp.getSource().getType() == newIterTypes[idx]) {
+            newYieldOperands.push_back(castOp.getSource());
+            castFound = true;
+          }
+        }
+        if (!castFound) {
+          // If no cast found, insert one to the expected static type
+          newYieldOperands.push_back(rewriter.create<tensor::CastOp>(
+              yieldOp.getLoc(), newIterTypes[idx], yieldVal));
+        }
+      } else {
+        newYieldOperands.push_back(yieldVal);
+      }
+    }
+    rewriter.replaceOpWithNewOp<affine::AffineYieldOp>(yieldOp,
+                                                       newYieldOperands);
+
+    // Replace old results with casts from new results
+    rewriter.setInsertionPointAfter(newForOp);
+    SmallVector<Value> replacedResults;
+    for (auto [idx, result] : llvm::enumerate(newForOp.getResults())) {
+      if (result.getType() != op.getResult(idx).getType()) {
+        replacedResults.push_back(rewriter.create<tensor::CastOp>(
+            op.getLoc(), op.getResult(idx).getType(), result));
+      } else {
+        replacedResults.push_back(result);
+      }
+    }
+
+    rewriter.replaceOp(op, replacedResults);
+    return success();
+  }
+};
+
+/// Pattern to remove redundant casts before copy_from_tensor.
+struct StaticizeCopyFromTensor : public OpRewritePattern<CopyFromTensorOp> {
+  using OpRewritePattern<CopyFromTensorOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(CopyFromTensorOp op,
+                                PatternRewriter &rewriter) const override {
+    auto source = op.getSourceTensor();
+    if (auto cast = source.getDefiningOp<tensor::CastOp>()) {
+      auto castSource = cast.getSource();
+      auto castSourceType =
+          llvm::dyn_cast<RankedTensorType>(castSource.getType());
+      if (castSourceType && castSourceType.hasStaticShape()) {
+        rewriter.modifyOpInPlace(op, [&]() { op->setOperand(0, castSource); });
+        return success();
+      }
+    }
+    return failure();
   }
 };
 
@@ -377,7 +529,12 @@ void AllocOp::getCanonicalizationPatterns(RewritePatternSet &results,
 
 void InitTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                                MLIRContext *context) {
-  results.add<FoldInitTensorConstants>(context);
+  results.add<FoldInitTensorConstants, StaticizeAffineFor>(context);
+}
+
+void CopyFromTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                                   MLIRContext *context) {
+  results.add<StaticizeCopyFromTensor>(context);
 }
 
 void CopyToTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,

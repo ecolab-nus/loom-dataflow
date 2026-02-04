@@ -319,6 +319,8 @@ def CopyFromTensorOp : Loom_Op<"copy_from_tensor", [
     $source_tensor `,` $target_view ( `on` $memory^ )? attr-dict `:` 
     type($source_tensor) `,` type($target_view)
   }];
+
+  let hasCanonicalizer = 1;
 }
 
 def InitTensorOp : Loom_Op<"init_tensor", [Pure]> {
@@ -361,6 +363,11 @@ def InitTensorOp : Loom_Op<"init_tensor", [Pure]> {
       ::mlir::Builder builder(getContext());
       return ::mlir::getMixedValues(getStaticSizes(), getSizes(), builder);
     }
+
+    /// Infer the result tensor type from static sizes and element type.
+    static ::mlir::RankedTensorType inferResultType(
+        ::llvm::ArrayRef<int64_t> staticSizes,
+        ::mlir::Type elementType);
   }];
 }
 

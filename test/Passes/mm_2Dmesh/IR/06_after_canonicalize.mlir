@@ -21,9 +21,9 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %12, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -35,23 +35,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %12, %c64 : index
               %18 = arith.muli %arg6, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -68,9 +64,9 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %12, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -82,23 +78,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %12, %c32 : index
               %18 = arith.muli %arg6, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -116,9 +108,9 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %12, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -130,23 +122,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %12, %c64 : index
               %18 = arith.muli %arg6, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -163,9 +151,9 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %12, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -177,23 +165,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %12, %c32 : index
               %18 = arith.muli %arg6, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -211,9 +195,9 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %12, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -225,23 +209,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %12, %c64 : index
               %18 = arith.muli %arg6, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -258,9 +238,9 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %12, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -272,23 +252,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %12, %c32 : index
               %18 = arith.muli %arg6, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -306,9 +282,9 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %12, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -320,23 +296,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %12, %c64 : index
               %18 = arith.muli %arg6, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -353,9 +325,9 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %12, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -367,23 +339,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %12, %c32 : index
               %18 = arith.muli %arg6, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -401,9 +369,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %12, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -415,23 +383,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %12, %c64 : index
               %18 = arith.muli %arg5, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -448,9 +412,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %12, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -462,23 +426,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %12, %c32 : index
               %18 = arith.muli %arg5, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -496,9 +456,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %12, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -510,23 +470,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %12, %c64 : index
               %18 = arith.muli %arg5, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -543,9 +499,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %12, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -557,23 +513,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %12, %c32 : index
               %18 = arith.muli %arg5, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -591,9 +543,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %12, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -605,23 +557,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %12, %c64 : index
               %18 = arith.muli %arg5, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -638,9 +586,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %12, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -652,23 +600,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %12, %c32 : index
               %18 = arith.muli %arg5, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -686,9 +630,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %12, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -700,23 +644,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %12, %c64 : index
               %18 = arith.muli %arg5, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -733,9 +673,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %12, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -747,23 +687,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %12, %c32 : index
               %18 = arith.muli %arg5, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -782,9 +718,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -796,23 +732,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -830,9 +762,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -844,23 +776,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -879,9 +807,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -893,23 +821,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -927,9 +851,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -941,23 +865,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -976,9 +896,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -990,23 +910,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1024,9 +940,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1038,23 +954,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1073,9 +985,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1087,23 +999,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1121,9 +1029,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1135,23 +1043,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1170,9 +1074,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1184,23 +1088,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1218,9 +1118,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1232,23 +1132,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1267,9 +1163,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1281,23 +1177,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1315,9 +1207,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1329,23 +1221,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1364,9 +1252,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1378,23 +1266,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1412,9 +1296,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1426,23 +1310,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1461,9 +1341,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1475,23 +1355,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1509,9 +1385,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1523,23 +1399,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1558,9 +1430,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1572,23 +1444,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1606,9 +1474,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1620,23 +1488,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1655,9 +1519,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1669,23 +1533,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1703,9 +1563,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1717,23 +1577,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1752,9 +1608,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1766,23 +1622,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1800,9 +1652,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1814,23 +1666,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1849,9 +1697,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1863,23 +1711,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1897,9 +1741,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1911,23 +1755,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1946,9 +1786,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -1960,23 +1800,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1994,9 +1830,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -2008,23 +1844,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -2043,9 +1875,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -2057,23 +1889,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -2091,9 +1919,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -2105,23 +1933,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -2140,9 +1964,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -2154,23 +1978,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -2188,9 +2008,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -2202,23 +2022,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -2237,9 +2053,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %17 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %16) -> (tensor<64x64xf32>) {
                 %22 = arith.muli %12, %c64 : index
                 %23 = arith.muli %arg7, %c64 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -2251,23 +2067,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%16 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %34 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<64x64xf32>
+              }
               %18 = arith.muli %12, %c64 : index
               %19 = arith.muli %13, %c64 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -2285,9 +2097,9 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<?x?xf32>) {
+              %15 = loom.init_tensor %14[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %17 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %16) -> (tensor<32x32xf32>) {
                 %22 = arith.muli %12, %c32 : index
                 %23 = arith.muli %arg7, %c256 : index
                 %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
@@ -2299,23 +2111,19 @@ module {
                 %30 = loom.reinterpret_cast %arg1 to offset : [%29], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %31 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %16 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %35 = arith.addf %in, %in_3 : f32
+                %33 = linalg.matmul ins(%27, %32 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%16 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %34 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %33 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%15 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %35 = arith.addf %in, %in_0 : f32
                   linalg.yield %35 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %34 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %34 : tensor<32x32xf32>
+              }
               %18 = arith.muli %12, %c32 : index
               %19 = arith.muli %13, %c32 : index
               %20 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%18, %19)
               %21 = loom.reinterpret_cast %arg2 to offset : [%20], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %17, %21 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %17, %21 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -2333,9 +2141,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %arg5, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2347,23 +2155,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %arg5, %c64 : index
               %18 = arith.muli %12, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2380,9 +2184,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %arg5, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2394,23 +2198,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %arg5, %c32 : index
               %18 = arith.muli %12, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2428,9 +2228,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %arg5, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2442,23 +2242,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %arg5, %c64 : index
               %18 = arith.muli %12, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2475,9 +2271,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %arg5, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2489,23 +2285,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %arg5, %c32 : index
               %18 = arith.muli %12, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2523,9 +2315,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %arg5, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2537,23 +2329,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %arg5, %c64 : index
               %18 = arith.muli %12, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2570,9 +2358,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %arg5, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2584,23 +2372,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %arg5, %c32 : index
               %18 = arith.muli %12, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2618,9 +2402,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %arg5, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2632,23 +2416,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %arg5, %c64 : index
               %18 = arith.muli %12, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2665,9 +2445,9 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %arg5, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2679,23 +2459,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %arg5, %c32 : index
               %18 = arith.muli %12, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2713,9 +2489,9 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %arg6, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2727,23 +2503,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %arg6, %c64 : index
               %18 = arith.muli %12, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2760,9 +2532,9 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %arg6, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2774,23 +2546,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %arg6, %c32 : index
               %18 = arith.muli %12, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2808,9 +2576,9 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %arg6, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2822,23 +2590,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %arg6, %c64 : index
               %18 = arith.muli %12, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2855,9 +2619,9 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %arg6, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2869,23 +2633,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %arg6, %c32 : index
               %18 = arith.muli %12, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2903,9 +2663,9 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %arg6, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2917,23 +2677,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %arg6, %c64 : index
               %18 = arith.muli %12, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2950,9 +2706,9 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %arg6, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -2964,23 +2720,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %arg6, %c32 : index
               %18 = arith.muli %12, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -2998,9 +2750,9 @@ module {
             affine.for %arg6 = 0 to 8 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[64, 64] : !loom.buffer_token -> tensor<64x64xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<64x64xf32>) -> tensor<64x64xf32>
+              %16 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %15) -> (tensor<64x64xf32>) {
                 %21 = arith.muli %arg6, %c64 : index
                 %22 = arith.muli %arg7, %c64 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -3012,23 +2764,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [64, 64] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<64x64xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<64x64xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast : tensor<64x64xf32>) -> tensor<64x64xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<64x64xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<64x64xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%cast_1 : tensor<64x64xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%14 : tensor<64x64xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<64x64xf32>
-                %cast_2 = tensor.cast %33 : tensor<64x64xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<64x64xf32>
+              }
               %17 = arith.muli %arg6, %c64 : index
               %18 = arith.muli %12, %c64 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [64, 64], strides : [512, 1] : memref<512x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<64x64xf32>, memref<64x64xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -3045,9 +2793,9 @@ module {
             affine.for %arg6 = 0 to 16 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [32, 32] on @L1 : !loom.buffer_token
-              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<?x?xf32>
-              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<?x?xf32>) -> tensor<?x?xf32>
-              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<?x?xf32>) {
+              %14 = loom.init_tensor %13[32, 32] : !loom.buffer_token -> tensor<32x32xf32>
+              %15 = linalg.fill ins(%cst : f32) outs(%14 : tensor<32x32xf32>) -> tensor<32x32xf32>
+              %16 = affine.for %arg7 = 0 to 2 iter_args(%arg8 = %15) -> (tensor<32x32xf32>) {
                 %21 = arith.muli %arg6, %c32 : index
                 %22 = arith.muli %arg7, %c256 : index
                 %23 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%21, %22)
@@ -3059,23 +2807,19 @@ module {
                 %29 = loom.reinterpret_cast %arg1 to offset : [%28], sizes : [256, 32], strides : [512, 1] : memref<512x512xf32> to memref<256x32xf32, strided<[512, 1], offset: ?>>
                 %30 = loom.alloc [256, 32] on @L1 : !loom.buffer_token
                 %31 = loom.copy_to_tensor %29, %30 on @L1, interconnect : [], broadcast : [1, 1] : memref<256x32xf32, strided<[512, 1], offset: ?>>, !loom.buffer_token -> tensor<256x32xf32>
-                %cast = tensor.cast %15 : tensor<?x?xf32> to tensor<32x32xf32>
-                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%cast : tensor<32x32xf32>) -> tensor<32x32xf32>
-                %cast_0 = tensor.cast %arg8 : tensor<?x?xf32> to tensor<32x32xf32>
-                %cast_1 = tensor.cast %14 : tensor<?x?xf32> to tensor<32x32xf32>
-                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cast_0, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%cast_1 : tensor<32x32xf32>) {
-                ^bb0(%in: f32, %in_3: f32, %out: f32):
-                  %34 = arith.addf %in, %in_3 : f32
+                %32 = linalg.matmul ins(%26, %31 : tensor<32x256xf32>, tensor<256x32xf32>) outs(%15 : tensor<32x32xf32>) -> tensor<32x32xf32>
+                %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %32 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%14 : tensor<32x32xf32>) {
+                ^bb0(%in: f32, %in_0: f32, %out: f32):
+                  %34 = arith.addf %in, %in_0 : f32
                   linalg.yield %34 : f32
                 } -> tensor<32x32xf32>
-                %cast_2 = tensor.cast %33 : tensor<32x32xf32> to tensor<?x?xf32>
-                affine.yield %cast_2 : tensor<?x?xf32>
-              } {loom.iter_type = #loom.iter_type<sequential>}
+                affine.yield %33 : tensor<32x32xf32>
+              }
               %17 = arith.muli %arg6, %c32 : index
               %18 = arith.muli %12, %c32 : index
               %19 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%17, %18)
               %20 = loom.reinterpret_cast %arg2 to offset : [%19], sizes : [32, 32], strides : [512, 1] : memref<512x512xf32> to memref<32x32xf32, strided<[512, 1], offset: ?>>
-              loom.copy_from_tensor %16, %20 on @DRAM : tensor<?x?xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
+              loom.copy_from_tensor %16, %20 on @DRAM : tensor<32x32xf32>, memref<32x32xf32, strided<[512, 1], offset: ?>>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
