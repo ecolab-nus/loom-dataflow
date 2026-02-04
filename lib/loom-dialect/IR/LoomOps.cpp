@@ -216,6 +216,12 @@ MemRefType loom::ViewOp::inferResultType(MemRefType sourceType,
   return MemRefType::get(resultShape, elementType, layout, memorySpace);
 }
 
+::mlir::RankedTensorType
+loom::CopyToTensorOp::inferResultType(::mlir::MemRefType sourceType) {
+  return RankedTensorType::get(sourceType.getShape(),
+                               sourceType.getElementType());
+}
+
 void loom::CopyToTensorOp::getEffects(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects) {
@@ -330,6 +336,33 @@ struct FoldInitTensorConstants : public OpRewritePattern<InitTensorOp> {
     return success();
   }
 };
+
+struct FoldCopyToTensorType : public OpRewritePattern<CopyToTensorOp> {
+  using OpRewritePattern<CopyToTensorOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(CopyToTensorOp op,
+                                PatternRewriter &rewriter) const override {
+    auto sourceView = op.getSourceView();
+    auto sourceType = llvm::dyn_cast<MemRefType>(sourceView.getType());
+    if (!sourceType)
+      return failure();
+
+    auto resultType = llvm::dyn_cast<RankedTensorType>(op.getType());
+    if (!resultType)
+      return failure();
+
+    // If source has static shape but result is dynamic, update result type
+    if (sourceType.hasStaticShape() && !resultType.hasStaticShape()) {
+      auto newResultType = CopyToTensorOp::inferResultType(sourceType);
+      rewriter.replaceOpWithNewOp<CopyToTensorOp>(
+          op, newResultType, op.getSourceView(), op.getBufferToken(),
+          op.getMemoryAttr(), op.getProvenance(), op.getInterconnectAttr(),
+          op.getBroadcastAttr());
+      return success();
+    }
+    return failure();
+  }
+};
 } // namespace
 
 void ViewOp::getCanonicalizationPatterns(RewritePatternSet &results,
@@ -345,4 +378,9 @@ void AllocOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void InitTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                                MLIRContext *context) {
   results.add<FoldInitTensorConstants>(context);
+}
+
+void CopyToTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                                 MLIRContext *context) {
+  results.add<FoldCopyToTensorType>(context);
 }
