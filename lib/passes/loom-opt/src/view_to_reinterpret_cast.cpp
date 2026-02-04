@@ -134,9 +134,7 @@ public:
           dynamicRcSizes, dynamicRcStrides,
           builder.getDenseI64ArrayAttr({ShapedType::kDynamic}),
           builder.getDenseI64ArrayAttr(staticRcSizes),
-          builder.getDenseI64ArrayAttr(staticRcStrides),
-          viewOp.getSequentialReuse(), viewOp.getSpatialReuse(),
-          viewOp.getTemporalReuse());
+          builder.getDenseI64ArrayAttr(staticRcStrides));
 
       viewOp.getResult().replaceAllUsesWith(rcOp.getResult());
       viewOp.erase();

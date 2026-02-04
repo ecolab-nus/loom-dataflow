@@ -1,8 +1,7 @@
-// Standalone driver that materializes and canonicalizes IR operations.
+// Standalone driver to run the LOOM materialize pass.
 //
 // Usage:
-//   loom_triton_shared_canonicalize --input <input.mlir>
-//   loom_triton_shared_canonicalize --input -  (reads from stdin)
+//   materialize --input <input.mlir>
 
 #include "Passes.h"
 
@@ -14,37 +13,39 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/IR/AsmState.h"
+#include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/FileUtilities.h"
+#include "mlir/Transforms/Passes.h"
+
+#include "DataflowDialect.h.inc"
+#include "LoomDialect.h.inc"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
 
-#include "DataflowDialect.h.inc"
-#include "LoomDialect.h.inc"
-
 using namespace mlir;
 
 static llvm::cl::opt<std::string>
-    clInput("input",
-            llvm::cl::desc("Path to input MLIR file (use '-' for stdin)"),
-            llvm::cl::value_desc("filename"), llvm::cl::init("-"));
+    clInput("input", llvm::cl::desc("Path to input MLIR file"),
+            llvm::cl::value_desc("filename"), llvm::cl::Required);
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
-                                    "LOOM Triton-shared canonicalize pass\n");
+                                    "LOOM materialize pass driver\n");
 
   MLIRContext context;
-  context.loadDialect<mlir::BuiltinDialect>();
+  (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
   context.loadDialect<mlir::func::FuncDialect>();
-  context.loadDialect<mlir::affine::AffineDialect>();
   context.loadDialect<mlir::arith::ArithDialect>();
-  context.loadDialect<mlir::memref::MemRefDialect>();
+  context.loadDialect<mlir::affine::AffineDialect>();
   context.loadDialect<mlir::tensor::TensorDialect>();
   context.loadDialect<mlir::linalg::LinalgDialect>();
+  context.loadDialect<mlir::memref::MemRefDialect>();
   context.loadDialect<mlir::scf::SCFDialect>();
   context.loadDialect<mlir::bufferization::BufferizationDialect>();
   context.loadDialect<loom::df::DataflowDialect>();
@@ -65,15 +66,13 @@ int main(int argc, char **argv) {
   }
 
   PassManager pm(&context);
-  /// Step 1: Materialize - Replace loom.get_module_attribute with
-  /// arith.constant.
   pm.addPass(loom::passes::createMaterializePass());
-  /// Step 2: Staticize - Convert dynamic memref/tensor types to static types.
-  pm.addPass(loom::passes::createStaticizeTypesPass());
-  /// Step 4: Affinize - Convert index arithmetic to affine IR.
-  pm.addPass(loom::passes::createTritonSharedAffinizePass());
+  pm.addPass(mlir::createCanonicalizerPass());
+  pm.addPass(mlir::createSymbolDCEPass());
+  pm.addPass(loom::passes::createViewToReinterpretCastPass());
+
   if (failed(pm.run(*module))) {
-    llvm::WithColor::error(llvm::errs()) << "Canonicalize pass failed\n";
+    llvm::WithColor::error(llvm::errs()) << "Materialize pass failed\n";
     return 2;
   }
 

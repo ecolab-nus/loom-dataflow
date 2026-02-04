@@ -85,12 +85,7 @@ def ReinterpretCastOp : Loom_Op<"reinterpret_cast", [
         Variadic<Index>:$strides,
         DenseI64ArrayAttr:$static_offsets,
         DenseI64ArrayAttr:$static_sizes,
-        DenseI64ArrayAttr:$static_strides,
-        // memory reuse attributes
-        DefaultValuedAttr<BoolAttr, "false">:$sequential_reuse,
-        DefaultValuedAttr<BoolAttr, "false">:$spatial_reuse,
-        DefaultValuedAttr<BoolAttr, "false">:$temporal_reuse
-
+        DenseI64ArrayAttr:$static_strides
     );
 
   let results = (outs AnyMemRef:$result);
@@ -100,9 +95,6 @@ def ReinterpretCastOp : Loom_Op<"reinterpret_cast", [
     `offset` `:` custom<DynamicIndexList>($offsets, $static_offsets)
     `,` `sizes` `:` custom<DynamicIndexList>($sizes, $static_sizes)
     `,` `strides` `:` custom<DynamicIndexList>($strides, $static_strides)
-    `,` `reuse` `:` `[` `seq` `=` $sequential_reuse `,`
-                        `spat` `=` $spatial_reuse `,`
-                        `temp` `=` $temporal_reuse `]`
     attr-dict `:` type($source) `to` type($result)
   }];
 

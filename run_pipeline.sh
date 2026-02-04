@@ -70,9 +70,9 @@ fi
 
 # optional) Materialize symbolic block sizes
 echo "(optional) Materialize symbolic block sizes..."
-if ! build/tool/loom-opt/single_stage/materialize \
+if ! build/tool/loom-opt/single_stage/canonicalize \
   --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
-  > test/Passes/mm_2Dmesh/IR/06_after_materialize.mlir; then
+  > test/Passes/mm_2Dmesh/IR/06_after_canonicalize.mlir; then
     echo "Error: (optional) Materialize symbolic block sizes failed."
     exit 1
 fi
