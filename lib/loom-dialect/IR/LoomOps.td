@@ -274,6 +274,12 @@ def CopyToTensorOp : Loom_Op<"copy_to_tensor", [
     attr-dict `:` 
     type($source_view) `,` type($buffer_token) `->` type($result)
   }];
+
+  let hasCanonicalizer = 1;
+
+  let extraClassDeclaration = [{
+    static ::mlir::RankedTensorType inferResultType(::mlir::MemRefType sourceType);
+  }];
 }
 
 def CopyFromTensorOp : Loom_Op<"copy_from_tensor", [
