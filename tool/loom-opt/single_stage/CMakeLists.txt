@@ -251,6 +251,9 @@ target_link_libraries(linalg_destination_specialization PRIVATE
   MLIRSCFDialect
   MLIRBufferizationDialect
   MLIRPass
+  MLIRTransforms
+  MLIRLinalgTransforms
+  MLIRControlFlowDialect
   MLIRAsmParser
   MLIRBytecodeReader
   loomDataflowDialect

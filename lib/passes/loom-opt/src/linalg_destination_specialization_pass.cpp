@@ -6,6 +6,7 @@
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -18,30 +19,51 @@ namespace {
 // Accumulation Operator Support (Extensibility Interface)
 //===----------------------------------------------------------------------===//
 
-/// Returns true if the given operation is a supported accumulation operator.
-/// TODO: Extend to support arith.addi, arith.maximumf, arith.mulf, etc.
 static bool isSupportedAccumulationOp(Operation *op) {
-  return isa<arith::AddFOp>(op);
+  return isa<arith::AddFOp, arith::AddIOp, arith::MaximumFOp, arith::MaxSIOp,
+             arith::MinimumFOp, arith::MinSIOp, arith::MulFOp, arith::MulIOp>(
+      op);
 }
 
-/// Returns true if the given value is the neutral element for the accumulation
-/// operator type.
-/// TODO: Extend to support neutral elements for other operators:
-///   - arith.addi: 0
-///   - arith.maximumf: -inf
-///   - arith.mulf: 1
 static bool isNeutralElement(Value fillValue, Operation *accumulationOp) {
-  if (isa<arith::AddFOp>(accumulationOp)) {
-    if (auto constOp = fillValue.getDefiningOp<arith::ConstantFloatOp>()) {
-      return constOp.value().isZero();
+  Attribute attr;
+  if (auto constOp = fillValue.getDefiningOp<arith::ConstantOp>()) {
+    attr = constOp.getValue();
+  } else if (auto constOp = fillValue.getDefiningOp<arith::ConstantFloatOp>()) {
+    attr = constOp.getValueAttr();
+  } else if (auto constOp = fillValue.getDefiningOp<arith::ConstantIntOp>()) {
+    attr = constOp.getValueAttr();
+  }
+
+  if (!attr)
+    return false;
+
+  if (isa<arith::AddFOp, arith::AddIOp>(accumulationOp)) {
+    if (auto floatAttr = dyn_cast<FloatAttr>(attr))
+      return floatAttr.getValue().isZero();
+    if (auto intAttr = dyn_cast<IntegerAttr>(attr))
+      return intAttr.getInt() == 0;
+  }
+  if (isa<arith::MulFOp, arith::MulIOp>(accumulationOp)) {
+    if (auto floatAttr = dyn_cast<FloatAttr>(attr))
+      return floatAttr.getValue().isExactlyValue(1.0);
+    if (auto intAttr = dyn_cast<IntegerAttr>(attr))
+      return intAttr.getInt() == 1;
+  }
+  if (isa<arith::MaximumFOp, arith::MaxSIOp>(accumulationOp)) {
+    if (auto floatAttr = dyn_cast<FloatAttr>(attr)) {
+      return floatAttr.getValue().isInfinity() &&
+             floatAttr.getValue().isNegative();
     }
-    if (auto constOp = fillValue.getDefiningOp<arith::ConstantOp>()) {
-      if (auto floatAttr = dyn_cast_or_null<FloatAttr>(constOp.getValue())) {
-        return floatAttr.getValue().isZero();
-      }
+    // For integer max, we'd need the bitwidth to check for min_int.
+    // Skipping for now.
+  }
+  if (isa<arith::MinimumFOp, arith::MinSIOp>(accumulationOp)) {
+    if (auto floatAttr = dyn_cast<FloatAttr>(attr)) {
+      return floatAttr.getValue().isInfinity() &&
+             !floatAttr.getValue().isNegative();
     }
   }
-  // TODO: Handle other accumulation operators here
   return false;
 }
 
@@ -101,27 +123,74 @@ static Operation *getReductionOp(linalg::LinalgOp producer) {
   return nullptr;
 }
 
+/// Returns true if the LinalgOp has at least one reduction iterator.
+static bool isReductionProducer(linalg::LinalgOp op) {
+  return llvm::any_of(op.getIteratorTypesArray(), [](utils::IteratorType t) {
+    return t == utils::IteratorType::reduction;
+  });
+}
+
 /// Check if producer and consumer have semantically aligned accumulation.
 static bool isSemanticAligned(linalg::LinalgOp producer,
                               linalg::GenericOp consumer) {
-  Operation *consumerAccOp = getAccumulationOp(consumer);
-  Operation *producerRedOp = getReductionOp(producer);
-
-  if (!consumerAccOp || !producerRedOp)
+  if (!isReductionProducer(producer))
     return false;
 
-  // Both must be the same type of accumulation operator
-  return consumerAccOp->getName() == producerRedOp->getName();
+  Operation *consumerAccOp = getAccumulationOp(consumer);
+  if (!consumerAccOp)
+    return false;
+
+  Operation *producerRedOp = getReductionOp(producer);
+  if (producerRedOp) {
+    return consumerAccOp->getName() == producerRedOp->getName();
+  }
+
+  return false;
 }
 
-/// Get the actual accumulator (state variable) from consumer inputs,
-/// excluding the producer's result.
+/// Get the actual accumulator value from consumer inputs corresponding to the
+/// operand of the accumulation op that is NOT the producer result.
 static Value getActualAccumulator(linalg::GenericOp consumer,
                                   Value producerResult) {
-  for (Value input : consumer.getInputs()) {
-    if (input != producerResult)
-      return input;
+  Operation *accOp = getAccumulationOp(consumer);
+  if (!accOp)
+    return Value();
+
+  Block &body = consumer.getRegion().front();
+  unsigned producerInputIdx = 0;
+  bool found = false;
+  for (auto it : llvm::enumerate(consumer.getInputs())) {
+    if (it.value() == producerResult) {
+      producerInputIdx = it.index();
+      found = true;
+      break;
+    }
   }
+  if (!found)
+    return Value();
+  BlockArgument producerArg = body.getArgument(producerInputIdx);
+
+  // Find the other operand of the accumulation op
+  Value otherOperand;
+  if (accOp->getOperand(0) == producerArg) {
+    otherOperand = accOp->getOperand(1);
+  } else if (accOp->getOperand(1) == producerArg) {
+    otherOperand = accOp->getOperand(0);
+  }
+
+  if (!otherOperand)
+    return Value();
+
+  // The other operand must eventually come from a block argument of the generic
+  // (if there was fusion, this might be more complex, but we only support
+  // cases where it's a direct input for now)
+  if (auto blockArg = dyn_cast<BlockArgument>(otherOperand)) {
+    if (blockArg.getOwner() == &body &&
+        blockArg.getArgNumber() < consumer.getNumDpsInputs()) {
+      return consumer.getInputs()[blockArg.getArgNumber()];
+    }
+  }
+
   return Value();
 }
 
@@ -146,59 +215,64 @@ struct SpecializeLinalgDestination
     if (!allParallel)
       return failure();
 
-    // Step 2: Consumer must have exactly 2 inputs and 1 output (binary op)
-    if (consumer.getNumDpsInputs() != 2 || consumer.getNumDpsInits() != 1)
+    // Step 2: Consumer must be a simple accumulation block (acc_op + yield)
+    if (consumer.getRegion().front().getOperations().size() != 2)
+      return failure();
+    if (consumer.getNumDpsInits() != 1)
       return failure();
 
-    // Step 3: One input must come from a LinalgOp producer
+    // Step 3: Find an alignable LinalgOp producer
     linalg::LinalgOp producer = nullptr;
     Value producerResult;
     for (Value input : consumer.getInputs()) {
-      if (auto defOp = input.getDefiningOp<linalg::LinalgOp>()) {
-        producer = defOp;
-        producerResult = input;
-        break;
-      }
+      auto defOp = input.getDefiningOp<linalg::LinalgOp>();
+      if (!defOp)
+        continue;
+
+      // Check if this producer is semantically aligned and its outs is a fill
+      if (!isSemanticAligned(defOp, consumer))
+        continue;
+
+      if (defOp.getDpsInits().size() != 1)
+        continue;
+      Value producerOuts = defOp.getDpsInitOperand(0)->get();
+      auto fillOp = producerOuts.getDefiningOp<linalg::FillOp>();
+      if (!fillOp)
+        continue;
+
+      Operation *consumerAccOp = getAccumulationOp(consumer);
+      if (!isNeutralElement(fillOp.getInputs()[0], consumerAccOp))
+        continue;
+
+      // If we got here, we found our producer
+      producer = defOp;
+      producerResult = input;
+      break;
     }
     if (!producer)
       return failure();
 
-    // Step 4: Producer must have single use (the consumer)
-    // We only specialize if the result is only used by this accumulation
-    if (!producerResult.hasOneUse())
-      return failure();
-
-    // Step 5: Producer's outs must come from linalg.fill
-    if (producer.getDpsInits().size() != 1)
-      return failure();
-
-    Value producerOuts = producer.getDpsInitOperand(0)->get();
-    auto fillOp = producerOuts.getDefiningOp<linalg::FillOp>();
-    if (!fillOp)
-      return failure();
-
-    // Step 6: Semantic alignment check
-    if (!isSemanticAligned(producer, consumer))
-      return failure();
-
-    // Step 7: Neutral element verification
-    Operation *consumerAccOp = getAccumulationOp(consumer);
-    Value fillValue = fillOp.getInputs()[0];
-    if (!isNeutralElement(fillValue, consumerAccOp))
-      return failure();
-
-    // Step 8: Get the actual accumulator (typically iter_args)
+    // Step 5: Get the actual accumulator (typically iter_args)
     Value actualAccumulator = getActualAccumulator(consumer, producerResult);
     if (!actualAccumulator)
       return failure();
 
-    // Step 9: Transformation - redirect producer's outs to actual accumulator
-    rewriter.modifyOpInPlace(producer, [&]() {
-      producer.getDpsInitOperand(0)->set(actualAccumulator);
-    });
+    // Step 9: Transformation - clone producer at consumer's location
+    rewriter.setInsertionPoint(consumer);
 
-    // Step 10: Replace all uses of consumer result with producer result
-    rewriter.replaceOp(consumer, producer->getResults());
+    // Use IRMapping to clone the producer
+    // We don't actually need to remap operands during cloning if we update
+    // them right after, but it's cleaner to clone the whole thing.
+    IRMapping mapper;
+    Operation *cloned = rewriter.clone(*producer.getOperation(), mapper);
+    auto clonedLinalgOp = cast<linalg::LinalgOp>(cloned);
+
+    // Update the outs operand of the cloned producer to use the actual
+    // accumulator
+    clonedLinalgOp.getDpsInitOperand(0)->set(actualAccumulator);
+
+    // Step 10: Replace all uses of consumer result with cloned producer result
+    rewriter.replaceOp(consumer, cloned->getResults());
 
     return success();
   }
