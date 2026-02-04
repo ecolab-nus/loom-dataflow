@@ -26,20 +26,28 @@ mkdir -p test/Passes/mm_2Dmesh/IR
 mkdir -p test/Passes/mm_2Dmesh/constraint_space
 mkdir -p test/Passes/mm_2Dmesh/viz
 
-echo "1) Replace grid indices with a 3-D affine.parallel..."
-if ! build/tool/loom-opt/single_stage/memory_binding \
+echo "1) Specialize linalg operations' destination..."
+if ! build/tool/loom-opt/single_stage/linalg_destination_specialization \
   --input test/Passes/mm_2Dmesh/IR/00_from_helion_frontend.mlir  \
-  > test/Passes/mm_2Dmesh/IR/01_explicit_memory_access.mlir; then
+  > test/Passes/mm_2Dmesh/IR/01_linalg_destination_specialized.mlir; then
     echo "Error: Step 1 failed."
     exit 1
 fi
 
-echo "2) Enumerate spatial mappings and merge DF declarations..."
-if ! build/tool/loom-opt/single_stage/enumerate_hw_mapping \
-  --input test/Passes/mm_2Dmesh/IR/01_explicit_memory_access.mlir \
-  --df test/Dialect/DataflowDialect/2D_mesh.mlir \
-  > test/Passes/mm_2Dmesh/IR/02_after_hardware_mapping.mlir; then
+echo "2) Replace grid indices with a 3-D affine.parallel..."
+if ! build/tool/loom-opt/single_stage/memory_binding \
+  --input test/Passes/mm_2Dmesh/IR/01_linalg_destination_specialized.mlir  \
+  > test/Passes/mm_2Dmesh/IR/02_explicit_memory_access.mlir; then
     echo "Error: Step 2 failed."
+    exit 1
+fi
+
+echo "3) Enumerate spatial mappings and merge DF declarations..."
+if ! build/tool/loom-opt/single_stage/enumerate_hw_mapping \
+  --input test/Passes/mm_2Dmesh/IR/02_explicit_memory_access.mlir \
+  --df test/Dialect/DataflowDialect/2D_mesh.mlir \
+  > test/Passes/mm_2Dmesh/IR/03_after_hardware_mapping.mlir; then
+    echo "Error: Step 3 failed."
     exit 1
 fi
 
@@ -53,7 +61,7 @@ fi
 
 echo "4) Analyze reuse pattern on loom.reinterpret_cast..."
 if ! build/tool/loom-opt/single_stage/analyze_reuse \
-  --input test/Passes/mm_2Dmesh/IR/02_after_hardware_mapping.mlir \
+  --input test/Passes/mm_2Dmesh/IR/03_after_hardware_mapping.mlir \
   > test/Passes/mm_2Dmesh/IR/04_after_reuse_analyzation.mlir; then
     echo "Error: Step 4 failed."
     exit 1

@@ -29,6 +29,7 @@ std::unique_ptr<mlir::Pass> createViewToReinterpretCastPass();
 std::unique_ptr<mlir::Pass> createStaticizeTypesPass();
 std::unique_ptr<mlir::Pass> createConstDedupCleanupPass();
 std::unique_ptr<mlir::Pass> createMemoryBindingPass();
+std::unique_ptr<mlir::Pass> createLinalgDestinationSpecializationPass();
 
 // Pass registration functions
 void registerTritonSharedAffinizePass();
@@ -42,6 +43,7 @@ void registerMaterializePass();
 void registerStaticizeTypesPass();
 void registerConstDedupCleanupPass();
 void registerMemoryBindingPass();
+void registerLinalgDestinationSpecializationPass();
 
 #define GEN_PASS_REGISTRATION
 #include "Passes.h.inc"
