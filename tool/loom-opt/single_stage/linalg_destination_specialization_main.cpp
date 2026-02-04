@@ -8,6 +8,7 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -22,6 +23,8 @@
 #include "mlir/Support/FileUtilities.h"
 
 #include "LoomDialect.h.inc"
+#include "mlir/Dialect/Linalg/Passes.h"
+#include "mlir/Transforms/Passes.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
@@ -46,6 +49,7 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::memref::MemRefDialect>();
   context.loadDialect<mlir::scf::SCFDialect>();
   context.loadDialect<mlir::bufferization::BufferizationDialect>();
+  context.loadDialect<mlir::cf::ControlFlowDialect>();
   context.loadDialect<loom::LoomDialect>();
 
   llvm::SourceMgr sm;
@@ -63,7 +67,18 @@ int main(int argc, char **argv) {
   }
 
   PassManager pm(&context);
+
+  // Preprocessing: fuse elementwise generics to make patterns visible and clean
+  pm.addPass(mlir::createLinalgElementwiseOpFusionPass());
+  pm.addPass(mlir::createLinalgFoldUnitExtentDimsPass());
+  pm.addPass(mlir::createCanonicalizerPass());
+
+  // Our destination specialization - now works on simplified/fused IR
   pm.addPass(loom::passes::createLinalgDestinationSpecializationPass());
+
+  // Postprocessing: remove dead producers and final cleanup
+  pm.addPass(mlir::createSymbolDCEPass());
+  pm.addPass(mlir::createCanonicalizerPass());
 
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs())
