@@ -74,6 +74,20 @@ def ViewToReinterpretCast : Pass<"loom-view-to-reinterpret-cast", "mlir::ModuleO
 
 
 
+def LinalgDestinationSpecializationPass : Pass<"loom-linalg-destination-specialization", "mlir::ModuleOp"> {
+  let summary = "Specialize LinalgOp destinations";
+  let description = [{
+    Identify and eliminate redundant elementwise accumulation operations by
+    folding them into the outs semantics of producer LinalgOps (e.g., matmul).
+    This converts patterns like `matmul(A, B, fill(0)) + generic.add(iter_args)`
+    into `matmul(A, B, iter_args)`.
+
+    Currently supports arith.addf accumulation. Designed for future extension
+    to other operators (addi, maximumf, mulf, etc.).
+  }];
+  let constructor = "loom::passes::createLinalgDestinationSpecializationPass()";
+}
+
 def MemoryBindingPass : Pass<"loom-memory-binding", "mlir::ModuleOp"> {
   let summary = "Bind memory allocations to tensor operations";
   let description = [{

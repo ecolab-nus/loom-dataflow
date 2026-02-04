@@ -16,6 +16,7 @@ add_library(loomTritonSharedPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/materialize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/analyze_reuse.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/triton_shared_spatial_mapping_pass.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/linalg_destination_specialization_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/memory_binding_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/view_to_reinterpret_cast.cpp
 )
