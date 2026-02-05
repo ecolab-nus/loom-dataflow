@@ -230,6 +230,12 @@ loom::InitTensorOp::inferResultType(::llvm::ArrayRef<int64_t> staticSizes,
   return RankedTensorType::get(staticSizes, elementType);
 }
 
+::mlir::MemRefType
+loom::AllocOp::inferResultType(::llvm::ArrayRef<int64_t> staticSizes,
+                               ::mlir::Type elementType) {
+  return MemRefType::get(staticSizes, elementType);
+}
+
 void loom::CopyToTensorOp::getEffects(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects) {
@@ -358,7 +364,7 @@ struct FoldInitTensorConstants : public OpRewritePattern<InitTensorOp> {
     }
 
     auto newOp = rewriter.create<InitTensorOp>(
-        op.getLoc(), newResultType, op.getBufferToken(), dynamicSizes,
+        op.getLoc(), newResultType, op.getBuffer(), dynamicSizes,
         rewriter.getDenseI64ArrayAttr(staticSizes));
 
     // If type changed, insert a cast to keep IR valid for other users.
@@ -507,7 +513,7 @@ struct FoldCopyToTensorType : public OpRewritePattern<CopyToTensorOp> {
     if (sourceType.hasStaticShape() && !resultType.hasStaticShape()) {
       auto newResultType = CopyToTensorOp::inferResultType(sourceType);
       rewriter.replaceOpWithNewOp<CopyToTensorOp>(
-          op, newResultType, op.getSourceView(), op.getBufferToken(),
+          op, newResultType, op.getSourceView(), op.getBuffer(),
           op.getMemoryAttr(), op.getProvenance(), op.getInterconnectAttr(),
           op.getBroadcastAttr());
       return success();
