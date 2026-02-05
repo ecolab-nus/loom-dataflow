@@ -828,29 +828,29 @@ module {
         scf.for %arg5 = %c0 to %c8 step %c1 {
           scf.for %arg6 = %c0 to %c8 step %c1 {
             %12 = arith.muli %arg5, %c8 overflow<nsw> : index
-            %13 = arith.addi %arg3, %12 : index
+            %13 = arith.addi %arg3, %12 : index // core_idx.y
             %14 = arith.muli %arg6, %c8 overflow<nsw> : index
-            %15 = arith.addi %arg4, %14 : index
+            %15 = arith.addi %arg4, %14 : index // core_idx.x
             %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf32>
             linalg.fill ins(%cst : f32) outs(%16 : memref<64x64xf32>)
             scf.for %arg7 = %c0 to %c8 step %c1 {
-              %20 = arith.muli %arg7, %c64 : index
-              %21 = arith.muli %13, %c32768 : index
-              %22 = arith.addi %21, %20 : index
+              %20 = arith.muli %arg7, %c64 : index // k_iter * 64 = mat_idx.k
+              %21 = arith.muli %13, %c32768 : index // core_idx.y * 64 * 512 = mat_idx.i * 512
+              %22 = arith.addi %21, %20 : index // mat_idx.i * 512 + mat_idx.k = offset_A
               %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
               %23 = loom.alloc [64, 64] on @L1 : memref<64x64xf32>
-              loom.copy %reinterpret_cast_0, %23 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, memref<64x64xf32>
-              %24 = arith.muli %15, %c64 : index
-              %25 = arith.muli %arg7, %c262144 : index
-              %26 = arith.addi %25, %24 : index
+              loom.copy %reinterpret_cast_0, %23 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[512, 1], offset: ?>>, memref<64x64xf32> // None broadcast
+              %24 = arith.muli %15, %c64 : index // core_idx.x * 64 = mat_idx.j
+              %25 = arith.muli %arg7, %c262144 : index // k_iter * 64 * 4096 = mat_idx.k * 4096
+              %26 = arith.addi %25, %24 : index // mat_idx.k * 4096 + mat_idx.j = offset_B
               %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%26], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf32> to memref<64x64xf32, strided<[4096, 1], offset: ?>>
               %27 = loom.alloc [64, 64] on @L1 : memref<64x64xf32>
-              loom.copy %reinterpret_cast_1, %27 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf32, strided<[4096, 1], offset: ?>>, memref<64x64xf32>
+              loom.copy %reinterpret_cast_1, %27 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf32, strided<[4096, 1], offset: ?>>, memref<64x64xf32> // vertical_broadcast, broadcast to 8 rows, 1 column
               linalg.matmul ins(%23, %27 : memref<64x64xf32>, memref<64x64xf32>) outs(%16 : memref<64x64xf32>)
             }
-            %17 = arith.muli %15, %c64 : index
-            %18 = arith.muli %13, %c262144 : index
-            %19 = arith.addi %18, %17 : index
+            %17 = arith.muli %15, %c64 : index // core_idx.x * 64 = mat_idx.j
+            %18 = arith.muli %13, %c262144 : index // core_idx.y * 64 * 4096 = mat_idx.i * 4096
+            %19 = arith.addi %18, %17 : index // mat_idx.i * 4096 + mat_idx.j = offset_C
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%19], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf32> to memref<64x64xf32, strided<[4096, 1], offset: ?>>
             loom.copy %16, %reinterpret_cast src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<64x64xf32>, memref<64x64xf32, strided<[4096, 1], offset: ?>>
           }
@@ -920,24 +920,24 @@ module {
         scf.for %arg5 = %c0 to %c8 step %c1 {
           scf.for %arg6 = %c0 to %c8 step %c1 {
             %12 = arith.muli %arg5, %c8 overflow<nsw> : index
-            %13 = arith.addi %arg3, %12 : index
+            %13 = arith.addi %arg3, %12 : index // core_idx.y
             %14 = arith.muli %arg6, %c8 overflow<nsw> : index
-            %15 = arith.addi %arg4, %14 : index
+            %15 = arith.addi %arg4, %14 : index // core_idx.x
             %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf32>
             linalg.fill ins(%cst : f32) outs(%16 : memref<64x64xf32>)
             scf.for %arg7 = %c0 to %c8 step %c1 {
-              %20 = arith.muli %arg7, %c64 : index
-              %21 = arith.muli %13, %c32768 : index
-              %22 = arith.addi %21, %20 : index
+              %20 = arith.muli %arg7, %c64 : index // k_iter * 64 = mat_idx.k
+              %21 = arith.muli %13, %c32768 : index // core_idx.y * 64 * 512 = mat_idx.i * 512
+              %22 = arith.addi %21, %20 : index // mat_idx.i * 512 + mat_idx.k = offset_A
               %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
               %23 = loom.alloc [64, 64] on @L1 : memref<64x64xf32>
-              loom.copy %reinterpret_cast_0, %23 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf32, strided<[512, 1], offset: ?>>, memref<64x64xf32>
-              %24 = arith.muli %15, %c64 : index
-              %25 = arith.muli %arg7, %c262144 : index
-              %26 = arith.addi %25, %24 : index
+              loom.copy %reinterpret_cast_0, %23 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf32, strided<[512, 1], offset: ?>>, memref<64x64xf32> // horizontal_broadcast, broadcast to 1 row, 8 columns
+              %24 = arith.muli %15, %c64 : index // core_idx.x * 64 = mat_idx.j
+              %25 = arith.muli %arg7, %c262144 : index // k_iter * 64 * 4096 = mat_idx.k * 4096
+              %26 = arith.addi %25, %24 : index // mat_idx.j * 4096 + mat_idx.k = offset_B
               %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%26], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf32> to memref<64x64xf32, strided<[4096, 1], offset: ?>>
               %27 = loom.alloc [64, 64] on @L1 : memref<64x64xf32>
-              loom.copy %reinterpret_cast_1, %27 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[4096, 1], offset: ?>>, memref<64x64xf32>
+              loom.copy %reinterpret_cast_1, %27 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf32, strided<[4096, 1], offset: ?>>, memref<64x64xf32> // None broadcast
               linalg.matmul ins(%23, %27 : memref<64x64xf32>, memref<64x64xf32>) outs(%16 : memref<64x64xf32>)
             }
             %17 = arith.muli %15, %c64 : index
@@ -1012,29 +1012,29 @@ module {
         scf.for %arg5 = %c0 to %c8 step %c1 {
           scf.for %arg6 = %c0 to %c8 step %c1 {
             %12 = arith.muli %arg5, %c8 overflow<nsw> : index
-            %13 = arith.addi %arg3, %12 : index
+            %13 = arith.addi %arg3, %12 : index // core_idx.y
             %14 = arith.muli %arg6, %c8 overflow<nsw> : index
-            %15 = arith.addi %arg4, %14 : index
+            %15 = arith.addi %arg4, %14 : index // core_idx.x
             %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf32>
             linalg.fill ins(%cst : f32) outs(%16 : memref<64x64xf32>)
             scf.for %arg7 = %c0 to %c8 step %c1 {
-              %20 = arith.muli %arg7, %c64 : index
-              %21 = arith.muli %13, %c32768 : index
-              %22 = arith.addi %21, %20 : index
+              %20 = arith.muli %arg7, %c64 : index // k_iter * 64 = mat_idx.k
+              %21 = arith.muli %13, %c32768 : index // core_idx.y * 64 * 512 = mat_idx.i * 512
+              %22 = arith.addi %21, %20 : index // mat_idx.i * 512 + mat_idx.k = offset_A
               %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf32> to memref<64x64xf32, strided<[512, 1], offset: ?>>
               %23 = loom.alloc [64, 64] on @L1 : memref<64x64xf32>
-              loom.copy %reinterpret_cast_0, %23 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf32, strided<[512, 1], offset: ?>>, memref<64x64xf32>
-              %24 = arith.muli %15, %c64 : index
-              %25 = arith.muli %arg7, %c262144 : index
-              %26 = arith.addi %25, %24 : index
+              loom.copy %reinterpret_cast_0, %23 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf32, strided<[512, 1], offset: ?>>, memref<64x64xf32> // horizontal_broadcast, broadcast to 1 row, 8 columns
+              %24 = arith.muli %15, %c64 : index // core_idx.x * 64 = mat_idx.j
+              %25 = arith.muli %arg7, %c262144 : index // k_iter * 64 * 4096 = mat_idx.k * 4096
+              %26 = arith.addi %25, %24 : index // mat_idx.j * 4096 + mat_idx.k = offset_B
               %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%26], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf32> to memref<64x64xf32, strided<[4096, 1], offset: ?>>
               %27 = loom.alloc [64, 64] on @L1 : memref<64x64xf32>
-              loom.copy %reinterpret_cast_1, %27 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf32, strided<[4096, 1], offset: ?>>, memref<64x64xf32>
+              loom.copy %reinterpret_cast_1, %27 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf32, strided<[4096, 1], offset: ?>>, memref<64x64xf32> // vertical_broadcast, broadcast to 8 rows, 1 column
               linalg.matmul ins(%23, %27 : memref<64x64xf32>, memref<64x64xf32>) outs(%16 : memref<64x64xf32>)
             }
-            %17 = arith.muli %15, %c64 : index
-            %18 = arith.muli %13, %c262144 : index
-            %19 = arith.addi %18, %17 : index
+            %17 = arith.muli %15, %c64 : index // core_idx.x * 64 = mat_idx.j
+            %18 = arith.muli %13, %c262144 : index // core_idx.y * 64 * 4096 = mat_idx.i * 4096
+            %19 = arith.addi %18, %17 : index // mat_idx.i * 4096 + mat_idx.j = offset_C
             %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%19], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf32> to memref<64x64xf32, strided<[4096, 1], offset: ?>>
             loom.copy %16, %reinterpret_cast src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<64x64xf32>, memref<64x64xf32, strided<[4096, 1], offset: ?>>
           }
