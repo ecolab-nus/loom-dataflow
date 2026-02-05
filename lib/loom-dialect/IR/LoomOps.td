@@ -339,6 +339,44 @@ def Loom_PackToTensorOp : Loom_Op<"pack_to_tensor", [
   }];
 }
 
+def CopyOp : Loom_Op<"copy", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = "Copy data between memory spaces";
+  let description = [{
+    The `loom.copy` operation performs a physical data transfer between
+    two memrefs, possibly in different memory spaces (e.g., DRAM to L1).
+    
+    Example:
+    ```mlir
+    loom.copy %src, %dst src_mem_space @DRAM, dst_mem_space @L1,
+              interconnect : [], broadcast : [1, 1]
+              : memref<64x64xf32, strided<[512, 1], offset: ?>>,
+                memref<64x64xf32>
+    ```
+  }];
+
+  let arguments = (ins
+    AnyMemRef:$source,
+    AnyMemRef:$destination,
+    OptionalAttr<SymbolRefAttr>:$src_mem_space,
+    OptionalAttr<SymbolRefAttr>:$dst_mem_space,
+    DefaultValuedAttr<ArrayAttr, "{}">:$interconnect,
+    DefaultValuedAttr<I64ArrayAttr, "{1, 1}">:$broadcast
+  );
+
+  let results = (outs);
+
+  let assemblyFormat = [{
+    $source `,` $destination
+    (`src_mem_space` $src_mem_space^)?
+    (`dst_mem_space` $dst_mem_space^)?
+    `,` `interconnect` `:` $interconnect 
+    `,` `broadcast` `:` $broadcast 
+    attr-dict `:` type($source) `,` type($destination)
+  }];
+}
+
 //===----------------------------------------------------------------------===//
 // Constraint Language Operations
 //===----------------------------------------------------------------------===//

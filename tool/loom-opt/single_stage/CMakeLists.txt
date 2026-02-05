@@ -266,3 +266,48 @@ target_compile_options(linalg_destination_specialization PRIVATE -fno-rtti)
 set_target_properties(linalg_destination_specialization PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
+
+# one_shot_bufferize: One-Shot Bufferization for LOOM
+add_executable(one_shot_bufferize
+  ${CMAKE_CURRENT_LIST_DIR}/one_shot_bufferize_main.cpp
+)
+
+target_include_directories(one_shot_bufferize PRIVATE
+  ${MLIR_INCLUDE_DIRS}
+  ${LOOM_PASSES_INC}
+  ${PROJECT_SOURCE_DIR}/lib/loom-dialect/Transforms
+  ${PROJECT_SOURCE_DIR}/build/lib/dataflow-dialect/IR
+)
+
+target_link_libraries(one_shot_bufferize PRIVATE
+  loomTritonSharedPasses
+  loomDialectTransforms
+  loomDataflowDialect
+  loomDialect
+  MLIRIR
+  MLIRParser
+  MLIRSupport
+  LLVMSupport
+  MLIRFuncDialect
+  MLIRAffineDialect
+  MLIRMemRefDialect
+  MLIRArithDialect
+  MLIRTensorDialect
+  MLIRLinalgDialect
+  MLIRSCFDialect
+  MLIRBufferizationDialect
+  MLIRBufferizationTransforms
+  MLIRAffineToStandard
+  MLIRPass
+  MLIRTransforms
+  MLIRLinalgTransforms
+  MLIRAsmParser
+  MLIRBytecodeReader
+)
+mlir_check_all_link_libraries(one_shot_bufferize)
+
+target_compile_options(one_shot_bufferize PRIVATE -fno-rtti)
+
+set_target_properties(one_shot_bufferize PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
