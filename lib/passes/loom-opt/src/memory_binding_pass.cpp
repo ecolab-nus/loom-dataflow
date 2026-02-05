@@ -51,9 +51,11 @@ struct ReadBlockLoadingLowering
         subviewOp.getStaticStrides(), false, false, false);
 
     // 2. Create loom.alloc on @L1
-    auto tokenType = loom::BufferTokenType::get(rewriter.getContext());
+    auto subviewType = cast<MemRefType>(subviewOp.getResult().getType());
+    auto allocResultType =
+        MemRefType::get(subviewType.getShape(), subviewType.getElementType());
     auto allocOp = loom::AllocOp::create(
-        rewriter, loc, tokenType, subviewOp.getSizes(),
+        rewriter, loc, allocResultType, subviewOp.getSizes(),
         subviewOp.getStaticSizesAttr(), nullptr, rewriter.getI64IntegerAttr(1),
         SymbolRefAttr::get(rewriter.getContext(), "L1"));
 
@@ -105,9 +107,11 @@ struct OutputTensorInitLowering : public OpRewritePattern<tensor::EmptyOp> {
 
     Location loc = op.getLoc();
     // 1. Create loom.alloc on @L1
-    auto tokenType = loom::BufferTokenType::get(rewriter.getContext());
+    auto tensorType = op.getType();
+    auto allocResultType =
+        MemRefType::get(tensorType.getShape(), tensorType.getElementType());
     auto allocOp = loom::AllocOp::create(
-        rewriter, loc, tokenType, op.getDynamicSizes(),
+        rewriter, loc, allocResultType, op.getDynamicSizes(),
         rewriter.getDenseI64ArrayAttr(op.getType().getShape()), nullptr,
         rewriter.getI64IntegerAttr(1),
         SymbolRefAttr::get(rewriter.getContext(), "L1"));

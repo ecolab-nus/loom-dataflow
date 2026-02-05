@@ -188,18 +188,14 @@ def ViewOp : Loom_Op<"view", [
 
 
 def AllocOp : Loom_Op<"alloc"> {
-  let summary = "Allocate L1 buffer and return a buffer token";
+  let summary = "Allocate L1 buffer and return a memref";
   let description = [{
     The `loom.alloc` operation allocates a buffer on a specific hardware 
-    memory (e.g., L1, DRAM) and returns a buffer token representing this
-    allocation record.
-
-    The `buffer_count` attribute specifies the number of buffers for 
-    double/multi-buffering scenarios.
+    memory (e.g., L1, DRAM) and returns a memref referencing the allocated memory.
 
     Example:
     ```mlir
-    %token = loom.alloc(32, 32) on @L1 {buffer_count = 2} : !loom.buffer_token
+    %buffer = loom.alloc(32, 32) on @L1 {buffer_count = 2} : memref<32x32xf32>
     ```
   }];
 
@@ -211,7 +207,7 @@ def AllocOp : Loom_Op<"alloc"> {
     SymbolRefAttr:$memory
   );
 
-  let results = (outs Loom_BufferTokenType:$result);
+  let results = (outs AnyMemRef:$result);
 
   let assemblyFormat = [{
     custom<DynamicIndexList>($sizes, $static_sizes) 
@@ -225,6 +221,11 @@ def AllocOp : Loom_Op<"alloc"> {
       ::mlir::Builder builder(getContext());
       return ::mlir::getMixedValues(getStaticSizes(), getSizes(), builder);
     }
+
+    /// Infer the result memref type from static sizes and element type.
+    static ::mlir::MemRefType inferResultType(
+        ::llvm::ArrayRef<int64_t> staticSizes,
+        ::mlir::Type elementType);
   }];
 }
 
@@ -235,7 +236,7 @@ def CopyToTensorOp : Loom_Op<"copy_to_tensor", [
   let description = [{
     The `loom.copy_to_tensor` operation performs a data transfer from global
     memory (described by the source view) to L1 memory (identified by the
-    buffer token), and returns the result as a tensor.
+    buffer), and returns the result as a tensor.
 
     This operation converts physical semantics (memref + view) to logical
     semantics (tensor). It has side effects as it represents a DMA transfer.
@@ -243,20 +244,20 @@ def CopyToTensorOp : Loom_Op<"copy_to_tensor", [
     Input:
     - source_view: A `memref` object representing the memref reference
       and physical coordinates (Offsets, Sizes)
-    - buffer_token: A `!loom.buffer_token` object representing L1 placeholder
+    - buffer: A `memref` object representing L1 placeholder
 
     Output: AnyRankedTensor
 
     Example:
     ```mlir
-    %t = loom.copy_to_tensor %view, %token 
-         : memref<?x?xf32>, !loom.buffer_token -> tensor<64x64xf32>
+    %t = loom.copy_to_tensor %view, %buffer 
+         : memref<?x?xf32>, memref<64x64xf32> -> tensor<64x64xf32>
     ```
   }];
 
   let arguments = (ins
     AnyMemRef:$source_view,
-    Loom_BufferTokenType:$buffer_token,
+    AnyMemRef:$buffer,
     OptionalAttr<SymbolRefAttr>:$memory,
     Optional<Index>:$provenance,
     DefaultValuedAttr<ArrayAttr, "{}">:$interconnect,
@@ -266,13 +267,13 @@ def CopyToTensorOp : Loom_Op<"copy_to_tensor", [
   let results = (outs AnyRankedTensor:$result);
 
   let assemblyFormat = [{
-    $source_view `,` $buffer_token 
+    $source_view `,` $buffer 
     ( `provenance` `:` $provenance^ )? 
     ( `on` $memory^ )?
     `,` `interconnect` `:` $interconnect 
     `,` `broadcast` `:` $broadcast 
     attr-dict `:` 
-    type($source_view) `,` type($buffer_token) `->` type($result)
+    type($source_view) `,` type($buffer) `->` type($result)
   }];
 
   let hasCanonicalizer = 1;
@@ -324,26 +325,26 @@ def CopyFromTensorOp : Loom_Op<"copy_from_tensor", [
 }
 
 def InitTensorOp : Loom_Op<"init_tensor", [Pure]> {
-  let summary = "Create a tensor bound to a buffer token";
+  let summary = "Create a tensor bound to a buffer";
   let description = [{
     The `loom.init_tensor` operation creates a tensor that is bound to a 
-    pre-allocated buffer identified by the buffer token. This replaces 
-    `tensor.empty` to explicitly bind memory allocation with tensor semantics.
+    pre-allocated buffer. This replaces `tensor.empty` to explicitly bind 
+    memory allocation with tensor semantics.
 
     Input:
-    - buffer_token: A `!loom.buffer_token` from loom.alloc
+    - buffer: A `memref` from loom.alloc
 
     Output: AnyRankedTensor with specified shape
 
     Example:
     ```mlir
-    %token = loom.alloc(32, 32) on @L1 : !loom.buffer_token
-    %t = loom.init_tensor %token(32, 32) : !loom.buffer_token -> tensor<32x32xf32>
+    %buffer = loom.alloc(32, 32) on @L1 : memref<32x32xf32>
+    %t = loom.init_tensor %buffer(32, 32) : memref<32x32xf32> -> tensor<32x32xf32>
     ```
   }];
 
   let arguments = (ins
-    Loom_BufferTokenType:$buffer_token,
+    AnyMemRef:$buffer,
     Variadic<Index>:$sizes,
     DenseI64ArrayAttr:$static_sizes
   );
@@ -351,9 +352,9 @@ def InitTensorOp : Loom_Op<"init_tensor", [Pure]> {
   let results = (outs AnyRankedTensor:$result);
 
   let assemblyFormat = [{
-    $buffer_token ``
+    $buffer ``
     custom<DynamicIndexList>($sizes, $static_sizes) attr-dict `:` 
-    type($buffer_token) `->` type($result)
+    type($buffer) `->` type($result)
   }];
 
   let hasCanonicalizer = 1;
@@ -376,7 +377,7 @@ def Loom_PackToTensorOp : Loom_Op<"pack_to_tensor", [
   ]> {
   let summary = "Packs a 2D view into a 3D tiled tensor in a specific memory space.";
   let description = [{
-    This op takes a 2D memref and a !loom.buffer_token, and produces a 3D tensor.
+    This op takes a 2D memref and a buffer memref, and produces a 3D tensor.
     It represents the physical move and layout transformation from Global Memory to L1.
 
     It performs tiling on the second dimension of the input view and permutes the
@@ -384,16 +385,16 @@ def Loom_PackToTensorOp : Loom_Op<"pack_to_tensor", [
 
     Example:
     ```mlir
-    %packed_A = loom.pack_to_tensor %view, %token 
+    %packed_A = loom.pack_to_tensor %view, %buffer 
                 inner_tiles = [64] 
                 outer_dims_perm = [1, 0]
-                : memref<?x?xf32>, !loom.buffer_token -> tensor<8x128x64xf32>
+                : memref<?x?xf32>, memref<8x128x64xf32> -> tensor<8x128x64xf32>
     ```
   }];
 
   let arguments = (ins 
     AnyMemRef:$source,
-    Loom_BufferTokenType:$buffer_token,
+    AnyMemRef:$buffer,
     Variadic<Index>:$inner_tiles,
     DenseI64ArrayAttr:$outer_dims_perm
   );
@@ -403,11 +404,11 @@ def Loom_PackToTensorOp : Loom_Op<"pack_to_tensor", [
   );
 
   let assemblyFormat = [{
-    $source `,` $buffer_token 
+    $source `,` $buffer 
     `inner_tiles` `=` `[` $inner_tiles `]`
     `outer_dims_perm` `=` $outer_dims_perm
     attr-dict `:` 
-    type($source) `,` type($buffer_token) `->` type($result)
+    type($source) `,` type($buffer) `->` type($result)
   }];
 }
 

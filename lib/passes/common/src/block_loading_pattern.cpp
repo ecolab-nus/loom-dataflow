@@ -547,9 +547,15 @@ void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
       view.getSpatialReuse(), view.getTemporalReuse());
 
   // 2. Hoist AllocOp (2D with expanded size)
+  auto tensorType =
+      mlir::cast<mlir::RankedTensorType>(copy_to_tensor.getResult().getType());
+  auto allocResultType = mlir::MemRefType::get(
+      llvm::SmallVector<int64_t>(new_view_sizes.size(),
+                                 mlir::ShapedType::kDynamic),
+      tensorType.getElementType());
   auto new_alloc = builder.create<loom::AllocOp>(
-      alloc.getLoc(), alloc.getResult().getType(), new_view_sizes,
-      builder.getDenseI64ArrayAttr(mlir::SmallVector<int64_t>(
+      alloc.getLoc(), allocResultType, new_view_sizes,
+      builder.getDenseI64ArrayAttr(llvm::SmallVector<int64_t>(
           new_view_sizes.size(), mlir::ShapedType::kDynamic)),
       alloc.getAlignmentAttr(), alloc.getBufferCountAttr(),
       alloc.getMemoryAttr());

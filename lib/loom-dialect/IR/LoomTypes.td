@@ -20,11 +20,12 @@ def ViewType : TypeDef<Loom_Dialect, "View"> {
 
 def BufferTokenType : TypeDef<Loom_Dialect, "BufferToken"> {
   let mnemonic = "buffer_token";
-  let summary = "Physical buffer placeholder token for L1 memory";
+  let summary = "(DEPRECATED) Physical buffer placeholder - use memref instead";
   let description = [{
+    DEPRECATED: This type is being phased out in favor of standard memref.
+    The `loom.alloc` operation now returns memref types directly.
+    
     An opaque type representing a physical memory allocation record in L1.
-    This type serves as a placeholder for L1 memory allocation and is used
-    to track buffer ownership in the SSA chain.
     
     Syntax: `!loom.buffer_token`
   }];
