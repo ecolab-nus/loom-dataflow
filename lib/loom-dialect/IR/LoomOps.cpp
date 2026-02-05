@@ -315,17 +315,44 @@ struct FoldAllocConstants : public OpRewritePattern<AllocOp> {
                                 PatternRewriter &rewriter) const override {
     SmallVector<OpFoldResult, 4> sizes = op.getMixedSizes();
 
-    if (!foldConstantDimensions(sizes))
-      return failure();
+    bool constantsFolded = foldConstantDimensions(sizes);
 
     SmallVector<Value, 4> dynamicSizes;
     SmallVector<int64_t, 4> staticSizes;
     dispatchIndexOpFoldResults(sizes, dynamicSizes, staticSizes);
 
-    rewriter.replaceOpWithNewOp<AllocOp>(
-        op, op.getType(), dynamicSizes,
+    // Check if all sizes are now static
+    bool allStatic = llvm::all_of(
+        staticSizes, [](int64_t s) { return s != ShapedType::kDynamic; });
+
+    auto resultType = llvm::dyn_cast<MemRefType>(op.getType());
+    if (!resultType)
+      return failure();
+
+    // Infer new result type if all sizes are static but current type is dynamic
+    bool needsTypeUpdate = allStatic && !resultType.hasStaticShape();
+
+    if (!constantsFolded && !needsTypeUpdate)
+      return failure();
+
+    Type newResultType = resultType;
+    if (needsTypeUpdate) {
+      newResultType =
+          AllocOp::inferResultType(staticSizes, resultType.getElementType());
+    }
+
+    auto newOp = rewriter.create<AllocOp>(
+        op.getLoc(), newResultType, dynamicSizes,
         rewriter.getDenseI64ArrayAttr(staticSizes), op.getAlignmentAttr(),
         op.getBufferCountAttr(), op.getMemoryAttr());
+
+    // If type changed, insert a cast to keep IR valid for other users.
+    if (newResultType != resultType) {
+      rewriter.replaceOpWithNewOp<memref::CastOp>(op, resultType,
+                                                  newOp.getResult());
+    } else {
+      rewriter.replaceOp(op, newOp.getResult());
+    }
     return success();
   }
 };
@@ -335,8 +362,13 @@ struct FoldInitTensorConstants : public OpRewritePattern<InitTensorOp> {
 
   LogicalResult matchAndRewrite(InitTensorOp op,
                                 PatternRewriter &rewriter) const override {
-    SmallVector<OpFoldResult, 4> sizes = op.getMixedSizes();
+    Value buffer = op.getBuffer();
+    // Look through memref.cast for the buffer
+    if (auto castOp = buffer.getDefiningOp<memref::CastOp>()) {
+      buffer = castOp.getSource();
+    }
 
+    SmallVector<OpFoldResult, 4> sizes = op.getMixedSizes();
     bool constantsFolded = foldConstantDimensions(sizes);
 
     SmallVector<Value, 4> dynamicSizes;
@@ -354,7 +386,10 @@ struct FoldInitTensorConstants : public OpRewritePattern<InitTensorOp> {
     // Infer new result type if all sizes are static but current type is dynamic
     bool needsTypeUpdate = allStatic && !resultType.hasStaticShape();
 
-    if (!constantsFolded && !needsTypeUpdate)
+    // Also check if we can unwrap the buffer cast even if no sizes changed
+    bool needsBufferUpdate = (buffer != op.getBuffer());
+
+    if (!constantsFolded && !needsTypeUpdate && !needsBufferUpdate)
       return failure();
 
     Type newResultType = resultType;
@@ -364,11 +399,10 @@ struct FoldInitTensorConstants : public OpRewritePattern<InitTensorOp> {
     }
 
     auto newOp = rewriter.create<InitTensorOp>(
-        op.getLoc(), newResultType, op.getBuffer(), dynamicSizes,
+        op.getLoc(), newResultType, buffer, dynamicSizes,
         rewriter.getDenseI64ArrayAttr(staticSizes));
 
     // If type changed, insert a cast to keep IR valid for other users.
-    // Subsequent patterns should propagate the static type.
     if (newResultType != resultType) {
       rewriter.replaceOpWithNewOp<tensor::CastOp>(op, resultType,
                                                   newOp.getResult());
@@ -481,17 +515,34 @@ struct StaticizeCopyFromTensor : public OpRewritePattern<CopyFromTensorOp> {
 
   LogicalResult matchAndRewrite(CopyFromTensorOp op,
                                 PatternRewriter &rewriter) const override {
+    bool changed = false;
+
+    // 1. Unwrap tensor cast for source
     auto source = op.getSourceTensor();
     if (auto cast = source.getDefiningOp<tensor::CastOp>()) {
       auto castSource = cast.getSource();
       auto castSourceType =
           llvm::dyn_cast<RankedTensorType>(castSource.getType());
       if (castSourceType && castSourceType.hasStaticShape()) {
-        rewriter.modifyOpInPlace(op, [&]() { op->setOperand(0, castSource); });
-        return success();
+        rewriter.modifyOpInPlace(
+            op, [&]() { op.getSourceTensorMutable().assign(castSource); });
+        changed = true;
       }
     }
-    return failure();
+
+    // 2. Unwrap memref cast for target view
+    auto targetView = op.getTargetView();
+    if (auto cast = targetView.getDefiningOp<memref::CastOp>()) {
+      if (!changed) {
+        rewriter.modifyOpInPlace(
+            op, [&]() { op.getTargetViewMutable().assign(cast.getSource()); });
+      } else {
+        op.getTargetViewMutable().assign(cast.getSource());
+      }
+      changed = true;
+    }
+
+    return success(changed);
   }
 };
 
@@ -500,6 +551,11 @@ struct FoldCopyToTensorType : public OpRewritePattern<CopyToTensorOp> {
 
   LogicalResult matchAndRewrite(CopyToTensorOp op,
                                 PatternRewriter &rewriter) const override {
+    Value buffer = op.getBuffer();
+    if (auto cast = buffer.getDefiningOp<memref::CastOp>()) {
+      buffer = cast.getSource();
+    }
+
     auto sourceView = op.getSourceView();
     auto sourceType = llvm::dyn_cast<MemRefType>(sourceView.getType());
     if (!sourceType)
@@ -509,16 +565,22 @@ struct FoldCopyToTensorType : public OpRewritePattern<CopyToTensorOp> {
     if (!resultType)
       return failure();
 
-    // If source has static shape but result is dynamic, update result type
-    if (sourceType.hasStaticShape() && !resultType.hasStaticShape()) {
-      auto newResultType = CopyToTensorOp::inferResultType(sourceType);
-      rewriter.replaceOpWithNewOp<CopyToTensorOp>(
-          op, newResultType, op.getSourceView(), op.getBuffer(),
-          op.getMemoryAttr(), op.getProvenance(), op.getInterconnectAttr(),
-          op.getBroadcastAttr());
-      return success();
+    bool needsBufferUpdate = (buffer != op.getBuffer());
+    bool needsTypeUpdate =
+        sourceType.hasStaticShape() && !resultType.hasStaticShape();
+
+    if (!needsBufferUpdate && !needsTypeUpdate)
+      return failure();
+
+    auto newResultType = resultType;
+    if (needsTypeUpdate) {
+      newResultType = CopyToTensorOp::inferResultType(sourceType);
     }
-    return failure();
+
+    rewriter.replaceOpWithNewOp<CopyToTensorOp>(
+        op, newResultType, op.getSourceView(), buffer, op.getMemoryAttr(),
+        op.getProvenance(), op.getInterconnectAttr(), op.getBroadcastAttr());
+    return success();
   }
 };
 } // namespace
