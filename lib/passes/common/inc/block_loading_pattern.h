@@ -26,7 +26,7 @@
 namespace loom {
 class PackToTensorOp;
 class AllocOp;
-class ViewOp;
+class SubviewOp;
 } // namespace loom
 
 namespace loom::affine {
@@ -113,10 +113,10 @@ private:
   loom::AllocOp FindAlloc();
 
   /**
-   * @brief Find the loom.view consumed by the copy_to_tensor.
-   * @return The view operation, or nullptr if not found.
+   * @brief Find the loom.subview consumed by the copy_to_tensor.
+   * @return The subview operation, or nullptr if not found.
    */
-  loom::ViewOp FindView();
+  loom::SubviewOp FindSubview();
 
   /**
    * @brief Determine which dimension of the view depends on the loop IV.
@@ -125,14 +125,14 @@ private:
   int getMovingDimension();
 
   /**
-   * @brief Compute the expanded shape for hoisted view.
+   * @brief Compute the expanded shape for hoisted subview.
    * @details Replaces the loop-varying dimension size with (loopUB *
    * blockSize).
    * @param builder The OpBuilder to use.
    * @return Vector of values representing the new shape.
    */
   llvm::SmallVector<mlir::Value, 2>
-  inferHoistedViewShape(mlir::OpBuilder &builder);
+  inferHoistedSubviewShape(mlir::OpBuilder &builder);
 
   /**
    * @brief Generate outer_dims_perm for pack_to_tensor based on moving

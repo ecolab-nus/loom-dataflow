@@ -35,17 +35,18 @@ SmallVector<int64_t, 4> getSourceStrides(MemRefType type) {
   return strides;
 }
 
-class ViewToReinterpretCastPass
-    : public PassWrapper<ViewToReinterpretCastPass, OperationPass<ModuleOp>> {
+class SubviewToReinterpretCastPass
+    : public PassWrapper<SubviewToReinterpretCastPass,
+                         OperationPass<ModuleOp>> {
 public:
-  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ViewToReinterpretCastPass)
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(SubviewToReinterpretCastPass)
 
   StringRef getArgument() const override {
-    return "loom-view-to-reinterpret-cast";
+    return "loom-subview-to-reinterpret-cast";
   }
 
   StringRef getDescription() const override {
-    return "Convert loom.view to loom.reinterpret_cast using affine mapping "
+    return "Convert loom.subview to loom.reinterpret_cast using affine mapping "
            "for linearized offset";
   }
 
@@ -58,15 +59,15 @@ public:
     ModuleOp module = getOperation();
     OpBuilder builder(module.getContext());
 
-    module.walk([&](loom::ViewOp viewOp) {
-      builder.setInsertionPoint(viewOp);
-      Location loc = viewOp.getLoc();
+    module.walk([&](loom::SubviewOp subviewOp) {
+      builder.setInsertionPoint(subviewOp);
+      Location loc = subviewOp.getLoc();
 
-      MemRefType sourceType = viewOp.getSourceType();
+      MemRefType sourceType = subviewOp.getSourceType();
       SmallVector<int64_t, 4> sourceStrides = getSourceStrides(sourceType);
 
       // 1. Compute linearized offset via affine.apply
-      SmallVector<OpFoldResult, 4> viewOffsets = viewOp.getMixedOffsets();
+      SmallVector<OpFoldResult, 4> viewOffsets = subviewOp.getMixedOffsets();
 
       // We'll create an affine map: (d0, d1, ...) -> (d0 * S0 + d1 * S1 + ...)
       // where Si are the source strides.
@@ -100,7 +101,7 @@ public:
 
       // 2. Compute result strides: Strides_rc[i] = Strides_view[i] *
       // Strides_org[i]
-      SmallVector<OpFoldResult, 4> viewStrides = viewOp.getMixedStrides();
+      SmallVector<OpFoldResult, 4> viewStrides = subviewOp.getMixedStrides();
       SmallVector<OpFoldResult, 4> rcStrides;
       for (size_t i = 0; i < viewStrides.size(); ++i) {
         if (auto attr = viewStrides[i].dyn_cast<Attribute>()) {
@@ -118,11 +119,11 @@ public:
       }
 
       // 3. Create loom.reinterpret_cast
-      MemRefType resultType = cast<MemRefType>(viewOp.getResult().getType());
+      MemRefType resultType = cast<MemRefType>(subviewOp.getResult().getType());
 
       SmallVector<Value, 4> dynamicRcSizes;
       SmallVector<int64_t, 4> staticRcSizes;
-      dispatchIndexOpFoldResults(viewOp.getMixedSizes(), dynamicRcSizes,
+      dispatchIndexOpFoldResults(subviewOp.getMixedSizes(), dynamicRcSizes,
                                  staticRcSizes);
 
       SmallVector<Value, 4> dynamicRcStrides;
@@ -130,20 +131,20 @@ public:
       dispatchIndexOpFoldResults(rcStrides, dynamicRcStrides, staticRcStrides);
 
       auto rcOp = builder.create<loom::ReinterpretCastOp>(
-          loc, resultType, viewOp.getSource(), ValueRange{linearizedOffset},
+          loc, resultType, subviewOp.getSource(), ValueRange{linearizedOffset},
           dynamicRcSizes, dynamicRcStrides,
           builder.getDenseI64ArrayAttr({ShapedType::kDynamic}),
           builder.getDenseI64ArrayAttr(staticRcSizes),
           builder.getDenseI64ArrayAttr(staticRcStrides));
 
-      viewOp.getResult().replaceAllUsesWith(rcOp.getResult());
-      viewOp.erase();
+      subviewOp.getResult().replaceAllUsesWith(rcOp.getResult());
+      subviewOp.erase();
     });
   }
 };
 
 } // namespace
 
-std::unique_ptr<mlir::Pass> loom::passes::createViewToReinterpretCastPass() {
-  return std::make_unique<ViewToReinterpretCastPass>();
+std::unique_ptr<mlir::Pass> loom::passes::createSubviewToReinterpretCastPass() {
+  return std::make_unique<SubviewToReinterpretCastPass>();
 }

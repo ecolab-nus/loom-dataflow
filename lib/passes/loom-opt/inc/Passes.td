@@ -29,14 +29,14 @@ def HoistBlockLoading : Pass<"loom-hoist-block-loading", "mlir::ModuleOp"> {
   let constructor = "loom::passes::createHoistBlockLoadingPass()";
 }
 
-def AnnotateViewReuse : Pass<"loom-annotate-view-reuse", "mlir::ModuleOp"> {
-  let summary = "Analyze reuse pattern on loom.view";
+def AnnotateSubviewReuse : Pass<"loom-annotate-subview-reuse", "mlir::ModuleOp"> {
+  let summary = "Analyze reuse pattern on loom.subview";
   let description = [{
-    Attach a loom.reuse dictionary to each loom.view describing 
+    Attach a loom.reuse dictionary to each loom.subview describing 
     how its offset varies with surrounding iterators, grouped by spatial 
     (affine.parallel), temporal (affine.for), and sequential (scf.for).
   }];
-  let constructor = "loom::passes::createAnnotateViewReusePass()";
+  let constructor = "loom::passes::createAnnotateSubviewReusePass()";
 }
 
 def EnumerateCopyBroadcast : Pass<"loom-enumerate-copy-broadcast", "mlir::ModuleOp"> {
@@ -63,12 +63,12 @@ def Materialize : Pass<"loom-materialize", "mlir::ModuleOp"> {
   let constructor = "loom::passes::createMaterializePass()";
 }
 
-def ViewToReinterpretCast : Pass<"loom-view-to-reinterpret-cast", "mlir::ModuleOp"> {
-  let summary = "Convert loom.view to loom.reinterpret_cast";
+def SubviewToReinterpretCast : Pass<"loom-subview-to-reinterpret-cast", "mlir::ModuleOp"> {
+  let summary = "Convert loom.subview to loom.reinterpret_cast";
   let description = [{
     Linearize multi-dimensional offsets via affine.apply and adjust strides.
   }];
-  let constructor = "loom::passes::createViewToReinterpretCastPass()";
+  let constructor = "loom::passes::createSubviewToReinterpretCastPass()";
 }
 
 

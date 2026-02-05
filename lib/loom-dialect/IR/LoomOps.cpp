@@ -118,13 +118,13 @@ LogicalResult loom::ExpressionOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
-// ViewOp Type Inference
+// SubviewOp Type Inference
 //===----------------------------------------------------------------------===//
 
-MemRefType loom::ViewOp::inferResultType(MemRefType sourceType,
-                                         ArrayRef<int64_t> staticOffsets,
-                                         ArrayRef<int64_t> staticSizes,
-                                         ArrayRef<int64_t> staticStrides) {
+MemRefType loom::SubviewOp::inferResultType(MemRefType sourceType,
+                                            ArrayRef<int64_t> staticOffsets,
+                                            ArrayRef<int64_t> staticSizes,
+                                            ArrayRef<int64_t> staticStrides) {
 
   // Extract element type and memory space from source
   Type elementType = sourceType.getElementType();
@@ -270,10 +270,10 @@ bool foldConstantDimensions(SmallVectorImpl<OpFoldResult> &mixedValues) {
   return changed;
 }
 
-struct FoldViewConstants : public OpRewritePattern<ViewOp> {
-  using OpRewritePattern<ViewOp>::OpRewritePattern;
+struct FoldSubviewConstants : public OpRewritePattern<SubviewOp> {
+  using OpRewritePattern<SubviewOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(ViewOp op,
+  LogicalResult matchAndRewrite(SubviewOp op,
                                 PatternRewriter &rewriter) const override {
     SmallVector<OpFoldResult, 4> offsets = op.getMixedOffsets();
     SmallVector<OpFoldResult, 4> sizes = op.getMixedSizes();
@@ -294,10 +294,10 @@ struct FoldViewConstants : public OpRewritePattern<ViewOp> {
     dispatchIndexOpFoldResults(sizes, dynamicSizes, staticSizes);
     dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
 
-    rewriter.replaceOpWithNewOp<ViewOp>(
+    rewriter.replaceOpWithNewOp<SubviewOp>(
         op,
-        ViewOp::inferResultType(op.getSourceType(), staticOffsets, staticSizes,
-                                staticStrides),
+        SubviewOp::inferResultType(op.getSourceType(), staticOffsets,
+                                   staticSizes, staticStrides),
         op.getSource(), dynamicOffsets, dynamicSizes, dynamicStrides,
         rewriter.getDenseI64ArrayAttr(staticOffsets),
         rewriter.getDenseI64ArrayAttr(staticSizes),
@@ -523,9 +523,9 @@ struct FoldCopyToTensorType : public OpRewritePattern<CopyToTensorOp> {
 };
 } // namespace
 
-void ViewOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                         MLIRContext *context) {
-  results.add<FoldViewConstants>(context);
+void SubviewOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                            MLIRContext *context) {
+  results.add<FoldSubviewConstants>(context);
 }
 
 void AllocOp::getCanonicalizationPatterns(RewritePatternSet &results,

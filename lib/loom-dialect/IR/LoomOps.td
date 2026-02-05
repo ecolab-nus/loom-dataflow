@@ -2,6 +2,8 @@
 // Operations for the LOOM dialect (loom)
 //===----------------------------------------------------------------------===//
 
+include "LoomDialect.td"
+
 include "mlir/IR/OpBase.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
@@ -9,7 +11,6 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
-include "LoomTypes.td"
 include "mlir/IR/EnumAttr.td"
 
 //===----------------------------------------------------------------------===//
@@ -31,15 +32,6 @@ def IterTypeAttr : EnumAttr<Loom_Dialect, IterTypeEnum, "iter_type"> {
 
 class Loom_Op<string mnemonic, list<Trait> traits = []>
   : Op<Loom_Dialect, mnemonic, traits> {}
-
-// Type constraints for Loom custom types
-def Loom_ViewType : Type<CPred<"::llvm::isa<::loom::ViewType>($_self)">,
-                         "loom view type">,
-                    BuildableType<"::loom::ViewType::get($_builder.getContext())">;
-
-def Loom_BufferTokenType : Type<CPred<"::llvm::isa<::loom::BufferTokenType>($_self)">,
-                                "loom buffer token type">,
-                           BuildableType<"::loom::BufferTokenType::get($_builder.getContext())">;
 
 /// An enhanced memref.reinterpret_cast operation.
 /// 
@@ -107,15 +99,15 @@ def ReinterpretCastOp : Loom_Op<"reinterpret_cast", [
 }
 
 
-def ViewOp : Loom_Op<"view", [
+def SubviewOp : Loom_Op<"subview", [
     Pure,
     AttrSizedOperandSegments,
     OffsetSizeAndStrideOpInterface
   ]> {
-  let summary = "Create a logical view from a memref with coordinate metadata";
+  let summary = "Create a logical subview from a memref with coordinate metadata";
   let description = [{
-    The `loom.view` operation creates a logical view (coordinate package) from
-    a source memref. The view encapsulates:
+    The `loom.subview` operation creates a logical subview (coordinate package) from
+    a source memref. The subview encapsulates:
     - A reference to the source memref (physical storage in Global Memory)
     - Offsets: logical starting coordinates
     - Sizes: logical shape of the slice
@@ -127,7 +119,7 @@ def ViewOp : Loom_Op<"view", [
 
     Example:
     ```mlir
-    %view_a = loom.view %arg0[%0, %9][%0, %2][1, 1] 
+    %view_a = loom.subview %arg0[%0, %2][%0, %2][1, 1] 
               : memref<128x128xf32> to memref<?x?xf32>
     ```
   }];
@@ -154,8 +146,8 @@ def ViewOp : Loom_Op<"view", [
     custom<DynamicIndexList>($sizes, $static_sizes)
     custom<DynamicIndexList>($strides, $static_strides)
     `,` `reuse` `:` `[` `seq` `=` $sequential_reuse `,`
-                        `spat` `=` $spatial_reuse `,`
-                        `temp` `=` $temporal_reuse `]`
+                         `spat` `=` $spatial_reuse `,`
+                         `temp` `=` $temporal_reuse `]`
     attr-dict `:` type($source) `to` type($result)
   }];
 

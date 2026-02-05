@@ -1,9 +1,9 @@
 /**
  * @file analyze_reuse.cpp
- * @brief Implementation: update reuse attributes of `loom.view`.
+ * @brief Implementation: update reuse attributes of `loom.subview`.
  * @details
  * Strategy
- * - For each `loom.view`, collect its dynamic offsets.
+ * - For each `loom.subview`, collect its dynamic offsets.
  * - Walk outward to gather enclosing loops in lexical order, distinguishing
  *   `affine.parallel` (spatial), `affine.for` (temporal), and `scf.for`
  *   (sequential).
@@ -71,31 +71,33 @@ static bool dependsOn(Value value, Value target) {
   return false;
 }
 
-class AnnotateViewReusePass
-    : public PassWrapper<AnnotateViewReusePass, OperationPass<ModuleOp>> {
+class AnnotateSubviewReusePass
+    : public PassWrapper<AnnotateSubviewReusePass, OperationPass<ModuleOp>> {
 public:
   /**
-   * @brief Update reuse attributes of `loom.view` operations.
+   * @brief Update reuse attributes of `loom.subview` operations.
    *
-   * @details For each view, the pass identifies surrounding iterator variables
-   * (spatial `affine.parallel`, temporal `affine.for`, sequential `scf.for`),
-   * determines whether the view's dynamic offsets vary with iterators of each
-   * type, and directly updates the `sequential_reuse`, `spatial_reuse`, and
-   * `temporal_reuse` attributes.
+   * @details For each subview, the pass identifies surrounding iterator
+   * variables (spatial `affine.parallel`, temporal `affine.for`, sequential
+   * `scf.for`), determines whether the subview's dynamic offsets vary with
+   * iterators of each type, and directly updates the `sequential_reuse`,
+   * `spatial_reuse`, and `temporal_reuse` attributes.
    */
-  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(AnnotateViewReusePass)
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(AnnotateSubviewReusePass)
 
   /// Command-line flag name.
-  StringRef getArgument() const override { return "loom-annotate-view-reuse"; }
+  StringRef getArgument() const override {
+    return "loom-annotate-subview-reuse";
+  }
   /// Short pass description for diagnostics and help.
   StringRef getDescription() const override {
-    return "Update reuse attributes of loom.view ops";
+    return "Update reuse attributes of loom.subview ops";
   }
 
   /**
    * @brief Execute the pass over the module.
    *
-   * @details Walk all `loom.view` ops, collect dynamic offsets,
+   * @details Walk all `loom.subview` ops, collect dynamic offsets,
    * derive enclosing iterators, and update reuse attributes based on whether
    * offsets depend on iterators of each type.
    *
@@ -107,17 +109,17 @@ public:
     MLIRContext *ctx = module.getContext();
 
     module.walk([&](Operation *op) {
-      // Check if this is a loom.view operation
-      if (op->getName().getStringRef() != "loom.view")
+      // Check if this is a loom.subview operation
+      if (op->getName().getStringRef() != "loom.subview")
         return;
 
-      auto viewOp = dyn_cast<loom::ViewOp>(op);
-      if (!viewOp)
+      auto subviewOp = dyn_cast<loom::SubviewOp>(op);
+      if (!subviewOp)
         return;
 
       // Collect dynamic offsets
       SmallVector<Value, 4> dynamicOffsets;
-      for (Value offsetVal : viewOp.getOffsets()) {
+      for (Value offsetVal : subviewOp.getOffsets()) {
         dynamicOffsets.push_back(offsetVal);
       }
 
@@ -189,9 +191,9 @@ public:
 
 } // namespace
 
-std::unique_ptr<mlir::Pass> loom::passes::createAnnotateViewReusePass() {
+std::unique_ptr<mlir::Pass> loom::passes::createAnnotateSubviewReusePass() {
   /**
-   * @brief Create the view reuse annotation pass.
+   * @brief Create the subview reuse annotation pass.
    */
-  return std::make_unique<AnnotateViewReusePass>();
+  return std::make_unique<AnnotateSubviewReusePass>();
 }
