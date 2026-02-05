@@ -59,7 +59,7 @@ fi
 #     exit 1
 # fi
 
-echo "4) Analyze reuse pattern on loom.reinterpret_cast..."
+echo "4) Analyze reuse pattern on loom.subview..."
 if ! build/tool/loom-opt/single_stage/analyze_reuse \
   --input test/Passes/mm_2Dmesh/IR/03_after_hardware_mapping.mlir \
   > test/Passes/mm_2Dmesh/IR/04_after_reuse_analyzation.mlir; then
@@ -67,7 +67,7 @@ if ! build/tool/loom-opt/single_stage/analyze_reuse \
     exit 1
 fi
 
-echo "5) Enumerate copy interconnect broadcast choices on loom.copy..."
+echo "5) Enumerate copy interconnect broadcast choices on loom.copy_to_tensor..."
 if ! build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
   --input test/Passes/mm_2Dmesh/IR/04_after_reuse_analyzation.mlir \
   > test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \

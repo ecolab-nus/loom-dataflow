@@ -345,24 +345,24 @@ static bool checkOffsetDependencyOnIVs(ArrayRef<Value> offsets,
  * @brief Find and verify the reinterpret_cast source operation for a copy
  * operation.
  * @details Checks if the copy operation's source operand is defined by a
- * loom.view with spatial_reuse enabled. Returns the
+ * loom.subview with spatial_reuse enabled. Returns the
  * view operation if valid.
  * @param copyOp The loom.copy_to_tensor operation to analyze.
  * @return The view operation if found and valid, nullptr otherwise.
  */
-static loom::ViewOp findViewSource(loom::CopyToTensorOp copyOp) {
+static loom::SubviewOp findSubviewSource(loom::CopyToTensorOp copyOp) {
   if (!copyOp)
     return nullptr;
 
   Value sourceView = copyOp.getSourceView();
-  auto viewOp = sourceView.getDefiningOp<loom::ViewOp>();
-  if (!viewOp)
+  auto subviewOp = sourceView.getDefiningOp<loom::SubviewOp>();
+  if (!subviewOp)
     return nullptr;
 
-  if (!viewOp.getSpatialReuse())
+  if (!subviewOp.getSpatialReuse())
     return nullptr;
 
-  return viewOp;
+  return subviewOp;
 }
 
 /**
@@ -412,13 +412,13 @@ findCandidateInterconnects(loom::CopyToTensorOp copyOp, ModuleOp module) {
   candidates.push_back(
       InterconnectChoice::makeDRAM()); // Always include DRAM option
 
-  auto viewOp = findViewSource(copyOp);
-  if (!viewOp)
+  auto subviewOp = findSubviewSource(copyOp);
+  if (!subviewOp)
     return candidates;
 
   // Get dynamic offsets from the view operation
-  SmallVector<Value> dynamicOffsets(viewOp.getOffsets().begin(),
-                                    viewOp.getOffsets().end());
+  SmallVector<Value> dynamicOffsets(subviewOp.getOffsets().begin(),
+                                    subviewOp.getOffsets().end());
   if (dynamicOffsets.empty())
     return candidates;
 

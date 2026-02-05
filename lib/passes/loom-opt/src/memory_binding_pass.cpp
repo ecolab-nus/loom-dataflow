@@ -16,8 +16,6 @@
 // Loom dialect headers
 #include "LoomDialect.h.inc"
 #include "mlir/Interfaces/ViewLikeInterface.h"
-#define GET_TYPEDEF_CLASSES
-#include "LoomTypes.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -26,7 +24,7 @@ using namespace mlir;
 namespace {
 
 /// Pattern 1: Lower memref.subview + bufferization.to_tensor
-/// to loom.view + loom.alloc + loom.copy_to_tensor
+/// to loom.subview + loom.alloc + loom.copy_to_tensor
 struct ReadBlockLoadingLowering
     : public OpRewritePattern<bufferization::ToTensorOp> {
   using OpRewritePattern::OpRewritePattern;
@@ -39,13 +37,13 @@ struct ReadBlockLoadingLowering
 
     Location loc = op.getLoc();
 
-    // 1. Create loom.view
-    auto viewResultType = loom::ViewOp::inferResultType(
+    // 1. Create loom.subview
+    auto subviewResultType = loom::SubviewOp::inferResultType(
         cast<MemRefType>(subviewOp.getSource().getType()),
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
         subviewOp.getStaticStrides());
-    auto viewOp = loom::ViewOp::create(
-        rewriter, loc, viewResultType, subviewOp.getSource(),
+    auto loomSubviewOp = loom::SubviewOp::create(
+        rewriter, loc, subviewResultType, subviewOp.getSource(),
         subviewOp.getOffsets(), subviewOp.getSizes(), subviewOp.getStrides(),
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
         subviewOp.getStaticStrides(), false, false, false);
@@ -63,9 +61,9 @@ struct ReadBlockLoadingLowering
     auto emptyArray = rewriter.getArrayAttr({});
     auto defaultBroadcast = rewriter.getI64ArrayAttr({1, 1});
     rewriter.replaceOp(op, loom::CopyToTensorOp::create(
-                               rewriter, loc, op.getType(), viewOp.getResult(),
-                               allocOp.getResult(), nullptr, Value(),
-                               emptyArray, defaultBroadcast));
+                               rewriter, loc, op.getType(),
+                               loomSubviewOp.getResult(), allocOp.getResult(),
+                               nullptr, Value(), emptyArray, defaultBroadcast));
 
     // We can't safely remove subview yet if it has other uses,
     // but usually it's just used by to_tensor in this pattern.
@@ -129,7 +127,7 @@ struct OutputTensorInitLowering : public OpRewritePattern<tensor::EmptyOp> {
 
 /// Pattern 3: Transform write-back chain
 /// (memref.subview + bufferization.to_buffer + memref.copy)
-/// to loom.view + loom.copy_from_tensor
+/// to loom.subview + loom.copy_from_tensor
 struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
   using OpRewritePattern::OpRewritePattern;
 
@@ -143,20 +141,20 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
 
     Location loc = subviewOp.getLoc();
 
-    // 1. Create loom.view
-    auto viewResultType = loom::ViewOp::inferResultType(
+    // 1. Create loom.subview
+    auto subviewResultType = loom::SubviewOp::inferResultType(
         cast<MemRefType>(subviewOp.getSource().getType()),
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
         subviewOp.getStaticStrides());
-    auto viewOp = loom::ViewOp::create(
-        rewriter, loc, viewResultType, subviewOp.getSource(),
+    auto loomSubviewOp = loom::SubviewOp::create(
+        rewriter, loc, subviewResultType, subviewOp.getSource(),
         subviewOp.getOffsets(), subviewOp.getSizes(), subviewOp.getStrides(),
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
         subviewOp.getStaticStrides(), false, false, false);
 
     // 2. Create loom.copy_from_tensor
     loom::CopyFromTensorOp::create(rewriter, loc, toBufferOp.getTensor(),
-                                   viewOp.getResult(), nullptr);
+                                   loomSubviewOp.getResult(), nullptr);
 
     // Erase original ops
     rewriter.eraseOp(op);

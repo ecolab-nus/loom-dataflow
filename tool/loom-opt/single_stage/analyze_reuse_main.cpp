@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
   }
 
   PassManager pm(&context);
-  pm.addPass(loom::passes::createAnnotateViewReusePass());
+  pm.addPass(loom::passes::createAnnotateSubviewReusePass());
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Reuse annotation pass failed\n";
     return 2;
