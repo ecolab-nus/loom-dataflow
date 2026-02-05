@@ -35,18 +35,16 @@ SmallVector<int64_t, 4> getSourceStrides(MemRefType type) {
   return strides;
 }
 
-class SubviewToReinterpretCastPass
-    : public PassWrapper<SubviewToReinterpretCastPass,
-                         OperationPass<ModuleOp>> {
+class BridgeToOSBPass
+    : public PassWrapper<BridgeToOSBPass, OperationPass<ModuleOp>> {
 public:
-  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(SubviewToReinterpretCastPass)
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(BridgeToOSBPass)
 
-  StringRef getArgument() const override {
-    return "loom-subview-to-reinterpret-cast";
-  }
+  StringRef getArgument() const override { return "loom-bridge-to-osb"; }
 
   StringRef getDescription() const override {
-    return "Convert loom.subview to loom.reinterpret_cast using affine mapping "
+    return "Convert loom.subview to memref.reinterpret_cast using affine "
+           "mapping "
            "for linearized offset";
   }
 
@@ -118,24 +116,12 @@ public:
         }
       }
 
-      // 3. Create loom.reinterpret_cast
+      // 3. Create memref.reinterpret_cast
       MemRefType resultType = cast<MemRefType>(subviewOp.getResult().getType());
 
-      SmallVector<Value, 4> dynamicRcSizes;
-      SmallVector<int64_t, 4> staticRcSizes;
-      dispatchIndexOpFoldResults(subviewOp.getMixedSizes(), dynamicRcSizes,
-                                 staticRcSizes);
-
-      SmallVector<Value, 4> dynamicRcStrides;
-      SmallVector<int64_t, 4> staticRcStrides;
-      dispatchIndexOpFoldResults(rcStrides, dynamicRcStrides, staticRcStrides);
-
-      auto rcOp = builder.create<loom::ReinterpretCastOp>(
-          loc, resultType, subviewOp.getSource(), ValueRange{linearizedOffset},
-          dynamicRcSizes, dynamicRcStrides,
-          builder.getDenseI64ArrayAttr({ShapedType::kDynamic}),
-          builder.getDenseI64ArrayAttr(staticRcSizes),
-          builder.getDenseI64ArrayAttr(staticRcStrides));
+      auto rcOp = builder.create<memref::ReinterpretCastOp>(
+          loc, resultType, subviewOp.getSource(), linearizedOffset,
+          subviewOp.getMixedSizes(), rcStrides);
 
       subviewOp.getResult().replaceAllUsesWith(rcOp.getResult());
       subviewOp.erase();
@@ -145,6 +131,6 @@ public:
 
 } // namespace
 
-std::unique_ptr<mlir::Pass> loom::passes::createSubviewToReinterpretCastPass() {
-  return std::make_unique<SubviewToReinterpretCastPass>();
+std::unique_ptr<mlir::Pass> loom::passes::createBridgeToOSBPass() {
+  return std::make_unique<BridgeToOSBPass>();
 }

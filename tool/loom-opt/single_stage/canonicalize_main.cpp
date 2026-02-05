@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
   pm.addPass(loom::passes::createMaterializePass());
   pm.addPass(mlir::createCanonicalizerPass());
   pm.addPass(mlir::createSymbolDCEPass());
-  pm.addPass(loom::passes::createSubviewToReinterpretCastPass());
+  pm.addPass(loom::passes::createBridgeToOSBPass());
 
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Materialize pass failed\n";

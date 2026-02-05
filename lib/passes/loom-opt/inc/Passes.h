@@ -25,7 +25,7 @@ std::unique_ptr<mlir::Pass>
 createEnumerateCopyBroadcastPass(bool analysisOnly = false);
 std::unique_ptr<mlir::Pass> createTileScfForToL1Pass();
 std::unique_ptr<mlir::Pass> createMaterializePass();
-std::unique_ptr<mlir::Pass> createSubviewToReinterpretCastPass();
+std::unique_ptr<mlir::Pass> createBridgeToOSBPass();
 std::unique_ptr<mlir::Pass> createStaticizeTypesPass();
 std::unique_ptr<mlir::Pass> createConstDedupCleanupPass();
 std::unique_ptr<mlir::Pass> createMemoryBindingPass();

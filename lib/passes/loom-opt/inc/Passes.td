@@ -63,12 +63,12 @@ def Materialize : Pass<"loom-materialize", "mlir::ModuleOp"> {
   let constructor = "loom::passes::createMaterializePass()";
 }
 
-def SubviewToReinterpretCast : Pass<"loom-subview-to-reinterpret-cast", "mlir::ModuleOp"> {
-  let summary = "Convert loom.subview to loom.reinterpret_cast";
+def BridgeToOSB : Pass<"loom-bridge-to-osb", "mlir::ModuleOp"> {
+  let summary = "Convert loom.subview to memref.reinterpret_cast";
   let description = [{
     Linearize multi-dimensional offsets via affine.apply and adjust strides.
   }];
-  let constructor = "loom::passes::createSubviewToReinterpretCastPass()";
+  let constructor = "loom::passes::createBridgeToOSBPass()";
 }
 
 
