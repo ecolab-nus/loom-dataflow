@@ -9,13 +9,13 @@ module {
   module {
     // Manually added constraint space
     loom.constraint_space @constraints {
+      %bb = loom.symbolic_var "BB" : index
       %bm = loom.symbolic_var "BM" : index
       %bn = loom.symbolic_var "BN" : index
-      %bk = loom.symbolic_var "BK" : index
 
-      loom.range %bm [0, 1024]
-      loom.range %bn [0, 1024]
-      loom.range %bk [0, 1024]
+      loom.range %bb [0, 2]
+      loom.range %bm [0, 4096]
+      loom.range %bn [0, 4096]
     }
     func.func @attention(%arg0: memref<2x4096x4096xf32>, %arg1: memref<2x4096x4096xf32>, %arg2: memref<2x4096x4096xf32>, %arg3: memref<2x4096x4096xf32>) {
       %cst = arith.constant 2.000000e+00 : f32
@@ -25,9 +25,9 @@ module {
       %cst_2 = arith.constant 1.000000e+00 : f32
       %cst_3 = arith.constant 0xFF800000 : f32
       // Manually added constraint space access
-      %0 = loom.get_symbolic_block_size @constraints::@BM : index
-      %1 = loom.get_symbolic_block_size @constraints::@BN : index
-      %2 = loom.get_symbolic_block_size @constraints::@BK : index
+      %0 = loom.get_symbolic_block_size @constraints::@BB : index
+      %1 = loom.get_symbolic_block_size @constraints::@BM : index
+      %2 = loom.get_symbolic_block_size @constraints::@BN : index
       affine.parallel (%arg4, %arg5) = (0, 0) to (2 ceildiv symbol(%0), 4096 ceildiv symbol(%1)) {
         %3 = tensor.empty(%0, %1) : tensor<?x?xf32>
         %4 = linalg.fill ins(%cst_3 : f32) outs(%3 : tensor<?x?xf32>) -> tensor<?x?xf32>
