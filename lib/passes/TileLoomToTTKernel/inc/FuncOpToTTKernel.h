@@ -177,7 +177,7 @@ public:
    * @brief Append a value to the tracker core list.
    *
    * @details The core list is a simple ordered collection of values that
-   *          represent per-kernel coordinates/IDs (e.g., affine.parallel IVs)
+   *          represent per-kernel coordinates/IDs (e.g., scf.parallel IVs)
    *          materialized as compile-time arguments. This enables other
    *          lowering patterns to query the set of core-coordinate values that
    *          were created while lowering a kernel.

@@ -23,6 +23,11 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/SmallVector.h"
 
+// Loom dialect headers for ::::loom::CopyOp, ::loom::AllocOp
+#include "mlir/Interfaces/ViewLikeInterface.h"
+#define GET_OP_CLASSES
+#include "LoomOps.h.inc"
+
 // TTKernel thread type attribute and enum.
 #include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOps.h"
@@ -35,7 +40,7 @@ using namespace tt::ttkernel;
 // CompileArgTracker Implementation
 //===----------------------------------------------------------------------===//
 
-LogicalResult loom::CompileArgTracker::processInputArgs(
+LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     func::FuncOp func, TypeConverter &typeConverter, OpBuilder &rewriter) {
   Block &entry = func.front();
   Location loc = func.getLoc();
@@ -187,45 +192,45 @@ LogicalResult loom::CompileArgTracker::processInputArgs(
   return success();
 }
 
-loom::MemrefArgData *loom::CompileArgTracker::getMemrefData(Value arg) {
+mlir::loom::MemrefArgData *mlir::loom::CompileArgTracker::getMemrefData(Value arg) {
   auto it = memrefArgToData.find(arg);
   if (it != memrefArgToData.end())
     return &it->second;
   return nullptr;
 }
 
-loom::IndexArgData *loom::CompileArgTracker::getIndexData(Value arg) {
+mlir::loom::IndexArgData *mlir::loom::CompileArgTracker::getIndexData(Value arg) {
   auto it = indexArgToData.find(arg);
   if (it != indexArgToData.end())
     return &it->second;
   return nullptr;
 }
 
-Value loom::CompileArgTracker::getCB(Value arg) {
+Value mlir::loom::CompileArgTracker::getCB(Value arg) {
   if (auto *data = getMemrefData(arg))
     return data->cb;
   return nullptr;
 }
 
-Value loom::CompileArgTracker::getBaseAddr(Value arg) {
+Value mlir::loom::CompileArgTracker::getBaseAddr(Value arg) {
   if (auto *data = getMemrefData(arg))
     return data->baseAddr;
   return nullptr;
 }
 
-Value loom::CompileArgTracker::getTensorAccessor(Value arg) {
+Value mlir::loom::CompileArgTracker::getTensorAccessor(Value arg) {
   if (auto *data = getMemrefData(arg))
     return data->tensorAccessor;
   return nullptr;
 }
 
-Value loom::CompileArgTracker::getIndexValue(Value arg) {
+Value mlir::loom::CompileArgTracker::getIndexValue(Value arg) {
   if (auto *data = getIndexData(arg))
     return data->indexValue;
   return nullptr;
 }
 
-Value loom::CompileArgTracker::createIndexCompileArg(Value value, Location loc,
+Value mlir::loom::CompileArgTracker::createIndexCompileArg(Value value, Location loc,
                                                       OpBuilder &rewriter) {
   // Check if already created.
   if (auto *data = getIndexData(value))
@@ -255,29 +260,29 @@ Value loom::CompileArgTracker::createIndexCompileArg(Value value, Location loc,
   return indexCast.getResult();
 }
 
-void loom::CompileArgTracker::appendToCoreList(Operation *funcOp, Value value) {
+void mlir::loom::CompileArgTracker::appendToCoreList(Operation *funcOp, Value value) {
   //add type transformation to i32
   funcToCoreList[funcOp].push_back(value);
 }
 
-ArrayRef<Value> loom::CompileArgTracker::getCoreList(Operation *funcOp) const {
+ArrayRef<Value> mlir::loom::CompileArgTracker::getCoreList(Operation *funcOp) const {
   auto it = funcToCoreList.find(funcOp);
   if (it == funcToCoreList.end())
     return ArrayRef<Value>();
   return it->second;
 }
 
-void loom::CompileArgTracker::clearCoreList(Operation *funcOp) { funcToCoreList[funcOp].clear(); }
+void mlir::loom::CompileArgTracker::clearCoreList(Operation *funcOp) { funcToCoreList[funcOp].clear(); }
 
-int64_t loom::CompileArgTracker::getAndIncrementIndex(Operation *funcOp) {
+int64_t mlir::loom::CompileArgTracker::getAndIncrementIndex(Operation *funcOp) {
   return funcToNextArgIndex[funcOp]++;
 }
 
-int64_t loom::CompileArgTracker::getNextTensorAccessorArgsIndex(Operation *funcOp) {
+int64_t mlir::loom::CompileArgTracker::getNextTensorAccessorArgsIndex(Operation *funcOp) {
   return funcToNextTensorAccessorArgsIndex[funcOp]++;
 }
 
-Value loom::CompileArgTracker::createGetArgValOp(Location loc, OpBuilder &rewriter,
+Value mlir::loom::CompileArgTracker::createGetArgValOp(Location loc, OpBuilder &rewriter,
                                                   Operation *funcOp,
                                                   Type resultType) {
   int64_t index = getAndIncrementIndex(funcOp);
@@ -300,28 +305,29 @@ LogicalResult mlir::loom::replaceFuncArgsWithCompileArgs(
 namespace {
 
 /**
- * @brief Check if a memref.copy is a store operation.
+ * @brief Check if a loom.copy is a store operation.
  *
- * @details A store is identified when the target is a reinterpret_cast,
+ * @details A store is identified when the destination is a reinterpret_cast,
  *          indicating data flows from L1/CB to external DRAM.
  *
- * @param op The memref.copy operation to check.
+ * @param op The loom.copy operation to check.
  * @return true if this is a store operation, false otherwise.
  */
-static bool isStoreOp(memref::CopyOp op) {
-  return op.getTarget().getDefiningOp<memref::ReinterpretCastOp>() != nullptr;
+static bool isLoomStoreOp(::loom::CopyOp op) {
+  return op.getDestination().getDefiningOp<memref::ReinterpretCastOp>() !=
+         nullptr;
 }
 
 /**
- * @brief Check if a memref.copy is a load operation.
+ * @brief Check if a loom.copy is a load operation.
  *
  * @details A load is identified when the source is a reinterpret_cast,
  *          indicating data flows from external DRAM to L1/CB.
  *
- * @param op The memref.copy operation to check.
+ * @param op The loom.copy operation to check.
  * @return true if this is a load operation, false otherwise.
  */
-static bool isLoadOp(memref::CopyOp op) {
+static bool isLoomLoadOp(::loom::CopyOp op) {
   return op.getSource().getDefiningOp<memref::ReinterpretCastOp>() != nullptr;
 }
 
@@ -382,8 +388,8 @@ static func::FuncOp makeReaderFunc(func::FuncOp func) {
   readerFunc.walk([&](Operation *op) {
     if (isComputeOp(op)) {
       opsToErase.push_back(op);
-    } else if (auto copyOp = dyn_cast<memref::CopyOp>(op)) {
-      if (isStoreOp(copyOp))
+    }  else if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(op)) {
+      if (isLoomStoreOp(loomCopyOp))
         opsToErase.push_back(op);
     }
   });
@@ -415,8 +421,8 @@ static func::FuncOp makeWriterFunc(func::FuncOp func) {
   writerFunc.walk([&](Operation *op) {
     if (isComputeOp(op)) {
       opsToErase.push_back(op);
-    } else if (auto copyOp = dyn_cast<memref::CopyOp>(op)) {
-      if (isLoadOp(copyOp))
+    }  else if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(op)) {
+      if (isLoomLoadOp(loomCopyOp))
         opsToErase.push_back(op);
     }
   });
@@ -450,8 +456,8 @@ static func::FuncOp makeHostFunc(func::FuncOp func) {
   hostFunc.walk([&](Operation *op) {
     if (isComputeOp(op)) {
       opsToErase.push_back(op);
-    } else if (auto copyOp = dyn_cast<memref::CopyOp>(op)) {
-      if (isLoadOp(copyOp) || isStoreOp(copyOp)) {
+    }  else if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(op)) {
+      if (isLoomLoadOp(loomCopyOp) || isLoomStoreOp(loomCopyOp)) {
         opsToErase.push_back(op);
       }
     }

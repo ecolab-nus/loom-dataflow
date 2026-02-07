@@ -5,11 +5,10 @@
 
 #include "ComputeOpToTTKernel.h"
 #include "MemoryOpToTTKernel.h"
-#include "AffineOpToTTKernel.h"
+#include "SCFOpToTTKernel.h"
 #include "FuncOpToTTKernel.h"
 #include "TileLoomToTTKernel.h"
 
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -19,7 +18,6 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
-#include "mlir/Dialect/Affine/Passes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -27,6 +25,12 @@
 // TTKernel dialect (tt-mlir) for types/ops created by conversion patterns.
 #include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOpsTypes.h"
+
+// Loom dialect headers for ::loom::AllocOp, ::loom::CopyOp, etc.
+#include "mlir/Interfaces/ViewLikeInterface.h"
+#include "LoomDialect.h.inc"
+#define GET_OP_CLASSES
+#include "LoomOps.h.inc"
 
 using namespace mlir;
 using namespace mlir::loom;
@@ -84,7 +88,7 @@ static void eraseAllDfOps(ModuleOp module) {
  * @brief Pass that converts TileLoom IR to TTKernel dialect.
  * 
  * @details This pass applies conversion patterns to transform TileLoom
- *          operations (e.g., memref.copy with loom.copy.choice) into
+ *          operations (e.g., loom.alloc, loom.copy) into
  *          TTKernel operations. It converts memref types to CBType and
  *          handles function signature conversion.
  */
@@ -104,13 +108,15 @@ public:
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<func::FuncDialect, memref::MemRefDialect,
                     arith::ArithDialect, scf::SCFDialect,
-                    affine::AffineDialect, linalg::LinalgDialect>();
+                    linalg::LinalgDialect>();
     // Ensure TTKernel is loaded before patterns create TTKernel types (e.g.,
     // DataFormatType). Otherwise, creating such types can fail with
     // "storage uniquer isn't initialized".
     registry.insert<mlir::tt::ttkernel::TTKernelDialect>();
     // Ensure EmitC dialect is loaded for verbatim operations in host functions.
     registry.insert<mlir::emitc::EmitCDialect>();
+    // Ensure Loom dialect is loaded for loom.alloc, loom.copy operations.
+    registry.insert<::loom::LoomDialect>();
   }
 
   void runOnOperation() override {
@@ -120,15 +126,13 @@ public:
     // Preprocessing: hoist invariant allocs and simplify before lowering.
     //
     // This is useful to move loop-invariant `memref.alloc` ops outward (e.g.,
-    // out of `affine.for` nests) so the later TTKernel lowering sees fewer
+    // out of `scf.for` nests) so the later TTKernel lowering sees fewer
     // repeated allocations.
     PassManager prePm(context);
     prePm.addNestedPass<func::FuncOp>(
         bufferization::createBufferLoopHoistingPass());
     prePm.addNestedPass<func::FuncOp>(
         bufferization::createBufferHoistingPass());
-    prePm.addNestedPass<func::FuncOp>(
-        affine::createAffineLoopInvariantCodeMotionPass());
     //prePm.addPass(createCanonicalizerPass());
     if (failed(prePm.run(module))) {
       signalPassFailure();
@@ -191,35 +195,20 @@ public:
     // Set up conversion target
     ConversionTarget target(*context);
     
-    // Classify memref.copy as load/store based on whether the target is a
-    // reinterpret_cast. Always mark them illegal so the lowering patterns run.
-    target.addDynamicallyLegalOp<memref::CopyOp>([&](memref::CopyOp op) {
-      bool sourceIsRC =
-          op.getSource().getDefiningOp<memref::ReinterpretCastOp>() != nullptr;
-      bool targetIsRC =
-          op.getTarget().getDefiningOp<memref::ReinterpretCastOp>() != nullptr;
-      if (sourceIsRC || targetIsRC) {
-        return false;
-      } else {
-        return true;
-      }
-    });
-    
-    // Mark all memref.alloc as illegal (needs conversion)
-    // The type converter converts memref to CB, so all allocs need conversion.
-    target.addIllegalOp<memref::AllocOp>();
+    // Mark loom.alloc and loom.copy as illegal (needs conversion).
+    target.addIllegalOp<::loom::AllocOp>();
+    target.addIllegalOp<::loom::CopyOp>();
     
     // Mark memref operations that don't need conversion as legal
     // (they will be type-converted automatically)
     target.addLegalDialect<arith::ArithDialect, scf::SCFDialect>();
 
-    // Affine dialect is generally legal, but we require a conversion for
-    // affine.parallel so it can be lowered to straight-line code with
+    // SCF dialect is generally legal, but we require a conversion for
+    // scf.parallel so it can be lowered to straight-line code with
     // compile-time iterators.
-    target.addLegalDialect<affine::AffineDialect>();
-    target.addDynamicallyLegalOp<affine::AffineParallelOp>(
-        [&](affine::AffineParallelOp op) {
-          // Always mark affine.parallel as illegal so our conversion runs.
+    target.addDynamicallyLegalOp<scf::ParallelOp>(
+        [&](scf::ParallelOp op) {
+          // Always mark scf.parallel as illegal so our conversion runs.
           // If a loop is not rewritten, the conversion will fail.
           (void)op;
           return false;
@@ -241,7 +230,7 @@ public:
              typeConverter.isLegal(&op.getBody());
     });
     
-    // Mark memref operations that don't have loom.copy.choice as legal
+    // Mark memref.reinterpret_cast as illegal (consumed by conversion patterns)
     target.addDynamicallyLegalOp<memref::ReinterpretCastOp>(
         [&](memref::ReinterpretCastOp op) {
           return false;
@@ -259,11 +248,11 @@ public:
     populateCallOpTypeConversionPattern(patterns, typeConverter);
 
     
-    // Add Affine operation conversion patterns (e.g., affine.parallel -> CT args)
-    populateAffineOpConversionPatterns(patterns, typeConverter, context,
-                                       compileArgTracker);
+    // Add SCF operation conversion patterns (e.g., scf.parallel -> CT args)
+    populateSCFOpConversionPatterns(patterns, typeConverter, context,
+                                    compileArgTracker);
 
-    // Add memory operation conversion patterns (memref.copy with loom.copy.choice)
+    // Add memory operation conversion patterns (loom.alloc / loom.copy)
     populateMemoryOpConversionPatterns(patterns, typeConverter, context,
                                        compileArgTracker);
     // Add compute operation conversion patterns (e.g., linalg.matmul)

@@ -10,7 +10,6 @@
 #include "MemoryOpToTTKernel.h"
 #include "FuncOpToTTKernel.h"
 
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -27,6 +26,11 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 #include <memory>
+
+// Loom dialect headers for ::::loom::AllocOp, ::::loom::CopyOp
+#include "mlir/Interfaces/ViewLikeInterface.h"
+#define GET_OP_CLASSES
+#include "LoomOps.h.inc"
 
 using namespace mlir;
 using namespace mlir::loom;
@@ -57,30 +61,31 @@ static bool isComputeKernel(Operation *op) {
   return threadAttr && threadAttr.getValue() == ThreadType::Compute;
 }
 
-//===----------------------------------------------------------------------===//
-// Memory Kernel Patterns (Reader/Writer)
-//===----------------------------------------------------------------------===//
-
 /**
- * @brief Convert `memref.copy` into TTKernel NOC read ops for reader kernels.
+ * @brief Emit TTKernel NOC async read operations for a DRAM-to-L1 transfer.
  *
- * @details The conversion uses CompileArgTracker to get the pre-created base
- *          address value from the source memref. It then emits a TTKernel NOC
- *          read sequence to populate the destination circular buffer (CB).
- *          This pattern is used for reader kernels (Noc thread type).
+ * @details Given the source value (which must come from a
+ *          memref.reinterpret_cast), this function uses the CompileArgTracker
+ *          to obtain pre-created CB/base-address/tensor-accessor metadata and
+ *          emits a tiled NOC read loop that populates the destination CB.
+ *
+ * @param source The source Value (result of a memref.reinterpret_cast).
+ * @param loc    Location for newly created operations.
+ * @param rewriter          The conversion pattern rewriter.
+ * @param memrefArgData     Pre-computed multicast/broadcast metadata.
+ * @param tracker           Shared compile-arg tracker.
+ * @param typeConverter     The type converter in use.
+ * @return A pair of (totalSizeBytes, multicast_l1Addr), or (null, null) on
+ *         error.
  */
-
-std::pair<Value, Value> dram_read(memref::CopyOp op,
+std::pair<Value, Value> dram_read(Value source, Location loc,
                                    ConversionPatternRewriter &rewriter,
                                    MemrefArgData *memrefArgData,
                                    std::shared_ptr<CompileArgTracker> tracker,
                                    const TypeConverter *typeConverter) {
-  Value source = op.getSource();
   auto reinterpretCastOp = source.getDefiningOp<memref::ReinterpretCastOp>();
   if (!reinterpretCastOp)
     return std::make_pair(Value(), Value());
-
-  Location loc = op.getLoc();
 
   // Get the input memref (source of reinterpret_cast) - this should be a
   // function argument.
@@ -170,7 +175,7 @@ std::pair<Value, Value> dram_read(memref::CopyOp op,
   Value multicast_l1Addr = GetWritePtrOp::create(rewriter, loc, cb);
 
   // Obtain the base offset value from the reinterpret_cast operation.
-  // The offset is in element units (from affine.apply).
+  // The offset is in element units.
   Value baseElemOffset = offsetI32;
 
   // Get memref shape.
@@ -362,8 +367,45 @@ bool multicast_receive(ConversionPatternRewriter &rewriter, Location loc,
   return true;
 }
 
-struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
-  using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
+//===----------------------------------------------------------------------===//
+// Other Patterns
+//===----------------------------------------------------------------------===//
+
+/**
+ * @brief Erase memref.reinterpret_cast ops during conversion.
+ *
+ * @details After the copy conversion patterns have consumed the
+ *          reinterpret_cast results, these ops become dead and must be removed
+ *          because they are marked as illegal in the conversion target.
+ *          This pattern handles both casts carrying the `loom.reuse` attribute
+ *          and plain casts that were used by loom.copy / memref.copy.
+ */
+struct ConvertReinterpretCastOp
+    : public OpConversionPattern<memref::ReinterpretCastOp> {
+  using OpConversionPattern<memref::ReinterpretCastOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(memref::ReinterpretCastOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
+//===----------------------------------------------------------------------===//
+// Loom Dialect Patterns (loom.alloc, loom.copy)
+//===----------------------------------------------------------------------===//
+
+/**
+ * @brief Convert `loom.alloc` to TTKernel CB.
+ *
+ * @details This pattern handles `loom.alloc` operations:
+ *          - For allocs whose result is the destination of a `loom.copy`
+ *            (load direction), use the pre-created CB from the tracker.
+ *          - For other allocs (output accumulators), create a new CB.
+ */
+struct ConvertLoomAllocOp : public OpConversionPattern<::loom::AllocOp> {
+  using OpConversionPattern<::loom::AllocOp>::OpConversionPattern;
 
   /**
    * @brief Construct the pattern with a type converter and context.
@@ -371,201 +413,60 @@ struct ConvertMemoryLoadOp : public OpConversionPattern<memref::CopyOp> {
    * @param context MLIR context.
    * @param tracker Shared tracker for compile-arg values.
    */
-  ConvertMemoryLoadOp(TypeConverter &typeConverter, MLIRContext *context,
-                      std::shared_ptr<CompileArgTracker> tracker)
-      : OpConversionPattern<memref::CopyOp>(typeConverter, context),
+  ConvertLoomAllocOp(TypeConverter &typeConverter, MLIRContext *context,
+                     std::shared_ptr<CompileArgTracker> tracker)
+      : OpConversionPattern<::loom::AllocOp>(typeConverter, context),
         tracker(std::move(tracker)) {}
 
   /**
-   * @brief Match and rewrite `memref.copy` into TTKernel NOC read operations.
+   * @brief Find the input memref that flows into this alloc via loom.copy.
    *
-   * @details This pattern handles `memref.copy` operations where the source
-   *          is a `memref.reinterpret_cast` (indicating data flows from
-   * external memory to L1/CB). It emits TTKernel NOC async read operations to
-   *          load data from DRAM into the circular buffer.
+   * @details Looks at the users of the alloc to find a loom.copy where
+   *          this alloc is the destination. Then traces back through
+   *          reinterpret_cast to find the original input memref (typically a
+   *          function argument).
+   *
+   * @param alloc The loom.alloc op to analyze.
+   * @return The source memref if found, or nullptr.
    */
-  LogicalResult
-  matchAndRewrite(memref::CopyOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    Location loc = op.getLoc();
-
-    // Get the source - it should be a reinterpret_cast.
-    Value source = op.getSource();
-    auto reinterpretCastOp = source.getDefiningOp<memref::ReinterpretCastOp>();
-    if (!reinterpretCastOp)
-      return failure();
-
-    // Get the input memref (source of reinterpret_cast) - this should be a
-    // function argument.
-    Value inputMemref = reinterpretCastOp.getSource();
-
-    // Get memrefArgData from tracker
-    MemrefArgData *memrefArgData = tracker->getMemrefData(inputMemref);
-    if (!memrefArgData) {
-      llvm::errs() << "No MemrefArgData found for input memref\n";
-      return failure();
-    }
-
-    // based on the option in memref.copy to decide which function to call
-    //  Check if this is a broadcast operation
-    bool isBroadcast = false;
-    bool isBroadcastX = false;
-    if (auto choiceAttr =
-            op->getAttrOfType<DictionaryAttr>("loom.copy.choice")) {
-      if (auto kindAttr = choiceAttr.get("kind")) {
-        if (auto kindStr = llvm::dyn_cast_or_null<StringAttr>(kindAttr)) {
-          if (kindStr.getValue() == "broadcast") {
-            isBroadcast = true;
-            // Check which dimension is used for broadcast
-            if (auto dimAttr = choiceAttr.get("dim")) {
-              if (auto dimStr = llvm::dyn_cast_or_null<StringAttr>(dimAttr)) {
-                StringRef dimValue = dimStr.getValue();
-                if (dimValue == "x") {
-                  isBroadcastX = true;
-                }
-                // Note: "y" dimension is handled by !isBroadcastX
-              }
-            }
+  Value findInputMemref(::loom::AllocOp alloc) const {
+    for (Operation *user : alloc.getResult().getUsers()) {
+      // Check loom.copy users.
+      if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(user)) {
+        if (loomCopyOp.getDestination() == alloc.getResult()) {
+          Value source = loomCopyOp.getSource();
+          if (auto reinterpretCastOp =
+                  source.getDefiningOp<memref::ReinterpretCastOp>()) {
+            return reinterpretCastOp.getSource();
           }
         }
       }
     }
+    return nullptr;
+  }
 
-    
-    // Pre-compute num_tiles BEFORE the if/else to ensure it dominates CBPushBackOp
-    // Get the CB from the tracker
-    Value cb = tracker->getCB(inputMemref);
-    if (!cb) {
-      llvm::errs() << "Error: CB not found for memref " << inputMemref << "\n";
-      return failure();
-    }
-    
-    // Compute numPages based on CB type (must be done before if/else for domination)
-    auto cbType = cast<CBType>(cb.getType());
-    auto elementType = cbType.getElementType();
-    Value numPages;
-    
-    if (auto tileType = llvm::dyn_cast<TileType>(elementType)) {
-      // Tiled CB: use getNumTiles() directly
-      const int32_t numTiles = cbType.getNumTiles();
-      numPages = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), numTiles);
-    } else {
-      // Scalar CB: calculate numTiles from element count
-      const int64_t numElements = cbType.getNumElements();
-      int32_t elementSizeBytes = 4;  // default
-      if (elementType.isF16() || elementType.isBF16()) {
-        elementSizeBytes = 2;
-      } else if (elementType.isF32()) {
-        elementSizeBytes = 4;
-      } else if (auto intType = llvm::dyn_cast<IntegerType>(elementType)) {
-        elementSizeBytes = (intType.getWidth() + 7) / 8;
-      }
-      // Get page size to calculate number of pages
-      Value pageSize = GetTileSizeOp::create(rewriter, loc, cb);
-      Value totalSize = rewriter.create<arith::ConstantIntOp>(
-          loc, rewriter.getI32Type(), numElements * elementSizeBytes);
-      numPages = arith::DivSIOp::create(rewriter, loc, totalSize, pageSize);
-    }
-    
-    // Set memrefArgData->num_tiles here before any branching
-    memrefArgData->num_tiles = numPages;
-    
-    if (isBroadcast) {
-      // Get the parent function for per-function coreList lookup
-      Operation *parentFunc = op->getParentOfType<func::FuncOp>();
-      auto coreList = tracker->getCoreList(parentFunc);
-      
-      // Validate coreList has enough elements
-      if (coreList.size() < 2) {
-        llvm::errs() << "coreList does not have enough elements for broadcast (need 2, got " 
-                     << coreList.size() << ")\n";
-        return failure();
-      }
-      
-      // Cast coreList values from index to i32 if needed
-      Value coreX = coreList[0];
-      Value coreY = coreList[1];
-      
-      // Validate coreX and coreY are not null
-      if (!coreX || !coreY) {
-        llvm::errs() << "coreX or coreY is null\n";
-        return failure();
-      }
-      // Validate that all required multicast data is present before creating the if/then/else structure
-      if (!memrefArgData->mcast_sender_semaphore_addr_ptr ||
-          !memrefArgData->mcast_receiver_semaphore_addr_ptr ||
-          !memrefArgData->mcast_dest_noc_start_x ||
-          !memrefArgData->mcast_dest_noc_start_y ||
-          !memrefArgData->mcast_dest_noc_end_x ||
-          !memrefArgData->mcast_dest_noc_end_y ||
-          !memrefArgData->mcast_dest_num ||
-          !memrefArgData->mcast_sender_noc_x ||
-          !memrefArgData->mcast_sender_noc_y ||
-          !memrefArgData->mcast_sender_semaphore_addr ||
-          !memrefArgData->mcast_receiver_semaphore_addr) {
-        llvm::errs() << "Missing required multicast metadata in memrefArgData\n";
-        return failure();
-      }
-      
-      // Cast to i32 if they're index type
-      if (coreX.getType().isIndex()) {
-        coreX = rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), coreX);
-      }
-      if (coreY.getType().isIndex()) {
-        coreY = rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), coreY);
-      }
-      
-      
-      Value zero = rewriter.create<arith::ConstantIntOp>(
-          loc, rewriter.getI32Type(), 0);
-      Value cond;
-      if (isBroadcastX) {
-        cond = rewriter.create<arith::CmpIOp>(
-            loc, arith::CmpIPredicate::eq, coreX, zero);
-      } else {
-        cond = rewriter.create<arith::CmpIOp>(
-            loc, arith::CmpIPredicate::eq, coreY, zero);
-      }
+  LogicalResult
+  matchAndRewrite(::loom::AllocOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
 
-      auto ifOp = rewriter.create<scf::IfOp>(loc, cond, true);
-      {
-        OpBuilder::InsertionGuard guard(rewriter);
-        // THEN - Insert before the existing yield terminator
-        rewriter.setInsertionPoint(ifOp.getThenRegion().front().getTerminator());
-        // Call dram_read and get the return values
-        auto [totalSizeBytes, multicast_l1Addr] =
-            dram_read(op, rewriter, memrefArgData, tracker, getTypeConverter());
-        
-        // Check if dram_read succeeded
-        if (!totalSizeBytes || !multicast_l1Addr) {
-          llvm::errs() << "dram_read failed to return valid values\n";
-          return failure();
-        }
-        multicast_send(rewriter, loc, memrefArgData, totalSizeBytes,
-                       multicast_l1Addr);
-      
-        // ELSE - Insert before the existing yield terminator
-        rewriter.setInsertionPoint(ifOp.getElseRegion().front().getTerminator());
-        multicast_receive(rewriter, loc, memrefArgData);
-      }
-      
-      rewriter.setInsertionPointAfter(ifOp);
+    // Try to find the input memref that flows into this alloc.
+    Value inputMemref = findInputMemref(op);
+    if (inputMemref) {
+      Value cb = tracker->getCB(inputMemref);
+      rewriter.replaceOp(op, cb);
+      return success();
     }
-    else{
-      // Call dram_read and get the return values
-      auto [totalSizeBytes, multicast_l1Addr] =
-          dram_read(op, rewriter, memrefArgData, tracker, getTypeConverter());
-      
-      // Check if dram_read succeeded
-      if (!totalSizeBytes || !multicast_l1Addr) {
-        llvm::errs() << "dram_read failed to return valid values\n";
-        return failure();
-    }
-    }
-    
-    // push the data to the cb
-    CBPushBackOp::create(rewriter, loc, memrefArgData->cb, memrefArgData->num_tiles);
-    rewriter.eraseOp(op);
+
+    // No input memref found – this alloc is used as an output buffer
+    // (e.g., for linalg.matmul outs). Create a new CB for it.
+    auto memrefType = op.getType();
+    auto cbType = CBType::get(memrefType);
+
+    Value argIdx = rewriter.create<arith::ConstantIntOp>(
+        loc, /*value=*/0, /*width=*/32);
+    Value newCb = GetArgValOp::create(rewriter, loc, cbType, argIdx);
+    rewriter.replaceOp(op, newCb);
     return success();
   }
 
@@ -574,188 +475,290 @@ private:
   std::shared_ptr<CompileArgTracker> tracker;
 };
 
-/**
- * @brief Convert `memref.copy` into TTKernel NOC write ops for writer kernels.
- *
- * @details The conversion handles store operations where data flows from L1/CB
- *          (source) to external memory (target). It uses the pre-created base
- *          address value and emits a TTKernel NOC write sequence to transfer
- *          data from the circular buffer to DRAM.
- *          This pattern is used for writer kernels (Noc thread type).
- */
-struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
-  using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
+//===----------------------------------------------------------------------===//
+// loom.copy Load/Store Patterns (Reader/Writer Kernels)
+//===----------------------------------------------------------------------===//
 
-  /**
-   * @brief Construct the pattern with a type converter and context.
-   * @param typeConverter Type converter for the conversion pipeline.
-   * @param context MLIR context.
-   * @param tracker Shared tracker for compile-arg values.
-   */
-  ConvertMemoryStoreOp(TypeConverter &typeConverter, MLIRContext *context,
-                       std::shared_ptr<CompileArgTracker> tracker)
-      : OpConversionPattern<memref::CopyOp>(typeConverter, context),
+/**
+ * @brief Convert `loom.copy` (load direction) into TTKernel NOC read ops for
+ *        reader kernels.
+ *
+ * @details Handles loom.copy operations where the source is a
+ *          memref.reinterpret_cast (data flows from DRAM to L1). Supports
+ *          both unicast and broadcast via the op's `interconnect` and
+ *          `broadcast` attributes.
+ */
+struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
+  using OpConversionPattern<::loom::CopyOp>::OpConversionPattern;
+
+  ConvertLoomMemoryLoadOp(TypeConverter &typeConverter, MLIRContext *context,
+                          std::shared_ptr<CompileArgTracker> tracker)
+      : OpConversionPattern<::loom::CopyOp>(typeConverter, context),
         tracker(std::move(tracker)) {}
 
-  /**
-   * @brief Match and rewrite `memref.copy` into TTKernel NOC write operations.
-   *
-   * @details This pattern handles `memref.copy` operations where the source
-   *          is NOT a `memref.reinterpret_cast` (indicating data flows from
-   *          L1/CB to external memory). It emits TTKernel NOC async write
-   *          operations to transfer data from the circular buffer to DRAM.
-   */
   LogicalResult
-  matchAndRewrite(memref::CopyOp op, OpAdaptor adaptor,
+  matchAndRewrite(::loom::CopyOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    // Store: DRAM side is the target reinterpret_cast (writing from L1/CB to
-    // external memory).
-    Value target = op.getTarget();
+    Location loc = op.getLoc();
+
+    // Must be a load: source is a reinterpret_cast.
+    Value source = op.getSource();
+    auto reinterpretCastOp = source.getDefiningOp<memref::ReinterpretCastOp>();
+    if (!reinterpretCastOp)
+      return failure();
+
+    Value inputMemref = reinterpretCastOp.getSource();
+
+    // Get memrefArgData from tracker.
+    MemrefArgData *memrefArgData = tracker->getMemrefData(inputMemref);
+    if (!memrefArgData) {
+      llvm::errs() << "No MemrefArgData found for input memref\n";
+      return failure();
+    }
+
+    // Determine broadcast from the loom.copy attributes.
+    bool isBroadcast = false;
+    bool isBroadcastX = false;
+    auto interconnectAttr = op.getInterconnect();
+    if (interconnectAttr && !interconnectAttr.empty()) {
+      isBroadcast = true;
+      // Determine direction from the interconnect symbol.
+      for (Attribute attr : interconnectAttr) {
+        if (auto symRef = dyn_cast<FlatSymbolRefAttr>(attr)) {
+          StringRef name = symRef.getValue();
+          if (name.contains("horizontal")) {
+            isBroadcastX = true;
+          }
+          // "vertical" → isBroadcastX remains false
+        }
+      }
+    }
+
+    // Pre-compute num_tiles.
+    Value cb = tracker->getCB(inputMemref);
+    if (!cb) {
+      llvm::errs() << "Error: CB not found for memref " << inputMemref << "\n";
+      return failure();
+    }
+
+    auto cbType = cast<CBType>(cb.getType());
+    auto elementType = cbType.getElementType();
+    Value numPages;
+
+    if (auto tileType = llvm::dyn_cast<TileType>(elementType)) {
+      const int32_t numTiles = cbType.getNumTiles();
+      numPages = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), numTiles);
+    } else {
+      const int64_t numElements = cbType.getNumElements();
+      int32_t elementSizeBytes = 4;
+      if (elementType.isF16() || elementType.isBF16())
+        elementSizeBytes = 2;
+      else if (elementType.isF32())
+        elementSizeBytes = 4;
+      else if (auto intType = llvm::dyn_cast<IntegerType>(elementType))
+        elementSizeBytes = (intType.getWidth() + 7) / 8;
+      Value pageSize = GetTileSizeOp::create(rewriter, loc, cb);
+      Value totalSize = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), numElements * elementSizeBytes);
+      numPages = arith::DivSIOp::create(rewriter, loc, totalSize, pageSize);
+    }
+
+    memrefArgData->num_tiles = numPages;
+
+    if (isBroadcast) {
+      Operation *parentFunc = op->getParentOfType<func::FuncOp>();
+      auto coreList = tracker->getCoreList(parentFunc);
+
+      if (coreList.size() < 2) {
+        llvm::errs() << "coreList too small for broadcast (need 2, got "
+                     << coreList.size() << ")\n";
+        return failure();
+      }
+
+      Value coreX = coreList[0];
+      Value coreY = coreList[1];
+      if (!coreX || !coreY) {
+        llvm::errs() << "coreX or coreY is null\n";
+        return failure();
+      }
+
+      if (coreX.getType().isIndex())
+        coreX = rewriter.create<arith::IndexCastOp>(
+            loc, rewriter.getI32Type(), coreX);
+      if (coreY.getType().isIndex())
+        coreY = rewriter.create<arith::IndexCastOp>(
+            loc, rewriter.getI32Type(), coreY);
+
+      Value zero = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), 0);
+      Value cond;
+      if (isBroadcastX)
+        cond = rewriter.create<arith::CmpIOp>(
+            loc, arith::CmpIPredicate::eq, coreX, zero);
+      else
+        cond = rewriter.create<arith::CmpIOp>(
+            loc, arith::CmpIPredicate::eq, coreY, zero);
+
+      auto ifOp = rewriter.create<scf::IfOp>(loc, cond, true);
+      {
+        OpBuilder::InsertionGuard guard(rewriter);
+        rewriter.setInsertionPoint(
+            ifOp.getThenRegion().front().getTerminator());
+        auto [totalSizeBytes, multicast_l1Addr] = dram_read(
+            source, loc, rewriter, memrefArgData, tracker, getTypeConverter());
+        if (!totalSizeBytes || !multicast_l1Addr) {
+          llvm::errs() << "dram_read failed to return valid values\n";
+          return failure();
+        }
+        multicast_send(rewriter, loc, memrefArgData, totalSizeBytes,
+                       multicast_l1Addr);
+
+        rewriter.setInsertionPoint(
+            ifOp.getElseRegion().front().getTerminator());
+        multicast_receive(rewriter, loc, memrefArgData);
+      }
+      rewriter.setInsertionPointAfter(ifOp);
+    } else {
+      auto [totalSizeBytes, multicast_l1Addr] = dram_read(
+          source, loc, rewriter, memrefArgData, tracker, getTypeConverter());
+      if (!totalSizeBytes || !multicast_l1Addr) {
+        llvm::errs() << "dram_read failed to return valid values\n";
+        return failure();
+      }
+    }
+
+    CBPushBackOp::create(rewriter, loc, memrefArgData->cb,
+                         memrefArgData->num_tiles);
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+private:
+  std::shared_ptr<CompileArgTracker> tracker;
+};
+
+/**
+ * @brief Convert `loom.copy` (store direction) into TTKernel NOC write ops
+ *        for writer kernels.
+ *
+ * @details Handles loom.copy operations where the destination is a
+ *          memref.reinterpret_cast (data flows from L1 to DRAM).
+ */
+struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
+  using OpConversionPattern<::loom::CopyOp>::OpConversionPattern;
+
+  ConvertLoomMemoryStoreOp(TypeConverter &typeConverter, MLIRContext *context,
+                           std::shared_ptr<CompileArgTracker> tracker)
+      : OpConversionPattern<::loom::CopyOp>(typeConverter, context),
+        tracker(std::move(tracker)) {}
+
+  LogicalResult
+  matchAndRewrite(::loom::CopyOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    // Store: destination is a reinterpret_cast.
+    Value target = op.getDestination();
     auto reinterpretCastOp = target.getDefiningOp<memref::ReinterpretCastOp>();
     if (!reinterpretCastOp)
       return failure();
     Location loc = op.getLoc();
 
-    // Get the output memref (source of reinterpret_cast) - used for base
-    // address lookup.
     Value outputMemref = reinterpretCastOp.getSource();
 
-    // For store, the CB is tracked per *original memref argument* (the
-    // reinterpret_cast source), not via the conversion rewriter's SSA mapping.
-    //
-    // Important: `rewriter.getRemappedValue(outputMemref)` may simply return
-    // `outputMemref` itself if no mapping exists, which would leave the
-    // original function argument (e.g. %arg2) still used and prevent
-    // `removeAllFunctionArguments()` from erasing it.
     Value cb = tracker->getCB(outputMemref);
     if (!cb) {
-      llvm::errs() << "No CB found for MemoryStoreOp outputMemref: "
+      llvm::errs() << "No CB found for LoomCopyOp store outputMemref: "
                    << outputMemref << "\n";
       return failure();
     }
 
-    // Get the pre-created base address from the tracker.
     Value baseAddr = tracker->getBaseAddr(outputMemref);
     if (!baseAddr) {
-      llvm::errs() << "No base address found for MemoryStoreOp outputMemref: "
-                   << outputMemref << "\n";
+      llvm::errs() << "No base address found for LoomCopyOp store\n";
       return failure();
     }
 
-    // Determine insertion point: must be after both cb and baseAddr.
+    // Determine insertion point after both cb and baseAddr.
     Value insertionAnchor = cb;
     Operation *cbOp = cb.getDefiningOp();
     Operation *baseAddrOp = baseAddr.getDefiningOp();
     if (cbOp && baseAddrOp && cbOp->getBlock() == baseAddrOp->getBlock()) {
-      // If both are in the same block, insert after the later one.
-      if (cbOp->isBeforeInBlock(baseAddrOp)) {
+      if (cbOp->isBeforeInBlock(baseAddrOp))
         insertionAnchor = baseAddr;
-      }
     }
 
     auto opInsertionPt = rewriter.saveInsertionPoint();
     rewriter.setInsertionPointAfterValue(insertionAnchor);
     auto pageSize = GetTileSizeOp::create(rewriter, loc, cb);
 
-    // Get the base address and offset from the target (external memory)
+    // Get offset from reinterpret_cast.
     Value offset;
-    if (auto reinterpretCastOp =
-            target.getDefiningOp<memref::ReinterpretCastOp>()) {
-      // Get the offset from reinterpret_cast (use first offset if multiple)
+    {
       auto offsets = reinterpretCastOp.getOffsets();
       if (!offsets.empty()) {
         offset = offsets[0];
       } else {
-        // If no dynamic offsets, check static offsets
         auto mixedOffsets = reinterpretCastOp.getMixedOffsets();
         if (!mixedOffsets.empty() && isa<Attribute>(mixedOffsets[0])) {
-          // Static offset - convert to value
           auto staticOffset =
               llvm::cast<IntegerAttr>(cast<Attribute>(mixedOffsets[0]));
-          offset = rewriter.create<arith::ConstantIndexOp>(
-              loc, staticOffset.getInt());
+          offset =
+              rewriter.create<arith::ConstantIndexOp>(loc, staticOffset.getInt());
         } else {
-          // Fallback: use constant 0 (index type)
           offset = rewriter.create<arith::ConstantIndexOp>(loc, 0);
         }
       }
-    } else {
-      // No reinterpret_cast - use offset 0
-      offset = rewriter.create<arith::ConstantIndexOp>(loc, 0);
     }
 
     rewriter.restoreInsertionPoint(opInsertionPt);
 
-    // Convert bytes offset to i32 for calculations.
     Value offsetI32 = offset;
-    if (offsetI32 && offsetI32.getType().isIndex()) {
+    if (offsetI32 && offsetI32.getType().isIndex())
       offsetI32 = rewriter.create<arith::IndexCastOp>(
           loc, rewriter.getI32Type(), offsetI32);
-    }
 
-    // Determine how many tiles we need to store.
+    // Compute number of pages.
     auto cbType = cast<CBType>(cb.getType());
     Value numPages;
-
-    // Check if CB is tiled (element type is TileType) or scalar
     auto elementType = cbType.getElementType();
     if (auto tileType = llvm::dyn_cast<TileType>(elementType)) {
-      // Tiled CB: use getNumTiles() directly
       const int32_t numTiles = cbType.getNumTiles();
       numPages = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), numTiles);
     } else {
-      // Scalar CB: calculate numTiles = (numElements * elementSizeInBytes) /
-      // pageSizeInBytes
       const int64_t numElements = cbType.getNumElements();
-
-      // Get element size in bytes
-      int32_t elementSizeBytes = 0;
-      if (elementType.isF32()) {
-        elementSizeBytes = 4;
-      } else if (elementType.isF16() || elementType.isBF16()) {
+      int32_t elementSizeBytes = 4;
+      if (elementType.isF16() || elementType.isBF16())
         elementSizeBytes = 2;
-      } else if (auto intType = llvm::dyn_cast<IntegerType>(elementType)) {
-        elementSizeBytes = (intType.getWidth() + 7) / 8; // Round up to bytes
-      } else {
-        // Default: assume 4 bytes if unknown
+      else if (elementType.isF32())
         elementSizeBytes = 4;
-      }
-
-      // Calculate total size in bytes and divide by page size
+      else if (auto intType = llvm::dyn_cast<IntegerType>(elementType))
+        elementSizeBytes = (intType.getWidth() + 7) / 8;
       Value totalSizeBytes = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), numElements * elementSizeBytes);
       numPages =
           arith::DivSIOp::create(rewriter, loc, totalSizeBytes, pageSize);
     }
 
-    // Get the pre-created TensorAccessor from the tracker.
     Value accessorOp = tracker->getTensorAccessor(outputMemref);
     if (!accessorOp) {
       llvm::errs() << "No TensorAccessor found for output memref\n";
       return failure();
     }
 
-    // Wait for data in CB and get read pointer.
     CBWaitFrontOp::create(rewriter, loc, cb, numPages);
     Value l1Addr = GetReadPtrOp::create(rewriter, loc, cb);
 
-    // Obtain the base offset value (%13) from the reinterpret_cast operation.
-    // The offset is in element units (from affine.apply).
     Value baseElemOffset = offsetI32;
-
-    // Get memref shape.
     auto resultType = cast<MemRefType>(reinterpretCastOp.getResult().getType());
     ArrayRef<int64_t> shape = resultType.getShape();
 
-    // Get strides from the layout.
     SmallVector<int64_t> strides;
     auto layout = resultType.getLayout();
     if (auto stridedLayout = dyn_cast<StridedLayoutAttr>(layout)) {
       auto stridesRef = stridedLayout.getStrides();
       strides.append(stridesRef.begin(), stridesRef.end());
     } else {
-      // Compute default row-major strides if not available.
       int64_t stride = 1;
       for (int i = shape.size() - 1; i >= 0; --i) {
         strides.insert(strides.begin(), stride);
@@ -763,17 +766,12 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
       }
     }
 
-    // Tile dimension (32x32 for TTKernel).
     constexpr int64_t kTileDim = 32;
-
-    // Calculate number of tiles in each dimension: numTiles = shape / 32.
-    // For 2D memref [H, W], we have (H/32) x (W/32) tiles.
     int64_t numTileRows =
         (shape.size() > 0) ? (shape[0] + kTileDim - 1) / kTileDim : 1;
     int64_t numTileCols =
         (shape.size() > 1) ? (shape[1] + kTileDim - 1) / kTileDim : 1;
 
-    // Create constants for loop bounds and calculations.
     Value loopConst0 =
         rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
     Value loopConst1 =
@@ -789,8 +787,6 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
     Value stride1Val = rewriter.create<arith::ConstantIntOp>(
         loc, rewriter.getI32Type(), (strides.size() > 1) ? strides[1] : 1);
 
-    // Create nested loops to iterate over all tiles.
-    // Outer loop: iterate over tile rows (0 to numTileRows).
     scf::ForOp rowLoop =
         scf::ForOp::create(rewriter, loc, loopConst0, numTileRowsVal,
                            loopConst1, ValueRange{l1Addr});
@@ -799,7 +795,6 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
       Value tileRow = rowLoop.getInductionVar();
       Value crtL1Addr = rowLoop.getRegionIterArgs()[0];
 
-      // Inner loop: iterate over tile columns (0 to numTileCols).
       scf::ForOp colLoop =
           scf::ForOp::create(rewriter, loc, loopConst0, numTileColsVal,
                              loopConst1, ValueRange{crtL1Addr});
@@ -808,71 +803,48 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
         Value tileCol = colLoop.getInductionVar();
         Value innerL1Addr = colLoop.getRegionIterArgs()[0];
 
-        // Calculate element offset for this tile within the memref:
-        // tileElemOffset = tileRow * tileDim * stride0 + tileCol * tileDim *
-        // stride1
         Value rowOffset =
             arith::MulIOp::create(rewriter, loc, tileRow, tileDimVal,
                                   arith::IntegerOverflowFlags::nsw);
         rowOffset = arith::MulIOp::create(rewriter, loc, rowOffset, stride0Val,
                                           arith::IntegerOverflowFlags::nsw);
-
         Value colOffset =
             arith::MulIOp::create(rewriter, loc, tileCol, tileDimVal,
                                   arith::IntegerOverflowFlags::nsw);
         colOffset = arith::MulIOp::create(rewriter, loc, colOffset, stride1Val,
                                           arith::IntegerOverflowFlags::nsw);
-
         Value tileElemOffset =
             arith::AddIOp::create(rewriter, loc, rowOffset, colOffset,
                                   arith::IntegerOverflowFlags::nsw);
-
-        // Total element offset = baseElemOffset + tileElemOffset
         Value totalElemOffset = arith::AddIOp::create(
             rewriter, loc, baseElemOffset, tileElemOffset,
             arith::IntegerOverflowFlags::nsw);
 
-        // rowIdx = totalElemOffset / elementsPerRow
         Value rowIdx =
             arith::DivSIOp::create(rewriter, loc, totalElemOffset, stride0Val);
-
-        // colIdx = totalElemOffset % elementsPerRow
         Value colIdx =
             arith::RemSIOp::create(rewriter, loc, totalElemOffset, stride0Val);
-
-        // tilesPerRow = elementsPerRow / tileDim
         Value tilesPerRow =
             arith::DivSIOp::create(rewriter, loc, stride0Val, tileDimVal);
-
-        // rowTile = rowIdx / tileDim
         Value rowTile =
             arith::DivSIOp::create(rewriter, loc, rowIdx, tileDimVal);
-
-        // rowTileBase = rowTile * tilesPerRow
         Value rowTileBase =
             arith::MulIOp::create(rewriter, loc, rowTile, tilesPerRow,
                                   arith::IntegerOverflowFlags::nsw);
-
-        // colTile = colIdx / tileDim
         Value colTile =
             arith::DivSIOp::create(rewriter, loc, colIdx, tileDimVal);
-
-        // tileId = rowTileBase + colTile
         Value tileId =
             arith::AddIOp::create(rewriter, loc, rowTileBase, colTile,
                                   arith::IntegerOverflowFlags::nsw);
-        // Issue an async write for this tile using the tensor accessor.
         NocAsyncWriteTileOp::create(rewriter, loc, tileId, accessorOp,
                                     innerL1Addr);
 
-        // Advance L1 address to next tile.
         Value nextL1Addr =
             arith::AddIOp::create(rewriter, loc, innerL1Addr, pageSize,
                                   arith::IntegerOverflowFlags::nsw);
         scf::YieldOp::create(rewriter, loc, ValueRange(nextL1Addr));
       }
 
-      // Yield updated L1 address from inner loop.
       rewriter.setInsertionPointAfter(colLoop);
       scf::YieldOp::create(rewriter, loc, colLoop.getResults());
     }
@@ -886,129 +858,79 @@ struct ConvertMemoryStoreOp : public OpConversionPattern<memref::CopyOp> {
   }
 
 private:
-  /// Shared tracker for compile-arg values.
   std::shared_ptr<CompileArgTracker> tracker;
 };
 
 //===----------------------------------------------------------------------===//
-// Compute Kernel Patterns
+// loom.copy Compute Kernel Patterns
 //===----------------------------------------------------------------------===//
 
 /**
- * @brief Convert `memref.copy` to CB synchronization for compute kernels
- * (load).
+ * @brief Convert `loom.copy` (load) to CB synchronization for compute kernels.
  *
- * @details Compute kernels don't have direct NOC access. Instead of performing
- *          NOC reads, compute kernels wait for the reader kernel to load data
- *          into the circular buffer via cb_wait_front.
- *          This pattern handles the "load" side (source is reinterpret_cast).
+ * @details In compute kernels, loads are handled by the reader kernel. The
+ *          compute kernel simply erases the copy op because CB wait/push
+ *          operations are emitted elsewhere.
  */
-struct ConvertComputeLoadOp : public OpConversionPattern<memref::CopyOp> {
-  using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
+struct ConvertLoomComputeLoadOp : public OpConversionPattern<::loom::CopyOp> {
+  using OpConversionPattern<::loom::CopyOp>::OpConversionPattern;
 
-  /**
-   * @brief Construct the pattern with a type converter and context.
-   * @param typeConverter Type converter for the conversion pipeline.
-   * @param context MLIR context.
-   * @param tracker Shared tracker for compile-arg values.
-   */
-  ConvertComputeLoadOp(TypeConverter &typeConverter, MLIRContext *context,
-                       std::shared_ptr<CompileArgTracker> tracker)
-      : OpConversionPattern<memref::CopyOp>(typeConverter, context),
+  ConvertLoomComputeLoadOp(TypeConverter &typeConverter, MLIRContext *context,
+                           std::shared_ptr<CompileArgTracker> tracker)
+      : OpConversionPattern<::loom::CopyOp>(typeConverter, context),
         tracker(std::move(tracker)) {}
 
-  /**
-   * @brief Match and rewrite `memref.copy` into CB wait operations for compute.
-   *
-   * @details This pattern handles `memref.copy` operations in compute kernels
-   *          where the source is a `memref.reinterpret_cast`. Instead of NOC
-   *          operations, it emits cb_wait_front to wait for reader kernel.
-   *
-   * @todo Implement cb_wait_front emission when TTKernel ops are available.
-   */
   LogicalResult
-  matchAndRewrite(memref::CopyOp op, OpAdaptor adaptor,
+  matchAndRewrite(::loom::CopyOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    // TODO: Implement cb_wait_front to wait for reader kernel to load data.
-    // For now, return failure() - will be implemented in follow-up.
     rewriter.eraseOp(op);
     return success();
   }
 
 private:
-  /// Shared tracker for compile-arg values.
   std::shared_ptr<CompileArgTracker> tracker;
 };
 
 /**
- * @brief Convert `memref.copy` to CB synchronization for compute kernels
- * (store).
+ * @brief Convert `loom.copy` (store) to CB synchronization for compute
+ *        kernels.
  *
- * @details Compute kernels don't have direct NOC access. Instead of performing
- *          NOC writes, compute kernels signal completion via cb_push_back so
- *          the writer kernel can consume the data.
- *          This pattern handles the "store" side (target is reinterpret_cast).
+ * @details In compute kernels, stores are handled by the writer kernel. The
+ *          compute kernel emits tile_regs_acquire/commit/wait/release and
+ *          pack operations, then cb_push_back.
  */
-struct ConvertComputeStoreOp : public OpConversionPattern<memref::CopyOp> {
-  using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
+struct ConvertLoomComputeStoreOp : public OpConversionPattern<::loom::CopyOp> {
+  using OpConversionPattern<::loom::CopyOp>::OpConversionPattern;
 
-  /**
-   * @brief Construct the pattern with a type converter and context.
-   * @param typeConverter Type converter for the conversion pipeline.
-   * @param context MLIR context.
-   * @param tracker Shared tracker for compile-arg values.
-   */
-  ConvertComputeStoreOp(TypeConverter &typeConverter, MLIRContext *context,
-                        std::shared_ptr<CompileArgTracker> tracker)
-      : OpConversionPattern<memref::CopyOp>(typeConverter, context),
+  ConvertLoomComputeStoreOp(TypeConverter &typeConverter, MLIRContext *context,
+                            std::shared_ptr<CompileArgTracker> tracker)
+      : OpConversionPattern<::loom::CopyOp>(typeConverter, context),
         tracker(std::move(tracker)) {}
 
-  /**
-   * @brief Match and rewrite `memref.copy` into CB push operations for compute.
-   *
-   * @details This pattern handles `memref.copy` operations in compute kernels
-   *          where the target is a `memref.reinterpret_cast`. Instead of NOC
-   *          operations, it emits cb_push_back to signal data ready for writer.
-   *
-   * @todo Implement cb_push_back emission when TTKernel ops are available.
-   */
   LogicalResult
-  matchAndRewrite(memref::CopyOp op, OpAdaptor adaptor,
+  matchAndRewrite(::loom::CopyOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     Location loc = op.getLoc();
 
-    // Get the target - it should be a reinterpret_cast pointing to DRAM.
-    Value target = op.getTarget();
+    // Store: destination is a reinterpret_cast.
+    Value target = op.getDestination();
     auto reinterpretCastOp = target.getDefiningOp<memref::ReinterpretCastOp>();
     if (!reinterpretCastOp)
       return failure();
 
-    // Get the source of the reinterpret_cast - this is the original output
-    // memref (function argument like %arg2).
     Value outputMemref = reinterpretCastOp.getSource();
 
-    // Get the CB associated with this output memref from the tracker.
-    // The tracker created this CB in processInputArgs for the function
-    // argument.
     Value outcb = tracker->getCB(outputMemref);
     if (!outcb || !isa<CBType>(outcb.getType())) {
-      llvm::errs() << "No CB found for ComputeStoreOp target: "
-                   << op.getTarget() << "\n";
+      llvm::errs() << "No CB found for LoomComputeStoreOp target\n";
       return failure();
     }
 
     auto outcbType = cast<CBType>(outcb.getType());
-    // Use getNumElements() which works for both tiled and scalar CBs
-    // (getNumTiles() just calls getNumElements() but asserts element type is
-    // TileType)
-    // TODO: this should be a tiled CB, now is using elements
     int32_t numTiles = static_cast<int32_t>(outcbType.getNumElements()) / 1024;
     Value outcbNumInputTilesValue =
         rewriter.create<arith::ConstantIntOp>(loc, numTiles, 32);
 
-    // Insert TileRegsAcquireOp at the beginning of the parent block body.
-    // This ensures tile_regs_acquire is the first operation in the parent scope,
-    // while tile_regs_commit stays after cb_reserve_back.
     if (Block *parentBlock = op->getBlock()) {
       auto savedPt = rewriter.saveInsertionPoint();
       rewriter.setInsertionPointToStart(parentBlock);
@@ -1017,10 +939,9 @@ struct ConvertComputeStoreOp : public OpConversionPattern<memref::CopyOp> {
     }
 
     CBReserveBackOp::create(rewriter, loc, outcb, outcbNumInputTilesValue);
-    // Commit tile regs for compute kernel
     TileRegsCommitOp::create(rewriter, loc);
     TileRegsWaitOp::create(rewriter, loc);
-    // pack tile using scf.for loop
+
     Value lowerBound = rewriter.create<arith::ConstantIntOp>(loc, 0, 32);
     Value step = rewriter.create<arith::ConstantIntOp>(loc, 1, 32);
     unsigned dstIndexOffset = 0;
@@ -1030,19 +951,16 @@ struct ConvertComputeStoreOp : public OpConversionPattern<memref::CopyOp> {
     {
       rewriter.setInsertionPointToStart(packLoop.getBody());
       Value i = packLoop.getInductionVar();
-
-      // dstIdx = i + dstIndexOffset
       Value dstIdx = i;
       if (dstIndexOffset != 0) {
         Value offsetVal = rewriter.create<arith::ConstantIntOp>(
             loc, static_cast<int32_t>(dstIndexOffset), 32);
         dstIdx = arith::AddIOp::create(rewriter, loc, i, offsetVal);
       }
-      // outIdx = i
       PackTileOp::create(rewriter, loc, dstIdx, outcb, i);
     }
     rewriter.setInsertionPointAfter(packLoop);
-    // release tile regs
+
     TileRegsReleaseOp::create(rewriter, loc);
     CBPushBackOp::create(rewriter, loc, outcb, outcbNumInputTilesValue);
     rewriter.eraseOp(op);
@@ -1050,223 +968,90 @@ struct ConvertComputeStoreOp : public OpConversionPattern<memref::CopyOp> {
   }
 
 private:
-  /// Shared tracker for compile-arg values.
   std::shared_ptr<CompileArgTracker> tracker;
 };
 
 //===----------------------------------------------------------------------===//
-// Dispatcher Patterns
+// loom.copy Dispatchers
 //===----------------------------------------------------------------------===//
 
 /**
- * @brief Dispatcher pattern for load operations.
+ * @brief Dispatcher pattern for loom.copy load operations.
  *
- * @details Routes memref.copy (load) operations to the appropriate pattern
+ * @details Routes loom.copy (load) operations to the appropriate pattern
  *          based on kernel type:
- *          - Compute kernels: delegates to ConvertComputeLoadOp
- *          - Memory kernels (reader): delegates to ConvertMemoryLoadOp
+ *          - Compute kernels: delegates to ConvertLoomComputeLoadOp
+ *          - Memory kernels (reader): delegates to ConvertLoomMemoryLoadOp
  */
-struct ConvertLoadOp : public OpConversionPattern<memref::CopyOp> {
-  using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
+struct ConvertLoomLoadOp : public OpConversionPattern<::loom::CopyOp> {
+  using OpConversionPattern<::loom::CopyOp>::OpConversionPattern;
 
-  /**
-   * @brief Construct the pattern with a type converter and context.
-   * @param typeConverter Type converter for the conversion pipeline.
-   * @param context MLIR context.
-   * @param tracker Shared tracker for compile-arg values.
-   */
-  ConvertLoadOp(TypeConverter &typeConverter, MLIRContext *context,
-                std::shared_ptr<CompileArgTracker> tracker)
-      : OpConversionPattern<memref::CopyOp>(typeConverter, context),
+  ConvertLoomLoadOp(TypeConverter &typeConverter, MLIRContext *context,
+                    std::shared_ptr<CompileArgTracker> tracker)
+      : OpConversionPattern<::loom::CopyOp>(typeConverter, context),
         computePattern(typeConverter, context, tracker),
         memoryPattern(typeConverter, context, tracker) {}
 
-  /**
-   * @brief Match and dispatch to appropriate load pattern based on kernel type.
-   */
   LogicalResult
-  matchAndRewrite(memref::CopyOp op, OpAdaptor adaptor,
+  matchAndRewrite(::loom::CopyOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    // Must be a load operation (source is reinterpret_cast)
+    // Must be a load: source is a reinterpret_cast.
     Value source = op.getSource();
     if (!source.getDefiningOp<memref::ReinterpretCastOp>())
       return failure();
 
-    if (isComputeKernel(op)) {
+    if (isComputeKernel(op))
       return computePattern.matchAndRewrite(op, adaptor, rewriter);
-    }
     return memoryPattern.matchAndRewrite(op, adaptor, rewriter);
   }
 
 private:
-  /// Pattern for compute kernel loads.
-  ConvertComputeLoadOp computePattern;
-  /// Pattern for memory kernel loads.
-  ConvertMemoryLoadOp memoryPattern;
+  ConvertLoomComputeLoadOp computePattern;
+  ConvertLoomMemoryLoadOp memoryPattern;
 };
 
 /**
- * @brief Dispatcher pattern for store operations.
+ * @brief Dispatcher pattern for loom.copy store operations.
  *
- * @details Routes memref.copy (store) operations to the appropriate pattern
+ * @details Routes loom.copy (store) operations to the appropriate pattern
  *          based on kernel type:
- *          - Compute kernels: delegates to ConvertComputeStoreOp
- *          - Memory kernels (writer): delegates to ConvertMemoryStoreOp
+ *          - Compute kernels: delegates to ConvertLoomComputeStoreOp
+ *          - Memory kernels (writer): delegates to ConvertLoomMemoryStoreOp
  */
-struct ConvertStoreOp : public OpConversionPattern<memref::CopyOp> {
-  using OpConversionPattern<memref::CopyOp>::OpConversionPattern;
+struct ConvertLoomStoreOp : public OpConversionPattern<::loom::CopyOp> {
+  using OpConversionPattern<::loom::CopyOp>::OpConversionPattern;
 
-  /**
-   * @brief Construct the pattern with a type converter and context.
-   * @param typeConverter Type converter for the conversion pipeline.
-   * @param context MLIR context.
-   * @param tracker Shared tracker for compile-arg values.
-   */
-  ConvertStoreOp(TypeConverter &typeConverter, MLIRContext *context,
-                 std::shared_ptr<CompileArgTracker> tracker)
-      : OpConversionPattern<memref::CopyOp>(typeConverter, context),
+  ConvertLoomStoreOp(TypeConverter &typeConverter, MLIRContext *context,
+                     std::shared_ptr<CompileArgTracker> tracker)
+      : OpConversionPattern<::loom::CopyOp>(typeConverter, context),
         computePattern(typeConverter, context, tracker),
         memoryPattern(typeConverter, context, tracker) {}
 
-  /**
-   * @brief Match and dispatch to appropriate store pattern based on kernel
-   * type.
-   */
   LogicalResult
-  matchAndRewrite(memref::CopyOp op, OpAdaptor adaptor,
+  matchAndRewrite(::loom::CopyOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    // Must be a store operation (target is reinterpret_cast)
-    Value target = op.getTarget();
+    // Must be a store: destination is a reinterpret_cast.
+    Value target = op.getDestination();
     if (!target.getDefiningOp<memref::ReinterpretCastOp>())
       return failure();
 
-    if (isComputeKernel(op)) {
+    if (isComputeKernel(op))
       return computePattern.matchAndRewrite(op, adaptor, rewriter);
-    }
     return memoryPattern.matchAndRewrite(op, adaptor, rewriter);
   }
 
 private:
-  /// Pattern for compute kernel stores.
-  ConvertComputeStoreOp computePattern;
-  /// Pattern for memory kernel stores.
-  ConvertMemoryStoreOp memoryPattern;
+  ConvertLoomComputeStoreOp computePattern;
+  ConvertLoomMemoryStoreOp memoryPattern;
 };
 
-//===----------------------------------------------------------------------===//
-// Other Patterns
-//===----------------------------------------------------------------------===//
-
-struct ConvertReuseReinterpretCastOp
-    : public OpConversionPattern<memref::ReinterpretCastOp> {
-  using OpConversionPattern<memref::ReinterpretCastOp>::OpConversionPattern;
-
-  LogicalResult
-  matchAndRewrite(memref::ReinterpretCastOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    // Only handle casts carrying the loom.reuse attribute.
-    auto reuseAttr = op->getAttrOfType<DictionaryAttr>("loom.reuse");
-    if (!reuseAttr)
-      return failure();
-
-    rewriter.eraseOp(op);
-    return success();
-  }
-};
-
-struct ConvertAllocOp : public OpConversionPattern<memref::AllocOp> {
-  using OpConversionPattern<memref::AllocOp>::OpConversionPattern;
-
-  /**
-   * @brief Construct the pattern with a type converter and context.
-   * @param typeConverter Type converter for the conversion pipeline.
-   * @param context MLIR context.
-   * @param tracker Shared tracker for compile-arg values.
-   */
-  ConvertAllocOp(TypeConverter &typeConverter, MLIRContext *context,
-                 std::shared_ptr<CompileArgTracker> tracker)
-      : OpConversionPattern<memref::AllocOp>(typeConverter, context),
-        tracker(std::move(tracker)) {}
-
-  /**
-   * @brief Find the input memref that flows into this alloc via memref.copy.
-   *
-   * @details Looks at the users of the alloc to find a memref.copy where
-   *          this alloc is the target. Then traces back through
-   * reinterpret_cast to find the original input memref (typically a function
-   * argument).
-   *
-   * @param alloc The alloc op to analyze.
-   * @return The source memref if found, or nullptr.
-   */
-  Value findInputMemref(memref::AllocOp alloc) const {
-    for (Operation *user : alloc.getResult().getUsers()) {
-      if (auto copyOp = dyn_cast<memref::CopyOp>(user)) {
-        // Check if this alloc is the target (destination) of the copy.
-        if (copyOp.getTarget() == alloc.getResult()) {
-          // Get the source - it should be a reinterpret_cast.
-          Value source = copyOp.getSource();
-          if (auto reinterpretCastOp =
-                  source.getDefiningOp<memref::ReinterpretCastOp>()) {
-            // Return the source of the reinterpret_cast (the original memref).
-            return reinterpretCastOp.getSource();
-          }
-        }
-      }
-    }
-    return nullptr;
-  }
-
-  /**
-   * @brief Match and rewrite `memref.alloc` to TTKernel CB.
-   *
-   * @details This pattern converts allocations to TTKernel circular buffers.
-   *          - For allocs with `loom.alloc` that receive data from an input
-   * memref, use the pre-created CB from the tracker.
-   *          - For other allocs (like output accumulators), create a new CB.
-   */
-  LogicalResult
-  matchAndRewrite(memref::AllocOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    Location loc = op.getLoc();
-
-    // Try to find the input memref that flows into this alloc.
-    // If found, use the pre-created CB from the tracker.
-    Value inputMemref = findInputMemref(op);
-    Value cb;
-    if (inputMemref) {
-      cb = tracker->getCB(inputMemref);
-      rewriter.replaceOp(op, cb);
-      return success();
-    }
-    else {
-      // No input memref found - this alloc is used as an output buffer
-      // (e.g., for linalg.matmul outs). We need to create a CB for it
-      // so that dependent operations (like matmul) can get a valid CB type.
-      auto memrefType = op.getType();
-      auto cbType = CBType::get(memrefType);
-      
-      // Create a placeholder CB using GetArgValOp with a new index.
-      // This CB won't have a real backing buffer, but satisfies the type
-      // requirements for operations that need a CB output operand.
-      Value argIdx = rewriter.create<arith::ConstantIntOp>(
-          loc, /*value=*/0, /*width=*/32);  // Use a high index for output CBs
-      Value newCb = GetArgValOp::create(rewriter, loc, cbType, argIdx);
-      rewriter.replaceOp(op, newCb);
-      return success();
-    }
-  }
-
-private:
-  /// Shared tracker for compile-arg values.
-  std::shared_ptr<CompileArgTracker> tracker;
-};
-
-void loom::populateMemoryOpConversionPatterns(
+void mlir::loom::populateMemoryOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker) {
-  patterns.add<ConvertAllocOp>(typeConverter, context, tracker);
-  patterns.add<ConvertLoadOp>(typeConverter, context, tracker);
-  patterns.add<ConvertStoreOp>(typeConverter, context, tracker);
-  patterns.add<ConvertReuseReinterpretCastOp>(typeConverter, context);
+  // loom.alloc / loom.copy patterns.
+  patterns.add<ConvertLoomAllocOp>(typeConverter, context, tracker);
+  patterns.add<ConvertLoomLoadOp>(typeConverter, context, tracker);
+  patterns.add<ConvertLoomStoreOp>(typeConverter, context, tracker);
+  // Reinterpret cast erasure.
+  patterns.add<ConvertReinterpretCastOp>(typeConverter, context);
 }

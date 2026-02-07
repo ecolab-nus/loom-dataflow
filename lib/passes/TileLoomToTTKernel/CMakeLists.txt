@@ -4,7 +4,7 @@
 add_library(loomTileLoomToTTKernel STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/MemoryOpToTTKernel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/ComputeOpToTTKernel.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/AffineOpToTTKernel.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/SCFOpToTTKernel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/FuncOpToTTKernel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/TileLoomToTTKernel.cpp
 )
@@ -42,6 +42,8 @@ target_include_directories(loomTileLoomToTTKernel PUBLIC
     ${MLIR_INCLUDE_DIRS}
     ${TTMLIR_INCLUDE_DIR}
     ${TTMLIR_BUILD_INCLUDE_DIR}
+    # Loom dialect generated headers (LoomOps.h.inc etc.)
+    ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
 )
 
 # Add tt-mlir library directory and libraries
@@ -89,6 +91,8 @@ target_link_libraries(loomTileLoomToTTKernel PUBLIC
     MLIRTransforms
     MLIRSupport
     LLVMSupport
+    # Loom dialect library (for loom::AllocOp, loom::CopyOp, etc.)
+    loomDialect
     # TTKernel dialect libraries from tt-mlir
     # TTKernel depends on TTCore, which depends on TTMetal
     ${TTMLIR_TTKERNEL_LIB}
