@@ -53,6 +53,8 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
           func->getAttrOfType<ThreadTypeAttr>(ThreadTypeAttr::name)) {
     isComputeKernel = threadAttr.getValue() == ThreadType::Compute;
   }
+  bool isReaderKernel = func.getName().ends_with("reader");
+
 
   // Save insertion point and set to start of function body.
   OpBuilder::InsertionGuard guard(rewriter);
@@ -130,7 +132,9 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
         // Store 1 to the semaphore pointer: *(mcast_receiver_semaphore_addr_ptr) = 1;
         Value oneValue = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
         Value zeroOffset = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
-        StoreToL1Op::create(rewriter, loc, oneValue, mcast_receiver_semaphore_addr_ptr, zeroOffset);
+        if (isReaderKernel){
+          StoreToL1Op::create(rewriter, loc, oneValue, mcast_receiver_semaphore_addr_ptr, zeroOffset);
+        }
         mcast_sender_semaphore_noc_addr_op = GetNocAddrOp::create(rewriter, loc, 
                            mcast_sender_noc_x_op,
                            mcast_sender_noc_y_op,

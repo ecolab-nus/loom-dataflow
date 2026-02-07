@@ -555,35 +555,10 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
       return failure();
     }
     Value cb = tracker->getCB(inputMemref);
-    CBReserveBackOp::create(rewriter, loc, cb, memrefArgData->num_tiles);
-
-    // Determine broadcast from the loom.copy interconnect attribute.
-    // interconnect : [@vertical_links]   → isBroadcastY (vertical)
-    // interconnect : [@horizontal_links] → isBroadcastX (horizontal)
-    // interconnect : []                  → no broadcast (unicast)
-    bool isBroadcast = false;
-    bool isBroadcastX = false;
-    auto interconnectAttr = op.getInterconnect();
-    if (interconnectAttr && !interconnectAttr.empty()) {
-      isBroadcast = true;
-      for (Attribute attr : interconnectAttr) {
-        if (auto symRef = dyn_cast<FlatSymbolRefAttr>(attr)) {
-          StringRef name = symRef.getValue();
-          if (name == "horizontal_links") {
-            isBroadcastX = true;
-          }
-          // "vertical_links" → isBroadcastX remains false (isBroadcastY)
-        }
-      }
-    }
-
-    // Pre-compute num_tiles.
-    Value cb = tracker->getCB(inputMemref);
     if (!cb) {
       llvm::errs() << "Error: CB not found for memref " << inputMemref << "\n";
       return failure();
     }
-
     auto cbType = cast<CBType>(cb.getType());
     auto elementType = cbType.getElementType();
     Value numPages;
@@ -608,6 +583,27 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
     }
 
     memrefArgData->num_tiles = numPages;
+    CBReserveBackOp::create(rewriter, loc, cb, memrefArgData->num_tiles);
+
+    // Determine broadcast from the loom.copy interconnect attribute.
+    // interconnect : [@vertical_links]   → isBroadcastY (vertical)
+    // interconnect : [@horizontal_links] → isBroadcastX (horizontal)
+    // interconnect : []                  → no broadcast (unicast)
+    bool isBroadcast = false;
+    bool isBroadcastX = false;
+    auto interconnectAttr = op.getInterconnect();
+    if (interconnectAttr && !interconnectAttr.empty()) {
+      isBroadcast = true;
+      for (Attribute attr : interconnectAttr) {
+        if (auto symRef = dyn_cast<FlatSymbolRefAttr>(attr)) {
+          StringRef name = symRef.getValue();
+          if (name == "horizontal_links") {
+            isBroadcastX = true;
+          }
+          // "vertical_links" → isBroadcastX remains false (isBroadcastY)
+        }
+      }
+    }
 
     if (isBroadcast) {
       Operation *parentFunc = op->getParentOfType<func::FuncOp>();
