@@ -422,16 +422,16 @@ struct ConvertLoomAllocOp : public OpConversionPattern<::loom::AllocOp> {
    * @brief Find the input memref that flows into this alloc via loom.copy.
    *
    * @details Looks at the users of the alloc to find a loom.copy where
-   *          this alloc is the destination. Then traces back through
-   *          reinterpret_cast to find the original input memref (typically a
-   *          function argument).
+   *          this alloc is the destination (load direction). Then traces back
+   *          through reinterpret_cast to find the original input memref
+   *          (typically a function argument).
    *
    * @param alloc The loom.alloc op to analyze.
    * @return The source memref if found, or nullptr.
    */
   Value findInputMemref(::loom::AllocOp alloc) const {
     for (Operation *user : alloc.getResult().getUsers()) {
-      // Check loom.copy users.
+      // Check loom.copy users where this alloc is the destination (load).
       if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(user)) {
         if (loomCopyOp.getDestination() == alloc.getResult()) {
           Value source = loomCopyOp.getSource();
@@ -445,12 +445,40 @@ struct ConvertLoomAllocOp : public OpConversionPattern<::loom::AllocOp> {
     return nullptr;
   }
 
+  /**
+   * @brief Find the output memref that this alloc feeds via loom.copy (store).
+   *
+   * @details Looks at the users of the alloc to find a loom.copy where
+   *          this alloc is the source (store direction). Then traces the
+   *          destination through reinterpret_cast to find the original output
+   *          memref (typically a function argument).
+   *
+   * @param alloc The loom.alloc op to analyze.
+   * @return The destination memref if found, or nullptr.
+   */
+  Value findOutputMemref(::loom::AllocOp alloc) const {
+    for (Operation *user : alloc.getResult().getUsers()) {
+      // Check loom.copy users where this alloc is the source (store).
+      if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(user)) {
+        if (loomCopyOp.getSource() == alloc.getResult()) {
+          Value destination = loomCopyOp.getDestination();
+          if (auto reinterpretCastOp =
+                  destination.getDefiningOp<memref::ReinterpretCastOp>()) {
+            return reinterpretCastOp.getSource();
+          }
+        }
+      }
+    }
+    return nullptr;
+  }
+
   LogicalResult
   matchAndRewrite(::loom::AllocOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     Location loc = op.getLoc();
 
-    // Try to find the input memref that flows into this alloc.
+    // Case 1: This alloc is the destination of a load-direction loom.copy.
+    // Use the pre-created CB from the tracker keyed by the source memref.
     Value inputMemref = findInputMemref(op);
     if (inputMemref) {
       Value cb = tracker->getCB(inputMemref);
@@ -458,8 +486,20 @@ struct ConvertLoomAllocOp : public OpConversionPattern<::loom::AllocOp> {
       return success();
     }
 
-    // No input memref found – this alloc is used as an output buffer
-    // (e.g., for linalg.matmul outs). Create a new CB for it.
+    // Case 2: This alloc is the source of a store-direction loom.copy
+    // (e.g., an output accumulator for linalg.matmul outs that is later
+    // written back to DRAM). Look up the CB for the destination memref.
+    Value outputMemref = findOutputMemref(op);
+    if (outputMemref) {
+      Value cb = tracker->getCB(outputMemref);
+      if (cb) {
+        rewriter.replaceOp(op, cb);
+        return success();
+      }
+    }
+
+    // Fallback: no associated loom.copy found at all. Create a new CB
+    // using the tracker so that a proper compile-arg index is assigned.
     auto memrefType = op.getType();
     auto cbType = CBType::get(memrefType);
 
@@ -516,20 +556,22 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
       return failure();
     }
 
-    // Determine broadcast from the loom.copy attributes.
+    // Determine broadcast from the loom.copy interconnect attribute.
+    // interconnect : [@vertical_links]   → isBroadcastY (vertical)
+    // interconnect : [@horizontal_links] → isBroadcastX (horizontal)
+    // interconnect : []                  → no broadcast (unicast)
     bool isBroadcast = false;
     bool isBroadcastX = false;
     auto interconnectAttr = op.getInterconnect();
     if (interconnectAttr && !interconnectAttr.empty()) {
       isBroadcast = true;
-      // Determine direction from the interconnect symbol.
       for (Attribute attr : interconnectAttr) {
         if (auto symRef = dyn_cast<FlatSymbolRefAttr>(attr)) {
           StringRef name = symRef.getValue();
-          if (name.contains("horizontal")) {
+          if (name == "horizontal_links") {
             isBroadcastX = true;
           }
-          // "vertical" → isBroadcastX remains false
+          // "vertical_links" → isBroadcastX remains false (isBroadcastY)
         }
       }
     }

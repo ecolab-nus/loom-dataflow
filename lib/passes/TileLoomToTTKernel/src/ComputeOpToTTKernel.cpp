@@ -80,36 +80,14 @@ public:
     Value ktDim = rewriter.create<arith::ConstantIntOp>(loc, ktVal, 32);
 
 
-    // Init matmul block at the beginning of the function (after CB definitions)
-    // and acquire tile registers once per kernel, before the main matmul body.
-    auto parentFunc = op->getParentOfType<func::FuncOp>();
-    if (parentFunc) {
-      auto &entryBlock = parentFunc.getBody().front();
-      auto savedInsertionPt = rewriter.saveInsertionPoint();
-      
-      // Find insertion point after all CB definitions
-      // CBs are defined by GetArgValOp or similar ops at function start
-      Operation *insertAfter = nullptr;
-      for (Operation &entryOp : entryBlock) {
-        if (entryOp.getNumResults() > 0 && 
-            isa<CBType>(entryOp.getResult(0).getType())) {
-          insertAfter = &entryOp;
-        }
-      }
-      
-      if (insertAfter) {
-        rewriter.setInsertionPointAfter(insertAfter);
-      } else {
-        rewriter.setInsertionPointToStart(&entryBlock);
-      }
-      
-      rewriter.create<MatmulBlockInitOp>(
-          loc, TypeRange{},
-          ValueRange{in0Cb, in1Cb, outCb, transpose,
-                     ctDim, rtDim, ktDim});
-
-      rewriter.restoreInsertionPoint(savedInsertionPt);
-    }
+    // Init matmul block immediately before the matmul op itself. All CB
+    // operands (in0Cb, in1Cb, outCb) must dominate this point; hoisting to
+    // the function entry is not safe because some CBs may be defined inside
+    // nested regions (e.g., loom.alloc inside an scf.for body).
+    rewriter.create<MatmulBlockInitOp>(
+        loc, TypeRange{},
+        ValueRange{in0Cb, in1Cb, outCb, transpose,
+                   ctDim, rtDim, ktDim});
     // cb wait front - get number of tiles/pages for each CB
     auto in0CbType = cast<CBType>(in0Cb.getType());
     auto in1CbType = cast<CBType>(in1Cb.getType());
