@@ -170,7 +170,6 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
   }
 
   // Reserve space in CB and obtain write pointer.
-  CBReserveBackOp::create(rewriter, loc, cb, numPages);
   Value l1Addr = GetWritePtrOp::create(rewriter, loc, cb);
   Value multicast_l1Addr = GetWritePtrOp::create(rewriter, loc, cb);
 
@@ -555,6 +554,8 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
       llvm::errs() << "No MemrefArgData found for input memref\n";
       return failure();
     }
+    Value cb = tracker->getCB(inputMemref);
+    CBReserveBackOp::create(rewriter, loc, cb, memrefArgData->num_tiles);
 
     // Determine broadcast from the loom.copy interconnect attribute.
     // interconnect : [@vertical_links]   → isBroadcastY (vertical)
