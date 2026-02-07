@@ -1,0 +1,147 @@
+// Driver for enumerating Triton-shared grid-to-spatial mappings and printing a
+// combined module.
+//
+// Usage:
+//   loom_triton_shared_explore --ttshared <ttshared.mlir> --df <df.mlir>
+//   [--grid-dims N]
+//
+// The driver loads both modules, collects spatial dimensions from the DF
+// module, enumerates all unique assignments of grid dimensions {x,y,z} to the
+// hardware spatial dimensions, and prints a new module containing one clone of
+// each function per mapping with attributes encoding the binding. When the
+// hardware mesh cannot cover the full grid in one shot, the explorer also
+// inserts outer `affine.for` loops to model sequential "waves" while leaving
+// the inner `scf.for` loops to represent per-core tile sequencing.
+
+#include "Passes.h"
+#include "hardware_info.h"
+
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/IR/AsmState.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/IRMapping.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/Parser/Parser.h"
+#include "mlir/Pass/PassManager.h"
+#include "mlir/Support/FileUtilities.h"
+
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/WithColor.h"
+
+#include "DataflowDialect.h.inc"
+#include "DataflowOps.h.inc"
+#include "LoomDialect.h.inc"
+
+using namespace mlir;
+
+static llvm::cl::opt<std::string>
+    clTTSharedInput("input", llvm::cl::desc("Path to input MLIR file"),
+                    llvm::cl::value_desc("filename"), llvm::cl::Required);
+
+static llvm::cl::opt<std::string>
+    clDfInput("df",
+              llvm::cl::desc("Path to DF MLIR file (spatial description)"),
+              llvm::cl::value_desc("filename"), llvm::cl::Required);
+
+static llvm::cl::opt<unsigned> clNumGridDims(
+    "grid-dims", llvm::cl::desc("Number of grid dimensions to consider (1..3)"),
+    llvm::cl::init(3));
+
+int main(int argc, char **argv) {
+  llvm::cl::ParseCommandLineOptions(argc, argv,
+                                    "LOOM Triton-shared spatial explorer\n");
+
+  // Legacy option retained for compatibility of CLI; ignored in the new format.
+  (void)clNumGridDims;
+
+  mlir::DialectRegistry registry;
+  registry.insert<mlir::BuiltinDialect, mlir::func::FuncDialect,
+                  mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
+                  mlir::arith::ArithDialect, mlir::tensor::TensorDialect,
+                  mlir::linalg::LinalgDialect, mlir::scf::SCFDialect,
+                  mlir::bufferization::BufferizationDialect,
+                  loom::df::DataflowDialect, loom::LoomDialect>();
+  MLIRContext context(registry);
+  context.loadAllAvailableDialects();
+
+  // Parse DF module containing spatial dimensions.
+  llvm::SourceMgr dfSm;
+  auto dfFile = mlir::openInputFile(clDfInput);
+  if (!dfFile) {
+    llvm::WithColor::error(llvm::errs())
+        << "Failed to open DF input file: " << clDfInput << "\n";
+    return 1;
+  }
+  dfSm.AddNewSourceBuffer(std::move(dfFile), llvm::SMLoc());
+  OwningOpRef<ModuleOp> dfModule = parseSourceFile<ModuleOp>(dfSm, &context);
+  if (!dfModule) {
+    llvm::WithColor::error(llvm::errs()) << "Failed to parse DF MLIR module\n";
+    return 1;
+  }
+
+  // Collect spatial dimensions.
+  loom::HardwareInfo hardwareInfo;
+  if (failed(loom::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
+    llvm::WithColor::error(llvm::errs())
+        << "Failed to collect hardware information from DF module\n";
+    return 1;
+  }
+
+  // Parse the ttshared module to explore.
+  llvm::SourceMgr tsSm;
+  auto tsFile = mlir::openInputFile(clTTSharedInput);
+  if (!tsFile) {
+    llvm::WithColor::error(llvm::errs())
+        << "Failed to open ttshared input file: " << clTTSharedInput << "\n";
+    return 1;
+  }
+  tsSm.AddNewSourceBuffer(std::move(tsFile), llvm::SMLoc());
+  OwningOpRef<ModuleOp> tsModule = parseSourceFile<ModuleOp>(tsSm, &context);
+  if (!tsModule) {
+    llvm::WithColor::error(llvm::errs())
+        << "Failed to parse ttshared MLIR module\n";
+    return 1;
+  }
+
+  // Enumerate all grid-to-spatial assignments for the ttshared module.
+  // New format: enumerate mappings directly over the outermost affine.parallel
+  // in the Triton-shared-after-grid-to-parallel module. We ignore numGridDims
+  // and rely purely on the number of iterators in the parallel op.
+  // Enumerate mappings and also explore outer-for loop orderings.
+  OwningOpRef<ModuleOp> out =
+      loom::EnumerateSpatialMappings(*tsModule, hardwareInfo);
+
+  // Merge DF declarations and generated clones into a single module.
+  // Structure: outer module -> DF ops at top -> nested modules (each containing
+  // a func variant)
+  OwningOpRef<ModuleOp> merged = ModuleOp::create(UnknownLoc::get(&context));
+  if (!(*out)->getAttrs().empty()) {
+    (*merged)->setAttrs((*out)->getAttrs());
+  }
+  OpBuilder builder(merged->getBodyRegion());
+  IRMapping mapping;
+
+  // First, insert DF hardware declarations at the top of the outer module
+  for (Operation &op : *dfModule->getBody())
+    builder.clone(op, mapping);
+
+  // Then, insert all the nested modules containing function variants
+  for (Operation &op : *out->getBody())
+    builder.clone(op, mapping);
+
+  mlir::OpPrintingFlags flags;
+  flags.useLocalScope();
+  merged->print(llvm::outs(), flags);
+  llvm::outs() << "\n";
+  return 0;
+}

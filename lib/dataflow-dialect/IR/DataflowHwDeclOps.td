@@ -5,6 +5,7 @@
 include "mlir/IR/OpBase.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
+include "mlir/IR/SymbolInterfaces.td"
 
 // NOTE: This file is intended to be included from `DataflowOps.td`, which
 // defines the helper `DF_Op` class and sets up codegen for the df dialect ops.
@@ -17,21 +18,30 @@ def HandleLike : TypeConstraint<CPred<
 // Example:
 //   %x = df.spatial_dim "x", 8
 // The result is an index-typed SSA value that can participate in affine maps.
-def SpatialDimOp : DF_Op<"spatial_dim"> {
+def SpatialDimOp : DF_Op<"spatial_dim", [Symbol]> {
   let summary = "Declare a spatial dimension with a name and a fixed size";
   let description = [{
     `df.spatial_dim` declares a hardware spatial dimension with a user-facing
     name and a constant size. The result is an index-typed SSA value intended
     to be referenced in affine expressions (e.g., in `df.interconnects`).
+    The operation is a symbol and can be referenced via SymbolRefAttr.
+    The `name` attribute is used as both the display name and the symbol name.
 
     Example:
       `%x = df.spatial_dim "x", 8`
   }];
 
-  let arguments = (ins StrAttr:$name, I64Attr:$size);
+  let arguments = (ins StrAttr:$sym_name, I64Attr:$size);
   let results = (outs Index:$dim);
 
-  let assemblyFormat = "$name `,` $size attr-dict";
+  let assemblyFormat = "$sym_name `,` $size attr-dict";
+  
+  // Provide a getter for 'name' to maintain backward compatibility
+  let extraClassDeclaration = [{
+    // Alias for sym_name to maintain backward compatibility
+    ::mlir::StringAttr getNameAttr() { return getSymNameAttr(); }
+    ::llvm::StringRef getName() { return getSymName(); }
+  }];
 }
 
 // df.interconnects : declare chain interconnects between handles using an affine
@@ -42,7 +52,7 @@ def SpatialDimOp : DF_Op<"spatial_dim"> {
 //       {map = affine_map<(d0, d1) -> (d0 + 1, d1)>} : !df.interconnect
 //   %mems_to_mems = df.interconnects "ring" %memories : !df.memory, %memories: !df.memory, %x
 //       {map = affine_map<(d0) -> (d0 + 1)>} : !df.interconnect
-def InterconnectsOp : DF_Op<"interconnects"> {
+def InterconnectsOp : DF_Op<"interconnects", [Symbol]> {
   let summary = "Declare interconnects via an affine expression";
   let description = [{
     `df.interconnects` declares chain-like interconnects among the spatial
@@ -53,8 +63,8 @@ def InterconnectsOp : DF_Op<"interconnects"> {
     other affine maps) alongside the SSA operands used to materialize the
     expression.
 
-    The operation also carries an optional user-facing string label that is
-    printed first in the custom assembly (e.g., `"horizontal_links"`).
+    The operation is a symbol and can be referenced via SymbolRefAttr.
+    The `sym_name` attribute is used as both the display name and the symbol name.
 
     Examples (compute-to-compute and memory-to-memory):
       `%cores_to_cores = df.interconnects "horizontal_links" %cores : !df.compute, %cores: !df.compute, %x, %y
@@ -63,15 +73,23 @@ def InterconnectsOp : DF_Op<"interconnects"> {
           {map = affine_map<(d0) -> (d0 + 1)>} : !df.interconnect`
   }];
 
-  let arguments = (ins OptionalAttr<StrAttr>:$label,
+  let arguments = (ins StrAttr:$sym_name,
                        HandleLike:$source,
                        HandleLike:$target,
                        Variadic<Index>:$indices,
                        AffineMapAttr:$map,
-                       OptionalAttr<I64Attr>:$bandwidth);
+                       OptionalAttr<I64Attr>:$bandwidth,
+                       OptionalAttr<ArrayAttr>:$spatial_dims);
   let results = (outs InterconnectHandleType:$handle);
 
   let hasCustomAssemblyFormat = 1;
+  
+  // Provide a getter for 'label' to maintain backward compatibility
+  let extraClassDeclaration = [{
+    // Alias for sym_name to maintain backward compatibility
+    ::mlir::StringAttr getLabelAttr() { return getSymNameAttr(); }
+    ::llvm::StringRef getLabel() { return getSymName(); }
+  }];
 }
 
 // df.mat : declare a matrix functional unit with a name and shape
@@ -159,7 +177,7 @@ def CoreOp : DF_Op<"core", [AttrSizedOperandSegments]> {
 // Example (matches current custom assembly):
 //   %memories = df.memory "cluster_mem", %x
 //       {map = affine_map<(d0) -> (d0)>}
-def MemoryOp : DF_Op<"memory"> {
+def MemoryOp : DF_Op<"memory", [Symbol]> {
   let summary = "Declare memory resources via an affine map";
   let description = [{
     `df.memory` declares memory tiles associated with spatial dimensions and
@@ -168,18 +186,28 @@ def MemoryOp : DF_Op<"memory"> {
     width). The resulting `!df.memory` handle is an opaque reference to those
     resources.
 
+    The operation is a symbol and can be referenced via SymbolRefAttr.
+    The `sym_name` attribute is used as both the display name and the symbol name.
+
     Example:
       `%memories = df.memory "cluster_mem", %x
           {map = affine_map<(d0) -> (d0)>, size = 65536 : i64, bandwidth = 64 : i64}`
   }];
 
-  let arguments = (ins StrAttr:$label,
+  let arguments = (ins StrAttr:$sym_name,
                        Variadic<Index>:$scaleout,
                        I64Attr:$size,
                        I64Attr:$bandwidth);
   let results = (outs MemoryHandleType:$handle);
 
   let hasCustomAssemblyFormat = 1;
+
+  // Provide a getter for 'label' to maintain backward compatibility
+  let extraClassDeclaration = [{
+    // Alias for sym_name to maintain backward compatibility
+    ::mlir::StringAttr getLabelAttr() { return getSymNameAttr(); }
+    ::llvm::StringRef getLabel() { return getSymName(); }
+  }];
 }
 
 // df.mux : declare multiplexing between computes and memories (or other

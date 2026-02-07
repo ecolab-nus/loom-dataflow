@@ -6,6 +6,8 @@ add_subdirectory(resources)
 add_subdirectory(modules)
 add_subdirectory(passes)
 add_subdirectory(dataflow-dialect)
+add_subdirectory(loom-dialect)
+add_subdirectory(lcs)
 
 # Aggregate library that combines resources and modules
 # This is an interface library that aggregates loomResources and loomModules
