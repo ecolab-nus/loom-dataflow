@@ -20,11 +20,6 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/loom-opt/single_stage)
 # TileLoom to TTKernel tools
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tileloom-to-ttkernel)
 
-# Combined pipeline tool
-add_executable(ttshared-opt
-  ${CMAKE_CURRENT_LIST_DIR}/triton-shared/ttshared-opt.cpp
-)
-
 # Loom-constraint tools
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/loom-constraint/single_stage)
 
