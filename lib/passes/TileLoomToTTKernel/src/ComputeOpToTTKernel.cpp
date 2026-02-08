@@ -54,14 +54,6 @@ public:
         !isa<CBType>(outCb.getType()))
       return failure();
 
-    // For now, assume a single tile/block at index 0 for inputs and output.
-    Value zeroI32 = rewriter.create<arith::ConstantIntOp>(
-        loc, /*value=*/0, /*width=*/32);
-    // Placeholder dimensions for a single CT/RT/KT/NT block.
-    Value in0TileIdx = zeroI32;
-    Value in1TileIdx = zeroI32;
-    Value dstTileIdx = zeroI32;
-    Value transpose = zeroI32;
     // Use the original linalg.matmul input type to query the tensor/memref shape.
     auto lhsShapedType = dyn_cast<ShapedType>(op.getInputs()[0].getType());
     ArrayRef<int64_t> lhsShape = lhsShapedType.getShape();
@@ -73,21 +65,69 @@ public:
     auto outShapedType = dyn_cast<ShapedType>(op.getOutputs()[0].getType());
     ArrayRef<int64_t> outShape = outShapedType.getShape();
     int32_t ntVal = static_cast<int32_t>(outShape[1] / 32);
-    Value ctDim = rewriter.create<arith::ConstantIntOp>(loc, ctVal, 32);
-    Value rtDim = rewriter.create<arith::ConstantIntOp>(loc, rtVal, 32);
-    //TODO: ntDim should the number of tiles in final output N dimension
-    Value ntDim = rewriter.create<arith::ConstantIntOp>(loc, ntVal, 32);
-    Value ktDim = rewriter.create<arith::ConstantIntOp>(loc, ktVal, 32);
+    Value zeroI32;
+    Value in0TileIdx;
+    Value in1TileIdx;
+    Value dstTileIdx;
+    Value transpose;
+    Value ctDim;
+    Value rtDim;
+    Value ntDim;
+    Value ktDim;
 
+    {
+      OpBuilder::InsertionGuard guard(rewriter);
+      bool placeInitAtKernelStart = false;
 
-    // Init matmul block immediately before the matmul op itself. All CB
-    // operands (in0Cb, in1Cb, outCb) must dominate this point; hoisting to
-    // the function entry is not safe because some CBs may be defined inside
-    // nested regions (e.g., loom.alloc inside an scf.for body).
-    rewriter.create<MatmulBlockInitOp>(
-        loc, TypeRange{},
-        ValueRange{in0Cb, in1Cb, outCb, transpose,
-                   ctDim, rtDim, ktDim});
+      if (auto parentFunc = op->getParentOfType<func::FuncOp>()) {
+        Block &entry = parentFunc.front();
+        Operation *lastGetArgValOp = nullptr;
+        for (Operation &entryOp : entry)
+          if (isa<GetArgValOp>(entryOp))
+            lastGetArgValOp = &entryOp;
+
+        auto isAvailableAtEntry = [&](Value value) -> bool {
+          if (auto blockArg = dyn_cast<BlockArgument>(value))
+            return blockArg.getOwner() == &entry;
+
+          Operation *defOp = value.getDefiningOp();
+          if (!defOp || defOp->getBlock() != &entry)
+            return false;
+
+          if (!lastGetArgValOp)
+            return true;
+
+          return defOp == lastGetArgValOp ||
+                 defOp->isBeforeInBlock(lastGetArgValOp);
+        };
+
+        placeInitAtKernelStart = isAvailableAtEntry(in0Cb) &&
+                                 isAvailableAtEntry(in1Cb) &&
+                                 isAvailableAtEntry(outCb);
+
+        if (placeInitAtKernelStart) {
+          if (lastGetArgValOp)
+            rewriter.setInsertionPointAfter(lastGetArgValOp);
+          else
+            rewriter.setInsertionPointToStart(&entry);
+        }
+      }
+
+      zeroI32 = rewriter.create<arith::ConstantIntOp>(
+          loc, /*value=*/0, /*width=*/32);
+      in0TileIdx = zeroI32;
+      in1TileIdx = zeroI32;
+      dstTileIdx = zeroI32;
+      transpose = zeroI32;
+      ctDim = rewriter.create<arith::ConstantIntOp>(loc, ctVal, 32);
+      rtDim = rewriter.create<arith::ConstantIntOp>(loc, rtVal, 32);
+      ntDim = rewriter.create<arith::ConstantIntOp>(loc, ntVal, 32);
+      ktDim = rewriter.create<arith::ConstantIntOp>(loc, ktVal, 32);
+
+      rewriter.create<MatmulBlockInitOp>(
+          loc, TypeRange{},
+          ValueRange{in0Cb, in1Cb, outCb, transpose, ctDim, rtDim, ktDim});
+    }
     // cb wait front - get number of tiles/pages for each CB
     auto in0CbType = cast<CBType>(in0Cb.getType());
     auto in1CbType = cast<CBType>(in1Cb.getType());
