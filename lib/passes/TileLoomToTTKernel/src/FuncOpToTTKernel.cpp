@@ -170,6 +170,7 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
         mcast_sender_semaphore_noc_addr_op, // noc address of sender semaphore
         mcast_receiver_semaphore_noc_addr_op // noc address of receiver semaphore
       };
+      memrefArgToData[arg].initLoc = loc;
 
     } else if (argType.isIndex()) {
       // Index type: create a single compile-arg.

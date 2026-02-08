@@ -76,6 +76,8 @@ struct MemrefArgData {
   int8_t noc_id = 0;
   /// The number of tiles for this memref (stored as Value for use in CB ops).
   Value num_tiles;
+  /// The location attribute where this memref argument data was initialized.
+  LocationAttr initLoc;
 };
 /**
  * @brief Data created for an index input argument.
@@ -295,4 +297,3 @@ LogicalResult removeAllFunctionArguments(func::FuncOp func);
 } // namespace mlir
 
 #endif // LOOM_PASSES_TILELOOMTOTTKERNEL_FUNCOPTOTTKERNEL_H
-

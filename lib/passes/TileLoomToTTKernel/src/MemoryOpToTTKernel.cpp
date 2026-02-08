@@ -314,6 +314,116 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
   return std::make_pair(totalSizeBytes, multicast_l1Addr);
 }
 
+//it seems this only works for host kernels, dataflow kernel doesn't include worker_logical_row_to_virtual_row
+LogicalResult generate_multicast_address(
+    bool isBroadcastX, ConversionPatternRewriter &rewriter, Location loc,
+    MemrefArgData *memrefArgData, std::shared_ptr<CompileArgTracker> tracker,
+    Operation *parentFunc, Value &logicalCoreX, Value &logicalCoreY) {
+  if (!memrefArgData)
+    return failure();
+  Location initLoc =
+      memrefArgData->initLoc ? Location(memrefArgData->initLoc) : loc;
+
+  auto coreList = tracker->getCoreList(parentFunc);
+  if (coreList.size() < 2) {
+    llvm::errs() << "coreList too small for broadcast (need 2, got "
+                 << coreList.size() << ")\n";
+    return failure();
+  }
+
+  logicalCoreX = coreList[0];
+  logicalCoreY = coreList[1];
+  if (!logicalCoreX || !logicalCoreY) {
+    llvm::errs() << "coreX or coreY is null\n";
+    return failure();
+  }
+
+  {
+    // Hoist multicast-address helpers to where core compile-args are
+    // available (outside loop bodies), rather than emitting at loom.copy.
+    OpBuilder::InsertionGuard guard(rewriter);
+    Operation *insertAfter = nullptr;
+
+    auto considerInsertionAnchor = [&](Value value) {
+      if (Operation *defOp = value.getDefiningOp()) {
+        if (!insertAfter ||
+            (insertAfter->getBlock() == defOp->getBlock() &&
+             insertAfter->isBeforeInBlock(defOp)))
+          insertAfter = defOp;
+      }
+    };
+    considerInsertionAnchor(logicalCoreX);
+    considerInsertionAnchor(logicalCoreY);
+    if (insertAfter)
+      rewriter.setInsertionPointAfter(insertAfter);
+
+    auto toI32 = [&](Value v) -> Value {
+      if (v.getType().isIndex())
+        return rewriter.create<arith::IndexCastOp>(initLoc,
+                                                   rewriter.getI32Type(), v);
+      return v;
+    };
+
+    logicalCoreX = toI32(logicalCoreX);
+    logicalCoreY = toI32(logicalCoreY);
+
+    Value zero = rewriter.create<arith::ConstantIntOp>(initLoc,
+                                                       rewriter.getI32Type(), 0);
+    Value one = rewriter.create<arith::ConstantIntOp>(initLoc,
+                                                      rewriter.getI32Type(), 1);
+    // TODO: replace this with a runtime/core-grid-derived max coordinate.
+    Value seven = rewriter.create<arith::ConstantIntOp>(
+        initLoc, rewriter.getI32Type(), 7);
+
+    Value currentPhysicalCoreX =
+        rewriter.create<ConvertLogicalXToTranslatedOp>(initLoc,
+                                                       rewriter.getI32Type(),
+                                                       logicalCoreX);
+    Value currentPhysicalCoreY =
+        rewriter.create<ConvertLogicalYToTranslatedOp>(initLoc,
+                                                       rewriter.getI32Type(),
+                                                       logicalCoreY);
+
+    Value senderCoreX;
+    Value senderCoreY;
+    Value startCoreX;
+    Value startCoreY;
+    Value endCoreX;
+    Value endCoreY;
+    if (isBroadcastX) {
+      // Broadcast to all cores in the same column (same x).
+      senderCoreX = currentPhysicalCoreX;
+      senderCoreY = rewriter.create<ConvertLogicalYToTranslatedOp>(
+          initLoc, rewriter.getI32Type(), zero);
+      startCoreX = currentPhysicalCoreX;
+      startCoreY = rewriter.create<ConvertLogicalYToTranslatedOp>(
+          initLoc, rewriter.getI32Type(), one);
+      endCoreY = rewriter.create<ConvertLogicalYToTranslatedOp>(
+          initLoc, rewriter.getI32Type(), seven);
+      endCoreX = currentPhysicalCoreX;
+    } else {
+      // Broadcast to all cores in the same row (same y).
+      senderCoreX = rewriter.create<ConvertLogicalXToTranslatedOp>(
+          initLoc, rewriter.getI32Type(), zero);
+      senderCoreY = currentPhysicalCoreY;
+      startCoreX = rewriter.create<ConvertLogicalXToTranslatedOp>(
+          initLoc, rewriter.getI32Type(), one);
+      startCoreY = currentPhysicalCoreY;
+      endCoreX = rewriter.create<ConvertLogicalXToTranslatedOp>(
+          initLoc, rewriter.getI32Type(), seven);
+      endCoreY = currentPhysicalCoreY;
+    }
+
+    memrefArgData->mcast_sender_noc_x = senderCoreX;
+    memrefArgData->mcast_sender_noc_y = senderCoreY;
+    memrefArgData->mcast_dest_noc_start_x = startCoreX;
+    memrefArgData->mcast_dest_noc_start_y = startCoreY;
+    memrefArgData->mcast_dest_noc_end_x = endCoreX;
+    memrefArgData->mcast_dest_noc_end_y = endCoreY;
+  }
+  return success();
+}
+
 bool multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArgData *memrefArgData, Value totalSizeBytes, Value multicast_l1Addr) {
   Value zero = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
   auto falseAttr = rewriter.getBoolAttr(false);
@@ -607,27 +717,13 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
 
     if (isBroadcast) {
       Operation *parentFunc = op->getParentOfType<func::FuncOp>();
-      auto coreList = tracker->getCoreList(parentFunc);
-
-      if (coreList.size() < 2) {
-        llvm::errs() << "coreList too small for broadcast (need 2, got "
-                     << coreList.size() << ")\n";
+      Value coreX;
+      Value coreY;
+/*       if (failed(generate_multicast_address(
+              isBroadcastX, rewriter, loc, memrefArgData, tracker, parentFunc,
+              coreX, coreY))) {
         return failure();
-      }
-
-      Value coreX = coreList[0];
-      Value coreY = coreList[1];
-      if (!coreX || !coreY) {
-        llvm::errs() << "coreX or coreY is null\n";
-        return failure();
-      }
-
-      if (coreX.getType().isIndex())
-        coreX = rewriter.create<arith::IndexCastOp>(
-            loc, rewriter.getI32Type(), coreX);
-      if (coreY.getType().isIndex())
-        coreY = rewriter.create<arith::IndexCastOp>(
-            loc, rewriter.getI32Type(), coreY);
+      } */
 
       Value zero = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), 0);
