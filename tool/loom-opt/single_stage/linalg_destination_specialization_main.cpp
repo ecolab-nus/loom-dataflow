@@ -76,9 +76,6 @@ int main(int argc, char **argv) {
   // Our destination specialization - now works on simplified/fused IR
   pm.addPass(loom::passes::createLinalgDestinationSpecializationPass());
 
-  // Bind memory allocations to tensor operations
-  pm.addPass(loom::passes::createMemoryBindingPass());
-
   // Postprocessing: remove dead producers and final cleanup
   pm.addPass(mlir::createSymbolDCEPass());
   pm.addPass(mlir::createCanonicalizerPass());
