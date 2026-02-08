@@ -82,26 +82,9 @@ struct OutputTensorInitLowering : public OpRewritePattern<tensor::EmptyOp> {
 
   LogicalResult matchAndRewrite(tensor::EmptyOp op,
                                 PatternRewriter &rewriter) const override {
-    // We need to check if this leads to an affine.for iter_args via linalg.fill
-    bool leadsToIterArgs = false;
-    for (auto &use : op.getResult().getUses()) {
-      if (auto fillOp = dyn_cast<linalg::FillOp>(use.getOwner())) {
-        for (auto &fillUse : fillOp.getResult(0).getUses()) {
-          if (auto forOp = dyn_cast<affine::AffineForOp>(fillUse.getOwner())) {
-            // Check if it's used as an initial value for iter_args
-            for (auto initVal : forOp.getInits()) {
-              if (initVal == fillOp.getResult(0)) {
-                leadsToIterArgs = true;
-                break;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    if (!leadsToIterArgs)
-      return failure();
+    // We want to explicit manage all buffers on L1, so we convert all
+    // tensor.empty to loom.alloc + loom.init_tensor, regardless of whether they
+    // are used in loop iter_args or not.
 
     Location loc = op.getLoc();
     // 1. Create loom.alloc on @L1
