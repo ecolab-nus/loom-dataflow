@@ -97,4 +97,14 @@ def MemoryBindingPass : Pass<"loom-memory-binding", "mlir::ModuleOp"> {
   let constructor = "loom::passes::createMemoryBindingPass()";
 }
 
+def LowerAffineWithAttr : Pass<"loom-lower-affine-with-attr", "mlir::ModuleOp"> {
+  let summary = "Lower affine to SCF while preserving loom attributes";
+  let description = [{
+    Lower affine.parallel to scf.parallel while preserving loom.mapped_to
+    and loom.iter_type attributes as array attributes on the resulting
+    scf.parallel operation.
+  }];
+  let constructor = "loom::passes::createLowerAffineWithAttrPass()";
+}
+
 #endif // LOOM_TRITON_SHARED_PASSES

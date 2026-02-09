@@ -121,15 +121,15 @@ build/tool/ttshared-opt \
 1) Specialize linalg operations' destination
 ```bash
 build/tool/loom-opt/single_stage/linalg_destination_specialization \
-  --input test/Passes/mm_2Dmesh/IR/00_from_helion_frontend.mlir \
-  > test/Passes/mm_2Dmesh/IR/01_linalg_destination_specialized.mlir
+  --input test/Passes/flashattn_2Dmesh/IR/00_from_helion_frontend.mlir \
+  > test/Passes/flashattn_2Dmesh/IR/01_linalg_destination_specialized.mlir
 ```
 
 2) Replace grid indices with a 3-D `affine.parallel`
 ```bash
 build/tool/loom-opt/single_stage/memory_binding \
-  --input test/Passes/mm_2Dmesh/IR/01_linalg_destination_specialized.mlir  \
-  > test/Passes/mm_2Dmesh/IR/02_explicit_memory_access.mlir
+  --input test/Passes/flashattn_2Dmesh/IR/01_linalg_destination_specialized.mlir  \
+  > test/Passes/flashattn_2Dmesh/IR/02_explicit_memory_access.mlir
 ```
 
 3) Enumerate spatial mappings and merge DF declarations
@@ -162,11 +162,18 @@ build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
   2> test/Passes/mm_2Dmesh/constraint_space/raw_constraint_space.json
 ```
 
-(optional) Materialize symbolic block sizes
+6) Materialize symbolic block sizes
 ```bash
 build/tool/loom-opt/single_stage/canonicalize \
   --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
   > test/Passes/mm_2Dmesh/IR/06_after_canonicalize.mlir
+```
+
+7) OSB
+```bash
+build/tool/loom-opt/single_stage/one_shot_bufferize \
+  --input test/Passes/mm_2Dmesh/IR/06_after_canonicalize.mlir \
+  > test/Passes/mm_2Dmesh/IR/07_after_osb.mlir
 ```
 
 6) Canonicalize constraints
