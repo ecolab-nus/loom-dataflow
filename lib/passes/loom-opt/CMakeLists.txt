@@ -19,6 +19,7 @@ add_library(loomTritonSharedPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/linalg_destination_specialization_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/memory_binding_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/view_to_reinterpret_cast.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/lower_affine_with_attr.cpp
 )
 
 target_include_directories(loomTritonSharedPasses PUBLIC

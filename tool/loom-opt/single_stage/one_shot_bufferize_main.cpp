@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
   }
 
   PassManager pm(&context);
-  pm.addPass(mlir::createLowerAffinePass());
+  pm.addPass(loom::passes::createLowerAffineWithAttrPass());
 
   // Configure OSB options
   bufferization::OneShotBufferizePassOptions options;
