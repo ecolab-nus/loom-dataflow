@@ -6,8 +6,8 @@ module {
   %4 = df.core "core" {scaleout=(%2, %3) , scalein=(%0, %1, [8, 1])}
   %5 = df.memory "L1" {scaleout=(%2, %3) , size = 1499136, bandwidth = 15}
   %6 = df.mux %4 : !df.compute, %5 : !df.memory  {map = affine_map<(d0, d1) -> (d0, d1)>}
-  %7 = df.interconnects "horizontal_links" %5 : !df.memory, %5 : !df.memory  {bandwidth = 128 : i64, map = affine_map<(d0, d1) -> ((d0 + 1) mod 8, d1)>, spatial_dims = [@y]} : !df.interconnect
-  %8 = df.interconnects "vertical_links" %5 : !df.memory, %5 : !df.memory  {bandwidth = 128 : i64, map = affine_map<(d0, d1) -> (d0, (d1 + 1) mod 8)>, spatial_dims = [@x]} : !df.interconnect
+  %7 = df.interconnects "horizontal_links" %5 : !df.memory, %5 : !df.memory  {bandwidth = 128 : i64, map = affine_map<(d0, d1) -> ((d0 + 1) mod 8, d1)>, spatial_dims = [@x]} : !df.interconnect
+  %8 = df.interconnects "vertical_links" %5 : !df.memory, %5 : !df.memory  {bandwidth = 128 : i64, map = affine_map<(d0, d1) -> (d0, (d1 + 1) mod 8)>, spatial_dims = [@y]} : !df.interconnect
   %9 = df.spatial_dim "d", 4
   %10 = df.memory "DRAM" {scaleout=(%9) , size = 34359738368, bandwidth = 288}
   %11 = df.interconnects "NoC" %5 : !df.memory, %10 : !df.memory  {map = affine_map<(d0, d1) -> (d0 ceildiv 4 + (d1 ceildiv 4) * 2)>} : !df.interconnect
@@ -507,7 +507,7 @@ module {
       loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
       loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = 7680 : i64, vars = [0, 2]}, {coeff = 2048 : i64, vars = [1, 2]}, {coeff = -120 : i64, vars = [0, 1, 2]}], upper_bound = 0 : i64}
     }
-    func.func @matmul__d0i0_d1i1__f01__d_v(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
+    func.func @matmul__d0i0_d1i1__f01__d_h(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
       %cst = arith.constant 0.000000e+00 : f32
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
       %13 = loom.get_symbolic_block_size @constraints::@BN : index
@@ -530,7 +530,7 @@ module {
                 %29 = arith.muli %16, %13 : index
                 %30 = loom.subview %arg1[%25, %29] [%14, %13] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<512x4096xf32> to memref<?x?xf32, strided<[4096, 1], offset: ?>>
                 %31 = loom.alloc [%14, %13] on @L1 : memref<?x?xf32>
-                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %33 = linalg.matmul ins(%28, %32 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%arg8 : tensor<?x?xf32>) -> tensor<?x?xf32>
                 affine.yield %33 : tensor<?x?xf32>
               } {loom.iter_type = #loom.iter_type<sequential>}
@@ -562,7 +562,7 @@ module {
       loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
       loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = 2048 : i64, vars = [0, 2]}, {coeff = 7680 : i64, vars = [1, 2]}, {coeff = -120 : i64, vars = [0, 1, 2]}], upper_bound = 0 : i64}
     }
-    func.func @matmul__d0i0_d1i1__f01__h_d(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
+    func.func @matmul__d0i0_d1i1__f01__v_d(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
       %cst = arith.constant 0.000000e+00 : f32
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
       %13 = loom.get_symbolic_block_size @constraints::@BN : index
@@ -581,7 +581,7 @@ module {
                 %25 = arith.muli %arg7, %14 : index
                 %26 = loom.subview %arg0[%24, %25] [%12, %14] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<4096x512xf32> to memref<?x?xf32, strided<[512, 1], offset: ?>>
                 %27 = loom.alloc [%12, %14] on @L1 : memref<?x?xf32>
-                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %29 = arith.muli %16, %13 : index
                 %30 = loom.subview %arg1[%25, %29] [%14, %13] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<512x4096xf32> to memref<?x?xf32, strided<[4096, 1], offset: ?>>
                 %31 = loom.alloc [%14, %13] on @L1 : memref<?x?xf32>
@@ -617,7 +617,7 @@ module {
       loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
       loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = 7680 : i64, vars = [0, 2]}, {coeff = 7680 : i64, vars = [1, 2]}, {coeff = -450 : i64, vars = [0, 1, 2]}], upper_bound = 0 : i64}
     }
-    func.func @matmul__d0i0_d1i1__f01__h_v(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
+    func.func @matmul__d0i0_d1i1__f01__v_h(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
       %cst = arith.constant 0.000000e+00 : f32
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
       %13 = loom.get_symbolic_block_size @constraints::@BN : index
@@ -636,11 +636,11 @@ module {
                 %25 = arith.muli %arg7, %14 : index
                 %26 = loom.subview %arg0[%24, %25] [%12, %14] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<4096x512xf32> to memref<?x?xf32, strided<[512, 1], offset: ?>>
                 %27 = loom.alloc [%12, %14] on @L1 : memref<?x?xf32>
-                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %29 = arith.muli %16, %13 : index
                 %30 = loom.subview %arg1[%25, %29] [%14, %13] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<512x4096xf32> to memref<?x?xf32, strided<[4096, 1], offset: ?>>
                 %31 = loom.alloc [%14, %13] on @L1 : memref<?x?xf32>
-                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %33 = linalg.matmul ins(%28, %32 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%arg8 : tensor<?x?xf32>) -> tensor<?x?xf32>
                 affine.yield %33 : tensor<?x?xf32>
               } {loom.iter_type = #loom.iter_type<sequential>}
@@ -727,7 +727,7 @@ module {
       loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
       loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = 7680 : i64, vars = [0, 2]}, {coeff = 2048 : i64, vars = [1, 2]}, {coeff = -120 : i64, vars = [0, 1, 2]}], upper_bound = 0 : i64}
     }
-    func.func @matmul__d0i0_d1i1__f10__d_v(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
+    func.func @matmul__d0i0_d1i1__f10__d_h(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
       %cst = arith.constant 0.000000e+00 : f32
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
       %13 = loom.get_symbolic_block_size @constraints::@BN : index
@@ -750,7 +750,7 @@ module {
                 %29 = arith.muli %16, %13 : index
                 %30 = loom.subview %arg1[%25, %29] [%14, %13] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<512x4096xf32> to memref<?x?xf32, strided<[4096, 1], offset: ?>>
                 %31 = loom.alloc [%14, %13] on @L1 : memref<?x?xf32>
-                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %33 = linalg.matmul ins(%28, %32 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%arg8 : tensor<?x?xf32>) -> tensor<?x?xf32>
                 affine.yield %33 : tensor<?x?xf32>
               } {loom.iter_type = #loom.iter_type<sequential>}
@@ -782,7 +782,7 @@ module {
       loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
       loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = 2048 : i64, vars = [0, 2]}, {coeff = 7680 : i64, vars = [1, 2]}, {coeff = -120 : i64, vars = [0, 1, 2]}], upper_bound = 0 : i64}
     }
-    func.func @matmul__d0i0_d1i1__f10__h_d(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
+    func.func @matmul__d0i0_d1i1__f10__v_d(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
       %cst = arith.constant 0.000000e+00 : f32
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
       %13 = loom.get_symbolic_block_size @constraints::@BN : index
@@ -801,7 +801,7 @@ module {
                 %25 = arith.muli %arg7, %14 : index
                 %26 = loom.subview %arg0[%24, %25] [%12, %14] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<4096x512xf32> to memref<?x?xf32, strided<[512, 1], offset: ?>>
                 %27 = loom.alloc [%12, %14] on @L1 : memref<?x?xf32>
-                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %29 = arith.muli %16, %13 : index
                 %30 = loom.subview %arg1[%25, %29] [%14, %13] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<512x4096xf32> to memref<?x?xf32, strided<[4096, 1], offset: ?>>
                 %31 = loom.alloc [%14, %13] on @L1 : memref<?x?xf32>
@@ -837,7 +837,7 @@ module {
       loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
       loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = 7680 : i64, vars = [0, 2]}, {coeff = 7680 : i64, vars = [1, 2]}, {coeff = -450 : i64, vars = [0, 1, 2]}], upper_bound = 0 : i64}
     }
-    func.func @matmul__d0i0_d1i1__f10__h_v(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
+    func.func @matmul__d0i0_d1i1__f10__v_h(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
       %cst = arith.constant 0.000000e+00 : f32
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
       %13 = loom.get_symbolic_block_size @constraints::@BN : index
@@ -856,11 +856,11 @@ module {
                 %25 = arith.muli %arg7, %14 : index
                 %26 = loom.subview %arg0[%24, %25] [%12, %14] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<4096x512xf32> to memref<?x?xf32, strided<[512, 1], offset: ?>>
                 %27 = loom.alloc [%12, %14] on @L1 : memref<?x?xf32>
-                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %29 = arith.muli %16, %13 : index
                 %30 = loom.subview %arg1[%25, %29] [%14, %13] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<512x4096xf32> to memref<?x?xf32, strided<[4096, 1], offset: ?>>
                 %31 = loom.alloc [%14, %13] on @L1 : memref<?x?xf32>
-                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %33 = linalg.matmul ins(%28, %32 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%arg8 : tensor<?x?xf32>) -> tensor<?x?xf32>
                 affine.yield %33 : tensor<?x?xf32>
               } {loom.iter_type = #loom.iter_type<sequential>}
@@ -947,7 +947,7 @@ module {
       loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
       loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = 7680 : i64, vars = [0, 2]}, {coeff = 2048 : i64, vars = [1, 2]}, {coeff = -120 : i64, vars = [0, 1, 2]}], upper_bound = 0 : i64}
     }
-    func.func @matmul__d1i0_d0i1__f01__d_h(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
+    func.func @matmul__d1i0_d0i1__f01__d_v(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
       %cst = arith.constant 0.000000e+00 : f32
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
       %13 = loom.get_symbolic_block_size @constraints::@BN : index
@@ -970,7 +970,7 @@ module {
                 %29 = arith.muli %16, %13 : index
                 %30 = loom.subview %arg1[%25, %29] [%14, %13] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<512x4096xf32> to memref<?x?xf32, strided<[4096, 1], offset: ?>>
                 %31 = loom.alloc [%14, %13] on @L1 : memref<?x?xf32>
-                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %33 = linalg.matmul ins(%28, %32 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%arg8 : tensor<?x?xf32>) -> tensor<?x?xf32>
                 affine.yield %33 : tensor<?x?xf32>
               } {loom.iter_type = #loom.iter_type<sequential>}
@@ -1002,7 +1002,7 @@ module {
       loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
       loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = 2048 : i64, vars = [0, 2]}, {coeff = 7680 : i64, vars = [1, 2]}, {coeff = -120 : i64, vars = [0, 1, 2]}], upper_bound = 0 : i64}
     }
-    func.func @matmul__d1i0_d0i1__f01__v_d(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
+    func.func @matmul__d1i0_d0i1__f01__h_d(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
       %cst = arith.constant 0.000000e+00 : f32
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
       %13 = loom.get_symbolic_block_size @constraints::@BN : index
@@ -1021,7 +1021,7 @@ module {
                 %25 = arith.muli %arg7, %14 : index
                 %26 = loom.subview %arg0[%24, %25] [%12, %14] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<4096x512xf32> to memref<?x?xf32, strided<[512, 1], offset: ?>>
                 %27 = loom.alloc [%12, %14] on @L1 : memref<?x?xf32>
-                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %29 = arith.muli %16, %13 : index
                 %30 = loom.subview %arg1[%25, %29] [%14, %13] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<512x4096xf32> to memref<?x?xf32, strided<[4096, 1], offset: ?>>
                 %31 = loom.alloc [%14, %13] on @L1 : memref<?x?xf32>
@@ -1057,7 +1057,7 @@ module {
       loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
       loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = 7680 : i64, vars = [0, 2]}, {coeff = 7680 : i64, vars = [1, 2]}, {coeff = -450 : i64, vars = [0, 1, 2]}], upper_bound = 0 : i64}
     }
-    func.func @matmul__d1i0_d0i1__f01__v_h(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
+    func.func @matmul__d1i0_d0i1__f01__h_v(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
       %cst = arith.constant 0.000000e+00 : f32
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
       %13 = loom.get_symbolic_block_size @constraints::@BN : index
@@ -1076,11 +1076,11 @@ module {
                 %25 = arith.muli %arg7, %14 : index
                 %26 = loom.subview %arg0[%24, %25] [%12, %14] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<4096x512xf32> to memref<?x?xf32, strided<[512, 1], offset: ?>>
                 %27 = loom.alloc [%12, %14] on @L1 : memref<?x?xf32>
-                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %29 = arith.muli %16, %13 : index
                 %30 = loom.subview %arg1[%25, %29] [%14, %13] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<512x4096xf32> to memref<?x?xf32, strided<[4096, 1], offset: ?>>
                 %31 = loom.alloc [%14, %13] on @L1 : memref<?x?xf32>
-                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %33 = linalg.matmul ins(%28, %32 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%arg8 : tensor<?x?xf32>) -> tensor<?x?xf32>
                 affine.yield %33 : tensor<?x?xf32>
               } {loom.iter_type = #loom.iter_type<sequential>}
@@ -1167,7 +1167,7 @@ module {
       loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
       loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = 7680 : i64, vars = [0, 2]}, {coeff = 2048 : i64, vars = [1, 2]}, {coeff = -120 : i64, vars = [0, 1, 2]}], upper_bound = 0 : i64}
     }
-    func.func @matmul__d1i0_d0i1__f10__d_h(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
+    func.func @matmul__d1i0_d0i1__f10__d_v(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
       %cst = arith.constant 0.000000e+00 : f32
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
       %13 = loom.get_symbolic_block_size @constraints::@BN : index
@@ -1190,7 +1190,7 @@ module {
                 %29 = arith.muli %16, %13 : index
                 %30 = loom.subview %arg1[%25, %29] [%14, %13] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<512x4096xf32> to memref<?x?xf32, strided<[4096, 1], offset: ?>>
                 %31 = loom.alloc [%14, %13] on @L1 : memref<?x?xf32>
-                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %33 = linalg.matmul ins(%28, %32 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%arg8 : tensor<?x?xf32>) -> tensor<?x?xf32>
                 affine.yield %33 : tensor<?x?xf32>
               } {loom.iter_type = #loom.iter_type<sequential>}
@@ -1222,7 +1222,7 @@ module {
       loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
       loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = 2048 : i64, vars = [0, 2]}, {coeff = 7680 : i64, vars = [1, 2]}, {coeff = -120 : i64, vars = [0, 1, 2]}], upper_bound = 0 : i64}
     }
-    func.func @matmul__d1i0_d0i1__f10__v_d(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
+    func.func @matmul__d1i0_d0i1__f10__h_d(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
       %cst = arith.constant 0.000000e+00 : f32
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
       %13 = loom.get_symbolic_block_size @constraints::@BN : index
@@ -1241,7 +1241,7 @@ module {
                 %25 = arith.muli %arg7, %14 : index
                 %26 = loom.subview %arg0[%24, %25] [%12, %14] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<4096x512xf32> to memref<?x?xf32, strided<[512, 1], offset: ?>>
                 %27 = loom.alloc [%12, %14] on @L1 : memref<?x?xf32>
-                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %29 = arith.muli %16, %13 : index
                 %30 = loom.subview %arg1[%25, %29] [%14, %13] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<512x4096xf32> to memref<?x?xf32, strided<[4096, 1], offset: ?>>
                 %31 = loom.alloc [%14, %13] on @L1 : memref<?x?xf32>
@@ -1277,7 +1277,7 @@ module {
       loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
       loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = 7680 : i64, vars = [0, 2]}, {coeff = 7680 : i64, vars = [1, 2]}, {coeff = -450 : i64, vars = [0, 1, 2]}], upper_bound = 0 : i64}
     }
-    func.func @matmul__d1i0_d0i1__f10__v_h(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
+    func.func @matmul__d1i0_d0i1__f10__h_v(%arg0: memref<4096x512xf32>, %arg1: memref<512x4096xf32>, %arg2: memref<4096x4096xf32>) {
       %cst = arith.constant 0.000000e+00 : f32
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
       %13 = loom.get_symbolic_block_size @constraints::@BN : index
@@ -1296,11 +1296,11 @@ module {
                 %25 = arith.muli %arg7, %14 : index
                 %26 = loom.subview %arg0[%24, %25] [%12, %14] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<4096x512xf32> to memref<?x?xf32, strided<[512, 1], offset: ?>>
                 %27 = loom.alloc [%12, %14] on @L1 : memref<?x?xf32>
-                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %28 = loom.copy_to_tensor %26, %27 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[512, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %29 = arith.muli %16, %13 : index
                 %30 = loom.subview %arg1[%25, %29] [%14, %13] [1, 1], reuse : [seq = false, spat = true, temp = true] : memref<512x4096xf32> to memref<?x?xf32, strided<[4096, 1], offset: ?>>
                 %31 = loom.alloc [%14, %13] on @L1 : memref<?x?xf32>
-                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
+                %32 = loom.copy_to_tensor %30, %31 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<?x?xf32, strided<[4096, 1], offset: ?>>, memref<?x?xf32> -> tensor<?x?xf32>
                 %33 = linalg.matmul ins(%28, %32 : tensor<?x?xf32>, tensor<?x?xf32>) outs(%arg8 : tensor<?x?xf32>) -> tensor<?x?xf32>
                 affine.yield %33 : tensor<?x?xf32>
               } {loom.iter_type = #loom.iter_type<sequential>}
