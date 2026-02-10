@@ -725,6 +725,25 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
         return failure();
       } */
 
+      auto coreList = tracker->getCoreList(parentFunc);
+      if (coreList.size() < 2) {
+        llvm::errs() << "coreList too small for broadcast (need 2, got "
+                     << coreList.size() << ")\n";
+        return failure();
+      }
+    
+      coreX = coreList[0];
+      coreY = coreList[1];
+      auto toI32 = [&](Value v) -> Value {
+        if (v.getType().isIndex())
+          return rewriter.create<arith::IndexCastOp>(loc,
+                                                     rewriter.getI32Type(), v);
+        return v;
+      };
+  
+      coreX = toI32(coreX);
+      coreY = toI32(coreY);
+
       Value zero = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), 0);
       Value cond;
