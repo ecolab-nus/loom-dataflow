@@ -324,17 +324,11 @@ LogicalResult generate_multicast_address(
   Location initLoc =
       memrefArgData->initLoc ? Location(memrefArgData->initLoc) : loc;
 
-  auto coreList = tracker->getCoreList(parentFunc);
-  if (coreList.size() < 2) {
-    llvm::errs() << "coreList too small for broadcast (need 2, got "
-                 << coreList.size() << ")\n";
-    return failure();
-  }
-
-  logicalCoreX = coreList[0];
-  logicalCoreY = coreList[1];
+  logicalCoreX = tracker->getCoreCoordForDim(parentFunc, "x");
+  logicalCoreY = tracker->getCoreCoordForDim(parentFunc, "y");
   if (!logicalCoreX || !logicalCoreY) {
-    llvm::errs() << "coreX or coreY is null\n";
+    llvm::errs() << "missing mapped spatial core coordinates for broadcast; "
+                    "expected loom.mapped_to_dims to define both @x and @y\n";
     return failure();
   }
 
@@ -740,15 +734,13 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
         return failure();
       } */
 
-      auto coreList = tracker->getCoreList(parentFunc);
-      if (coreList.size() < 2) {
-        llvm::errs() << "coreList too small for broadcast (need 2, got "
-                     << coreList.size() << ")\n";
+      coreX = tracker->getCoreCoordForDim(parentFunc, "x");
+      coreY = tracker->getCoreCoordForDim(parentFunc, "y");
+      if (!coreX || !coreY) {
+        llvm::errs() << "missing mapped spatial core coordinates for broadcast; "
+                        "expected loom.mapped_to_dims to define both @x and @y\n";
         return failure();
       }
-    
-      coreX = coreList[0];
-      coreY = coreList[1];
       auto toI32 = [&](Value v) -> Value {
         if (v.getType().isIndex())
           return rewriter.create<arith::IndexCastOp>(loc,

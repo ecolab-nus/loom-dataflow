@@ -201,6 +201,24 @@ public:
   void clearCoreList(Operation *funcOp);
 
   /**
+   * @brief Record a per-function core coordinate value for a mapped dim.
+   *
+   * @param funcOp Parent function operation.
+   * @param dimName Spatial dim name ("x" or "y", case-insensitive).
+   * @param value Core coordinate value associated with the dim.
+   */
+  void setCoreCoordForDim(Operation *funcOp, StringRef dimName, Value value);
+
+  /**
+   * @brief Lookup a per-function core coordinate value for a mapped dim.
+   *
+   * @param funcOp Parent function operation.
+   * @param dimName Spatial dim name ("x" or "y", case-insensitive).
+   * @return The recorded value, or nullptr if unavailable.
+   */
+  Value getCoreCoordForDim(Operation *funcOp, StringRef dimName) const;
+
+  /**
    * @brief Get the next unique index for TensorAccessorArgs.
    *
    * @details Allocates and returns a new unique index for use with
@@ -247,6 +265,14 @@ private:
 
   /// Per-function ordered list of "core" values (e.g., compile-arg-based core coordinates).
   llvm::DenseMap<Operation *, llvm::SmallVector<Value, 2>> funcToCoreList;
+
+  struct CoreCoordByDim {
+    Value x;
+    Value y;
+  };
+
+  /// Per-function explicit core coordinate values by mapped dim name.
+  llvm::DenseMap<Operation *, CoreCoordByDim> funcToCoreCoordsByDim;
 };
 
 /**

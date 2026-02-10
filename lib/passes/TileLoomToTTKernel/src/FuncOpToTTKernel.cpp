@@ -357,7 +357,34 @@ ArrayRef<Value> mlir::loom::CompileArgTracker::getCoreList(Operation *funcOp) co
   return it->second;
 }
 
-void mlir::loom::CompileArgTracker::clearCoreList(Operation *funcOp) { funcToCoreList[funcOp].clear(); }
+void mlir::loom::CompileArgTracker::clearCoreList(Operation *funcOp) {
+  funcToCoreList[funcOp].clear();
+  funcToCoreCoordsByDim.erase(funcOp);
+}
+
+void mlir::loom::CompileArgTracker::setCoreCoordForDim(Operation *funcOp,
+                                                        StringRef dimName,
+                                                        Value value) {
+  StringRef dim = dimName.trim().lower();
+  if (dim == "x")
+    funcToCoreCoordsByDim[funcOp].x = value;
+  else if (dim == "y")
+    funcToCoreCoordsByDim[funcOp].y = value;
+}
+
+Value mlir::loom::CompileArgTracker::getCoreCoordForDim(Operation *funcOp,
+                                                         StringRef dimName) const {
+  auto it = funcToCoreCoordsByDim.find(funcOp);
+  if (it == funcToCoreCoordsByDim.end())
+    return {};
+
+  StringRef dim = dimName.trim().lower();
+  if (dim == "x")
+    return it->second.x;
+  if (dim == "y")
+    return it->second.y;
+  return {};
+}
 
 int64_t mlir::loom::CompileArgTracker::getAndIncrementIndex(Operation *funcOp) {
   return funcToNextArgIndex[funcOp]++;

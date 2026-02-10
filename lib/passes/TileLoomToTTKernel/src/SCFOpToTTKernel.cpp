@@ -28,9 +28,11 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOps.h"
@@ -40,6 +42,32 @@ using namespace mlir::loom;
 using namespace tt::ttkernel;
 
 namespace {
+
+static std::string stringifyAttr(Attribute attr) {
+  std::string text;
+  llvm::raw_string_ostream os(text);
+  attr.print(os);
+  os.flush();
+  return text;
+}
+
+static bool isSpatialIterTypeAttr(Attribute attr) {
+  return StringRef(stringifyAttr(attr)).contains("spatial");
+}
+
+static std::string normalizeDimNameFromAttr(Attribute attr) {
+  if (auto flat = dyn_cast<FlatSymbolRefAttr>(attr))
+    return flat.getValue().str();
+  if (auto sym = dyn_cast<SymbolRefAttr>(attr))
+    return sym.getLeafReference().str();
+  if (auto str = dyn_cast<StringAttr>(attr))
+    return str.getValue().str();
+
+  StringRef text = stringifyAttr(attr);
+  if (text.starts_with("@"))
+    text = text.drop_front();
+  return text.trim().str();
+}
 
 /**
  * @brief Convert `scf.parallel` to straight-line code with compile-time IVs.
@@ -85,6 +113,9 @@ public:
     // scf.parallel op so they are in the surrounding function body.
     SmallVector<Value, 2> newIvValues;
     newIvValues.reserve(op.getInductionVars().size());
+    auto parentFunc = op->getParentOfType<func::FuncOp>();
+    if (!parentFunc)
+      return failure();
 
     rewriter.setInsertionPoint(op);
 
@@ -93,8 +124,27 @@ public:
       Value ivIndex = tracker->createIndexCompileArg(iv, loc, rewriter);
       newIvValues.push_back(ivIndex);
       // Append to the per-function core list using the parent function.
-      Operation *parentFunc = op->getParentOfType<func::FuncOp>();
       tracker->appendToCoreList(parentFunc, ivIndex);
+    }
+
+    // Record explicit x/y core coordinates based on mapped spatial dims.
+    if (auto mappedDims = op->getAttrOfType<ArrayAttr>("loom.mapped_to_dims")) {
+      auto iterTypes = op->getAttrOfType<ArrayAttr>("loom.iter_types");
+      for (auto [idx, ivVal] : llvm::enumerate(newIvValues)) {
+        if (idx >= mappedDims.size())
+          break;
+
+        if (iterTypes && idx < iterTypes.size() &&
+            !isSpatialIterTypeAttr(iterTypes[idx]))
+          continue;
+
+        std::string dimName = normalizeDimNameFromAttr(mappedDims[idx]);
+        StringRef dim = StringRef(dimName).trim();
+        if (dim.starts_with("@"))
+          dim = dim.drop_front();
+        if (dim.equals_insensitive("x") || dim.equals_insensitive("y"))
+          tracker->setCoreCoordForDim(parentFunc, dim, ivVal);
+      }
     }
 
     // Replace all IV uses in the loop body with the new compile-arg-based
