@@ -617,7 +617,7 @@ private:
         return false;
       if (!first)
         expr += " * ";
-      expr += std::to_string(dim);
+      expr += std::to_string(dim) + " / TILE_HEIGHT";
       first = false;
     }
     if (expr.empty())
