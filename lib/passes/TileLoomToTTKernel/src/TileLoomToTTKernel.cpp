@@ -24,7 +24,9 @@
 #include "mlir/Transforms/Passes.h"
 // TTKernel dialect (tt-mlir) for types/ops created by conversion patterns.
 #include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
+#include "ttmlir/Dialect/TTKernel/IR/TTKernelOps.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOpsTypes.h"
+#include "llvm/ADT/SetVector.h"
 
 // Loom dialect headers for ::loom::AllocOp, ::loom::CopyOp, etc.
 #include "mlir/Interfaces/ViewLikeInterface.h"
@@ -82,6 +84,63 @@ static void eraseAllDfOps(ModuleOp module) {
   // Erase in reverse to avoid invalidating the IR while deleting.
   for (auto *op : llvm::reverse(toErase))
     op->erase();
+}
+
+static bool hasResultUsersOutside(Operation *op, Operation *scopeOp) {
+  for (Value result : op->getResults()) {
+    for (Operation *user : result.getUsers()) {
+      if (!scopeOp->isAncestor(user))
+        return true;
+    }
+  }
+  return false;
+}
+
+static bool isHostArtifactLoop(scf::ForOp forOp) {
+  for (Operation &inner : forOp.getBody()->without_terminator()) {
+    if (!isa<mlir::tt::ttkernel::GetArgValOp, arith::IndexCastOp>(inner))
+      return false;
+    if (hasResultUsersOutside(&inner, forOp))
+      return false;
+  }
+  return true;
+}
+
+static void eraseHostLoweringArtifacts(ModuleOp module) {
+  for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+    StringRef name = func.getName();
+    if (!name.ends_with("__host") && !name.ends_with("__writer") &&
+        !name.ends_with("__reader"))
+      continue;
+
+    bool changed = true;
+    while (changed) {
+      changed = false;
+      llvm::SetVector<Operation *> opsToErase;
+
+      func.walk([&](scf::ForOp forOp) {
+        if (isHostArtifactLoop(forOp))
+          opsToErase.insert(forOp);
+      });
+
+      func.walk([&](mlir::tt::ttkernel::GetArgValOp getArgOp) {
+        if (getArgOp.getResult().use_empty())
+          opsToErase.insert(getArgOp.getOperation());
+      });
+
+      func.walk([&](arith::IndexCastOp castOp) {
+        if (castOp.getResult().use_empty())
+          opsToErase.insert(castOp);
+      });
+
+      if (opsToErase.empty())
+        break;
+
+      changed = true;
+      for (Operation *op : llvm::reverse(opsToErase))
+        op->erase();
+    }
+  }
 }
 
 /**
@@ -265,6 +324,10 @@ public:
       signalPassFailure();
       return;
     }
+
+    // Host specialization can leave loop shells containing only unused
+    // get_arg_val/index_cast artifacts. Remove them before final cleanup.
+    eraseHostLoweringArtifacts(module);
 
     // Post-conversion: Remove all function arguments.
     // After conversion, memref args used in reinterpret_cast should be dead
