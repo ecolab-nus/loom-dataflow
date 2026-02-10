@@ -40,6 +40,73 @@ using namespace tt::ttkernel;
 // CompileArgTracker Implementation
 //===----------------------------------------------------------------------===//
 
+namespace {
+
+static Value stripMemrefCasts(Value value) {
+  Value current = value;
+  while (auto cast = current.getDefiningOp<memref::CastOp>())
+    current = cast.getSource();
+  return current;
+}
+
+// Infer per-argument CB memref shape from loom.copy links to loom.alloc.
+// This decouples DRAM tensor shape (function args / host buffers) from
+// on-core CB tile shape (loom.alloc).
+static LogicalResult inferArgToCBMemrefType(
+    func::FuncOp func, llvm::DenseMap<Value, MemRefType> &argToCBMemrefType) {
+  Block &entry = func.front();
+  LogicalResult status = success();
+
+  auto recordLinkedType = [&](Value linkedArg, MemRefType cbMemrefType) {
+    auto blockArg = dyn_cast<BlockArgument>(linkedArg);
+    if (!blockArg || blockArg.getOwner() != &entry)
+      return success();
+
+    Type blockArgType = blockArg.getType();
+    if (!isa<MemRefType, UnrankedMemRefType>(blockArgType))
+      return success();
+
+    auto [it, inserted] = argToCBMemrefType.try_emplace(blockArg, cbMemrefType);
+    if (inserted || it->second == cbMemrefType)
+      return success();
+
+    func.emitError() << "inconsistent CB memref shapes inferred for argument #"
+                     << blockArg.getArgNumber() << ": " << it->second << " vs "
+                     << cbMemrefType;
+    return failure();
+  };
+
+  func.walk([&](::loom::CopyOp copyOp) {
+    if (failed(status))
+      return;
+
+    // DRAM -> L1: source is reinterpret_cast(arg), destination is loom.alloc.
+    if (auto sourceRC = copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>()) {
+      Value linkedArg = stripMemrefCasts(sourceRC.getSource());
+      Value destination = stripMemrefCasts(copyOp.getDestination());
+      if (auto allocOp = destination.getDefiningOp<::loom::AllocOp>()) {
+        if (auto allocMemrefType = dyn_cast<MemRefType>(allocOp.getType()))
+          status = recordLinkedType(linkedArg, allocMemrefType);
+      }
+    }
+
+    // L1 -> DRAM: source is loom.alloc, destination is reinterpret_cast(arg).
+    if (auto destinationRC =
+            copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>()) {
+      Value linkedArg = stripMemrefCasts(destinationRC.getSource());
+      Value source = stripMemrefCasts(copyOp.getSource());
+      if (auto allocOp = source.getDefiningOp<::loom::AllocOp>()) {
+        if (auto allocMemrefType = dyn_cast<MemRefType>(allocOp.getType()))
+          status = recordLinkedType(linkedArg, allocMemrefType);
+      }
+    }
+  });
+
+  return status;
+}
+
+} // namespace
+
 LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     func::FuncOp func, TypeConverter &typeConverter, OpBuilder &rewriter) {
   if (func.getName().contains("__host"))
@@ -63,6 +130,10 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
   OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToStart(&entry);
 
+  llvm::DenseMap<Value, MemRefType> argToCBMemrefType;
+  if (failed(inferArgToCBMemrefType(func, argToCBMemrefType)))
+    return failure();
+
   // Process each function argument.
   for (BlockArgument arg : entry.getArguments()) {
     Type argType = arg.getType();
@@ -73,7 +144,11 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
       int64_t tensorAccessorArgsIndex = getNextTensorAccessorArgsIndex(func);
 
       // Create GetArgValOp for CB.
-      auto cbType = typeConverter.convertType(argType);
+      Type cbType = nullptr;
+      if (auto it = argToCBMemrefType.find(arg); it != argToCBMemrefType.end())
+        cbType = CBType::get(it->second);
+      else
+        cbType = typeConverter.convertType(argType);
       if (!cbType)
         return func.emitError() << "failed to convert memref type to CB type";
       Value cbOp = createGetArgValOp(loc, rewriter, func, cbType);
@@ -630,22 +705,21 @@ private:
         linked = stripCasts(linked);
 
       CircularBufferInfo info;
+      if (!buildTilesExpr(cbMemrefType, info.tilesExpr))
+        return;
+      info.tilesVarName =
+          "cb_tiles_per_block_" + std::to_string(cbInfos.size());
 
       if (const DramBufferInfo *dramInfo = findDramInfo(linked)) {
         info.memrefOrdinal = static_cast<int>(dramInfo->memrefOrdinal);
-        info.tilesVarName = dramInfo->tilesVarName;
-        info.tilesExpr = dramInfo->tilesExpr;
         info.cbIndexName =
             "CBIndex::c_" + std::to_string(dramInfo->memrefOrdinal);
       } else {
-        if (!buildTilesExpr(cbMemrefType, info.tilesExpr))
-          return;
         info.memrefOrdinal = -1;
         unsigned fallbackCbIndex =
             static_cast<unsigned>(dramInfos.size() + fallbackIdx);
         info.cbIndexName = "CBIndex::c_" + std::to_string(fallbackCbIndex);
-        info.tilesVarName = getLetterName(dramInfos.size() + fallbackIdx++) +
-                            "_tiles_per_block";
+        ++fallbackIdx;
       }
 
       cbInfos.push_back(info);

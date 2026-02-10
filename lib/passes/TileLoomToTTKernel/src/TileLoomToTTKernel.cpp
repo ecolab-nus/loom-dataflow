@@ -219,6 +219,8 @@ public:
     target.addLegalDialect<linalg::LinalgDialect>();
     target.addDynamicallyLegalOp<linalg::MatmulOp>(
         [&](linalg::MatmulOp op) { return false; });
+    target.addDynamicallyLegalOp<linalg::FillOp>(
+        [&](linalg::FillOp op) { return false; });
     
     // Mark module and function ops as legal (they will be type-converted)
     target.addLegalOp<ModuleOp>();

@@ -157,10 +157,23 @@ public:
   }
 };
 
+class ConvertLinalgFillOp : public OpConversionPattern<linalg::FillOp> {
+public:
+  using OpConversionPattern<linalg::FillOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(linalg::FillOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
 } // namespace
 
 void loom::populateComputeOpConversionPatterns(RewritePatternSet &patterns,
                                                TypeConverter &typeConverter,
                                                MLIRContext *context) {
   patterns.add<ConvertLinalgMatmulOp>(typeConverter, context);
+  patterns.add<ConvertLinalgFillOp>(typeConverter, context);
 }

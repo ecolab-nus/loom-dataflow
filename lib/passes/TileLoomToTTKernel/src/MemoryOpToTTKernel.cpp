@@ -585,14 +585,31 @@ struct ConvertLoomAllocOp : public OpConversionPattern<::loom::AllocOp> {
   matchAndRewrite(::loom::AllocOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     Location loc = op.getLoc();
+    auto expectedCBType = dyn_cast_or_null<CBType>(
+        getTypeConverter()->convertType(op.getType()));
+
+    auto replaceWithCheckedCB = [&](Value cb) -> LogicalResult {
+      if (!cb)
+        return failure();
+
+      if (expectedCBType && cb.getType() != expectedCBType) {
+        return rewriter.notifyMatchFailure(
+            op, [&](Diagnostic &diag) {
+              diag << "CB type mismatch for loom.alloc replacement, expected "
+                   << expectedCBType << " but got " << cb.getType();
+            });
+      }
+
+      rewriter.replaceOp(op, cb);
+      return success();
+    };
 
     // Case 1: This alloc is the destination of a load-direction loom.copy.
     // Use the pre-created CB from the tracker keyed by the source memref.
     Value inputMemref = findInputMemref(op);
     if (inputMemref) {
       Value cb = tracker->getCB(inputMemref);
-      rewriter.replaceOp(op, cb);
-      return success();
+      return replaceWithCheckedCB(cb);
     }
 
     // Case 2: This alloc is the source of a store-direction loom.copy
@@ -601,10 +618,8 @@ struct ConvertLoomAllocOp : public OpConversionPattern<::loom::AllocOp> {
     Value outputMemref = findOutputMemref(op);
     if (outputMemref) {
       Value cb = tracker->getCB(outputMemref);
-      if (cb) {
-        rewriter.replaceOp(op, cb);
-        return success();
-      }
+      if (cb)
+        return replaceWithCheckedCB(cb);
     }
 
     // Fallback: no associated loom.copy found at all. Create a new CB
