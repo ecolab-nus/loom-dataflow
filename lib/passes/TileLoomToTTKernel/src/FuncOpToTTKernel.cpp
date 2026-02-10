@@ -18,10 +18,12 @@
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/raw_ostream.h"
 
 // Loom dialect headers for ::::loom::CopyOp, ::loom::AllocOp
 #include "mlir/Interfaces/ViewLikeInterface.h"
@@ -531,6 +533,7 @@ public:
         builder(hostFunc.getContext()) {}
 
   void run() {
+    inferCoreCoordArgOrder();
     collectDramInfos();
     collectCbInfos();
     annotateHostSignatureMetadata();
@@ -547,10 +550,13 @@ public:
 
     // Runtime enqueue calls must be emitted at the end of the host function.
     builder.setInsertionPoint(hostFunc.front().getTerminator());
+    emitCoreMulticastMappingAtEnd();
     emitRuntimeEnqueueEpilogue();
   }
 
 private:
+  enum class MulticastKind { None, Horizontal, Vertical };
+
   struct DramBufferInfo {
     Value hostArg;
     MemRefType type;
@@ -558,6 +564,7 @@ private:
     unsigned memrefOrdinal;
     bool isInput;
     bool isOutput;
+    MulticastKind multicastKind;
     std::string inputName;
     std::string configName;
     std::string bufferName;
@@ -641,6 +648,126 @@ private:
     return true;
   }
 
+  static std::string stringifyAttr(Attribute attr) {
+    std::string text;
+    llvm::raw_string_ostream os(text);
+    attr.print(os);
+    os.flush();
+    return text;
+  }
+
+  static bool isSpatialIterAttr(Attribute iterTypeAttr) {
+    std::string text = stringifyAttr(iterTypeAttr);
+    return StringRef(text).contains("spatial");
+  }
+
+  static std::string extractDimName(Attribute dimAttr) {
+    if (auto flat = dyn_cast<FlatSymbolRefAttr>(dimAttr))
+      return flat.getValue().str();
+    if (auto sym = dyn_cast<SymbolRefAttr>(dimAttr))
+      return sym.getLeafReference().str();
+    if (auto str = dyn_cast<StringAttr>(dimAttr))
+      return str.getValue().str();
+
+    std::string text = stringifyAttr(dimAttr);
+    StringRef ref(text);
+    if (ref.starts_with("@"))
+      ref = ref.drop_front();
+    return ref.trim().str();
+  }
+
+  static std::string normalizeDimName(StringRef dim) {
+    StringRef t = dim.trim();
+    if (t.starts_with("@"))
+      t = t.drop_front();
+    return t.lower();
+  }
+
+  static std::string coreCoordExprForDim(StringRef dim) {
+    std::string d = normalizeDimName(dim);
+    if (d == "x")
+      return "core.x";
+    if (d == "y")
+      return "core.y";
+    return {};
+  }
+
+  void inferCoreCoordArgOrder() {
+    coreCoordArg0Expr = "core.x";
+    coreCoordArg1Expr = "core.y";
+
+    bool foundOrder = false;
+    hostFunc.walk([&](scf::ParallelOp op) {
+      if (foundOrder)
+        return;
+
+      auto mappedAttr = op->getAttrOfType<ArrayAttr>("loom.mapped_to_dims");
+      if (!mappedAttr || mappedAttr.size() < 2)
+        return;
+
+      auto iterTypesAttr = op->getAttrOfType<ArrayAttr>("loom.iter_types");
+      SmallVector<std::string, 4> spatialMappedDims;
+      for (auto [idx, mapped] : llvm::enumerate(mappedAttr)) {
+        if (iterTypesAttr && idx < iterTypesAttr.size() &&
+            !isSpatialIterAttr(iterTypesAttr[idx]))
+          continue;
+        spatialMappedDims.push_back(extractDimName(mapped));
+      }
+
+      if (spatialMappedDims.size() < 2)
+        return;
+
+      std::string firstExpr = coreCoordExprForDim(spatialMappedDims[0]);
+      std::string secondExpr = coreCoordExprForDim(spatialMappedDims[1]);
+      if (firstExpr.empty() || secondExpr.empty())
+        return;
+
+      coreCoordArg0Expr = firstExpr;
+      coreCoordArg1Expr = secondExpr;
+      foundOrder = true;
+    });
+  }
+
+  static MulticastKind classifyInterconnect(ArrayAttr interconnectAttr) {
+    if (!interconnectAttr || interconnectAttr.empty())
+      return MulticastKind::None;
+
+    bool hasHorizontal = false;
+    bool hasVertical = false;
+    for (Attribute attr : interconnectAttr) {
+      if (auto symRef = dyn_cast<FlatSymbolRefAttr>(attr)) {
+        StringRef name = symRef.getValue();
+        if (name == "horizontal_links")
+          hasHorizontal = true;
+        if (name == "vertical_links")
+          hasVertical = true;
+      }
+    }
+
+    if (hasHorizontal && !hasVertical)
+      return MulticastKind::Horizontal;
+    if (!hasHorizontal && hasVertical)
+      return MulticastKind::Vertical;
+    return MulticastKind::None;
+  }
+
+  MulticastKind findInputMulticastKind(Value hostArg) {
+    MulticastKind result = MulticastKind::None;
+    hostFunc.walk([&](::loom::CopyOp op) {
+      auto sourceRC = op.getSource().getDefiningOp<memref::ReinterpretCastOp>();
+      if (!sourceRC)
+        return;
+      Value sourceArg = stripCasts(sourceRC.getSource());
+      if (sourceArg != hostArg)
+        return;
+
+      MulticastKind opKind = classifyInterconnect(op.getInterconnect());
+      if (opKind != MulticastKind::None)
+        result = opKind;
+    });
+    return result;
+  }
+
   const DramBufferInfo *findDramInfo(Value hostArg) const {
     for (const DramBufferInfo &info : dramInfos) {
       if (info.hostArg == hostArg)
@@ -695,6 +822,9 @@ private:
         sizeExpr += " * " + tilesExpr;
       bool isInput = isLoad;
       bool isOutput = isStore;
+      MulticastKind multicastKind = MulticastKind::None;
+      if (isInput)
+        multicastKind = findInputMulticastKind(hostArg);
       std::string inputName =
           isInput ? ("in" + std::to_string(inputIdx++)) : "";
 
@@ -705,6 +835,7 @@ private:
           static_cast<unsigned>(dramInfos.size()),
           isInput,
           isOutput,
+          multicastKind,
           inputName,
           "dram_config_" + letter,
           roleName + "_dram_buffer",
@@ -907,6 +1038,95 @@ private:
     }
   }
 
+  void emitCoreMulticastMappingAtEnd() {
+    emitLine("uint32_t num_cores_with_work_c = end_core_x - start_core_x + 1;");
+    emitLine("uint32_t num_cores_with_work_r = end_core_y - start_core_y + 1;");
+    emitLine("constexpr bool row_major = true;");
+    emitLine("auto cores = corerange_to_cores(all_cores, std::nullopt, row_major);");
+    emitLine("for (const auto& core : cores) {");
+    emitLine("CoreCoord horizontal_sender_core = {(std::size_t)0, (std::size_t)core.y};");
+    emitLine("CoreCoord horizontal_dest_start_core = {(std::size_t)1, (std::size_t)core.y};");
+    emitLine("CoreCoord horizontal_dest_end_core = {(std::size_t)(num_cores_with_work_c - 1), (std::size_t)core.y};");
+    emitLine("CoreCoord vertical_sender_core = {(std::size_t)core.x, (std::size_t)0};");
+    emitLine("CoreCoord vertical_dest_start_core = {(std::size_t)core.x, (std::size_t)1};");
+    emitLine("CoreCoord vertical_dest_end_core = {(std::size_t)core.x, (std::size_t)(num_cores_with_work_r - 1)};");
+    emitLine("auto horizontal_sender_physical = device->worker_core_from_logical_core(horizontal_sender_core);");
+    emitLine("auto horizontal_dest_start_physical = device->worker_core_from_logical_core(horizontal_dest_start_core);");
+    emitLine("auto horizontal_dest_end_physical = device->worker_core_from_logical_core(horizontal_dest_end_core);");
+    emitLine("auto vertical_sender_physical = device->worker_core_from_logical_core(vertical_sender_core);");
+    emitLine("auto vertical_dest_start_physical = device->worker_core_from_logical_core(vertical_dest_start_core);");
+    emitLine("auto vertical_dest_end_physical = device->worker_core_from_logical_core(vertical_dest_end_core);");
+    emitLine("uint32_t horizontal_multicast_dest_noc_start_x = (std::uint32_t)horizontal_dest_start_physical.x;");
+    emitLine("uint32_t horizontal_multicast_dest_noc_start_y = (std::uint32_t)horizontal_dest_start_physical.y;");
+    emitLine("uint32_t horizontal_multicast_dest_noc_end_x = (std::uint32_t)horizontal_dest_end_physical.x;");
+    emitLine("uint32_t horizontal_multicast_dest_noc_end_y = (std::uint32_t)horizontal_dest_end_physical.y;");
+    emitLine("uint32_t horizontal_multicast_sender_noc_x = (std::uint32_t)horizontal_sender_physical.x;");
+    emitLine("uint32_t horizontal_multicast_sender_noc_y = (std::uint32_t)horizontal_sender_physical.y;");
+    emitLine("uint32_t vertical_multicast_dest_noc_start_x = (std::uint32_t)vertical_dest_start_physical.x;");
+    emitLine("uint32_t vertical_multicast_dest_noc_start_y = (std::uint32_t)vertical_dest_start_physical.y;");
+    emitLine("uint32_t vertical_multicast_dest_noc_end_x = (std::uint32_t)vertical_dest_end_physical.x;");
+    emitLine("uint32_t vertical_multicast_dest_noc_end_y = (std::uint32_t)vertical_dest_end_physical.y;");
+    emitLine("uint32_t vertical_multicast_sender_noc_x = (std::uint32_t)vertical_sender_physical.x;");
+    emitLine("uint32_t vertical_multicast_sender_noc_y = (std::uint32_t)vertical_sender_physical.y;");
+    emitReaderRuntimeArgsForCore();
+    emitLine("}");
+  }
+
+  void emitReaderRuntimeArgsForCore() {
+    auto emitMulticastTuple = [&](const DramBufferInfo &info) {
+      if (!info.isInput || info.multicastKind == MulticastKind::None) {
+        emitLine("0,");
+        emitLine("0,");
+        emitLine("0,");
+        emitLine("0,");
+        emitLine("0,");
+        emitLine("0,");
+        emitLine("0,");
+        emitLine("0,");
+        emitLine("0,");
+        return;
+      }
+
+      if (info.multicastKind == MulticastKind::Horizontal) {
+        emitLine("horizontal_multicast_dest_noc_start_x,");
+        emitLine("horizontal_multicast_dest_noc_start_y,");
+        emitLine("horizontal_multicast_dest_noc_end_x,");
+        emitLine("horizontal_multicast_dest_noc_end_y,");
+        emitLine("(num_cores_with_work_c - 1),");
+        emitLine("horizontal_multicast_sender_noc_x,");
+        emitLine("horizontal_multicast_sender_noc_y,");
+      } else {
+        emitLine("vertical_multicast_dest_noc_start_x,");
+        emitLine("vertical_multicast_dest_noc_start_y,");
+        emitLine("vertical_multicast_dest_noc_end_x,");
+        emitLine("vertical_multicast_dest_noc_end_y,");
+        emitLine("(num_cores_with_work_r - 1),");
+        emitLine("vertical_multicast_sender_noc_x,");
+        emitLine("vertical_multicast_sender_noc_y,");
+      }
+
+      emitLine(info.inputName + "_mcast_sender_semaphore_addr,");
+      emitLine(info.inputName + "_mcast_receiver_semaphore_addr,");
+    };
+
+    emitLine("std::vector<uint32_t> runtime_args_for_core = {");
+
+    for (const DramBufferInfo &info : dramInfos) {
+      emitLine("static_cast<uint32_t>(CBIndex::c_" +
+               std::to_string(info.memrefOrdinal) + "),");
+      emitLine(info.bufferName + "->address(),");
+      emitMulticastTuple(info);
+    }
+
+    emitLine(coreCoordArg0Expr + ",");
+    emitLine(coreCoordArg1Expr);
+    emitLine("};");
+
+    emitLine("tt_metal::SetRuntimeArgs(program, reader_id, core, runtime_args_for_core);");
+    emitLine("tt_metal::SetRuntimeArgs(program, writer_id, core, runtime_args_for_core);");
+    emitLine("tt_metal::SetRuntimeArgs(program, compute_kernel_id, core, runtime_args_for_core);");
+  }
+
   void emitCompileArgs() {
     emitLine("std::vector<uint32_t> compile_args = {};");
     for (const DramBufferInfo &info : dramInfos) {
@@ -949,6 +1169,8 @@ private:
   SmallVector<DramBufferInfo, 8> dramInfos;
   SmallVector<CircularBufferInfo, 8> cbInfos;
   SmallVector<std::string, 8> emittedTilesVars;
+  std::string coreCoordArg0Expr = "core.x";
+  std::string coreCoordArg1Expr = "core.y";
 };
 
 /**
