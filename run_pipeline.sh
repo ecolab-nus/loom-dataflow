@@ -77,11 +77,19 @@ if ! build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
 fi
 
 # optional) Materialize symbolic block sizes
-echo "(optional) Materialize symbolic block sizes..."
+echo "6) Materialize symbolic block sizes..."
 if ! build/tool/loom-opt/single_stage/canonicalize \
   --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
   > test/Passes/mm_2Dmesh/IR/06_after_canonicalize.mlir; then
-    echo "Error: (optional) Materialize symbolic block sizes failed."
+    echo "Error: Step 6 failed."
+    exit 1
+fi
+
+echo "7) OSB..."
+if ! build/tool/loom-opt/single_stage/one_shot_bufferize \
+  --input test/Passes/mm_2Dmesh/IR/06_after_canonicalize.mlir \
+  > test/Passes/mm_2Dmesh/IR/07_after_osb.mlir; then
+    echo "Error: Step 7 failed."
     exit 1
 fi
 
