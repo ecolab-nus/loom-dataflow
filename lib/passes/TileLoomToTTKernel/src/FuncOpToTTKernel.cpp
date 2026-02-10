@@ -42,6 +42,9 @@ using namespace tt::ttkernel;
 
 LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     func::FuncOp func, TypeConverter &typeConverter, OpBuilder &rewriter) {
+  if (func.getName().contains("__host"))
+    return success();
+
   Block &entry = func.front();
   Location loc = func.getLoc();
 
@@ -439,6 +442,324 @@ static func::FuncOp makeWriterFunc(func::FuncOp func) {
 }
 
 /**
+ * @brief Emit host-side TT-Metal DRAM/CB setup and compile args.
+ *
+ * @details This helper consolidates host emission into one place:
+ *          1. DRAM buffers from memref function arguments.
+ *          2. Circular buffers from `loom.alloc`, linked back to DRAM memrefs.
+ *          3. TensorAccessor compile args for each DRAM buffer.
+ */
+class TTMetalHostProgramEmitter {
+public:
+  TTMetalHostProgramEmitter(func::FuncOp originalFunc, func::FuncOp hostFunc)
+      : originalFunc(originalFunc), hostFunc(hostFunc), loc(hostFunc.getLoc()),
+        builder(hostFunc.getContext()) {}
+
+  void run() {
+    collectDramInfos();
+    collectCbInfos();
+    eraseNonHostOps();
+    eraseDeadReinterpretCasts();
+
+    builder.setInsertionPointToStart(&hostFunc.getBody().front());
+    emitPreamble();
+    emitDramBuffers();
+    emitCircularBuffers();
+    emitCompileArgs();
+  }
+
+private:
+  struct DramBufferInfo {
+    Value hostArg;
+    MemRefType type;
+    unsigned argIndex;
+    unsigned memrefOrdinal;
+    std::string configName;
+    std::string bufferName;
+    std::string tilesVarName;
+    std::string tilesExpr;
+    std::string sizeExpr;
+  };
+
+  struct CircularBufferInfo {
+    int memrefOrdinal;
+    std::string tilesVarName;
+    std::string tilesExpr;
+    std::string cbIndexName;
+  };
+
+  static Value stripCasts(Value value) {
+    Value curr = value;
+    while (auto cast = curr.getDefiningOp<memref::CastOp>())
+      curr = cast.getSource();
+    return curr;
+  }
+
+  static Value findInputMemref(::loom::AllocOp alloc) {
+    for (Operation *user : alloc.getResult().getUsers()) {
+      if (auto loomCopy = dyn_cast<::loom::CopyOp>(user)) {
+        if (loomCopy.getDestination() != alloc.getResult())
+          continue;
+        if (auto rc = loomCopy.getSource().getDefiningOp<memref::ReinterpretCastOp>())
+          return stripCasts(rc.getSource());
+      }
+    }
+    return {};
+  }
+
+  static Value findOutputMemref(::loom::AllocOp alloc) {
+    for (Operation *user : alloc.getResult().getUsers()) {
+      if (auto loomCopy = dyn_cast<::loom::CopyOp>(user)) {
+        if (loomCopy.getSource() != alloc.getResult())
+          continue;
+        if (auto rc = loomCopy.getDestination().getDefiningOp<memref::ReinterpretCastOp>())
+          return stripCasts(rc.getSource());
+      }
+    }
+    return {};
+  }
+
+  static bool containsValue(ArrayRef<Value> values, Value value) {
+    return llvm::find(values, value) != values.end();
+  }
+
+  static void appendUnique(SmallVectorImpl<Value> &values, Value value) {
+    if (!containsValue(values, value))
+      values.push_back(value);
+  }
+
+  static std::string getLetterName(size_t index) {
+    if (index < 26)
+      return std::string(1, static_cast<char>('A' + index));
+    return "V" + std::to_string(index);
+  }
+
+  static bool buildTilesExpr(MemRefType memrefType, std::string &expr) {
+    expr.clear();
+    bool first = true;
+    for (int64_t dim : memrefType.getShape()) {
+      if (dim == ShapedType::kDynamic)
+        return false;
+      if (!first)
+        expr += " * ";
+      expr += std::to_string(dim);
+      first = false;
+    }
+    if (expr.empty())
+      expr = "1";
+    return true;
+  }
+
+  const DramBufferInfo *findDramInfo(Value hostArg) const {
+    for (const DramBufferInfo &info : dramInfos) {
+      if (info.hostArg == hostArg)
+        return &info;
+    }
+    return nullptr;
+  }
+
+  void collectDramInfos() {
+    SmallVector<Value, 8> loadMemrefs;
+    SmallVector<Value, 8> storeMemrefs;
+
+    hostFunc.walk([&](::loom::CopyOp op) {
+      if (auto sourceRC = op.getSource().getDefiningOp<memref::ReinterpretCastOp>())
+        appendUnique(loadMemrefs, stripCasts(sourceRC.getSource()));
+      if (auto destRC = op.getDestination().getDefiningOp<memref::ReinterpretCastOp>())
+        appendUnique(storeMemrefs, stripCasts(destRC.getSource()));
+    });
+
+    unsigned srcIdx = 0;
+    unsigned dstIdx = 0;
+    unsigned ioIdx = 0;
+    unsigned argIdx = 0;
+
+    for (auto [index, arg] : llvm::enumerate(originalFunc.getArguments())) {
+      auto memrefType = dyn_cast<MemRefType>(arg.getType());
+      if (!memrefType)
+        continue;
+
+      std::string tilesExpr;
+      if (!buildTilesExpr(memrefType, tilesExpr))
+        continue;
+
+      Value hostArg = stripCasts(hostFunc.getArgument(index));
+      bool isLoad = containsValue(loadMemrefs, hostArg);
+      bool isStore = containsValue(storeMemrefs, hostArg);
+
+      std::string roleName;
+      if (isLoad && !isStore)
+        roleName = "src" + std::to_string(srcIdx++);
+      else if (isStore && !isLoad)
+        roleName = "dst" + std::to_string(dstIdx++);
+      else if (isLoad && isStore)
+        roleName = "io" + std::to_string(ioIdx++);
+      else
+        roleName = "arg" + std::to_string(argIdx++);
+
+      std::string letter = getLetterName(dramInfos.size());
+      std::string sizeExpr = "single_tile_size";
+      if (tilesExpr != "1")
+        sizeExpr += " * " + tilesExpr;
+
+      dramInfos.push_back(DramBufferInfo{
+          hostArg,
+          memrefType,
+          static_cast<unsigned>(index),
+          static_cast<unsigned>(dramInfos.size()),
+          "dram_config_" + letter,
+          roleName + "_dram_buffer",
+          letter + "_tiles_per_block",
+          tilesExpr,
+          sizeExpr});
+    }
+  }
+
+  void collectCbInfos() {
+    unsigned fallbackIdx = 0;
+
+    hostFunc.walk([&](::loom::AllocOp alloc) {
+      auto cbMemrefType = dyn_cast<MemRefType>(alloc.getType());
+      if (!cbMemrefType)
+        return;
+
+      Value linked = findInputMemref(alloc);
+      if (!linked)
+        linked = findOutputMemref(alloc);
+      if (linked)
+        linked = stripCasts(linked);
+
+      CircularBufferInfo info;
+
+      if (const DramBufferInfo *dramInfo = findDramInfo(linked)) {
+        info.memrefOrdinal = static_cast<int>(dramInfo->memrefOrdinal);
+        info.tilesVarName = dramInfo->tilesVarName;
+        info.tilesExpr = dramInfo->tilesExpr;
+        info.cbIndexName =
+            "CBIndex::c_" + std::to_string(dramInfo->memrefOrdinal);
+      } else {
+        if (!buildTilesExpr(cbMemrefType, info.tilesExpr))
+          return;
+        info.memrefOrdinal = -1;
+        unsigned fallbackCbIndex =
+            static_cast<unsigned>(dramInfos.size() + fallbackIdx);
+        info.cbIndexName = "CBIndex::c_" + std::to_string(fallbackCbIndex);
+        info.tilesVarName = getLetterName(dramInfos.size() + fallbackIdx++) +
+                            "_tiles_per_block";
+      }
+
+      cbInfos.push_back(info);
+    });
+  }
+
+  void eraseNonHostOps() {
+    SmallVector<Operation *, 16> opsToErase;
+    hostFunc.walk([&](Operation *op) {
+      if (isComputeOp(op)) {
+        opsToErase.push_back(op);
+      } else if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(op)) {
+        if (isLoomLoadOp(loomCopyOp) || isLoomStoreOp(loomCopyOp))
+          opsToErase.push_back(op);
+      }
+    });
+
+    for (Operation *op : llvm::reverse(opsToErase))
+      op->erase();
+
+    SmallVector<::loom::AllocOp, 8> allocOps;
+    hostFunc.walk([&](::loom::AllocOp alloc) { allocOps.push_back(alloc); });
+    for (::loom::AllocOp alloc : allocOps) {
+      if (alloc.getResult().use_empty())
+        alloc.erase();
+    }
+  }
+
+  void eraseDeadReinterpretCasts() {
+    SmallVector<Operation *, 8> unusedRcOps;
+    hostFunc.walk([&](memref::ReinterpretCastOp rcOp) {
+      if (rcOp.getResult().use_empty())
+        unusedRcOps.push_back(rcOp);
+    });
+    for (Operation *op : unusedRcOps)
+      op->erase();
+  }
+
+  void emitLine(const std::string &line) {
+    builder.create<emitc::VerbatimOp>(loc, line);
+  }
+
+  void emitPreamble() {
+    emitLine("CommandQueue& cq = device->command_queue();");
+    emitLine("Program program{};");
+    emitLine("constexpr uint32_t single_tile_size = sizeof(bfloat16) * TILE_HEIGHT * TILE_WIDTH;");
+    emitLine("const auto cb_data_format = tt::DataFormat::Float16_b;");
+    emitLine("uint32_t cb_buffer_depth = 2;");
+  }
+
+  void emitDramBuffers() {
+    for (const DramBufferInfo &info : dramInfos) {
+      emitLine("tt_metal::InterleavedBufferConfig " + info.configName +
+               "{.device = device, .size = " + info.sizeExpr +
+               ", .page_size = single_tile_size, .buffer_type = "
+               "tt_metal::BufferType::DRAM};");
+      emitLine("auto " + info.bufferName +
+               " = tt_metal::CreateBuffer(" + info.configName + ");");
+    }
+  }
+
+  bool hasEmittedTilesVar(StringRef name) const {
+    return llvm::is_contained(emittedTilesVars, name.str());
+  }
+
+  void emitCircularBuffers() {
+    auto emitCbInfo = [&](const CircularBufferInfo &info) {
+      if (!hasEmittedTilesVar(info.tilesVarName)) {
+        emitLine("const uint32_t " + info.tilesVarName + " = " + info.tilesExpr +
+                 ";");
+        emittedTilesVars.push_back(info.tilesVarName);
+      }
+
+      emitLine("tt_metal::CreateCircularBuffer(program, all_cores, "
+               "CircularBufferConfig(" +
+               info.tilesVarName +
+               " * cb_buffer_depth * single_tile_size, {{" + info.cbIndexName +
+               ", cb_data_format}}).set_page_size(" + info.cbIndexName +
+               ", single_tile_size));");
+    };
+
+    // Emit CBs linked to DRAM args in stable memref order (A, B, C, ...).
+    for (const DramBufferInfo &dramInfo : dramInfos) {
+      for (const CircularBufferInfo &info : cbInfos) {
+        if (info.memrefOrdinal == static_cast<int>(dramInfo.memrefOrdinal))
+          emitCbInfo(info);
+      }
+    }
+
+    // Emit any fallback CBs not linked to a DRAM argument.
+    for (const CircularBufferInfo &info : cbInfos) {
+      if (info.memrefOrdinal < 0)
+        emitCbInfo(info);
+    }
+  }
+
+  void emitCompileArgs() {
+    emitLine("std::vector<uint32_t> compile_args = {};");
+    for (const DramBufferInfo &info : dramInfos) {
+      emitLine("tt::tt_metal::TensorAccessorArgs(*" + info.bufferName +
+               ").append_to(compile_args);");
+    }
+  }
+
+  func::FuncOp originalFunc;
+  func::FuncOp hostFunc;
+  Location loc;
+  OpBuilder builder;
+  SmallVector<DramBufferInfo, 8> dramInfos;
+  SmallVector<CircularBufferInfo, 8> cbInfos;
+  SmallVector<std::string, 8> emittedTilesVars;
+};
+
+/**
  * @brief Specialize a function for host-only execution (no compute/load/store).
  *
  * @details Clones the function with `__host` suffix and erases all
@@ -456,202 +777,8 @@ static func::FuncOp makeHostFunc(func::FuncOp func) {
   auto hostFunc = cast<func::FuncOp>(func->clone(mapping));
   hostFunc.setName((func.getName() + "__host").str());
 
-  // Collect all compute, load, and store operations to erase
-  SmallVector<Operation *, 8> opsToErase;
-  hostFunc.walk([&](Operation *op) {
-    if (isComputeOp(op)) {
-      opsToErase.push_back(op);
-    }  else if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(op)) {
-      if (isLoomLoadOp(loomCopyOp) || isLoomStoreOp(loomCopyOp)) {
-        opsToErase.push_back(op);
-      }
-    }
-  });
-
-  // Remove all collected operations first
-  for (Operation *op : llvm::reverse(opsToErase)) {
-    op->erase();
-  }
-
-  // Clean up unused reinterpret_cast ops that were only used by erased ops
-  SmallVector<Operation *, 8> unusedRcOps;
-  hostFunc.walk([&](memref::ReinterpretCastOp rcOp) {
-    if (rcOp.getResult().use_empty()) {
-      unusedRcOps.push_back(rcOp);
-    }
-  });
-
-  for (Operation *op : unusedRcOps) {
-    op->erase();
-  }
-
-  // Create DRAM buffers for input and output
-  // Calculate single_tile_size: typically sizeof(bfloat16) * TILE_HEIGHT * TILE_WIDTH = 2 * 32 * 32 = 2048
-  Location loc = hostFunc.getLoc();
-  OpBuilder builder(hostFunc.getContext());
-  builder.setInsertionPointToStart(&hostFunc.getBody().front());
-
-  // Create emitc statements for command queue and program
-  builder.create<emitc::VerbatimOp>(
-      loc, "CommandQueue& cq = device->command_queue();");
-  builder.create<emitc::VerbatimOp>(loc, "Program program{};");
-
-  // Create emitc variable for single_tile_size calculation
-  builder.create<emitc::VerbatimOp>(loc, "constexpr uint32_t single_tile_size = sizeof(bfloat16) * TILE_HEIGHT * TILE_WIDTH;");
-  
-  // Create DeviceLocalBufferConfig struct with initializer list
-  std::string dramConfigStr = std::string("distributed::DeviceLocalBufferConfig dram_config{") +
-                               ".page_size = single_tile_size" + 
-                               ", .buffer_type = tt_metal::BufferType::DRAM};";
-  builder.create<emitc::VerbatimOp>(loc, dramConfigStr);
-  
-  // Create ReplicatedBufferConfig for each memref input argument
-  // Iterate through original function arguments to get memref types
-  // Map argument index to buffer config name
-  SmallVector<std::pair<int, std::string>> argIndexToConfig; // Store (argIndex, configName) pairs
-  
-  for (auto [argIndex, arg] : llvm::enumerate(func.getArguments())) {
-    Type argType = arg.getType();
-    
-    if (auto memrefType = dyn_cast<MemRefType>(argType)) {
-      // Get memref shape/dimensions
-      ArrayRef<int64_t> shape = memrefType.getShape();
-      
-      // Build size expression: single_tile_size * dim0 * dim1 * ...
-      std::string sizeExpr = "single_tile_size";
-      bool hasDynamicDim = false;
-      
-      for (int64_t dim : shape) {
-        if (dim == ShapedType::kDynamic) {
-          hasDynamicDim = true;
-          break;
-        }
-        sizeExpr += " * " + std::to_string(dim);
-      }
-      
-      // Skip if has dynamic dimensions (would need runtime values)
-      if (hasDynamicDim) {
-        continue;
-      }
-      
-      // Generate variable name: buffer_config_A, buffer_config_B, etc.
-      char varName = 'A' + argIndexToConfig.size();
-      std::string configName = "buffer_config_" + std::string(1, varName);
-      std::string bufferConfigStr = "distributed::ReplicatedBufferConfig " + configName + 
-                                     "{.size = " + sizeExpr + "};";
-      
-      builder.create<emitc::VerbatimOp>(loc, bufferConfigStr);
-      argIndexToConfig.push_back({argIndex, configName});
-    }
-  }
-  
-  // Create MeshBuffer objects for each buffer config
-  // Name based on argument index: dram_buffer_0, dram_buffer_1, etc.
-  for (const auto &[argIndex, configName] : argIndexToConfig) {
-    std::string bufferName = "dram_buffer_" + std::to_string(argIndex);
-    std::string meshBufferStr = "auto " + bufferName + " = distributed::MeshBuffer::create(" +
-                                configName + ", dram_config, mesh_device.get());";
-    builder.create<emitc::VerbatimOp>(loc, meshBufferStr);
-  }
-  
-  // Create circular buffers for each memref argument
-  // Calculate tiles_per_block from memref dimensions and create CircularBufferConfig
-  builder.create<emitc::VerbatimOp>(loc, "const auto cb_data_format = tt::DataFormat::Float16_b;");
-  builder.create<emitc::VerbatimOp>(loc, "uint32_t cb_buffer_depth = 2;");
-  builder.create<emitc::VerbatimOp>(loc, "MathFidelity math_fidelity = MathFidelity::HiFi4;");
-  
-  // CBIndex mapping: arg 0 -> c_0, arg 1 -> c_1, arg 2 -> c_16, etc.
-  SmallVector<int> cbIndexMap = {0, 1, 16}; // Default mapping, can be extended
-  
-  // Generate tiles_per_block variables and print statement
-  std::string printArgs;
-  for (const auto &[argIndex, configName] : argIndexToConfig) {
-    // Get the memref type for this argument to extract dimensions
-    BlockArgument arg = func.getArgument(argIndex);
-    auto memrefType = cast<MemRefType>(arg.getType());
-    ArrayRef<int64_t> shape = memrefType.getShape();
-    
-    // Calculate tiles_per_block: multiply all dimensions
-    // For 2D: [Mt, Kt] -> Mt * Kt, [Kt, Nt] -> Kt * Nt, [Mt, Nt] -> Mt * Nt
-    std::string tilesPerBlockExpr;
-    bool firstDim = true;
-    for (int64_t dim : shape) {
-      if (dim == ShapedType::kDynamic) {
-        // Skip if dynamic - would need runtime value
-        tilesPerBlockExpr = "";
-        break;
-      }
-      if (!firstDim) {
-        tilesPerBlockExpr += " * ";
-      }
-      tilesPerBlockExpr += std::to_string(dim);
-      firstDim = false;
-    }
-    
-    if (tilesPerBlockExpr.empty()) {
-      continue; // Skip if has dynamic dimensions
-    }
-    
-    // Get CBIndex for this argument
-    int cbIndex = (argIndex < cbIndexMap.size()) ? cbIndexMap[argIndex] : argIndex;
-    std::string cbIndexStr = "CBIndex::c_" + std::to_string(cbIndex);
-    
-    // Generate variable name for tiles_per_block
-    char varName = 'A' + argIndex;
-    std::string tilesVarName = std::string(1, varName) + "_tiles_per_block";
-    std::string tilesDecl = "const uint32_t " + tilesVarName + " = " + tilesPerBlockExpr + ";";
-    builder.create<emitc::VerbatimOp>(loc, tilesDecl);
-    
-    // Collect for print statement
-    if (!printArgs.empty()) {
-      printArgs += ", ";
-    }
-    printArgs += tilesVarName;
-  }
-
-  // Create CircularBufferConfig and call CreateCircularBuffer for each memref
-  for (const auto &[argIndex, configName] : argIndexToConfig) {
-    // Get the memref type for this argument to extract dimensions
-    BlockArgument arg = func.getArgument(argIndex);
-    auto memrefType = cast<MemRefType>(arg.getType());
-    ArrayRef<int64_t> shape = memrefType.getShape();
-    
-    // Calculate tiles_per_block: multiply all dimensions
-    std::string tilesPerBlockExpr;
-    bool firstDim = true;
-    for (int64_t dim : shape) {
-      if (dim == ShapedType::kDynamic) {
-        tilesPerBlockExpr = "";
-        break;
-      }
-      if (!firstDim) {
-        tilesPerBlockExpr += " * ";
-      }
-      tilesPerBlockExpr += std::to_string(dim);
-      firstDim = false;
-    }
-    
-    if (tilesPerBlockExpr.empty()) {
-      continue; // Skip if has dynamic dimensions
-    }
-    
-    // Get CBIndex for this argument
-    int cbIndex = (argIndex < cbIndexMap.size()) ? cbIndexMap[argIndex] : argIndex;
-    std::string cbIndexStr = "CBIndex::c_" + std::to_string(cbIndex);
-    
-    // Generate variable name for tiles_per_block (matching the declaration above)
-    char varName = 'A' + argIndex;
-    std::string tilesVarName = std::string(1, varName) + "_tiles_per_block";
-    
-    // Create CircularBufferConfig and call CreateCircularBuffer
-    std::string cbConfigStr = "tt_metal::CreateCircularBuffer("
-                              "program, "
-                              "all_cores, "
-                              "CircularBufferConfig(" + tilesVarName + " * cb_buffer_depth * " + 
-                              "single_tile_size" + ", {{" + cbIndexStr + ", cb_data_format}})"
-                              ".set_page_size(" + cbIndexStr + ", single_tile_size));";
-    builder.create<emitc::VerbatimOp>(loc, cbConfigStr);
-  }
+  TTMetalHostProgramEmitter emitter(func, hostFunc);
+  emitter.run();
   return hostFunc;
 }
 
