@@ -311,3 +311,43 @@ target_compile_options(one_shot_bufferize PRIVATE -fno-rtti)
 set_target_properties(one_shot_bufferize PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
+
+
+# static_memory_analyser: Symbolic shape inference and bucketing
+add_executable(static_memory_analyser
+  ${CMAKE_CURRENT_LIST_DIR}/static_memory_analyser_main.cpp
+)
+
+target_include_directories(static_memory_analyser PRIVATE
+  ${MLIR_INCLUDE_DIRS}
+  ${LOOM_PASSES_INC}
+)
+
+target_link_libraries(static_memory_analyser PRIVATE
+  LoomPassesCommon
+  loomTritonSharedPasses
+  MLIRIR
+  MLIRParser
+  MLIRSupport
+  LLVMSupport
+  MLIRFuncDialect
+  MLIRAffineDialect
+  MLIRMemRefDialect
+  MLIRArithDialect
+  MLIRTensorDialect
+  MLIRLinalgDialect
+  MLIRSCFDialect
+  MLIRBufferizationDialect
+  MLIRPass
+  MLIRAsmParser
+  MLIRBytecodeReader
+  loomDataflowDialect
+  loomDialect
+)
+mlir_check_all_link_libraries(static_memory_analyser)
+
+target_compile_options(static_memory_analyser PRIVATE -fno-rtti)
+
+set_target_properties(static_memory_analyser PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
