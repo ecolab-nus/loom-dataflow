@@ -376,7 +376,7 @@ public:
   }
 
   StringRef getDescription() const override {
-    return "Rewrite __host signature to vector inputs plus trailing IDevice*";
+    return "Rewrite __host signature to vector inputs, core range args, plus trailing IDevice*";
   }
 
   void getDependentDialects(DialectRegistry &registry) const override {
@@ -389,6 +389,7 @@ public:
 
     auto hostVectorType =
         emitc::OpaqueType::get(ctx, "std::vector<bfloat16>&");
+    auto coreCoordType = emitc::OpaqueType::get(ctx, "uint32_t");
     auto deviceType = emitc::PointerType::get(
         emitc::OpaqueType::get(ctx, "IDevice"));
 
@@ -432,6 +433,10 @@ public:
       SmallVector<Type> newInputs;
       for (int64_t i = 0; i < hostMemrefCount; ++i)
         newInputs.push_back(hostVectorType);
+      newInputs.push_back(coreCoordType); // start_core_x
+      newInputs.push_back(coreCoordType); // start_core_y
+      newInputs.push_back(coreCoordType); // end_core_x
+      newInputs.push_back(coreCoordType); // end_core_y
       newInputs.push_back(deviceType);
 
       for (Type inputType : newInputs)

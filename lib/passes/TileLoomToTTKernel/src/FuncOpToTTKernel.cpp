@@ -541,8 +541,13 @@ public:
     emitPreamble();
     emitDramBuffers();
     emitCircularBuffers();
+    emitInputSemaphores();
     emitCompileArgs();
     emitKernelRoles();
+
+    // Runtime enqueue calls must be emitted at the end of the host function.
+    builder.setInsertionPoint(hostFunc.front().getTerminator());
+    emitRuntimeEnqueueEpilogue();
   }
 
 private:
@@ -551,6 +556,9 @@ private:
     MemRefType type;
     unsigned argIndex;
     unsigned memrefOrdinal;
+    bool isInput;
+    bool isOutput;
+    std::string inputName;
     std::string configName;
     std::string bufferName;
     std::string tilesVarName;
@@ -656,6 +664,7 @@ private:
     unsigned dstIdx = 0;
     unsigned ioIdx = 0;
     unsigned argIdx = 0;
+    unsigned inputIdx = 0;
 
     for (auto [index, arg] : llvm::enumerate(originalFunc.getArguments())) {
       auto memrefType = dyn_cast<MemRefType>(arg.getType());
@@ -684,12 +693,19 @@ private:
       std::string sizeExpr = "single_tile_size";
       if (tilesExpr != "1")
         sizeExpr += " * " + tilesExpr;
+      bool isInput = isLoad;
+      bool isOutput = isStore;
+      std::string inputName =
+          isInput ? ("in" + std::to_string(inputIdx++)) : "";
 
       dramInfos.push_back(DramBufferInfo{
           hostArg,
           memrefType,
           static_cast<unsigned>(index),
           static_cast<unsigned>(dramInfos.size()),
+          isInput,
+          isOutput,
+          inputName,
           "dram_config_" + letter,
           roleName + "_dram_buffer",
           letter + "_tiles_per_block",
@@ -772,11 +788,30 @@ private:
 
   void emitPreamble() {
     // Host signature is emitted by MLIR->C++ translation with synthesized
-    // parameter names v1..vN. Device is always the final argument.
-    emitLine("IDevice* device = v" + std::to_string(dramInfos.size() + 1) + ";");
+    // parameter names v1..vN.
+    // Argument order is:
+    //   [all memrefs] [start_core_x start_core_y end_core_x end_core_y] [device]
+    const size_t startCoreXArg = dramInfos.size() + 1;
+    const size_t startCoreYArg = dramInfos.size() + 2;
+    const size_t endCoreXArg = dramInfos.size() + 3;
+    const size_t endCoreYArg = dramInfos.size() + 4;
+    const size_t deviceArg = dramInfos.size() + 5;
+
+    emitLine("IDevice* device = v" + std::to_string(deviceArg) + ";");
     emitLine("CommandQueue& cq = device->command_queue();");
     emitLine("Program program{};");
     emitLine("auto core_grid = device->compute_with_storage_grid_size();");
+    emitLine("uint32_t start_core_x = (v" + std::to_string(startCoreXArg) +
+             " == UINT32_MAX) ? 0u : v" + std::to_string(startCoreXArg) + ";");
+    emitLine("uint32_t start_core_y = (v" + std::to_string(startCoreYArg) +
+             " == UINT32_MAX) ? 0u : v" + std::to_string(startCoreYArg) + ";");
+    emitLine("uint32_t end_core_x = (v" + std::to_string(endCoreXArg) +
+             " == UINT32_MAX) ? static_cast<uint32_t>(core_grid.x - 1) : v" +
+             std::to_string(endCoreXArg) + ";");
+    emitLine("uint32_t end_core_y = (v" + std::to_string(endCoreYArg) +
+             " == UINT32_MAX) ? static_cast<uint32_t>(core_grid.y - 1) : v" +
+             std::to_string(endCoreYArg) + ";");
+    emitLine("CoreRangeSet all_cores{ CoreRange{ {start_core_x, start_core_y}, {end_core_x, end_core_y} } };");
     emitLine("constexpr uint32_t single_tile_size = sizeof(bfloat16) * TILE_HEIGHT * TILE_WIDTH;");
     emitLine("const auto cb_data_format = tt::DataFormat::Float16_b;");
     emitLine("uint32_t cb_buffer_depth = 2;");
@@ -832,6 +867,43 @@ private:
     for (const CircularBufferInfo &info : cbInfos) {
       if (info.memrefOrdinal < 0)
         emitCbInfo(info);
+    }
+  }
+
+  void emitInputSemaphores() {
+    for (const DramBufferInfo &info : dramInfos) {
+      if (!info.isInput)
+        continue;
+      emitLine("auto " + info.inputName +
+               "_mcast_sender_semaphore_addr = "
+               "tt_metal::CreateSemaphore(program, all_cores, INVALID);");
+      emitLine("auto " + info.inputName +
+               "_mcast_receiver_semaphore_addr = "
+               "tt_metal::CreateSemaphore(program, all_cores, INVALID);");
+    }
+  }
+
+  void emitRuntimeEnqueueEpilogue() {
+    for (const DramBufferInfo &info : dramInfos) {
+      if (!info.isInput)
+        continue;
+      emitLine("EnqueueWriteBuffer(cq, " + info.bufferName + ", v" +
+               std::to_string(info.argIndex + 1) + ".data(), false);");
+    }
+
+    emitLine("EnqueueProgram(cq, program, false);");
+
+    SmallVector<const DramBufferInfo *, 4> outputInfos;
+    for (const DramBufferInfo &info : dramInfos) {
+      if (info.isOutput)
+        outputInfos.push_back(&info);
+    }
+
+    for (auto [idx, info] : llvm::enumerate(outputInfos)) {
+      bool isLast = (idx + 1 == outputInfos.size());
+      emitLine("EnqueueReadBuffer(cq, " + info->bufferName + ", v" +
+               std::to_string(info->argIndex + 1) + ".data(), " +
+               (isLast ? "true" : "false") + ");");
     }
   }
 
