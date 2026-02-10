@@ -293,6 +293,94 @@ public:
   }
 };
 
+/**
+ * @brief Post-EmitC host signature rewrite pass.
+ *
+ * @details Rewrites each `__host` function signature to:
+ *          - one `std::vector<bfloat16>&` per original memref argument
+ *          - one trailing `IDevice*` as the final argument
+ *
+ * The number of memref-backed host arguments is read from the
+ * `loom.host_memref_count` attribute emitted during host construction.
+ */
+class PostEmitCHostSignaturePass
+    : public PassWrapper<PostEmitCHostSignaturePass, OperationPass<ModuleOp>> {
+public:
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(PostEmitCHostSignaturePass)
+
+  StringRef getArgument() const override {
+    return "loom-post-emitc-host-signature";
+  }
+
+  StringRef getDescription() const override {
+    return "Rewrite __host signature to vector inputs plus trailing IDevice*";
+  }
+
+  void getDependentDialects(DialectRegistry &registry) const override {
+    registry.insert<func::FuncDialect, emitc::EmitCDialect>();
+  }
+
+  void runOnOperation() override {
+    ModuleOp module = getOperation();
+    MLIRContext *ctx = &getContext();
+
+    auto hostVectorType =
+        emitc::OpaqueType::get(ctx, "std::vector<bfloat16>&");
+    auto deviceType = emitc::PointerType::get(
+        emitc::OpaqueType::get(ctx, "IDevice"));
+
+    for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+      if (!func.getName().ends_with("__host"))
+        continue;
+
+      auto countAttr =
+          func->getAttrOfType<IntegerAttr>("loom.host_memref_count");
+      if (!countAttr) {
+        func.emitError()
+            << "missing required attribute 'loom.host_memref_count'";
+        signalPassFailure();
+        return;
+      }
+
+      int64_t hostMemrefCount = countAttr.getInt();
+      if (hostMemrefCount < 0) {
+        func.emitError() << "invalid negative 'loom.host_memref_count': "
+                         << hostMemrefCount;
+        signalPassFailure();
+        return;
+      }
+
+      Block &entry = func.front();
+      for (BlockArgument arg : entry.getArguments()) {
+        if (!arg.use_empty()) {
+          func.emitError()
+              << "cannot rewrite host signature; argument "
+              << arg.getArgNumber() << " still has uses";
+          signalPassFailure();
+          return;
+        }
+      }
+
+      for (int64_t idx = static_cast<int64_t>(entry.getNumArguments()) - 1;
+           idx >= 0; --idx) {
+        entry.eraseArgument(static_cast<unsigned>(idx));
+      }
+
+      SmallVector<Type> newInputs;
+      for (int64_t i = 0; i < hostMemrefCount; ++i)
+        newInputs.push_back(hostVectorType);
+      newInputs.push_back(deviceType);
+
+      for (Type inputType : newInputs)
+        entry.addArgument(inputType, func.getLoc());
+
+      auto funcType = func.getFunctionType();
+      func.setType(
+          FunctionType::get(ctx, newInputs, funcType.getResults()));
+    }
+  }
+};
+
 } // namespace
 
 std::unique_ptr<Pass> mlir::loom::createTileLoomToTTKernelPass() {
@@ -301,4 +389,5 @@ std::unique_ptr<Pass> mlir::loom::createTileLoomToTTKernelPass() {
 
 void mlir::loom::registerTileLoomToTTKernelPass() {
   PassRegistration<TileLoomToTTKernelPass>();
+  PassRegistration<PostEmitCHostSignaturePass>();
 }

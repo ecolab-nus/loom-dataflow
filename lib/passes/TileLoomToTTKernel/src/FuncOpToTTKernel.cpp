@@ -533,6 +533,7 @@ public:
   void run() {
     collectDramInfos();
     collectCbInfos();
+    annotateHostSignatureMetadata();
     eraseNonHostOps();
     eraseDeadReinterpretCasts();
 
@@ -541,6 +542,7 @@ public:
     emitDramBuffers();
     emitCircularBuffers();
     emitCompileArgs();
+    emitKernelRoles();
   }
 
 private:
@@ -561,6 +563,12 @@ private:
     std::string tilesVarName;
     std::string tilesExpr;
     std::string cbIndexName;
+  };
+
+  struct KernelRoleInfo {
+    std::string idVarName;
+    std::string kernelSource;
+    std::string configExpr;
   };
 
   static Value stripCasts(Value value) {
@@ -763,8 +771,12 @@ private:
   }
 
   void emitPreamble() {
+    // Host signature is emitted by MLIR->C++ translation with synthesized
+    // parameter names v1..vN. Device is always the final argument.
+    emitLine("IDevice* device = v" + std::to_string(dramInfos.size() + 1) + ";");
     emitLine("CommandQueue& cq = device->command_queue();");
     emitLine("Program program{};");
+    emitLine("auto core_grid = device->compute_with_storage_grid_size();");
     emitLine("constexpr uint32_t single_tile_size = sizeof(bfloat16) * TILE_HEIGHT * TILE_WIDTH;");
     emitLine("const auto cb_data_format = tt::DataFormat::Float16_b;");
     emitLine("uint32_t cb_buffer_depth = 2;");
@@ -783,6 +795,13 @@ private:
 
   bool hasEmittedTilesVar(StringRef name) const {
     return llvm::is_contained(emittedTilesVars, name.str());
+  }
+
+  void annotateHostSignatureMetadata() {
+    Builder b(hostFunc.getContext());
+    hostFunc->setAttr(
+        "loom.host_memref_count",
+        b.getI32IntegerAttr(static_cast<int32_t>(dramInfos.size())));
   }
 
   void emitCircularBuffers() {
@@ -821,6 +840,33 @@ private:
     for (const DramBufferInfo &info : dramInfos) {
       emitLine("tt::tt_metal::TensorAccessorArgs(*" + info.bufferName +
                ").append_to(compile_args);");
+    }
+  }
+
+  void emitKernelRoles() {
+    emitLine("MathFidelity math_fidelity = MathFidelity::HiFi4;");
+
+    const SmallVector<KernelRoleInfo, 3> roles = {
+        {"reader_id",
+         "reader.cpp",
+         "tt_metal::DataMovementConfig{.processor = "
+         "DataMovementProcessor::RISCV_1, .noc = NOC::RISCV_1_default, "
+         ".compile_args = compile_args}"},
+        {"writer_id",
+         "writer.cpp",
+         "tt_metal::DataMovementConfig{.processor = "
+         "DataMovementProcessor::RISCV_0, .noc = NOC::RISCV_0_default, "
+         ".compile_args = compile_args}"},
+        {"compute_kernel_id",
+         "compute.cpp",
+         "tt_metal::ComputeConfig{.math_fidelity = math_fidelity, "
+         ".compile_args = compile_args}"}};
+
+    for (const KernelRoleInfo &role : roles) {
+      emitLine("auto " + role.idVarName + " = tt_metal::CreateKernel("
+               "program, OVERRIDE_KERNEL_PREFIX "
+               "\"mlir_matmul_simple/kernels/" +
+               role.kernelSource + "\", all_cores, " + role.configExpr + ");");
     }
   }
 
