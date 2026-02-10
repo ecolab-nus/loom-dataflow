@@ -18,6 +18,24 @@
 using namespace mlir;
 using namespace loom;
 
+// ============================================================================
+// VirtualBuffer
+// ============================================================================
+
+void VirtualBuffer::addMember(TensorNode *node) {
+  members.push_back(node);
+  node->mappedVB = this;
+}
+
+VirtualBuffer *Bucket::createVB(int id, VBType type) {
+  virtualBuffers.push_back(std::make_unique<VirtualBuffer>(id, type));
+  return virtualBuffers.back().get();
+}
+
+// ============================================================================
+// ShapeSignature
+// ============================================================================
+
 unsigned ShapeSignature::getHashValue() const {
   size_t hash = llvm::hash_value(elementType.getAsOpaquePointer());
   for (auto dim : dims) {
@@ -31,6 +49,10 @@ unsigned ShapeSignature::getHashValue() const {
   }
   return static_cast<unsigned>(hash);
 }
+
+// ============================================================================
+// MemoryAnalysisContext — Core logic
+// ============================================================================
 
 void MemoryAnalysisContext::addTensor(Value v, ShapeSignature sig,
                                       Operation *defOp, int idx) {
@@ -68,6 +90,202 @@ int MemoryAnalysisContext::getValueDeathIndex(Value v) const {
   return maxIdx;
 }
 
+// ============================================================================
+// VirtualBuffer Construction — Three Axioms
+// ============================================================================
+
+/// Find the single affine.for DIRECTLY nested in affine.parallel body.
+static affine::AffineForOp findInnerFor(affine::AffineParallelOp parallelOp) {
+  for (auto &op : *parallelOp.getBody()) {
+    if (auto forOp = mlir::dyn_cast<affine::AffineForOp>(op)) {
+      return forOp;
+    }
+  }
+  llvm::errs()
+      << "Error: No directly nested affine.for found in affine.parallel body\n";
+  exit(1);
+}
+
+/// Check if Init's value has any use by an op physically inside the loop body.
+/// Excludes the affine.for itself.
+static bool isInitPure(Value initVal, affine::AffineForOp forOp) {
+  for (auto &use : initVal.getUses()) {
+    Operation *user = use.getOwner();
+    if (user == forOp.getOperation())
+      continue;
+    if (forOp->isProperAncestor(user))
+      return false;
+  }
+  return true;
+}
+
+void MemoryAnalysisContext::buildVirtualBuffers() {
+  // Find the loop structure
+  affine::AffineForOp forOp = nullptr;
+  for (auto &entry : opIndexMap) {
+    if (auto parallelOp =
+            mlir::dyn_cast<affine::AffineParallelOp>(entry.first)) {
+      forOp = findInnerFor(parallelOp);
+      break;
+    }
+  }
+
+  if (!forOp)
+    return;
+
+  int loopStart = getOpIndex(forOp);
+  int loopEnd = getLoopEndIndex(forOp);
+
+  for (auto &bucketEntry : buckets) {
+    Bucket &bucket = bucketEntry.second;
+
+    // =======================================================================
+    // Axiom 1: Phi-Fusion
+    // =======================================================================
+    unsigned numIterArgs = forOp.getNumIterOperands();
+    affine::AffineYieldOp yieldOp =
+        mlir::cast<affine::AffineYieldOp>(forOp.getBody()->getTerminator());
+
+    for (unsigned i = 0; i < numIterArgs; ++i) {
+      Value argVal = forOp.getRegionIterArgs()[i];
+      TensorNode *argNode = nullptr;
+      {
+        auto it = valueToNodeMap.find(argVal);
+        if (it != valueToNodeMap.end())
+          argNode = it->second;
+      }
+
+      // Check if argNode exists and belongs to THIS bucket
+      bool argInThisBucket = false;
+      if (argNode) {
+        for (auto &n : bucket.nodes)
+          if (&n == argNode) {
+            argInThisBucket = true;
+            break;
+          }
+      }
+      if (!argInThisBucket)
+        continue;
+
+      Value initVal = forOp.getInits()[i];
+      Value yieldVal = yieldOp.getOperand(i);
+      Value resultVal = forOp.getResults()[i];
+
+      TensorNode *initNode = nullptr;
+      TensorNode *yieldNode = nullptr;
+      TensorNode *resultNode = nullptr;
+
+      {
+        auto it = valueToNodeMap.find(initVal);
+        if (it != valueToNodeMap.end())
+          initNode = it->second;
+      }
+      {
+        auto it = valueToNodeMap.find(yieldVal);
+        if (it != valueToNodeMap.end())
+          yieldNode = it->second;
+      }
+      {
+        auto it = valueToNodeMap.find(resultVal);
+        if (it != valueToNodeMap.end())
+          resultNode = it->second;
+      }
+
+      // Purity Check
+      bool pure = initNode && isInitPure(initVal, forOp);
+      // We also check if Init belongs to the same bucket
+      bool initInThisBucket = false;
+      if (initNode) {
+        for (auto &n : bucket.nodes)
+          if (&n == initNode) {
+            initInThisBucket = true;
+            break;
+          }
+      }
+
+      if (pure && initInThisBucket) {
+        VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Fused);
+        vb->addMember(initNode);
+        vb->addMember(argNode);
+        if (yieldNode)
+          vb->addMember(yieldNode);
+        if (resultNode)
+          vb->addMember(resultNode);
+
+        int deathIdx = resultNode ? getValueDeathIndex(resultNode->value) : -1;
+        vb->liveness = {initNode->linearIndex, std::max(loopEnd, deathIdx)};
+      } else {
+        VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::LoopCarried);
+        vb->addMember(argNode);
+        if (yieldNode)
+          vb->addMember(yieldNode);
+        if (resultNode)
+          vb->addMember(resultNode);
+
+        int deathIdx = resultNode ? getValueDeathIndex(resultNode->value) : -1;
+        vb->liveness = {loopStart, std::max(loopEnd, deathIdx)};
+      }
+    }
+
+    // =======================================================================
+    // Axiom 2: External Eternity
+    // =======================================================================
+    for (auto &node : bucket.nodes) {
+      if (node.mappedVB)
+        continue;
+
+      // DefiningOp is outside loop
+      if (forOp->isProperAncestor(node.definingOp))
+        continue;
+
+      // At least one user inside loop
+      bool usedInLoop = false;
+      for (auto &use : node.value.getUses()) {
+        if (forOp->isProperAncestor(use.getOwner())) {
+          usedInLoop = true;
+          break;
+        }
+      }
+      if (!usedInLoop)
+        continue;
+
+      VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Eternal);
+      vb->addMember(&node);
+      vb->liveness = {node.linearIndex, loopEnd};
+    }
+
+    // =======================================================================
+    // Axiom 3: Standard
+    // =======================================================================
+    for (auto &node : bucket.nodes) {
+      if (node.mappedVB)
+        continue;
+
+      VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Standard);
+      vb->addMember(&node);
+      vb->liveness = {node.linearIndex, node.deathIndex};
+    }
+  }
+}
+
+// ============================================================================
+// Dump — Visualizer
+// ============================================================================
+
+static const char *vbTypeToStr(VBType t) {
+  switch (t) {
+  case VBType::Standard:
+    return "Standard";
+  case VBType::Fused:
+    return "Fused";
+  case VBType::Eternal:
+    return "Eternal";
+  case VBType::LoopCarried:
+    return "LoopCarried";
+  }
+  return "???";
+}
+
 void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
   os << "=== Memory Analysis Context Dump ===\n";
   int bucketIdx = 0;
@@ -98,12 +316,28 @@ void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
       node.value.printAsOperand(os, flags);
       os << "\n";
     }
+
+    if (!bucket.virtualBuffers.empty()) {
+      os << "  VirtualBuffers: " << bucket.virtualBuffers.size() << "\n";
+      for (auto &vb : bucket.virtualBuffers) {
+        os << "    VB#" << vb->id << " (" << vbTypeToStr(vb->type) << ") ["
+           << vb->liveness.first << " -> " << vb->liveness.second << "]: ";
+        for (size_t i = 0; i < vb->members.size(); ++i) {
+          vb->members[i]->value.printAsOperand(os, flags);
+          if (i < vb->members.size() - 1)
+            os << ", ";
+        }
+        os << "\n";
+      }
+    }
   }
   os << "====================================\n";
 }
 
-// Helper to canonicalize OpFoldResult to ensure Attribute types are consistent
-// (all index)
+// ============================================================================
+// Trace Shape — Recursive Backward Tracing
+// ============================================================================
+
 static OpFoldResult canonicalizeOFR(OpFoldResult ofr, MLIRContext *ctx) {
   if (mlir::isa<Value>(ofr))
     return ofr;
@@ -212,15 +446,17 @@ SmallVector<SymbolicDim, 4> loom::traceShape(Value v) {
   return canonicalDims;
 }
 
+// ============================================================================
+// Main Analysis Entry
+// ============================================================================
+
 MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
   MemoryAnalysisContext ctx;
   int linearIdx = 0;
 
-  // 1. First Pass: Assign indices to all ops and record tensors
   func.walk<WalkOrder::PreOrder>([&](Operation *op) {
     ctx.opIndexMap[op] = linearIdx++;
 
-    // Add op results
     for (Value res : op->getResults()) {
       if (auto tensorType = mlir::dyn_cast<RankedTensorType>(res.getType())) {
         if (mlir::isa<tensor::EmptyOp>(op))
@@ -235,7 +471,6 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
       }
     }
 
-    // Add BlockArguments for affine.for
     if (auto forOp = mlir::dyn_cast<affine::AffineForOp>(op)) {
       for (auto arg : forOp.getRegionIterArgs()) {
         if (auto tensorType = mlir::dyn_cast<RankedTensorType>(arg.getType())) {
@@ -250,13 +485,15 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
     }
   });
 
-  // 2. Second Pass: Calculate death indices for all recorded tensors
   for (auto &it : ctx.buckets) {
     Bucket &bucket = it.second;
     for (auto &node : bucket.nodes) {
       node.deathIndex = ctx.getValueDeathIndex(node.value);
     }
   }
+
+  // Axioms phase
+  ctx.buildVirtualBuffers();
 
   return ctx;
 }

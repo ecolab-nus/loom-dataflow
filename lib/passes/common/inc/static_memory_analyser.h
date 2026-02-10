@@ -8,6 +8,9 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallVector.h"
+#include <deque>
+#include <memory>
+#include <set>
 #include <vector>
 
 namespace llvm {
@@ -25,7 +28,27 @@ class AffineForOp;
 
 namespace loom {
 
-struct VirtualBuffer {};
+struct TensorNode; // Forward declaration
+
+enum class VBType {
+  Standard,   // Internal computation (Axiom 3)
+  Fused,      // Loop Phi-node fusion (Axiom 1)
+  Eternal,    // External read-only / template (Axiom 2)
+  LoopCarried // Loop-carried but not fusing Init (Axiom 1 split)
+};
+
+struct VirtualBuffer {
+  int id;
+  VBType type;
+  std::vector<TensorNode *> members;
+  std::pair<int, int> liveness = {-1, -1};
+  std::set<int> interferenceSet;
+  int color = -1;
+
+  VirtualBuffer(int id, VBType t) : id(id), type(t) {}
+
+  void addMember(TensorNode *node);
+};
 
 using SymbolicDim = mlir::OpFoldResult;
 
@@ -72,12 +95,11 @@ namespace loom {
 
 struct TensorNode {
   mlir::Value value;
-  mlir::Operation
-      *definingOp;     // For BlockArgs, this is the parent affine.for op
+  mlir::Operation *definingOp;
   int linearIndex;     // Definition time
   int deathIndex = -1; // Last use time
 
-  struct VirtualBuffer *mappedVB = nullptr;
+  VirtualBuffer *mappedVB = nullptr;
 
   TensorNode(mlir::Value v, mlir::Operation *op, int idx)
       : value(v), definingOp(op), linearIndex(idx) {}
@@ -85,9 +107,11 @@ struct TensorNode {
 
 struct Bucket {
   ShapeSignature signature;
-  std::vector<TensorNode> nodes;
-  std::vector<struct VirtualBuffer> virtualBuffers;
+  std::deque<TensorNode> nodes;
+  std::vector<std::unique_ptr<VirtualBuffer>> virtualBuffers;
   int maxColorsRequired = 0;
+
+  VirtualBuffer *createVB(int id, VBType type);
 };
 
 class MemoryAnalysisContext {
@@ -104,7 +128,13 @@ public:
   int getLoopEndIndex(mlir::affine::AffineForOp forOp) const;
   int getValueDeathIndex(mlir::Value v) const;
 
+  // --- VirtualBuffer Construction ---
+  void buildVirtualBuffers();
+
   void dump(llvm::raw_ostream &os) const;
+
+private:
+  int nextVBId_ = 0;
 };
 
 llvm::SmallVector<SymbolicDim, 4> traceShape(mlir::Value v);
