@@ -212,6 +212,7 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
         // Store 1 to the semaphore pointer: *(mcast_receiver_semaphore_addr_ptr) = 1;
         Value oneValue = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
         Value zeroOffset = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
+        //TODO, should only work for valid L1 addresses, need to consider how to mantain the parameters of each memref input
         if (isReaderKernel){
           StoreToL1Op::create(rewriter, loc, oneValue, mcast_receiver_semaphore_addr_ptr, zeroOffset);
         }
