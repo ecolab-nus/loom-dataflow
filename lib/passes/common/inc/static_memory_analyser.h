@@ -44,6 +44,7 @@ struct VirtualBuffer {
   std::pair<int, int> liveness = {-1, -1};
   std::set<int> interferenceSet;
   int color = -1;
+  mlir::Operation *definingOp = nullptr;
 
   VirtualBuffer(int id, VBType t) : id(id), type(t) {}
 
@@ -110,8 +111,29 @@ struct Bucket {
   std::deque<TensorNode> nodes;
   std::vector<std::unique_ptr<VirtualBuffer>> virtualBuffers;
   int maxColorsRequired = 0;
+  std::unique_ptr<class InterferenceGraph> interferenceGraph;
 
   VirtualBuffer *createVB(int id, VBType type);
+};
+
+class InterferenceGraph {
+public:
+  InterferenceGraph(Bucket &bucket, const class MemoryAnalysisContext &ctx);
+
+  void build();
+  void dump(llvm::raw_ostream &os) const;
+  bool interferes(int vbIdA, int vbIdB) const;
+
+private:
+  Bucket &bucket_;
+  const class MemoryAnalysisContext &ctx_;
+  std::set<std::pair<int, int>> edges_;
+
+  int classifyOverlap(const VirtualBuffer &vbA, const VirtualBuffer &vbB) const;
+  mlir::OpOperand *findOperandRelation(const VirtualBuffer &vbA,
+                                       const VirtualBuffer &vbB) const;
+  bool checkHandoffInterference(const VirtualBuffer &vbA,
+                                const VirtualBuffer &vbB) const;
 };
 
 class MemoryAnalysisContext {
@@ -130,6 +152,7 @@ public:
 
   // --- VirtualBuffer Construction ---
   void buildVirtualBuffers();
+  void buildInterferenceGraphs();
 
   void dump(llvm::raw_ostream &os) const;
 
