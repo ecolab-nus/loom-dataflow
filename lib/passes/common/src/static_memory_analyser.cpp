@@ -451,6 +451,94 @@ void MemoryAnalysisContext::buildInterferenceGraphs() {
   }
 }
 
+void MemoryAnalysisContext::solveColoring() {
+  for (auto &it : buckets_) {
+    Bucket &bucket = it.second;
+    if (bucket.virtualBuffers.empty())
+      continue;
+    ColoringSolver solver(bucket);
+    solver.solve();
+  }
+}
+
+void MemoryAnalysisContext::buildAllocationPlan() {
+  for (auto &it : buckets_) {
+    const ShapeSignature &sig = it.first;
+    const Bucket &bucket = it.second;
+
+    // Record color count
+    allocationPlan_.colorCountPerBucket[sig] = bucket.maxColorsRequired;
+
+    // Build physical buffer slots
+    std::vector<LoomAllocationPlan::PhysicalBufferSlot> slots;
+    slots.resize(bucket.maxColorsRequired);
+    for (int c = 0; c < bucket.maxColorsRequired; ++c) {
+      slots[c] = {c, sig, sig.elementType};
+    }
+    allocationPlan_.bucketAllocations[sig] = std::move(slots);
+
+    // Map each tensor value to its assignment
+    for (auto &vb : bucket.virtualBuffers) {
+      LoomAllocationPlan::Assignment assignment{sig, vb->color};
+      for (TensorNode *member : vb->members) {
+        allocationPlan_.tensorToBufferMap[member->value] = assignment;
+      }
+    }
+  }
+}
+
+// ============================================================================
+// Coloring Solver — First-Fit Greedy
+// ============================================================================
+
+ColoringSolver::ColoringSolver(Bucket &bucket) : bucket_(bucket) {}
+
+int ColoringSolver::solve() {
+  // 1. Gather pointers to all VBs
+  std::vector<VirtualBuffer *> sorted;
+  sorted.reserve(bucket_.virtualBuffers.size());
+  for (auto &vb : bucket_.virtualBuffers)
+    sorted.push_back(vb.get());
+
+  // 2. Sort: ascending by liveness.birth, then descending by duration
+  // (liveness.end - liveness.start)
+  std::sort(sorted.begin(), sorted.end(),
+            [](const VirtualBuffer *a, const VirtualBuffer *b) {
+              if (a->liveness.birth != b->liveness.birth)
+                return a->liveness.birth < b->liveness.birth;
+              int durA = a->liveness.death - a->liveness.birth;
+              int durB = b->liveness.death - b->liveness.birth;
+              return durA > durB; // longer duration first when birth is equal
+            });
+
+  // 3. Greedy coloring
+  int maxColor = -1;
+  for (VirtualBuffer *vb : sorted) {
+    // Collect colors of interfering neighbors
+    std::set<int> usedColors;
+    for (VirtualBuffer *other : sorted) {
+      if (other->color < 0)
+        continue;
+      if (bucket_.interferenceGraph &&
+          bucket_.interferenceGraph->interferes(vb->id, other->id))
+        usedColors.insert(other->color);
+    }
+
+    // First-fit: find the smallest non-negative integer not in usedColors
+    int c = 0;
+    while (usedColors.count(c))
+      ++c;
+
+    vb->color = c;
+    if (c > maxColor)
+      maxColor = c;
+  }
+
+  int numColors = maxColor + 1;
+  bucket_.maxColorsRequired = numColors;
+  return numColors;
+}
+
 // ============================================================================
 // Dump — Visualizer
 // ============================================================================
@@ -488,8 +576,14 @@ void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
     if (bucket.interferenceGraph) {
       bucket.interferenceGraph->dump(os);
     }
+    if (bucket.maxColorsRequired > 0) {
+      os << "    --- Coloring (" << bucket.maxColorsRequired
+         << " colors) ---\n";
+      for (auto &vb : bucket.virtualBuffers) {
+        os << "      VB#" << vb->id << " -> Color " << vb->color << "\n";
+      }
+    }
   }
-  os << "====================================\n";
 }
 
 // ============================================================================
@@ -536,6 +630,8 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
   // Axioms phase
   ctx.buildVirtualBuffers();
   ctx.buildInterferenceGraphs();
+  ctx.solveColoring();
+  ctx.buildAllocationPlan();
 
   return ctx;
 }
