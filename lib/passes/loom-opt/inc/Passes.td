@@ -88,6 +88,16 @@ def LinalgDestinationSpecializationPass : Pass<"loom-linalg-destination-speciali
   let constructor = "loom::passes::createLinalgDestinationSpecializationPass()";
 }
 
+def FoldRedundantExtractSlice : Pass<"loom-fold-redundant-extract-slice", "mlir::ModuleOp"> {
+  let summary = "Fold redundant tensor.extract_slice operations";
+  let description = [{
+    Eliminate tensor.extract_slice operations that are essentially no-ops:
+    offsets are all 0, strides are all 1, and the sizes match the source
+    tensor's shape.
+  }];
+  let constructor = "loom::passes::createFoldRedundantExtractSlicePass()";
+}
+
 def MemoryBindingPass : Pass<"loom-memory-binding", "mlir::ModuleOp"> {
   let summary = "Bind memory allocations to tensor operations";
   let description = [{

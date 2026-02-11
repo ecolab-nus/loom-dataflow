@@ -33,7 +33,13 @@ class ConstraintSpaceOp;
 } // namespace loom
 
 namespace loom {
+
+// Forward declarations for Loom operations
+class ConstraintSpaceOp;
+
 namespace utils {
+
+using SymbolicDim = mlir::OpFoldResult;
 
 /**
  * @brief Get the parent module operation that directly contains a function.
@@ -244,6 +250,11 @@ llvm::StringRef traceToSymbolicVar(mlir::Value val);
  * @brief Compose and canonicalize all affine.apply operations in a function.
  */
 void composeAndCanonicalizeAffineApplies(mlir::func::FuncOp func);
+
+/**
+ * @brief Trace an SSA value back to its symbolic shapes.
+ */
+llvm::SmallVector<SymbolicDim, 4> traceShape(mlir::Value v);
 
 } // namespace utils
 } // namespace loom

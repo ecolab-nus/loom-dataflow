@@ -30,6 +30,7 @@ std::unique_ptr<mlir::Pass> createStaticizeTypesPass();
 std::unique_ptr<mlir::Pass> createConstDedupCleanupPass();
 std::unique_ptr<mlir::Pass> createMemoryBindingPass();
 std::unique_ptr<mlir::Pass> createLinalgDestinationSpecializationPass();
+std::unique_ptr<mlir::Pass> createFoldRedundantExtractSlicePass();
 std::unique_ptr<mlir::Pass> createLowerAffineWithAttrPass();
 
 // Pass registration functions
@@ -45,6 +46,7 @@ void registerStaticizeTypesPass();
 void registerConstDedupCleanupPass();
 void registerMemoryBindingPass();
 void registerLinalgDestinationSpecializationPass();
+void registerFoldRedundantExtractSlicePass();
 void registerLowerAffineWithAttrPass();
 
 #define GEN_PASS_REGISTRATION

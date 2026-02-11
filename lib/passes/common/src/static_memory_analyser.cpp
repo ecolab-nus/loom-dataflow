@@ -371,7 +371,7 @@ bool InterferenceGraph::checkHandoffInterference(
 
   for (unsigned pos : positions) {
     if (pos < iteratorTypes.size() &&
-        iteratorTypes[pos] == utils::IteratorType::reduction)
+        iteratorTypes[pos] == mlir::utils::IteratorType::reduction)
       return true;
   }
 
@@ -500,118 +500,6 @@ void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
 }
 
 // ============================================================================
-// Trace Shape — Recursive Backward Tracing
-// ============================================================================
-
-static OpFoldResult canonicalizeOFR(OpFoldResult ofr, MLIRContext *ctx) {
-  if (mlir::isa<Value>(ofr))
-    return ofr;
-  if (auto attr = mlir::dyn_cast<Attribute>(ofr)) {
-    if (auto intAttr = mlir::dyn_cast<IntegerAttr>(attr)) {
-      return Builder(ctx).getIndexAttr(intAttr.getInt());
-    }
-  }
-  return ofr;
-}
-
-static SmallVector<SymbolicDim, 4> getMixedSizesFromType(Type type) {
-  SmallVector<SymbolicDim, 4> result;
-  if (auto tensorType = mlir::dyn_cast<RankedTensorType>(type)) {
-    auto shape = tensorType.getShape();
-    Builder b(type.getContext());
-    for (int64_t dim : shape) {
-      if (ShapedType::isDynamic(dim)) {
-        result.push_back(b.getIndexAttr(-1));
-      } else {
-        result.push_back(b.getIndexAttr(dim));
-      }
-    }
-  } else if (auto memrefType = mlir::dyn_cast<MemRefType>(type)) {
-    auto shape = memrefType.getShape();
-    Builder b(type.getContext());
-    for (int64_t dim : shape) {
-      if (ShapedType::isDynamic(dim)) {
-        result.push_back(b.getIndexAttr(-1));
-      } else {
-        result.push_back(b.getIndexAttr(dim));
-      }
-    }
-  }
-  return result;
-}
-
-SmallVector<SymbolicDim, 4> loom::traceShape(Value v) {
-  if (!v)
-    return {};
-
-  // Case 1: BlockArgument (affine.for iter_args)
-  if (auto arg = mlir::dyn_cast<BlockArgument>(v)) {
-    if (auto forOp = mlir::dyn_cast<affine::AffineForOp>(
-            arg.getOwner()->getParentOp())) {
-      unsigned argIdx = arg.getArgNumber() - 1;
-      return traceShape(forOp.getInits()[argIdx]);
-    }
-  }
-
-  Operation *op = v.getDefiningOp();
-  if (!op)
-    return {};
-
-  SmallVector<SymbolicDim, 4> rawDims;
-
-  // Case A: tensor.empty
-  if (auto emptyOp = mlir::dyn_cast<tensor::EmptyOp>(op)) {
-    auto type = emptyOp.getType();
-    auto shape = type.getShape();
-    auto dynamicSizes = emptyOp.getDynamicSizes();
-    unsigned dynamicIdx = 0;
-    Builder b(op->getContext());
-    for (int64_t dim : shape) {
-      if (ShapedType::isDynamic(dim)) {
-        rawDims.push_back(dynamicSizes[dynamicIdx++]);
-      } else {
-        rawDims.push_back(b.getIndexAttr(dim));
-      }
-    }
-  }
-  // Case B: bufferization.to_tensor + memref.subview
-  else if (auto toTensor = mlir::dyn_cast<bufferization::ToTensorOp>(op)) {
-    Value memref = toTensor.getOperand();
-    if (auto subview = memref.getDefiningOp<memref::SubViewOp>()) {
-      rawDims = subview.getMixedSizes();
-    } else {
-      rawDims = getMixedSizesFromType(memref.getType());
-    }
-  }
-  // Case C: linalg.op (DPS)
-  else if (auto linalgOp = mlir::dyn_cast<linalg::LinalgOp>(op)) {
-    unsigned resultIdx = mlir::cast<OpResult>(v).getResultNumber();
-    Value init = linalgOp.getDpsInits()[resultIdx];
-    return traceShape(init);
-  }
-  // Case D: affine.for (Results)
-  else if (auto forOp = mlir::dyn_cast<affine::AffineForOp>(op)) {
-    unsigned resultIdx = mlir::cast<OpResult>(v).getResultNumber();
-    return traceShape(forOp.getInits()[resultIdx]);
-  }
-  // Case E: tensor.extract_slice
-  else if (auto extractSlice = mlir::dyn_cast<tensor::ExtractSliceOp>(op)) {
-    rawDims = extractSlice.getMixedSizes();
-  }
-  // Fallback
-  else {
-    rawDims = getMixedSizesFromType(v.getType());
-  }
-
-  // Canonicalize all dimensions to ensure consistent Attribute types
-  SmallVector<SymbolicDim, 4> canonicalDims;
-  for (auto dim : rawDims) {
-    canonicalDims.push_back(canonicalizeOFR(dim, v.getContext()));
-  }
-  return canonicalDims;
-}
-
-// ============================================================================
 // Main Analysis Entry
 // ============================================================================
 
@@ -627,7 +515,7 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
         if (mlir::isa<tensor::EmptyOp>(op))
           continue;
 
-        auto sig = traceShape(res);
+        auto sig = utils::traceShape(res);
         if (sig.empty())
           continue;
 
@@ -639,7 +527,7 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
     if (auto forOp = mlir::dyn_cast<affine::AffineForOp>(op)) {
       for (auto arg : forOp.getRegionIterArgs()) {
         if (auto tensorType = mlir::dyn_cast<RankedTensorType>(arg.getType())) {
-          auto sig = traceShape(arg);
+          auto sig = utils::traceShape(arg);
           if (sig.empty())
             continue;
 

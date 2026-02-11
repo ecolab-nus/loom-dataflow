@@ -26,9 +26,13 @@ class AffineForOp;
 }
 } // namespace mlir
 
+#include "utils.h"
+
 namespace loom {
 
 struct TensorNode; // Forward declaration
+
+using loom::utils::SymbolicDim;
 
 enum class VBType {
   Standard,   // Internal computation (Axiom 3)
@@ -50,8 +54,6 @@ struct VirtualBuffer {
 
   void addMember(TensorNode *node);
 };
-
-using SymbolicDim = mlir::OpFoldResult;
 
 struct ShapeSignature {
   llvm::SmallVector<SymbolicDim, 4> dims;
@@ -159,8 +161,6 @@ public:
 private:
   int nextVBId_ = 0;
 };
-
-llvm::SmallVector<SymbolicDim, 4> traceShape(mlir::Value v);
 
 MemoryAnalysisContext runMemoryAnalysis(mlir::func::FuncOp func);
 
