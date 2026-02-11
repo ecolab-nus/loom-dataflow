@@ -136,6 +136,17 @@ void MemoryAnalysisContext::buildVirtualBuffers() {
   int loopStart = getOpIndex(forOp);
   int loopEnd = getLoopEndIndex(forOp);
 
+  auto setVBDefiningOp = [](VirtualBuffer *vb) {
+    if (vb->members.empty())
+      return;
+    TensorNode *earliest = vb->members[0];
+    for (auto *member : vb->members) {
+      if (member->linearIndex < earliest->linearIndex)
+        earliest = member;
+    }
+    vb->definingOp = earliest->definingOp;
+  };
+
   for (auto &bucketEntry : buckets) {
     Bucket &bucket = bucketEntry.second;
 
@@ -214,6 +225,7 @@ void MemoryAnalysisContext::buildVirtualBuffers() {
 
         int deathIdx = resultNode ? getValueDeathIndex(resultNode->value) : -1;
         vb->liveness = {initNode->linearIndex, std::max(loopEnd, deathIdx)};
+        setVBDefiningOp(vb);
       } else {
         VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::LoopCarried);
         vb->addMember(argNode);
@@ -224,6 +236,7 @@ void MemoryAnalysisContext::buildVirtualBuffers() {
 
         int deathIdx = resultNode ? getValueDeathIndex(resultNode->value) : -1;
         vb->liveness = {loopStart, std::max(loopEnd, deathIdx)};
+        setVBDefiningOp(vb);
       }
     }
 
@@ -252,6 +265,7 @@ void MemoryAnalysisContext::buildVirtualBuffers() {
       VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Eternal);
       vb->addMember(&node);
       vb->liveness = {node.linearIndex, loopEnd};
+      setVBDefiningOp(vb);
     }
 
     // =======================================================================
@@ -264,7 +278,155 @@ void MemoryAnalysisContext::buildVirtualBuffers() {
       VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Standard);
       vb->addMember(&node);
       vb->liveness = {node.linearIndex, node.deathIndex};
+      setVBDefiningOp(vb);
     }
+  }
+}
+
+// ============================================================================
+// Interference Graph
+// ============================================================================
+
+InterferenceGraph::InterferenceGraph(Bucket &bucket,
+                                     const MemoryAnalysisContext &ctx)
+    : bucket_(bucket), ctx_(ctx) {}
+
+int InterferenceGraph::classifyOverlap(const VirtualBuffer &vbA,
+                                       const VirtualBuffer &vbB) const {
+  // Precondition: vbB.liveness.first >= vbA.liveness.first
+  // We handle the ordering outside or here. Let's handle it here for safety.
+  const VirtualBuffer *a = &vbA;
+  const VirtualBuffer *b = &vbB;
+  if (b->liveness.first < a->liveness.first)
+    std::swap(a, b);
+
+  int startB = b->liveness.first;
+  int endA = a->liveness.second;
+
+  if (startB < endA)
+    return 1; // Strict Overlap
+  if (endA < startB)
+    return -1; // Disjoint
+  return 0;    // Touching
+}
+
+mlir::OpOperand *
+InterferenceGraph::findOperandRelation(const VirtualBuffer &vbA,
+                                       const VirtualBuffer &vbB) const {
+  Operation *opB = vbB.definingOp;
+  if (!opB)
+    return nullptr;
+
+  for (TensorNode *memberA : vbA.members) {
+    for (OpOperand &operand : opB->getOpOperands()) {
+      if (operand.get() == memberA->value)
+        return &operand;
+    }
+  }
+  return nullptr;
+}
+
+static void collectDimPositions(AffineExpr expr,
+                                llvm::DenseSet<unsigned> &positions) {
+  if (auto dimExpr = mlir::dyn_cast<AffineDimExpr>(expr)) {
+    positions.insert(dimExpr.getPosition());
+    return;
+  }
+  if (auto binExpr = mlir::dyn_cast<AffineBinaryOpExpr>(expr)) {
+    collectDimPositions(binExpr.getLHS(), positions);
+    collectDimPositions(binExpr.getRHS(), positions);
+  }
+}
+
+bool InterferenceGraph::checkHandoffInterference(
+    const VirtualBuffer &vbA, const VirtualBuffer &vbB) const {
+  // Dimension 0: Role lookup
+  OpOperand *operandA = findOperandRelation(vbA, vbB);
+  if (!operandA)
+    return false;
+
+  auto linalgOp = mlir::dyn_cast<linalg::LinalgOp>(vbB.definingOp);
+  if (!linalgOp)
+    return true; // Conservative for non-linalg
+
+  // Dimension 1: Role Check (outs? )
+  if (linalgOp.isDpsInit(operandA))
+    return false; // Destination passing style, safe
+
+  // Dimension 2: Indexing Map Alignment
+  AffineMap mapA = linalgOp.getMatchingIndexingMap(operandA);
+  // Assume single result for now as per Loom patterns
+  OpOperand *initOperand = linalgOp.getDpsInitOperand(0);
+  AffineMap mapB = linalgOp.getMatchingIndexingMap(initOperand);
+
+  if (mapA != mapB)
+    return true;
+
+  // Dimension 3: Iterator Safety
+  auto iteratorTypes = linalgOp.getIteratorTypesArray();
+  llvm::DenseSet<unsigned> positions;
+  for (AffineExpr expr : mapA.getResults()) {
+    collectDimPositions(expr, positions);
+  }
+
+  for (unsigned pos : positions) {
+    if (pos < iteratorTypes.size() &&
+        iteratorTypes[pos] == utils::IteratorType::reduction)
+      return true;
+  }
+
+  return false;
+}
+
+void InterferenceGraph::build() {
+  int n = bucket_.virtualBuffers.size();
+  for (int i = 0; i < n; ++i) {
+    for (int j = i + 1; j < n; ++j) {
+      VirtualBuffer &vbI = *bucket_.virtualBuffers[i];
+      VirtualBuffer &vbJ = *bucket_.virtualBuffers[j];
+
+      const VirtualBuffer *a = &vbI;
+      const VirtualBuffer *b = &vbJ;
+      if (b->liveness.first < a->liveness.first)
+        std::swap(a, b);
+
+      int overlap = classifyOverlap(*a, *b);
+      bool interfere = false;
+      if (overlap == 1) {
+        interfere = true;
+      } else if (overlap == 0) {
+        interfere = checkHandoffInterference(*a, *b);
+      }
+
+      if (interfere) {
+        edges_.insert({std::min(vbI.id, vbJ.id), std::max(vbI.id, vbJ.id)});
+      }
+    }
+  }
+}
+
+void InterferenceGraph::dump(llvm::raw_ostream &os) const {
+  if (edges_.empty())
+    return;
+  os << "    --- Interference Graph (" << bucket_.virtualBuffers.size()
+     << " VBs, " << edges_.size() << " edges) ---\n";
+  for (auto &edge : edges_) {
+    os << "      VB#" << edge.first << " -- VB#" << edge.second << "\n";
+  }
+}
+
+bool InterferenceGraph::interferes(int vbIdA, int vbIdB) const {
+  return edges_.count({std::min(vbIdA, vbIdB), std::max(vbIdA, vbIdB)});
+}
+
+void MemoryAnalysisContext::buildInterferenceGraphs() {
+  for (auto &it : buckets) {
+    Bucket &bucket = it.second;
+    if (bucket.virtualBuffers.size() < 2)
+      continue;
+    bucket.interferenceGraph =
+        std::make_unique<InterferenceGraph>(bucket, *this);
+    bucket.interferenceGraph->build();
   }
 }
 
@@ -329,6 +491,9 @@ void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
         }
         os << "\n";
       }
+    }
+    if (bucket.interferenceGraph) {
+      bucket.interferenceGraph->dump(os);
     }
   }
   os << "====================================\n";
@@ -494,6 +659,7 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
 
   // Axioms phase
   ctx.buildVirtualBuffers();
+  ctx.buildInterferenceGraphs();
 
   return ctx;
 }
