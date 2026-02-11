@@ -1,7 +1,7 @@
-// Standalone driver to run the LOOM linalg-destination-specialization pass.
+// Standalone driver to run the LOOM tensor-canonicalize passes.
 //
 // Usage:
-//   linalg_destination_specialization --input <input.mlir>
+//   tensor_canonicalize --input <input.mlir>
 
 #include "Passes.h"
 
@@ -36,8 +36,8 @@ static llvm::cl::opt<std::string>
             llvm::cl::value_desc("filename"), llvm::cl::Required);
 
 int main(int argc, char **argv) {
-  llvm::cl::ParseCommandLineOptions(
-      argc, argv, "LOOM linalg-destination-specialization pass driver\n");
+  llvm::cl::ParseCommandLineOptions(argc, argv,
+                                    "LOOM tensor-canonicalize pass driver\n");
 
   MLIRContext context;
   (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
@@ -80,9 +80,13 @@ int main(int argc, char **argv) {
   pm.addPass(mlir::createSymbolDCEPass());
   pm.addPass(mlir::createCanonicalizerPass());
 
+  // Eliminate redundant tensor.extract_slice surviving fusion/canonicalization
+  pm.addPass(loom::passes::createFoldRedundantExtractSlicePass());
+  pm.addPass(mlir::createCanonicalizerPass());
+
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs())
-        << "Linalg destination specialization pass failed\n";
+        << "LOOM tensor canonicalization pipeline failed\n";
     return 2;
   }
 

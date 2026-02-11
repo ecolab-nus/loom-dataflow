@@ -120,15 +120,15 @@ build/tool/ttshared-opt \
 #### Option B step-by-step
 1) Specialize linalg operations' destination
 ```bash
-build/tool/loom-opt/single_stage/linalg_destination_specialization \
+build/tool/loom-opt/single_stage/tensor_canonicalize \
   --input test/Passes/flashattn_2Dmesh/IR/00_from_helion_frontend.mlir \
-  > test/Passes/flashattn_2Dmesh/IR/01_linalg_destination_specialized.mlir
+  > test/Passes/flashattn_2Dmesh/IR/01_tensor_canonicalized.mlir
 ```
 
 2) Replace grid indices with a 3-D `affine.parallel`
 ```bash
 build/tool/loom-opt/single_stage/memory_binding \
-  --input test/Passes/flashattn_2Dmesh/IR/01_linalg_destination_specialized.mlir  \
+  --input test/Passes/flashattn_2Dmesh/IR/01_tensor_canonicalized.mlir  \
   > test/Passes/flashattn_2Dmesh/IR/02_explicit_memory_access.mlir
 ```
 
