@@ -1,6 +1,7 @@
 #ifndef LOOM_PASSES_COMMON_STATIC_MEMORY_ANALYSER_H
 #define LOOM_PASSES_COMMON_STATIC_MEMORY_ANALYSER_H
 
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/OpDefinition.h"
@@ -8,22 +9,17 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/raw_ostream.h"
 #include <deque>
 #include <memory>
+#include <optional>
 #include <set>
 #include <vector>
-
-namespace llvm {
-class raw_ostream;
-}
 
 namespace mlir {
 namespace func {
 class FuncOp;
-}
-namespace affine {
-class AffineForOp;
-}
+} // namespace func
 } // namespace mlir
 
 #include "utils.h"
@@ -41,11 +37,19 @@ enum class VBType {
   LoopCarried // Loop-carried but not fusing Init (Axiom 1 split)
 };
 
+llvm::StringRef toString(VBType type);
+
+struct LivenessRange {
+  int birth = -1;
+  int death = -1;
+  bool isValid() const { return birth >= 0 && death >= 0; }
+};
+
 struct VirtualBuffer {
   int id;
   VBType type;
   std::vector<TensorNode *> members;
-  std::pair<int, int> liveness = {-1, -1};
+  LivenessRange liveness;
   std::set<int> interferenceSet;
   int color = -1;
   mlir::Operation *definingOp = nullptr;
@@ -53,6 +57,7 @@ struct VirtualBuffer {
   VirtualBuffer(int id, VBType t) : id(id), type(t) {}
 
   void addMember(TensorNode *node);
+  void updateDefiningOp();
 };
 
 struct ShapeSignature {
@@ -68,6 +73,7 @@ struct ShapeSignature {
   }
 
   unsigned getHashValue() const;
+  void print(llvm::raw_ostream &os) const;
 };
 
 } // namespace loom
@@ -102,7 +108,7 @@ struct TensorNode {
   int linearIndex;     // Definition time
   int deathIndex = -1; // Last use time
 
-  VirtualBuffer *mappedVB = nullptr;
+  std::optional<int> mappedVBId;
 
   TensorNode(mlir::Value v, mlir::Operation *op, int idx)
       : value(v), definingOp(op), linearIndex(idx) {}
@@ -116,18 +122,21 @@ struct Bucket {
   std::unique_ptr<class InterferenceGraph> interferenceGraph;
 
   VirtualBuffer *createVB(int id, VBType type);
+  bool containsNode(const TensorNode *node) const;
+  TensorNode *findNode(mlir::Value v);
 };
 
 class InterferenceGraph {
 public:
-  InterferenceGraph(Bucket &bucket, const class MemoryAnalysisContext &ctx);
+  InterferenceGraph(const Bucket &bucket,
+                    const class MemoryAnalysisContext &ctx);
 
   void build();
   void dump(llvm::raw_ostream &os) const;
   bool interferes(int vbIdA, int vbIdB) const;
 
 private:
-  Bucket &bucket_;
+  const Bucket &bucket_;
   const class MemoryAnalysisContext &ctx_;
   std::set<std::pair<int, int>> edges_;
 
@@ -138,28 +147,43 @@ private:
                                 const VirtualBuffer &vbB) const;
 };
 
+struct LoopContext {
+  mlir::affine::AffineForOp forOp;
+  int startIndex;
+  int endIndex;
+};
+
 class MemoryAnalysisContext {
 public:
-  llvm::MapVector<ShapeSignature, Bucket> buckets;
-  llvm::DenseMap<mlir::Operation *, int> opIndexMap;
-  llvm::DenseMap<mlir::Value, TensorNode *> valueToNodeMap;
-
-  void addTensor(mlir::Value v, ShapeSignature sig, mlir::Operation *defOp,
-                 int idx);
-
-  // --- Lifecycle Helpers ---
+  // --- Accessors ---
+  const llvm::MapVector<ShapeSignature, Bucket> &getBuckets() const {
+    return buckets_;
+  }
   int getOpIndex(mlir::Operation *op) const;
   int getLoopEndIndex(mlir::affine::AffineForOp forOp) const;
   int getValueDeathIndex(mlir::Value v) const;
 
-  // --- VirtualBuffer Construction ---
+  // --- Analysis Entry Points ---
+  void setOpIndex(mlir::Operation *op, int idx);
+  void addTensor(mlir::Value v, ShapeSignature sig, mlir::Operation *defOp,
+                 int idx);
+  void computeDeathIndices();
   void buildVirtualBuffers();
   void buildInterferenceGraphs();
 
   void dump(llvm::raw_ostream &os) const;
 
 private:
+  llvm::MapVector<ShapeSignature, Bucket> buckets_;
+  llvm::DenseMap<mlir::Operation *, int> opIndexMap_;
+  llvm::DenseMap<mlir::Value, TensorNode *> valueToNodeMap_;
   int nextVBId_ = 0;
+
+  // --- Internal Helpers ---
+  std::optional<LoopContext> findLoopContext() const;
+  void applyPhiFusionAxiom(Bucket &bucket, const LoopContext &loop);
+  void applyExternalEternityAxiom(Bucket &bucket, const LoopContext &loop);
+  void applyStandardAxiom(Bucket &bucket);
 };
 
 MemoryAnalysisContext runMemoryAnalysis(mlir::func::FuncOp func);

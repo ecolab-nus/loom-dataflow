@@ -19,17 +19,62 @@ using namespace mlir;
 using namespace loom;
 
 // ============================================================================
+// Utilities
+// ============================================================================
+
+llvm::StringRef loom::toString(VBType type) {
+  switch (type) {
+  case VBType::Standard:
+    return "Standard";
+  case VBType::Fused:
+    return "Fused";
+  case VBType::Eternal:
+    return "Eternal";
+  case VBType::LoopCarried:
+    return "LoopCarried";
+  }
+  return "???";
+}
+
+// ============================================================================
 // VirtualBuffer
 // ============================================================================
 
 void VirtualBuffer::addMember(TensorNode *node) {
   members.push_back(node);
-  node->mappedVB = this;
+  node->mappedVBId = id;
+}
+
+void VirtualBuffer::updateDefiningOp() {
+  if (members.empty())
+    return;
+  TensorNode *earliest = members[0];
+  for (auto *member : members) {
+    if (member->linearIndex < earliest->linearIndex)
+      earliest = member;
+  }
+  definingOp = earliest->definingOp;
 }
 
 VirtualBuffer *Bucket::createVB(int id, VBType type) {
   virtualBuffers.push_back(std::make_unique<VirtualBuffer>(id, type));
   return virtualBuffers.back().get();
+}
+
+bool Bucket::containsNode(const TensorNode *node) const {
+  for (const auto &n : nodes) {
+    if (&n == node)
+      return true;
+  }
+  return false;
+}
+
+TensorNode *Bucket::findNode(Value v) {
+  for (auto &node : nodes) {
+    if (node.value == v)
+      return &node;
+  }
+  return nullptr;
 }
 
 // ============================================================================
@@ -50,22 +95,49 @@ unsigned ShapeSignature::getHashValue() const {
   return static_cast<unsigned>(hash);
 }
 
+void ShapeSignature::print(llvm::raw_ostream &os) const {
+  os << "[";
+  for (size_t i = 0; i < dims.size(); ++i) {
+    auto dim = dims[i];
+    if (auto val = mlir::dyn_cast<Value>(dim)) {
+      os << val;
+    } else if (auto attr = mlir::dyn_cast<Attribute>(dim)) {
+      if (auto intAttr = mlir::dyn_cast<IntegerAttr>(attr)) {
+        os << intAttr.getInt();
+      } else {
+        os << "?";
+      }
+    }
+    if (i < dims.size() - 1)
+      os << ", ";
+  }
+  os << "] (" << elementType << ")";
+}
+
 // ============================================================================
 // MemoryAnalysisContext — Core logic
 // ============================================================================
 
+void MemoryAnalysisContext::setOpIndex(Operation *op, int idx) {
+  opIndexMap_[op] = idx;
+}
+
 void MemoryAnalysisContext::addTensor(Value v, ShapeSignature sig,
                                       Operation *defOp, int idx) {
-  Bucket &bucket = buckets[sig];
+  setOpIndex(defOp, idx);
+  if (!v)
+    return;
+
+  Bucket &bucket = buckets_[sig];
   bucket.signature = sig;
 
   bucket.nodes.emplace_back(v, defOp, idx);
-  valueToNodeMap[v] = &bucket.nodes.back();
+  valueToNodeMap_[v] = &bucket.nodes.back();
 }
 
 int MemoryAnalysisContext::getOpIndex(Operation *op) const {
-  auto it = opIndexMap.find(op);
-  return it != opIndexMap.end() ? it->second : -1;
+  auto it = opIndexMap_.find(op);
+  return it != opIndexMap_.end() ? it->second : -1;
 }
 
 int MemoryAnalysisContext::getLoopEndIndex(affine::AffineForOp forOp) const {
@@ -82,29 +154,40 @@ int MemoryAnalysisContext::getValueDeathIndex(Value v) const {
   }
   // If no users, death index is definition index
   if (maxIdx == -1) {
-    auto it = valueToNodeMap.find(v);
-    if (it != valueToNodeMap.end()) {
+    auto it = valueToNodeMap_.find(v);
+    if (it != valueToNodeMap_.end()) {
       return it->second->linearIndex;
     }
   }
   return maxIdx;
 }
 
+void MemoryAnalysisContext::computeDeathIndices() {
+  for (auto &it : buckets_) {
+    Bucket &bucket = it.second;
+    for (auto &node : bucket.nodes) {
+      node.deathIndex = getValueDeathIndex(node.value);
+    }
+  }
+}
+
+std::optional<LoopContext> MemoryAnalysisContext::findLoopContext() const {
+  for (auto &entry : opIndexMap_) {
+    if (auto parallelOp =
+            mlir::dyn_cast<affine::AffineParallelOp>(entry.first)) {
+      for (auto &op : *parallelOp.getBody()) {
+        if (auto forOp = mlir::dyn_cast<affine::AffineForOp>(op)) {
+          return LoopContext{forOp, getOpIndex(forOp), getLoopEndIndex(forOp)};
+        }
+      }
+    }
+  }
+  return std::nullopt;
+}
+
 // ============================================================================
 // VirtualBuffer Construction — Three Axioms
 // ============================================================================
-
-/// Find the single affine.for DIRECTLY nested in affine.parallel body.
-static affine::AffineForOp findInnerFor(affine::AffineParallelOp parallelOp) {
-  for (auto &op : *parallelOp.getBody()) {
-    if (auto forOp = mlir::dyn_cast<affine::AffineForOp>(op)) {
-      return forOp;
-    }
-  }
-  llvm::errs()
-      << "Error: No directly nested affine.for found in affine.parallel body\n";
-  exit(1);
-}
 
 /// Check if Init's value has any use by an op physically inside the loop body.
 /// Excludes the affine.for itself.
@@ -119,167 +202,112 @@ static bool isInitPure(Value initVal, affine::AffineForOp forOp) {
   return true;
 }
 
-void MemoryAnalysisContext::buildVirtualBuffers() {
-  // Find the loop structure
-  affine::AffineForOp forOp = nullptr;
-  for (auto &entry : opIndexMap) {
-    if (auto parallelOp =
-            mlir::dyn_cast<affine::AffineParallelOp>(entry.first)) {
-      forOp = findInnerFor(parallelOp);
-      break;
+void MemoryAnalysisContext::applyPhiFusionAxiom(
+    Bucket &bucket, const LoopContext &loopContext) {
+  affine::AffineForOp forOp = loopContext.forOp;
+  unsigned numIterArgs = forOp.getNumIterOperands();
+  affine::AffineYieldOp yieldOp =
+      mlir::cast<affine::AffineYieldOp>(forOp.getBody()->getTerminator());
+
+  for (unsigned i = 0; i < numIterArgs; ++i) {
+    Value argVal = forOp.getRegionIterArgs()[i];
+    TensorNode *argNode = bucket.findNode(argVal);
+
+    if (!argNode)
+      continue;
+
+    Value initVal = forOp.getInits()[i];
+    Value yieldVal = yieldOp.getOperand(i);
+    Value resultVal = forOp.getResults()[i];
+
+    TensorNode *initNode = bucket.findNode(initVal);
+    TensorNode *yieldNode = bucket.findNode(yieldVal);
+    TensorNode *resultNode = bucket.findNode(resultVal);
+
+    bool pure = initNode && isInitPure(initVal, forOp);
+
+    if (pure) {
+      VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Fused);
+      vb->addMember(initNode);
+      vb->addMember(argNode);
+      if (yieldNode)
+        vb->addMember(yieldNode);
+      if (resultNode)
+        vb->addMember(resultNode);
+
+      int deathIdx = resultNode ? getValueDeathIndex(resultNode->value) : -1;
+      vb->liveness = {initNode->linearIndex,
+                      std::max(loopContext.endIndex, deathIdx)};
+      vb->updateDefiningOp();
+    } else {
+      VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::LoopCarried);
+      vb->addMember(argNode);
+      if (yieldNode)
+        vb->addMember(yieldNode);
+      if (resultNode)
+        vb->addMember(resultNode);
+
+      int deathIdx = resultNode ? getValueDeathIndex(resultNode->value) : -1;
+      vb->liveness = {loopContext.startIndex,
+                      std::max(loopContext.endIndex, deathIdx)};
+      vb->updateDefiningOp();
     }
   }
+}
 
-  if (!forOp)
+void MemoryAnalysisContext::applyExternalEternityAxiom(
+    Bucket &bucket, const LoopContext &loopContext) {
+  affine::AffineForOp forOp = loopContext.forOp;
+  for (auto &node : bucket.nodes) {
+    if (node.mappedVBId.has_value())
+      continue;
+
+    // DefiningOp is outside loop
+    if (forOp->isProperAncestor(node.definingOp))
+      continue;
+
+    // At least one user inside loop
+    bool usedInLoop = false;
+    for (auto &use : node.value.getUses()) {
+      if (forOp->isProperAncestor(use.getOwner())) {
+        usedInLoop = true;
+        break;
+      }
+    }
+    if (!usedInLoop)
+      continue;
+
+    VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Eternal);
+    vb->addMember(&node);
+    vb->liveness = {node.linearIndex, loopContext.endIndex};
+    vb->updateDefiningOp();
+  }
+}
+
+void MemoryAnalysisContext::applyStandardAxiom(Bucket &bucket) {
+  for (auto &node : bucket.nodes) {
+    if (node.mappedVBId.has_value())
+      continue;
+
+    VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Standard);
+    vb->addMember(&node);
+    vb->liveness = {node.linearIndex, node.deathIndex};
+    vb->updateDefiningOp();
+  }
+}
+
+void MemoryAnalysisContext::buildVirtualBuffers() {
+  auto loopOpt = findLoopContext();
+  if (!loopOpt)
     return;
 
-  int loopStart = getOpIndex(forOp);
-  int loopEnd = getLoopEndIndex(forOp);
+  LoopContext loop = loopOpt.value();
 
-  auto setVBDefiningOp = [](VirtualBuffer *vb) {
-    if (vb->members.empty())
-      return;
-    TensorNode *earliest = vb->members[0];
-    for (auto *member : vb->members) {
-      if (member->linearIndex < earliest->linearIndex)
-        earliest = member;
-    }
-    vb->definingOp = earliest->definingOp;
-  };
-
-  for (auto &bucketEntry : buckets) {
+  for (auto &bucketEntry : buckets_) {
     Bucket &bucket = bucketEntry.second;
-
-    // =======================================================================
-    // Axiom 1: Phi-Fusion
-    // =======================================================================
-    unsigned numIterArgs = forOp.getNumIterOperands();
-    affine::AffineYieldOp yieldOp =
-        mlir::cast<affine::AffineYieldOp>(forOp.getBody()->getTerminator());
-
-    for (unsigned i = 0; i < numIterArgs; ++i) {
-      Value argVal = forOp.getRegionIterArgs()[i];
-      TensorNode *argNode = nullptr;
-      {
-        auto it = valueToNodeMap.find(argVal);
-        if (it != valueToNodeMap.end())
-          argNode = it->second;
-      }
-
-      // Check if argNode exists and belongs to THIS bucket
-      bool argInThisBucket = false;
-      if (argNode) {
-        for (auto &n : bucket.nodes)
-          if (&n == argNode) {
-            argInThisBucket = true;
-            break;
-          }
-      }
-      if (!argInThisBucket)
-        continue;
-
-      Value initVal = forOp.getInits()[i];
-      Value yieldVal = yieldOp.getOperand(i);
-      Value resultVal = forOp.getResults()[i];
-
-      TensorNode *initNode = nullptr;
-      TensorNode *yieldNode = nullptr;
-      TensorNode *resultNode = nullptr;
-
-      {
-        auto it = valueToNodeMap.find(initVal);
-        if (it != valueToNodeMap.end())
-          initNode = it->second;
-      }
-      {
-        auto it = valueToNodeMap.find(yieldVal);
-        if (it != valueToNodeMap.end())
-          yieldNode = it->second;
-      }
-      {
-        auto it = valueToNodeMap.find(resultVal);
-        if (it != valueToNodeMap.end())
-          resultNode = it->second;
-      }
-
-      // Purity Check
-      bool pure = initNode && isInitPure(initVal, forOp);
-      // We also check if Init belongs to the same bucket
-      bool initInThisBucket = false;
-      if (initNode) {
-        for (auto &n : bucket.nodes)
-          if (&n == initNode) {
-            initInThisBucket = true;
-            break;
-          }
-      }
-
-      if (pure && initInThisBucket) {
-        VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Fused);
-        vb->addMember(initNode);
-        vb->addMember(argNode);
-        if (yieldNode)
-          vb->addMember(yieldNode);
-        if (resultNode)
-          vb->addMember(resultNode);
-
-        int deathIdx = resultNode ? getValueDeathIndex(resultNode->value) : -1;
-        vb->liveness = {initNode->linearIndex, std::max(loopEnd, deathIdx)};
-        setVBDefiningOp(vb);
-      } else {
-        VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::LoopCarried);
-        vb->addMember(argNode);
-        if (yieldNode)
-          vb->addMember(yieldNode);
-        if (resultNode)
-          vb->addMember(resultNode);
-
-        int deathIdx = resultNode ? getValueDeathIndex(resultNode->value) : -1;
-        vb->liveness = {loopStart, std::max(loopEnd, deathIdx)};
-        setVBDefiningOp(vb);
-      }
-    }
-
-    // =======================================================================
-    // Axiom 2: External Eternity
-    // =======================================================================
-    for (auto &node : bucket.nodes) {
-      if (node.mappedVB)
-        continue;
-
-      // DefiningOp is outside loop
-      if (forOp->isProperAncestor(node.definingOp))
-        continue;
-
-      // At least one user inside loop
-      bool usedInLoop = false;
-      for (auto &use : node.value.getUses()) {
-        if (forOp->isProperAncestor(use.getOwner())) {
-          usedInLoop = true;
-          break;
-        }
-      }
-      if (!usedInLoop)
-        continue;
-
-      VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Eternal);
-      vb->addMember(&node);
-      vb->liveness = {node.linearIndex, loopEnd};
-      setVBDefiningOp(vb);
-    }
-
-    // =======================================================================
-    // Axiom 3: Standard
-    // =======================================================================
-    for (auto &node : bucket.nodes) {
-      if (node.mappedVB)
-        continue;
-
-      VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Standard);
-      vb->addMember(&node);
-      vb->liveness = {node.linearIndex, node.deathIndex};
-      setVBDefiningOp(vb);
-    }
+    applyPhiFusionAxiom(bucket, loop);
+    applyExternalEternityAxiom(bucket, loop);
+    applyStandardAxiom(bucket);
   }
 }
 
@@ -287,21 +315,19 @@ void MemoryAnalysisContext::buildVirtualBuffers() {
 // Interference Graph
 // ============================================================================
 
-InterferenceGraph::InterferenceGraph(Bucket &bucket,
+InterferenceGraph::InterferenceGraph(const Bucket &bucket,
                                      const MemoryAnalysisContext &ctx)
     : bucket_(bucket), ctx_(ctx) {}
 
 int InterferenceGraph::classifyOverlap(const VirtualBuffer &vbA,
                                        const VirtualBuffer &vbB) const {
-  // Precondition: vbB.liveness.first >= vbA.liveness.first
-  // We handle the ordering outside or here. Let's handle it here for safety.
   const VirtualBuffer *a = &vbA;
   const VirtualBuffer *b = &vbB;
-  if (b->liveness.first < a->liveness.first)
+  if (b->liveness.birth < a->liveness.birth)
     std::swap(a, b);
 
-  int startB = b->liveness.first;
-  int endA = a->liveness.second;
+  int startB = b->liveness.birth;
+  int endA = a->liveness.death;
 
   if (startB < endA)
     return 1; // Strict Overlap
@@ -340,7 +366,6 @@ static void collectDimPositions(AffineExpr expr,
 
 bool InterferenceGraph::checkHandoffInterference(
     const VirtualBuffer &vbA, const VirtualBuffer &vbB) const {
-  // Dimension 0: Role lookup
   OpOperand *operandA = findOperandRelation(vbA, vbB);
   if (!operandA)
     return false;
@@ -349,20 +374,16 @@ bool InterferenceGraph::checkHandoffInterference(
   if (!linalgOp)
     return true; // Conservative for non-linalg
 
-  // Dimension 1: Role Check (outs? )
   if (linalgOp.isDpsInit(operandA))
     return false; // Destination passing style, safe
 
-  // Dimension 2: Indexing Map Alignment
   AffineMap mapA = linalgOp.getMatchingIndexingMap(operandA);
-  // Assume single result for now as per Loom patterns
   OpOperand *initOperand = linalgOp.getDpsInitOperand(0);
   AffineMap mapB = linalgOp.getMatchingIndexingMap(initOperand);
 
   if (mapA != mapB)
     return true;
 
-  // Dimension 3: Iterator Safety
   auto iteratorTypes = linalgOp.getIteratorTypesArray();
   llvm::DenseSet<unsigned> positions;
   for (AffineExpr expr : mapA.getResults()) {
@@ -387,7 +408,7 @@ void InterferenceGraph::build() {
 
       const VirtualBuffer *a = &vbI;
       const VirtualBuffer *b = &vbJ;
-      if (b->liveness.first < a->liveness.first)
+      if (b->liveness.birth < a->liveness.birth)
         std::swap(a, b);
 
       int overlap = classifyOverlap(*a, *b);
@@ -420,7 +441,7 @@ bool InterferenceGraph::interferes(int vbIdA, int vbIdB) const {
 }
 
 void MemoryAnalysisContext::buildInterferenceGraphs() {
-  for (auto &it : buckets) {
+  for (auto &it : buckets_) {
     Bucket &bucket = it.second;
     if (bucket.virtualBuffers.size() < 2)
       continue;
@@ -434,44 +455,16 @@ void MemoryAnalysisContext::buildInterferenceGraphs() {
 // Dump — Visualizer
 // ============================================================================
 
-static const char *vbTypeToStr(VBType t) {
-  switch (t) {
-  case VBType::Standard:
-    return "Standard";
-  case VBType::Fused:
-    return "Fused";
-  case VBType::Eternal:
-    return "Eternal";
-  case VBType::LoopCarried:
-    return "LoopCarried";
-  }
-  return "???";
-}
-
 void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
   os << "=== Memory Analysis Context Dump ===\n";
   int bucketIdx = 0;
   OpPrintingFlags flags;
-  for (auto &it : buckets) {
+  for (auto &it : buckets_) {
     const ShapeSignature &sig = it.first;
     const Bucket &bucket = it.second;
-    os << "Bucket " << bucketIdx++ << ": [";
-    for (size_t i = 0; i < sig.dims.size(); ++i) {
-      auto dim = sig.dims[i];
-      if (auto val = mlir::dyn_cast<Value>(dim)) {
-        os << val;
-      } else if (auto attr = mlir::dyn_cast<Attribute>(dim)) {
-        if (auto intAttr = mlir::dyn_cast<IntegerAttr>(attr)) {
-          os << intAttr.getInt();
-        } else {
-          os << "?";
-        }
-      }
-      if (i < sig.dims.size() - 1)
-        os << ", ";
-    }
-    os << "] (" << sig.elementType << "), Tensors: " << bucket.nodes.size()
-       << "\n";
+    os << "Bucket " << bucketIdx++ << ": ";
+    sig.print(os);
+    os << ", Tensors: " << bucket.nodes.size() << "\n";
     for (const auto &node : bucket.nodes) {
       os << "  - [Liveness: " << node.linearIndex << " -> " << node.deathIndex
          << "] Value: ";
@@ -482,8 +475,8 @@ void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
     if (!bucket.virtualBuffers.empty()) {
       os << "  VirtualBuffers: " << bucket.virtualBuffers.size() << "\n";
       for (auto &vb : bucket.virtualBuffers) {
-        os << "    VB#" << vb->id << " (" << vbTypeToStr(vb->type) << ") ["
-           << vb->liveness.first << " -> " << vb->liveness.second << "]: ";
+        os << "    VB#" << vb->id << " (" << toString(vb->type) << ") ["
+           << vb->liveness.birth << " -> " << vb->liveness.death << "]: ";
         for (size_t i = 0; i < vb->members.size(); ++i) {
           vb->members[i]->value.printAsOperand(os, flags);
           if (i < vb->members.size() - 1)
@@ -508,7 +501,7 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
   int linearIdx = 0;
 
   func.walk<WalkOrder::PreOrder>([&](Operation *op) {
-    ctx.opIndexMap[op] = linearIdx++;
+    ctx.setOpIndex(op, linearIdx++);
 
     for (Value res : op->getResults()) {
       if (auto tensorType = mlir::dyn_cast<RankedTensorType>(res.getType())) {
@@ -520,7 +513,7 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
           continue;
 
         ShapeSignature signature{sig, tensorType.getElementType()};
-        ctx.addTensor(res, signature, op, ctx.opIndexMap[op]);
+        ctx.addTensor(res, signature, op, ctx.getOpIndex(op));
       }
     }
 
@@ -532,18 +525,13 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
             continue;
 
           ShapeSignature signature{sig, tensorType.getElementType()};
-          ctx.addTensor(arg, signature, op, ctx.opIndexMap[op]);
+          ctx.addTensor(arg, signature, op, ctx.getOpIndex(op));
         }
       }
     }
   });
 
-  for (auto &it : ctx.buckets) {
-    Bucket &bucket = it.second;
-    for (auto &node : bucket.nodes) {
-      node.deathIndex = ctx.getValueDeathIndex(node.value);
-    }
-  }
+  ctx.computeDeathIndices();
 
   // Axioms phase
   ctx.buildVirtualBuffers();
