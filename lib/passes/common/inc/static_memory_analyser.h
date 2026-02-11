@@ -50,7 +50,6 @@ struct VirtualBuffer {
   VBType type;
   std::vector<TensorNode *> members;
   LivenessRange liveness;
-  std::set<int> interferenceSet;
   int color = -1;
   mlir::Operation *definingOp = nullptr;
 
@@ -147,6 +146,51 @@ private:
                                 const VirtualBuffer &vbB) const;
 };
 
+/// First-fit greedy graph coloring solver.
+/// Operates on a single Bucket, using its InterferenceGraph.
+class ColoringSolver {
+public:
+  explicit ColoringSolver(Bucket &bucket);
+
+  /// Run the greedy coloring algorithm.
+  /// Returns the number of colors used (= max color + 1).
+  int solve();
+
+private:
+  Bucket &bucket_;
+};
+
+/// Bridge data structure: carries coloring results to MLIR transform passes.
+/// Self-contained — a Pass can read this and know exactly how to rewrite IR.
+class LoomAllocationPlan {
+public:
+  /// Describes one physical buffer slot within a bucket.
+  struct PhysicalBufferSlot {
+    int colorId;            ///< Color ID (0, 1, 2...)
+    ShapeSignature shape;   ///< Physical shape (for loom.alloc)
+    mlir::Type elementType; ///< Element type
+  };
+
+  /// Maps an SSA tensor value to its assigned physical buffer.
+  struct Assignment {
+    ShapeSignature bucketKey; ///< Which bucket this belongs to
+    int colorId;              ///< Which color within the bucket
+  };
+
+  /// Per-bucket slot allocations: BucketKey -> list of PhysicalBufferSlots
+  llvm::DenseMap<ShapeSignature, std::vector<PhysicalBufferSlot>>
+      bucketAllocations;
+
+  /// Core mapping: SSA tensor Value -> Assignment (bucket + color)
+  llvm::DenseMap<mlir::Value, Assignment> tensorToBufferMap;
+
+  /// Per-bucket color count
+  llvm::DenseMap<ShapeSignature, int> colorCountPerBucket;
+
+  /// Dump the plan for debugging.
+  void dump(llvm::raw_ostream &os) const;
+};
+
 struct LoopContext {
   mlir::affine::AffineForOp forOp;
   int startIndex;
@@ -159,6 +203,9 @@ public:
   const llvm::MapVector<ShapeSignature, Bucket> &getBuckets() const {
     return buckets_;
   }
+  const LoomAllocationPlan &getAllocationPlan() const {
+    return allocationPlan_;
+  }
   int getOpIndex(mlir::Operation *op) const;
   int getLoopEndIndex(mlir::affine::AffineForOp forOp) const;
   int getValueDeathIndex(mlir::Value v) const;
@@ -170,6 +217,8 @@ public:
   void computeDeathIndices();
   void buildVirtualBuffers();
   void buildInterferenceGraphs();
+  void solveColoring();
+  void buildAllocationPlan();
 
   void dump(llvm::raw_ostream &os) const;
 
@@ -178,6 +227,7 @@ private:
   llvm::DenseMap<mlir::Operation *, int> opIndexMap_;
   llvm::DenseMap<mlir::Value, TensorNode *> valueToNodeMap_;
   int nextVBId_ = 0;
+  LoomAllocationPlan allocationPlan_;
 
   // --- Internal Helpers ---
   std::optional<LoopContext> findLoopContext() const;
