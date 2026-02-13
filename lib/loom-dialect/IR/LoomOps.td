@@ -778,4 +778,6 @@ def AssignVbToPbOp : Loom_Op<"assign_vb_to_pb", [
   let assemblyFormat = [{
     $tensor `,` $buffer attr-dict `:` type($tensor) `,` type($buffer)
   }];
+
+  let hasCanonicalizer = 1;
 }

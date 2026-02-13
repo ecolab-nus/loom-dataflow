@@ -598,6 +598,46 @@ struct FoldCopyToTensorType : public OpRewritePattern<CopyToTensorOp> {
     return success();
   }
 };
+
+struct StaticizeAssignVbToPb : public OpRewritePattern<AssignVbToPbOp> {
+  using OpRewritePattern<AssignVbToPbOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(AssignVbToPbOp op,
+                                PatternRewriter &rewriter) const override {
+    bool changed = false;
+
+    // 1. Unwrap tensor cast for tensor operand
+    auto tensor = op.getTensor();
+    if (auto cast = tensor.getDefiningOp<tensor::CastOp>()) {
+      auto castSource = cast.getSource();
+      auto castSourceType =
+          llvm::dyn_cast<RankedTensorType>(castSource.getType());
+      if (castSourceType && castSourceType.hasStaticShape()) {
+        rewriter.modifyOpInPlace(
+            op, [&]() { op.getTensorMutable().assign(castSource); });
+        changed = true;
+      }
+    }
+
+    // 2. Unwrap memref cast for buffer operand
+    auto buffer = op.getBuffer();
+    if (auto cast = buffer.getDefiningOp<memref::CastOp>()) {
+      auto castSource = cast.getSource();
+      auto castSourceType = llvm::dyn_cast<MemRefType>(castSource.getType());
+      if (castSourceType && castSourceType.hasStaticShape()) {
+        if (!changed) {
+          rewriter.modifyOpInPlace(
+              op, [&]() { op.getBufferMutable().assign(castSource); });
+        } else {
+          op.getBufferMutable().assign(castSource);
+        }
+        changed = true;
+      }
+    }
+
+    return success(changed);
+  }
+};
 } // namespace
 
 void SubviewOp::getCanonicalizationPatterns(RewritePatternSet &results,
@@ -623,4 +663,9 @@ void CopyFromTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void CopyToTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                                  MLIRContext *context) {
   results.add<FoldCopyToTensorType>(context);
+}
+
+void AssignVbToPbOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                                 MLIRContext *context) {
+  results.add<StaticizeAssignVbToPb>(context);
 }
