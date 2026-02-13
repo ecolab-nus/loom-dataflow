@@ -14,6 +14,9 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
+#include <chrono>
+#include <fstream>
+
 // Loom dialect and analysis headers
 #include "LoomDialect.h.inc"
 #include "static_memory_analyser.h"
@@ -143,6 +146,28 @@ public:
   }
 
 private:
+  Value getOrCreateInitTensor(Value allocVal) {
+    if (auto it = allocToInitTensor.find(allocVal);
+        it != allocToInitTensor.end())
+      return it->second;
+
+    OpBuilder b(context);
+    b.setInsertionPointAfter(allocVal.getDefiningOp());
+    auto memrefType = cast<MemRefType>(allocVal.getType());
+    auto tensorType = RankedTensorType::get(memrefType.getShape(),
+                                            memrefType.getElementType());
+
+    SmallVector<Value> dynamicSizes;
+    if (auto allocOp = allocVal.getDefiningOp<loom::AllocOp>())
+      dynamicSizes = allocOp.getSizes();
+
+    auto initOp = loom::InitTensorOp::create(
+        b, allocVal.getLoc(), tensorType, allocVal, dynamicSizes,
+        b.getDenseI64ArrayAttr(memrefType.getShape()));
+    allocToInitTensor[allocVal] = initOp.getResult();
+    return initOp.getResult();
+  }
+
   void resolveBucketScopes() {
     for (auto &[sig, bucket] : analysisCtx.getBucketsMutable()) {
       if (bucket.nodes.empty())
@@ -186,7 +211,6 @@ private:
   }
 
   void anchorVirtualBuffers() {
-    llvm::DenseMap<Value, Value> allocToInitTensor;
     for (const auto &[sig, bucket] : analysisCtx.getBuckets()) {
       for (const auto &vb : bucket.virtualBuffers) {
         if (vb->members.empty())
@@ -204,12 +228,43 @@ private:
         // Step 1: Source Anchoring (vb_to_pb)
         OpBuilder builder(context);
         if (auto blockArg = mlir::dyn_cast<BlockArgument>(birthNode->value)) {
-          builder.setInsertionPointToStart(blockArg.getOwner());
+          // IterArg: trace to init value, clone its defining op onto PB
+          auto forOp = dyn_cast<affine::AffineForOp>(
+              blockArg.getOwner()->getParentOp());
+          assert(forOp && "iterarg birthNode must be inside an affine.for");
+          unsigned argIdx = blockArg.getArgNumber() -
+                            forOp.getBody()->getNumArguments() +
+                            forOp.getNumIterOperands();
+          Value initVal = forOp.getInits()[argIdx];
+          Operation *initDefOp = initVal.getDefiningOp();
+          assert(initDefOp && isa<linalg::LinalgOp>(initDefOp) &&
+                 "iterarg init value must be defined by a linalg op");
+
+          // Create init_tensor bound directly to PB alloc
+          Value initTensor = getOrCreateInitTensor(allocVal);
+          // Clone the init op, redirect outs to init_tensor
+          OpBuilder cloneBuilder(context);
+          cloneBuilder.setInsertionPointAfter(initDefOp);
+          Operation *clonedOp = cloneBuilder.clone(*initDefOp);
+          cast<linalg::LinalgOp>(clonedOp).getDpsInitsMutable()[0].set(
+              initTensor);
+          clonedOp->getResult(0).setType(initTensor.getType());
+
+          // Redirect affine.for init to cloned op's result
+          forOp.getInitsMutable()[argIdx].set(clonedOp->getResult(0));
+          // #endregion
         } else {
           builder.setInsertionPointAfter(birthNode->value.getDefiningOp());
         }
-        loom::AssignVbToPbOp::create(builder, birthNode->value.getLoc(),
-                                     birthNode->value, allocVal);
+        // Skip pb_anchor for iter_arg: birth is block arg, do not replace its
+        // uses (would break loop SSA); Step 2 still runs to replace tensor.empty
+        // outs.
+        if (!mlir::isa<BlockArgument>(birthNode->value)) {
+          auto pbAnchor = loom::PbAnchorOp::create(
+              builder, birthNode->value.getLoc(), birthNode->value.getType(),
+              birthNode->value, allocVal);
+          birthNode->value.replaceAllUsesExcept(pbAnchor.getResult(), pbAnchor);
+        }
 
         // Step 2: replace tensor.empty outs with init_tensor(alloc)
         for (TensorNode *member : vb->members) {
@@ -220,28 +275,7 @@ private:
 
           for (OpOperand &outsOp : linalgOp.getDpsInitsMutable()) {
             if (outsOp.get().getDefiningOp<tensor::EmptyOp>()) {
-              Value initTensor;
-              if (auto it = allocToInitTensor.find(allocVal);
-                  it != allocToInitTensor.end()) {
-                initTensor = it->second;
-              } else {
-                OpBuilder b(context);
-                b.setInsertionPointAfter(allocVal.getDefiningOp());
-                auto memrefType = cast<MemRefType>(allocVal.getType());
-                auto tensorType = RankedTensorType::get(
-                    memrefType.getShape(), memrefType.getElementType());
-
-                SmallVector<Value> dynamicSizes;
-                if (auto allocOp = allocVal.getDefiningOp<loom::AllocOp>())
-                  dynamicSizes = allocOp.getSizes();
-
-                auto initOp = loom::InitTensorOp::create(
-                    b, allocVal.getLoc(), tensorType, allocVal, dynamicSizes,
-                    b.getDenseI64ArrayAttr(memrefType.getShape()));
-                initTensor = initOp.getResult();
-                allocToInitTensor[allocVal] = initTensor;
-              }
-              outsOp.set(initTensor);
+              outsOp.set(getOrCreateInitTensor(allocVal));
             }
           }
         }
@@ -258,8 +292,9 @@ private:
             it != plan.tensorToBufferMap.end()) {
           if (Value alloc = colorToAlloc.lookup(
                   {it->second.bucketKey, it->second.colorId})) {
-            loom::AssignVbToPbOp::create(builder, forOp.getLoc(), result,
-                                         alloc);
+            auto pbAnchor = loom::PbAnchorOp::create(
+                builder, forOp.getLoc(), result.getType(), result, alloc);
+            result.replaceAllUsesExcept(pbAnchor.getResult(), pbAnchor);
           }
         }
       }
@@ -282,6 +317,7 @@ private:
   MemoryAnalysisContext analysisCtx;
   const LoomAllocationPlan &plan;
   llvm::DenseMap<std::pair<ShapeSignature, int>, Value> colorToAlloc;
+  llvm::DenseMap<Value, Value> allocToInitTensor;
 };
 
 struct MemoryBindingPass
@@ -309,13 +345,14 @@ struct MemoryBindingPass
     module.walk(
         [&](func::FuncOp funcOp) { PassMaterializer(context, funcOp).run(); });
 
-    // Phase 3: Clean up redundant vb_to_pb ops
-    module.walk([&](loom::AssignVbToPbOp vbToPb) {
-      Value tensor = vbToPb.getTensor();
+    // Phase 3: Clean up redundant pb_anchor ops
+    module.walk([&](loom::PbAnchorOp pbAnchor) {
+      Value tensor = pbAnchor.getTensor();
       if (Operation *defOp = tensor.getDefiningOp()) {
         if (defOp->getDialect()->getNamespace() == "loom" ||
             isa<linalg::FillOp>(defOp)) {
-          vbToPb.erase();
+          pbAnchor.getResult().replaceAllUsesWith(tensor);
+          pbAnchor.erase();
         }
       }
     });
