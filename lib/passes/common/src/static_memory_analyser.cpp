@@ -163,8 +163,7 @@ int MemoryAnalysisContext::getValueDeathIndex(Value v) const {
 }
 
 void MemoryAnalysisContext::computeDeathIndices() {
-  for (auto &it : buckets_) {
-    Bucket &bucket = it.second;
+  for (auto &[sig, bucket] : buckets_) {
     for (auto &node : bucket.nodes) {
       node.deathIndex = getValueDeathIndex(node.value);
     }
@@ -301,10 +300,9 @@ void MemoryAnalysisContext::buildVirtualBuffers() {
   if (!loopOpt)
     return;
 
-  LoopContext loop = loopOpt.value();
+  const LoopContext &loop = *loopOpt;
 
-  for (auto &bucketEntry : buckets_) {
-    Bucket &bucket = bucketEntry.second;
+  for (auto &[sig, bucket] : buckets_) {
     applyPhiFusionAxiom(bucket, loop);
     applyExternalEternityAxiom(bucket, loop);
     applyStandardAxiom(bucket);
@@ -441,8 +439,7 @@ bool InterferenceGraph::interferes(int vbIdA, int vbIdB) const {
 }
 
 void MemoryAnalysisContext::buildInterferenceGraphs() {
-  for (auto &it : buckets_) {
-    Bucket &bucket = it.second;
+  for (auto &[sig, bucket] : buckets_) {
     if (bucket.virtualBuffers.size() < 2)
       continue;
     bucket.interferenceGraph =
@@ -452,33 +449,28 @@ void MemoryAnalysisContext::buildInterferenceGraphs() {
 }
 
 void MemoryAnalysisContext::solveColoring() {
-  for (auto &it : buckets_) {
-    Bucket &bucket = it.second;
+  for (auto &[sig, bucket] : buckets_) {
     if (bucket.virtualBuffers.empty())
       continue;
-    ColoringSolver solver(bucket);
-    solver.solve();
+    ColoringSolver(bucket).solve();
   }
 }
 
 void MemoryAnalysisContext::buildAllocationPlan() {
-  for (auto &it : buckets_) {
-    const ShapeSignature &sig = it.first;
-    const Bucket &bucket = it.second;
-
+  for (auto &[sig, bucket] : buckets_) {
     // Record color count
     allocationPlan_.colorCountPerBucket[sig] = bucket.maxColorsRequired;
 
     // Build physical buffer slots
     std::vector<LoomAllocationPlan::PhysicalBufferSlot> slots;
-    slots.resize(bucket.maxColorsRequired);
+    slots.reserve(bucket.maxColorsRequired);
     for (int c = 0; c < bucket.maxColorsRequired; ++c) {
-      slots[c] = {c, sig, sig.elementType};
+      slots.push_back({c, sig, sig.elementType});
     }
     allocationPlan_.bucketAllocations[sig] = std::move(slots);
 
     // Map each tensor value to its assignment
-    for (auto &vb : bucket.virtualBuffers) {
+    for (const auto &vb : bucket.virtualBuffers) {
       LoomAllocationPlan::Assignment assignment{sig, vb->color};
       for (TensorNode *member : vb->members) {
         allocationPlan_.tensorToBufferMap[member->value] = assignment;
@@ -547,9 +539,7 @@ void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
   os << "=== Memory Analysis Context Dump ===\n";
   int bucketIdx = 0;
   OpPrintingFlags flags;
-  for (auto &it : buckets_) {
-    const ShapeSignature &sig = it.first;
-    const Bucket &bucket = it.second;
+  for (const auto &[sig, bucket] : buckets_) {
     os << "Bucket " << bucketIdx++ << ": ";
     sig.print(os);
     os << ", Tensors: " << bucket.nodes.size() << "\n";
@@ -562,7 +552,7 @@ void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
 
     if (!bucket.virtualBuffers.empty()) {
       os << "  VirtualBuffers: " << bucket.virtualBuffers.size() << "\n";
-      for (auto &vb : bucket.virtualBuffers) {
+      for (const auto &vb : bucket.virtualBuffers) {
         os << "    VB#" << vb->id << " (" << toString(vb->type) << ") ["
            << vb->liveness.birth << " -> " << vb->liveness.death << "]: ";
         for (size_t i = 0; i < vb->members.size(); ++i) {
@@ -579,7 +569,7 @@ void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
     if (bucket.maxColorsRequired > 0) {
       os << "    --- Coloring (" << bucket.maxColorsRequired
          << " colors) ---\n";
-      for (auto &vb : bucket.virtualBuffers) {
+      for (const auto &vb : bucket.virtualBuffers) {
         os << "      VB#" << vb->id << " -> Color " << vb->color << "\n";
       }
     }

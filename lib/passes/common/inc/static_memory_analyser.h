@@ -63,12 +63,12 @@ struct ShapeSignature {
   llvm::SmallVector<SymbolicDim, 4> dims;
   mlir::Type elementType;
 
-  bool operator==(const ShapeSignature &other) const {
-    if (elementType != other.elementType)
-      return false;
-    if (dims.size() != other.dims.size())
-      return false;
-    return dims == other.dims;
+  friend bool operator==(const ShapeSignature &lhs, const ShapeSignature &rhs) {
+    return lhs.elementType == rhs.elementType && lhs.dims == rhs.dims;
+  }
+
+  friend bool operator!=(const ShapeSignature &lhs, const ShapeSignature &rhs) {
+    return !(lhs == rhs);
   }
 
   unsigned getHashValue() const;
@@ -119,6 +119,8 @@ struct Bucket {
   std::vector<std::unique_ptr<VirtualBuffer>> virtualBuffers;
   int maxColorsRequired = 0;
   std::unique_ptr<class InterferenceGraph> interferenceGraph;
+  mlir::Operation *scopeOp =
+      nullptr; // The affine.parallel enclosing this bucket
 
   VirtualBuffer *createVB(int id, VBType type);
   bool containsNode(const TensorNode *node) const;
@@ -201,6 +203,9 @@ class MemoryAnalysisContext {
 public:
   // --- Accessors ---
   const llvm::MapVector<ShapeSignature, Bucket> &getBuckets() const {
+    return buckets_;
+  }
+  llvm::MapVector<ShapeSignature, Bucket> &getBucketsMutable() {
     return buckets_;
   }
   const LoomAllocationPlan &getAllocationPlan() const {

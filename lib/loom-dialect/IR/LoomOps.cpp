@@ -257,6 +257,12 @@ void loom::CopyOp::getEffects(
   effects.emplace_back(MemoryEffects::Write::get());
 }
 
+void loom::AssignVbToPbOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(MemoryEffects::Write::get());
+}
+
 //===----------------------------------------------------------------------===//
 // ViewOp Canonicalizers
 //===----------------------------------------------------------------------===//
@@ -489,8 +495,9 @@ struct StaticizeAffineFor : public OpRewritePattern<affine::AffineForOp> {
         }
         if (!castFound) {
           // If no cast found, insert one to the expected static type
-          newYieldOperands.push_back(rewriter.create<tensor::CastOp>(
-              yieldOp.getLoc(), newIterTypes[idx], yieldVal));
+          auto castOp = mlir::tensor::CastOp::create(
+              rewriter, yieldOp.getLoc(), newIterTypes[idx], yieldVal);
+          newYieldOperands.push_back(castOp.getResult());
         }
       } else {
         newYieldOperands.push_back(yieldVal);
@@ -504,8 +511,9 @@ struct StaticizeAffineFor : public OpRewritePattern<affine::AffineForOp> {
     SmallVector<Value> replacedResults;
     for (auto [idx, result] : llvm::enumerate(newForOp.getResults())) {
       if (result.getType() != op.getResult(idx).getType()) {
-        replacedResults.push_back(rewriter.create<tensor::CastOp>(
-            op.getLoc(), op.getResult(idx).getType(), result));
+        auto castOp = mlir::tensor::CastOp::create(
+            rewriter, op.getLoc(), op.getResult(idx).getType(), result);
+        replacedResults.push_back(castOp.getResult());
       } else {
         replacedResults.push_back(result);
       }

@@ -10,16 +10,18 @@
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/Interfaces/ViewLikeInterface.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-// Loom dialect headers
+// Loom dialect and analysis headers
 #include "LoomDialect.h.inc"
-#include "mlir/Interfaces/ViewLikeInterface.h"
+#include "static_memory_analyser.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
 using namespace mlir;
+using namespace loom;
 
 namespace {
 
@@ -27,7 +29,15 @@ namespace {
 /// to loom.subview + loom.alloc + loom.copy_to_tensor
 struct ReadBlockLoadingLowering
     : public OpRewritePattern<bufferization::ToTensorOp> {
-  using OpRewritePattern::OpRewritePattern;
+  const llvm::DenseMap<std::pair<ShapeSignature, int>, Value> &colorToAlloc;
+  const llvm::DenseMap<Value, LoomAllocationPlan::Assignment>
+      &tensorToBufferMap;
+
+  ReadBlockLoadingLowering(
+      MLIRContext *ctx,
+      const llvm::DenseMap<std::pair<ShapeSignature, int>, Value> &c2a,
+      const llvm::DenseMap<Value, LoomAllocationPlan::Assignment> &t2b)
+      : OpRewritePattern(ctx), colorToAlloc(c2a), tensorToBufferMap(t2b) {}
 
   LogicalResult matchAndRewrite(bufferization::ToTensorOp op,
                                 PatternRewriter &rewriter) const override {
@@ -48,25 +58,25 @@ struct ReadBlockLoadingLowering
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
         subviewOp.getStaticStrides(), false, false, false);
 
-    // 2. Create loom.alloc on @L1
-    auto subviewType = cast<MemRefType>(subviewOp.getResult().getType());
-    auto allocResultType =
-        MemRefType::get(subviewType.getShape(), subviewType.getElementType());
-    auto allocOp = loom::AllocOp::create(
-        rewriter, loc, allocResultType, subviewOp.getSizes(),
-        subviewOp.getStaticSizesAttr(), nullptr, rewriter.getI64IntegerAttr(1),
-        SymbolRefAttr::get(rewriter.getContext(), "L1"));
+    // 2. Look up the alloc from the coloring plan
+    auto it = tensorToBufferMap.find(op.getResult());
+    if (it == tensorToBufferMap.end())
+      return failure();
+    auto allocIt =
+        colorToAlloc.find({it->second.bucketKey, it->second.colorId});
+    if (allocIt == colorToAlloc.end())
+      return failure();
+    Value allocVal = allocIt->second;
 
     // 3. Create loom.copy_to_tensor
     auto emptyArray = rewriter.getArrayAttr({});
     auto defaultBroadcast = rewriter.getI64ArrayAttr({1, 1});
     rewriter.replaceOp(op, loom::CopyToTensorOp::create(
                                rewriter, loc, op.getType(),
-                               loomSubviewOp.getResult(), allocOp.getResult(),
-                               nullptr, Value(), emptyArray, defaultBroadcast));
+                               loomSubviewOp.getResult(), allocVal, nullptr,
+                               Value(), emptyArray, defaultBroadcast));
 
-    // We can't safely remove subview yet if it has other uses,
-    // but usually it's just used by to_tensor in this pattern.
+    // We can't safely remove subview yet if it has other uses.
     if (subviewOp->use_empty()) {
       rewriter.eraseOp(subviewOp);
     }
@@ -75,40 +85,7 @@ struct ReadBlockLoadingLowering
   }
 };
 
-/// Pattern 2: Transform tensor.empty (source of iter_args chain)
-/// to loom.alloc + loom.init_tensor
-struct OutputTensorInitLowering : public OpRewritePattern<tensor::EmptyOp> {
-  using OpRewritePattern::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(tensor::EmptyOp op,
-                                PatternRewriter &rewriter) const override {
-    // We want to explicit manage all buffers on L1, so we convert all
-    // tensor.empty to loom.alloc + loom.init_tensor, regardless of whether they
-    // are used in loop iter_args or not.
-
-    Location loc = op.getLoc();
-    // 1. Create loom.alloc on @L1
-    auto tensorType = op.getType();
-    auto allocResultType =
-        MemRefType::get(tensorType.getShape(), tensorType.getElementType());
-    auto allocOp = loom::AllocOp::create(
-        rewriter, loc, allocResultType, op.getDynamicSizes(),
-        rewriter.getDenseI64ArrayAttr(op.getType().getShape()), nullptr,
-        rewriter.getI64IntegerAttr(1),
-        SymbolRefAttr::get(rewriter.getContext(), "L1"));
-
-    // 2. Create loom.init_tensor
-    rewriter.replaceOp(
-        op, loom::InitTensorOp::create(
-                rewriter, loc, op.getType(), allocOp.getResult(),
-                op.getDynamicSizes(),
-                rewriter.getDenseI64ArrayAttr(op.getType().getShape())));
-
-    return success();
-  }
-};
-
-/// Pattern 3: Transform write-back chain
+/// Pattern 2: Transform write-back chain
 /// (memref.subview + bufferization.to_buffer + memref.copy)
 /// to loom.subview + loom.copy_from_tensor
 struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
@@ -150,6 +127,163 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
   }
 };
 
+/// Helper to materialize physical buffers and bind them to tensors
+class PassMaterializer {
+public:
+  PassMaterializer(MLIRContext *ctx, func::FuncOp funcOp)
+      : context(ctx), funcOp(funcOp), analysisCtx(runMemoryAnalysis(funcOp)),
+        plan(analysisCtx.getAllocationPlan()) {}
+
+  void run() {
+    resolveBucketScopes();
+    materializePhysicalBuffers();
+    anchorVirtualBuffers();
+    reinforceIterationBoundaries();
+    applyPatternRewrites();
+  }
+
+private:
+  void resolveBucketScopes() {
+    for (auto &[sig, bucket] : analysisCtx.getBucketsMutable()) {
+      if (bucket.nodes.empty())
+        continue;
+
+      Operation *op = bucket.nodes.front().definingOp;
+      while (op && !isa<affine::AffineParallelOp>(op))
+        op = op->getParentOp();
+      bucket.scopeOp = op;
+    }
+  }
+
+  void materializePhysicalBuffers() {
+    for (const auto &[sig, bucket] : analysisCtx.getBuckets()) {
+      if (!bucket.scopeOp)
+        continue;
+
+      OpBuilder builder(context);
+      builder.setInsertionPointToStart(&bucket.scopeOp->getRegion(0).front());
+      int numColors = plan.colorCountPerBucket.lookup(sig);
+
+      for (int c = 0; c < numColors; ++c) {
+        SmallVector<Value> dynamicSizes;
+        SmallVector<int64_t> staticSizes;
+        for (const auto &dim : sig.dims) {
+          if (auto attr = mlir::dyn_cast<Attribute>(dim)) {
+            staticSizes.push_back(cast<IntegerAttr>(attr).getInt());
+          } else {
+            staticSizes.push_back(ShapedType::kDynamic);
+            dynamicSizes.push_back(mlir::dyn_cast<Value>(dim));
+          }
+        }
+        auto allocType = MemRefType::get(staticSizes, sig.elementType);
+        auto allocOp = loom::AllocOp::create(
+            builder, bucket.scopeOp->getLoc(), allocType, dynamicSizes,
+            builder.getDenseI64ArrayAttr(staticSizes), nullptr,
+            builder.getI64IntegerAttr(1), SymbolRefAttr::get(context, "L1"));
+        colorToAlloc[{sig, c}] = allocOp.getResult();
+      }
+    }
+  }
+
+  void anchorVirtualBuffers() {
+    llvm::DenseMap<Value, Value> allocToInitTensor;
+    for (const auto &[sig, bucket] : analysisCtx.getBuckets()) {
+      for (const auto &vb : bucket.virtualBuffers) {
+        if (vb->members.empty())
+          continue;
+
+        TensorNode *birthNode =
+            *llvm::min_element(vb->members, [](TensorNode *a, TensorNode *b) {
+              return a->linearIndex < b->linearIndex;
+            });
+
+        Value allocVal = colorToAlloc.lookup({sig, vb->color});
+        if (!allocVal)
+          continue;
+
+        // Step 1: Source Anchoring (vb_to_pb)
+        OpBuilder builder(context);
+        if (auto blockArg = mlir::dyn_cast<BlockArgument>(birthNode->value)) {
+          builder.setInsertionPointToStart(blockArg.getOwner());
+        } else {
+          builder.setInsertionPointAfter(birthNode->value.getDefiningOp());
+        }
+        loom::AssignVbToPbOp::create(builder, birthNode->value.getLoc(),
+                                     birthNode->value, allocVal);
+
+        // Step 2: replace tensor.empty outs with init_tensor(alloc)
+        for (TensorNode *member : vb->members) {
+          auto linalgOp =
+              mlir::dyn_cast_or_null<linalg::LinalgOp>(member->definingOp);
+          if (!linalgOp)
+            continue;
+
+          for (OpOperand &outsOp : linalgOp.getDpsInitsMutable()) {
+            if (outsOp.get().getDefiningOp<tensor::EmptyOp>()) {
+              Value initTensor;
+              if (auto it = allocToInitTensor.find(allocVal);
+                  it != allocToInitTensor.end()) {
+                initTensor = it->second;
+              } else {
+                OpBuilder b(context);
+                b.setInsertionPointAfter(allocVal.getDefiningOp());
+                auto memrefType = cast<MemRefType>(allocVal.getType());
+                auto tensorType = RankedTensorType::get(
+                    memrefType.getShape(), memrefType.getElementType());
+
+                SmallVector<Value> dynamicSizes;
+                if (auto allocOp = allocVal.getDefiningOp<loom::AllocOp>())
+                  dynamicSizes = allocOp.getSizes();
+
+                auto initOp = loom::InitTensorOp::create(
+                    b, allocVal.getLoc(), tensorType, allocVal, dynamicSizes,
+                    b.getDenseI64ArrayAttr(memrefType.getShape()));
+                initTensor = initOp.getResult();
+                allocToInitTensor[allocVal] = initTensor;
+              }
+              outsOp.set(initTensor);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  void reinforceIterationBoundaries() {
+    funcOp.walk([&](affine::AffineForOp forOp) {
+      OpBuilder builder(context);
+      builder.setInsertionPointAfter(forOp);
+      for (Value result : forOp.getResults()) {
+        if (auto it = plan.tensorToBufferMap.find(result);
+            it != plan.tensorToBufferMap.end()) {
+          if (Value alloc = colorToAlloc.lookup(
+                  {it->second.bucketKey, it->second.colorId})) {
+            loom::AssignVbToPbOp::create(builder, forOp.getLoc(), result,
+                                         alloc);
+          }
+        }
+      }
+    });
+  }
+
+  void applyPatternRewrites() {
+    RewritePatternSet patterns(context);
+    patterns.add<ReadBlockLoadingLowering>(context, colorToAlloc,
+                                           plan.tensorToBufferMap);
+    patterns.add<WriteBackLowering>(context);
+
+    if (failed(applyPatternsGreedily(funcOp, std::move(patterns)))) {
+      funcOp.emitError("Failed to apply pattern rewrites");
+    }
+  }
+
+  MLIRContext *context;
+  func::FuncOp funcOp;
+  MemoryAnalysisContext analysisCtx;
+  const LoomAllocationPlan &plan;
+  llvm::DenseMap<std::pair<ShapeSignature, int>, Value> colorToAlloc;
+};
+
 struct MemoryBindingPass
     : public PassWrapper<MemoryBindingPass, OperationPass<ModuleOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MemoryBindingPass)
@@ -168,14 +302,23 @@ struct MemoryBindingPass
   }
 
   void runOnOperation() override {
+    ModuleOp module = getOperation();
     MLIRContext *context = &getContext();
-    RewritePatternSet patterns(context);
-    patterns.add<ReadBlockLoadingLowering, OutputTensorInitLowering,
-                 WriteBackLowering>(context);
 
-    if (failed(applyPatternsGreedily(getOperation(), std::move(patterns)))) {
-      signalPassFailure();
-    }
+    // Phase 1 & 2: Materialization and Pattern-based rewrites
+    module.walk(
+        [&](func::FuncOp funcOp) { PassMaterializer(context, funcOp).run(); });
+
+    // Phase 3: Clean up redundant vb_to_pb ops
+    module.walk([&](loom::AssignVbToPbOp vbToPb) {
+      Value tensor = vbToPb.getTensor();
+      if (Operation *defOp = tensor.getDefiningOp()) {
+        if (defOp->getDialect()->getNamespace() == "loom" ||
+            isa<linalg::FillOp>(defOp)) {
+          vbToPb.erase();
+        }
+      }
+    });
   }
 };
 
