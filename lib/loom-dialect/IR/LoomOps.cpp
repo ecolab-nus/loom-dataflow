@@ -257,12 +257,6 @@ void loom::CopyOp::getEffects(
   effects.emplace_back(MemoryEffects::Write::get());
 }
 
-void loom::AssignVbToPbOp::getEffects(
-    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
-        &effects) {
-  effects.emplace_back(MemoryEffects::Write::get());
-}
-
 //===----------------------------------------------------------------------===//
 // ViewOp Canonicalizers
 //===----------------------------------------------------------------------===//
@@ -599,43 +593,42 @@ struct FoldCopyToTensorType : public OpRewritePattern<CopyToTensorOp> {
   }
 };
 
-struct StaticizeAssignVbToPb : public OpRewritePattern<AssignVbToPbOp> {
-  using OpRewritePattern<AssignVbToPbOp>::OpRewritePattern;
+struct StaticizePbAnchor : public OpRewritePattern<PbAnchorOp> {
+  using OpRewritePattern<PbAnchorOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(AssignVbToPbOp op,
+  LogicalResult matchAndRewrite(PbAnchorOp op,
                                 PatternRewriter &rewriter) const override {
     bool changed = false;
 
     // 1. Unwrap tensor cast for tensor operand
-    auto tensor = op.getTensor();
+    Value tensor = op.getTensor();
     if (auto cast = tensor.getDefiningOp<tensor::CastOp>()) {
-      auto castSource = cast.getSource();
+      Value castSource = cast.getSource();
       auto castSourceType =
           llvm::dyn_cast<RankedTensorType>(castSource.getType());
       if (castSourceType && castSourceType.hasStaticShape()) {
-        rewriter.modifyOpInPlace(
-            op, [&]() { op.getTensorMutable().assign(castSource); });
+        tensor = castSource;
         changed = true;
       }
     }
 
     // 2. Unwrap memref cast for buffer operand
-    auto buffer = op.getBuffer();
+    Value buffer = op.getBuffer();
     if (auto cast = buffer.getDefiningOp<memref::CastOp>()) {
-      auto castSource = cast.getSource();
+      Value castSource = cast.getSource();
       auto castSourceType = llvm::dyn_cast<MemRefType>(castSource.getType());
       if (castSourceType && castSourceType.hasStaticShape()) {
-        if (!changed) {
-          rewriter.modifyOpInPlace(
-              op, [&]() { op.getBufferMutable().assign(castSource); });
-        } else {
-          op.getBufferMutable().assign(castSource);
-        }
+        buffer = castSource;
         changed = true;
       }
     }
 
-    return success(changed);
+    if (!changed)
+      return failure();
+
+    rewriter.replaceOpWithNewOp<PbAnchorOp>(op, tensor.getType(), tensor,
+                                            buffer);
+    return success();
   }
 };
 } // namespace
@@ -665,7 +658,7 @@ void CopyToTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
   results.add<FoldCopyToTensorType>(context);
 }
 
-void AssignVbToPbOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                                 MLIRContext *context) {
-  results.add<StaticizeAssignVbToPb>(context);
+void PbAnchorOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                             MLIRContext *context) {
+  results.add<StaticizePbAnchor>(context);
 }

@@ -749,22 +749,18 @@ def GetSymbolicBlockSizeOp : Loom_Op<"get_symbolic_block_size", [
   let hasVerifier = 1;
 }
 
-def AssignVbToPbOp : Loom_Op<"assign_vb_to_pb", [
-  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
-]> {
-  let summary = "Bind a virtual buffer (tensor) to a physical buffer (memref)";
+def PbAnchorOp : Loom_Op<"pb_anchor"> {
+  let summary = "Anchor a tensor to a physical buffer (identity)";
   let description = [{
-    The `loom.assign_vb_to_pb` operation declares that a tensor SSA value
-    (representing a VirtualBuffer) is physically backed by the given memref
-    (a physical buffer allocated by `loom.alloc`).
-
-    This op does not produce any result. It carries a write side-effect
-    to prevent DCE from removing it before OSB consumes it.
+    The `loom.pb_anchor` operation anchors a tensor SSA value to a physical
+    buffer (memref from `loom.alloc`). It returns an identity tensor that
+    is semantically equivalent to the input tensor but carries the physical
+    memory binding information.
 
     Example:
     ```mlir
-    loom.assign_vb_to_pb %tensor, %buffer
-        : tensor<?x?xf32>, memref<?x?xf32>
+    %anchored = loom.pb_anchor %tensor, %buffer
+        : tensor<?x?xf32>, memref<?x?xf32> -> tensor<?x?xf32>
     ```
   }];
 
@@ -773,10 +769,10 @@ def AssignVbToPbOp : Loom_Op<"assign_vb_to_pb", [
     AnyMemRef:$buffer
   );
 
-  let results = (outs);
+  let results = (outs AnyRankedTensor:$result);
 
   let assemblyFormat = [{
-    $tensor `,` $buffer attr-dict `:` type($tensor) `,` type($buffer)
+    $tensor `,` $buffer attr-dict `:` type($tensor) `,` type($buffer) `->` type($result)
   }];
 
   let hasCanonicalizer = 1;

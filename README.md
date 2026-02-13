@@ -165,8 +165,8 @@ build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
 6) Materialize symbolic block sizes
 ```bash
 build/tool/loom-opt/single_stage/canonicalize \
-  --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
-  > test/Passes/mm_2Dmesh/IR/06_after_canonicalize.mlir
+  --input test/Passes/flashattn_2Dmesh/IR/02_explicit_memory_access.mlir \
+  > test/Passes/flashattn_2Dmesh/IR/06_after_canonicalize.mlir
 ```
 
 7) OSB
