@@ -11,6 +11,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
+include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.td"
 include "mlir/IR/EnumAttr.td"
 
 //===----------------------------------------------------------------------===//
@@ -746,4 +747,35 @@ def GetSymbolicBlockSizeOp : Loom_Op<"get_symbolic_block_size", [
   }];
   
   let hasVerifier = 1;
+}
+
+def AssignVbToPbOp : Loom_Op<"assign_vb_to_pb", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = "Bind a virtual buffer (tensor) to a physical buffer (memref)";
+  let description = [{
+    The `loom.assign_vb_to_pb` operation declares that a tensor SSA value
+    (representing a VirtualBuffer) is physically backed by the given memref
+    (a physical buffer allocated by `loom.alloc`).
+
+    This op does not produce any result. It carries a write side-effect
+    to prevent DCE from removing it before OSB consumes it.
+
+    Example:
+    ```mlir
+    loom.assign_vb_to_pb %tensor, %buffer
+        : tensor<?x?xf32>, memref<?x?xf32>
+    ```
+  }];
+
+  let arguments = (ins
+    AnyRankedTensor:$tensor,
+    AnyMemRef:$buffer
+  );
+
+  let results = (outs);
+
+  let assemblyFormat = [{
+    $tensor `,` $buffer attr-dict `:` type($tensor) `,` type($buffer)
+  }];
 }
