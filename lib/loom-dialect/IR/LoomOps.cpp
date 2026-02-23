@@ -593,44 +593,6 @@ struct FoldCopyToTensorType : public OpRewritePattern<CopyToTensorOp> {
   }
 };
 
-struct StaticizePbAnchor : public OpRewritePattern<PbAnchorOp> {
-  using OpRewritePattern<PbAnchorOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(PbAnchorOp op,
-                                PatternRewriter &rewriter) const override {
-    bool changed = false;
-
-    // 1. Unwrap tensor cast for tensor operand
-    Value tensor = op.getTensor();
-    if (auto cast = tensor.getDefiningOp<tensor::CastOp>()) {
-      Value castSource = cast.getSource();
-      auto castSourceType =
-          llvm::dyn_cast<RankedTensorType>(castSource.getType());
-      if (castSourceType && castSourceType.hasStaticShape()) {
-        tensor = castSource;
-        changed = true;
-      }
-    }
-
-    // 2. Unwrap memref cast for buffer operand
-    Value buffer = op.getBuffer();
-    if (auto cast = buffer.getDefiningOp<memref::CastOp>()) {
-      Value castSource = cast.getSource();
-      auto castSourceType = llvm::dyn_cast<MemRefType>(castSource.getType());
-      if (castSourceType && castSourceType.hasStaticShape()) {
-        buffer = castSource;
-        changed = true;
-      }
-    }
-
-    if (!changed)
-      return failure();
-
-    rewriter.replaceOpWithNewOp<PbAnchorOp>(op, tensor.getType(), tensor,
-                                            buffer);
-    return success();
-  }
-};
 } // namespace
 
 void SubviewOp::getCanonicalizationPatterns(RewritePatternSet &results,
@@ -656,9 +618,4 @@ void CopyFromTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void CopyToTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                                  MLIRContext *context) {
   results.add<FoldCopyToTensorType>(context);
-}
-
-void PbAnchorOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                             MLIRContext *context) {
-  results.add<StaticizePbAnchor>(context);
 }
