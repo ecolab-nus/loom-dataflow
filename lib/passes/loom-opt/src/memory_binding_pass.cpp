@@ -141,11 +141,62 @@ public:
     resolveBucketScopes();
     materializePhysicalBuffers();
     anchorVirtualBuffers();
-    reinforceIterationBoundaries();
     applyPatternRewrites();
   }
 
 private:
+  /// Trace the outs operand of a linalg op back to its defining loom.alloc.
+  /// After applyPatternRewrites, all bufferization.to_tensor ops have been
+  /// converted to loom.copy_to_tensor, so only loom ops remain.
+  Value traceOutsToAlloc(Value tensor) {
+    // 1. Primary path: Use the pre-computed allocation plan
+    auto it = plan.tensorToBufferMap.find(tensor);
+    if (it != plan.tensorToBufferMap.end()) {
+      auto allocIt =
+          colorToAlloc.find({it->second.bucketKey, it->second.colorId});
+      if (allocIt != colorToAlloc.end())
+        return allocIt->second;
+    }
+
+    // 2. Secondary path: Manual trace (for intermediate or untracked tensors)
+    Value current = tensor;
+    while (current) {
+      if (auto initOp = current.getDefiningOp<loom::InitTensorOp>())
+        return initOp.getBuffer();
+      if (auto copyOp = current.getDefiningOp<loom::CopyToTensorOp>())
+        return copyOp.getBuffer();
+      if (auto toTensorOp = current.getDefiningOp<bufferization::ToTensorOp>())
+        return toTensorOp->getOperand(0);
+
+      if (auto castOp = current.getDefiningOp<tensor::CastOp>()) {
+        current = castOp.getSource();
+        continue;
+      }
+
+      if (auto linalgOp =
+              dyn_cast_or_null<linalg::LinalgOp>(current.getDefiningOp())) {
+        if (linalgOp.getDpsInits().size() == 1) {
+          current = linalgOp.getDpsInits()[0];
+          continue;
+        }
+      }
+
+      // Handle loop-carried dependencies (iter_args)
+      if (auto blockArg = mlir::dyn_cast<BlockArgument>(current)) {
+        if (auto forOp = dyn_cast<affine::AffineForOp>(
+                blockArg.getOwner()->getParentOp())) {
+          unsigned argIdx = blockArg.getArgNumber() -
+                            forOp.getBody()->getNumArguments() +
+                            forOp.getNumIterOperands();
+          current = forOp.getInits()[argIdx];
+          continue;
+        }
+      }
+      break;
+    }
+    return nullptr;
+  }
+
   Value getOrCreateInitTensor(Value allocVal) {
     if (auto it = allocToInitTensor.find(allocVal);
         it != allocToInitTensor.end())
@@ -211,6 +262,34 @@ private:
   }
 
   void anchorVirtualBuffers() {
+    // Pass 1: Replace tensor.empty outs for ALL members across ALL VBs.
+    // This must happen first so traceOutsToAlloc can resolve allocs accurately
+    // in Pass 2.
+    for (const auto &[sig, bucket] : analysisCtx.getBuckets()) {
+      for (const auto &vb : bucket.virtualBuffers) {
+        if (vb->members.empty())
+          continue;
+
+        Value allocVal = colorToAlloc.lookup({sig, vb->color});
+        if (!allocVal)
+          continue;
+
+        for (TensorNode *member : vb->members) {
+          auto linalgOp =
+              dyn_cast_or_null<linalg::LinalgOp>(member->definingOp);
+          if (!linalgOp)
+            continue;
+
+          for (OpOperand &outsOp : linalgOp.getDpsInitsMutable()) {
+            if (outsOp.get().getDefiningOp<tensor::EmptyOp>()) {
+              outsOp.set(getOrCreateInitTensor(allocVal));
+            }
+          }
+        }
+      }
+    }
+
+    // Pass 2: Handle iterarg births and non-iterarg birthNode comparisons.
     for (const auto &[sig, bucket] : analysisCtx.getBuckets()) {
       for (const auto &vb : bucket.virtualBuffers) {
         if (vb->members.empty())
@@ -225,80 +304,59 @@ private:
         if (!allocVal)
           continue;
 
-        // Step 1: Source Anchoring (vb_to_pb)
-        OpBuilder builder(context);
+        // Step 1: IterArg handling (special case)
         if (auto blockArg = mlir::dyn_cast<BlockArgument>(birthNode->value)) {
           // IterArg: trace to init value, clone its defining op onto PB
-          auto forOp = dyn_cast<affine::AffineForOp>(
-              blockArg.getOwner()->getParentOp());
+          auto forOp =
+              dyn_cast<affine::AffineForOp>(blockArg.getOwner()->getParentOp());
           assert(forOp && "iterarg birthNode must be inside an affine.for");
           unsigned argIdx = blockArg.getArgNumber() -
                             forOp.getBody()->getNumArguments() +
                             forOp.getNumIterOperands();
           Value initVal = forOp.getInits()[argIdx];
           Operation *initDefOp = initVal.getDefiningOp();
-          assert(initDefOp && isa<linalg::LinalgOp>(initDefOp) &&
-                 "iterarg init value must be defined by a linalg op");
+          if (initDefOp && isa<linalg::LinalgOp>(initDefOp)) {
+            // Create init_tensor bound directly to PB alloc
+            Value initTensor = getOrCreateInitTensor(allocVal);
+            // Clone the init op, redirect outs to init_tensor
+            OpBuilder cloneBuilder(context);
+            cloneBuilder.setInsertionPointAfter(initDefOp);
+            Operation *clonedOp = cloneBuilder.clone(*initDefOp);
+            cast<linalg::LinalgOp>(clonedOp).getDpsInitsMutable()[0].set(
+                initTensor);
+            clonedOp->getResult(0).setType(initTensor.getType());
 
-          // Create init_tensor bound directly to PB alloc
-          Value initTensor = getOrCreateInitTensor(allocVal);
-          // Clone the init op, redirect outs to init_tensor
-          OpBuilder cloneBuilder(context);
-          cloneBuilder.setInsertionPointAfter(initDefOp);
-          Operation *clonedOp = cloneBuilder.clone(*initDefOp);
-          cast<linalg::LinalgOp>(clonedOp).getDpsInitsMutable()[0].set(
-              initTensor);
-          clonedOp->getResult(0).setType(initTensor.getType());
-
-          // Redirect affine.for init to cloned op's result
-          forOp.getInitsMutable()[argIdx].set(clonedOp->getResult(0));
-          // #endregion
+            // Redirect affine.for init to cloned op's result
+            forOp.getInitsMutable()[argIdx].set(clonedOp->getResult(0));
+          }
         } else {
-          builder.setInsertionPointAfter(birthNode->value.getDefiningOp());
-        }
-        // Skip pb_anchor for iter_arg: birth is block arg, do not replace its
-        // uses (would break loop SSA); Step 2 still runs to replace tensor.empty
-        // outs.
-        if (!mlir::isa<BlockArgument>(birthNode->value)) {
-          auto pbAnchor = loom::PbAnchorOp::create(
-              builder, birthNode->value.getLoc(), birthNode->value.getType(),
-              birthNode->value, allocVal);
-          birthNode->value.replaceAllUsesExcept(pbAnchor.getResult(), pbAnchor);
-        }
+          // Step 2: Non-iterarg birth. Redirect defining LinalgOp if exists.
+          Operation *defOp = birthNode->value.getDefiningOp();
+          if (auto linalgOp = dyn_cast_or_null<linalg::LinalgOp>(defOp)) {
+            OpBuilder builder(context);
+            builder.setInsertionPoint(linalgOp);
 
-        // Step 2: replace tensor.empty outs with init_tensor(alloc)
-        for (TensorNode *member : vb->members) {
-          auto linalgOp =
-              mlir::dyn_cast_or_null<linalg::LinalgOp>(member->definingOp);
-          if (!linalgOp)
-            continue;
+            // We assume single output for now as per Loom patterns
+            OpOperand &outsOperand = linalgOp.getDpsInitsMutable()[0];
+            Value outsTensor = outsOperand.get();
+            Value currentAlloc = traceOutsToAlloc(outsTensor);
 
-          for (OpOperand &outsOp : linalgOp.getDpsInitsMutable()) {
-            if (outsOp.get().getDefiningOp<tensor::EmptyOp>()) {
-              outsOp.set(getOrCreateInitTensor(allocVal));
+            if (currentAlloc && currentAlloc != allocVal) {
+              Value newOuts = getOrCreateInitTensor(allocVal);
+              auto copyOp = builder.create<linalg::CopyOp>(linalgOp.getLoc(),
+                                                           outsTensor, newOuts);
+              outsOperand.set(copyOp.getResult(0));
+              // Update result type to match new init_tensor
+              linalgOp->getResult(0).setType(newOuts.getType());
+            } else if (!currentAlloc) {
+              // No known source buffer (e.g. tensor.empty or external subview)
+              outsOperand.set(getOrCreateInitTensor(allocVal));
+              linalgOp->getResult(0).setType(outsOperand.get().getType());
             }
           }
         }
       }
     }
-  }
-
-  void reinforceIterationBoundaries() {
-    funcOp.walk([&](affine::AffineForOp forOp) {
-      OpBuilder builder(context);
-      builder.setInsertionPointAfter(forOp);
-      for (Value result : forOp.getResults()) {
-        if (auto it = plan.tensorToBufferMap.find(result);
-            it != plan.tensorToBufferMap.end()) {
-          if (Value alloc = colorToAlloc.lookup(
-                  {it->second.bucketKey, it->second.colorId})) {
-            auto pbAnchor = loom::PbAnchorOp::create(
-                builder, forOp.getLoc(), result.getType(), result, alloc);
-            result.replaceAllUsesExcept(pbAnchor.getResult(), pbAnchor);
-          }
-        }
-      }
-    });
   }
 
   void applyPatternRewrites() {
@@ -344,18 +402,6 @@ struct MemoryBindingPass
     // Phase 1 & 2: Materialization and Pattern-based rewrites
     module.walk(
         [&](func::FuncOp funcOp) { PassMaterializer(context, funcOp).run(); });
-
-    // Phase 3: Clean up redundant pb_anchor ops
-    module.walk([&](loom::PbAnchorOp pbAnchor) {
-      Value tensor = pbAnchor.getTensor();
-      if (Operation *defOp = tensor.getDefiningOp()) {
-        if (defOp->getDialect()->getNamespace() == "loom" ||
-            isa<linalg::FillOp>(defOp)) {
-          pbAnchor.getResult().replaceAllUsesWith(tensor);
-          pbAnchor.erase();
-        }
-      }
-    });
   }
 };
 

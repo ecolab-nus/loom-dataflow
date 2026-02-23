@@ -749,31 +749,3 @@ def GetSymbolicBlockSizeOp : Loom_Op<"get_symbolic_block_size", [
   let hasVerifier = 1;
 }
 
-def PbAnchorOp : Loom_Op<"pb_anchor"> {
-  let summary = "Anchor a tensor to a physical buffer (identity)";
-  let description = [{
-    The `loom.pb_anchor` operation anchors a tensor SSA value to a physical
-    buffer (memref from `loom.alloc`). It returns an identity tensor that
-    is semantically equivalent to the input tensor but carries the physical
-    memory binding information.
-
-    Example:
-    ```mlir
-    %anchored = loom.pb_anchor %tensor, %buffer
-        : tensor<?x?xf32>, memref<?x?xf32> -> tensor<?x?xf32>
-    ```
-  }];
-
-  let arguments = (ins
-    AnyRankedTensor:$tensor,
-    AnyMemRef:$buffer
-  );
-
-  let results = (outs AnyRankedTensor:$result);
-
-  let assemblyFormat = [{
-    $tensor `,` $buffer attr-dict `:` type($tensor) `,` type($buffer) `->` type($result)
-  }];
-
-  let hasCanonicalizer = 1;
-}
