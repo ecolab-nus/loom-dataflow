@@ -199,6 +199,12 @@ struct LoopContext {
   int endIndex;
 };
 
+struct SplitYieldInfo {
+  unsigned iterArgIndex; // Index within affine.for iter_args
+  mlir::Value iterArg;   // The iter_arg value
+  mlir::Value yieldVal;  // The corresponding yield value
+};
+
 class MemoryAnalysisContext {
 public:
   // --- Accessors ---
@@ -211,6 +217,10 @@ public:
   const LoomAllocationPlan &getAllocationPlan() const {
     return allocationPlan_;
   }
+  const std::vector<SplitYieldInfo> &getSplitYields() const {
+    return splitYields_;
+  }
+
   int getOpIndex(mlir::Operation *op) const;
   int getLoopEndIndex(mlir::affine::AffineForOp forOp) const;
   int getValueDeathIndex(mlir::Value v) const;
@@ -231,6 +241,7 @@ private:
   llvm::MapVector<ShapeSignature, Bucket> buckets_;
   llvm::DenseMap<mlir::Operation *, int> opIndexMap_;
   llvm::DenseMap<mlir::Value, TensorNode *> valueToNodeMap_;
+  std::vector<SplitYieldInfo> splitYields_;
   int nextVBId_ = 0;
   LoomAllocationPlan allocationPlan_;
 
