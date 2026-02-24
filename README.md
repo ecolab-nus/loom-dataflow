@@ -172,8 +172,8 @@ build/tool/loom-opt/single_stage/canonicalize \
 7) OSB
 ```bash
 build/tool/loom-opt/single_stage/one_shot_bufferize \
-  --input test/Passes/mm_2Dmesh/IR/06_after_canonicalize.mlir \
-  > test/Passes/mm_2Dmesh/IR/07_after_osb.mlir
+  --input test/Passes/flashattn_2Dmesh/IR/06_after_canonicalize.mlir \
+  > test/Passes/flashattn_2Dmesh/IR/07_after_osb.mlir
 ```
 
 6) Canonicalize constraints

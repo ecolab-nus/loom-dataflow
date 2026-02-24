@@ -301,6 +301,7 @@ target_link_libraries(one_shot_bufferize PRIVATE
   MLIRPass
   MLIRTransforms
   MLIRLinalgTransforms
+  MLIRTensorTransforms
   MLIRAsmParser
   MLIRBytecodeReader
 )
