@@ -357,6 +357,41 @@ private:
         }
       }
     }
+
+    // Pass 3: Insert yield copy-backs for split yields.
+    for (const auto &split : analysisCtx.getSplitYields()) {
+      auto itArg = plan.tensorToBufferMap.find(split.iterArg);
+      auto itYield = plan.tensorToBufferMap.find(split.yieldVal);
+
+      if (itArg == plan.tensorToBufferMap.end() ||
+          itYield == plan.tensorToBufferMap.end())
+        continue;
+
+      // If they are on different physical buffers, we need a copy
+      if (itArg->second.colorId != itYield->second.colorId ||
+          itArg->second.bucketKey != itYield->second.bucketKey) {
+
+        Value iterArgPB = colorToAlloc.lookup(
+            {itArg->second.bucketKey, itArg->second.colorId});
+        Value yieldVal = split.yieldVal;
+
+        // Find the affine.yield op
+        auto forOp = cast<affine::AffineForOp>(
+            mlir::cast<BlockArgument>(split.iterArg).getOwner()->getParentOp());
+        auto yieldOp =
+            cast<affine::AffineYieldOp>(forOp.getBody()->getTerminator());
+
+        OpBuilder builder(context);
+        builder.setInsertionPoint(yieldOp);
+
+        Value destTensor = getOrCreateInitTensor(iterArgPB);
+        auto copyOp = builder.create<linalg::CopyOp>(yieldOp.getLoc(), yieldVal,
+                                                     destTensor);
+
+        // Update the yield operand
+        yieldOp.setOperand(split.iterArgIndex, copyOp.getResult(0));
+      }
+    }
   }
 
   void applyPatternRewrites() {
@@ -370,6 +405,7 @@ private:
     }
   }
 
+private:
   MLIRContext *context;
   func::FuncOp funcOp;
   MemoryAnalysisContext analysisCtx;

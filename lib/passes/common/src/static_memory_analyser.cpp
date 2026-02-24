@@ -211,7 +211,6 @@ void MemoryAnalysisContext::applyPhiFusionAxiom(
   for (unsigned i = 0; i < numIterArgs; ++i) {
     Value argVal = forOp.getRegionIterArgs()[i];
     TensorNode *argNode = bucket.findNode(argVal);
-
     if (!argNode)
       continue;
 
@@ -224,32 +223,48 @@ void MemoryAnalysisContext::applyPhiFusionAxiom(
     TensorNode *resultNode = bucket.findNode(resultVal);
 
     bool pure = initNode && isInitPure(initVal, forOp);
+    VirtualBuffer *vb = bucket.createVB(
+        nextVBId_++, pure ? VBType::Fused : VBType::LoopCarried);
 
-    if (pure) {
-      VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Fused);
+    // Phase 1: Core members (init and iterarg)
+    vb->addMember(argNode);
+    if (pure)
       vb->addMember(initNode);
-      vb->addMember(argNode);
-      if (yieldNode)
-        vb->addMember(yieldNode);
-      if (resultNode)
-        vb->addMember(resultNode);
 
-      int deathIdx = resultNode ? getValueDeathIndex(resultNode->value) : -1;
-      vb->liveness = {initNode->linearIndex,
-                      std::max(loopContext.endIndex, deathIdx)};
-      vb->updateDefiningOp();
-    } else {
-      VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::LoopCarried);
-      vb->addMember(argNode);
-      if (yieldNode)
+    // Phase 2: Conditionally merge yield (handoff logic)
+    bool mergedYield = false;
+    if (yieldNode && yieldNode != argNode && yieldNode != initNode) {
+      int argDeath = getValueDeathIndex(argVal);
+      // Handoff check: yield birth >= arg death
+      if (yieldNode->linearIndex >= argDeath) {
         vb->addMember(yieldNode);
-      if (resultNode)
-        vb->addMember(resultNode);
+        mergedYield = true;
+      }
+    }
 
-      int deathIdx = resultNode ? getValueDeathIndex(resultNode->value) : -1;
-      vb->liveness = {loopContext.startIndex,
-                      std::max(loopContext.endIndex, deathIdx)};
-      vb->updateDefiningOp();
+    // Phase 3: Unconditionally add return
+    if (resultNode && resultNode != argNode && resultNode != initNode &&
+        resultNode != yieldNode) {
+      vb->addMember(resultNode);
+    }
+
+    // Phase 4: Compute final liveness
+    int birth = argNode->linearIndex;
+    if (pure)
+      birth = std::min(birth, initNode->linearIndex);
+    else
+      birth = std::min(birth, loopContext.startIndex);
+
+    int death = loopContext.endIndex;
+    if (resultNode)
+      death = std::max(death, resultNode->deathIndex);
+
+    vb->liveness = {birth, death};
+    vb->updateDefiningOp();
+
+    // Record split info if NOT merged
+    if (!mergedYield && yieldVal) {
+      splitYields_.push_back({i, argVal, yieldVal});
     }
   }
 }
