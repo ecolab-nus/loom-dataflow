@@ -274,6 +274,19 @@ private:
         if (!allocVal)
           continue;
 
+        // For Fused/LoopCarried VBs, find the iterarg (BlockArgument) member.
+        Value iterArg = nullptr;
+        Operation *forOp = nullptr;
+        if (vb->type == VBType::Fused || vb->type == VBType::LoopCarried) {
+          for (TensorNode *member : vb->members) {
+            if (auto blockArg = mlir::dyn_cast<BlockArgument>(member->value)) {
+              iterArg = blockArg;
+              forOp = blockArg.getOwner()->getParentOp();
+              break;
+            }
+          }
+        }
+
         for (TensorNode *member : vb->members) {
           auto linalgOp =
               dyn_cast_or_null<linalg::LinalgOp>(member->definingOp);
@@ -282,7 +295,13 @@ private:
 
           for (OpOperand &outsOp : linalgOp.getDpsInitsMutable()) {
             if (outsOp.get().getDefiningOp<tensor::EmptyOp>()) {
-              outsOp.set(getOrCreateInitTensor(allocVal));
+              // If this VB has an iterarg AND the op is inside the loop,
+              // use iterarg as the outs to preserve SSA chain.
+              if (iterArg && forOp->isProperAncestor(linalgOp)) {
+                outsOp.set(iterArg);
+              } else {
+                outsOp.set(getOrCreateInitTensor(allocVal));
+              }
             }
           }
         }
@@ -371,8 +390,6 @@ private:
       if (itArg->second.colorId != itYield->second.colorId ||
           itArg->second.bucketKey != itYield->second.bucketKey) {
 
-        Value iterArgPB = colorToAlloc.lookup(
-            {itArg->second.bucketKey, itArg->second.colorId});
         Value yieldVal = split.yieldVal;
 
         // Find the affine.yield op
@@ -384,9 +401,8 @@ private:
         OpBuilder builder(context);
         builder.setInsertionPoint(yieldOp);
 
-        Value destTensor = getOrCreateInitTensor(iterArgPB);
         auto copyOp = builder.create<linalg::CopyOp>(yieldOp.getLoc(), yieldVal,
-                                                     destTensor);
+                                                     itArg->first);
 
         // Update the yield operand
         yieldOp.setOperand(split.iterArgIndex, copyOp.getResult(0));

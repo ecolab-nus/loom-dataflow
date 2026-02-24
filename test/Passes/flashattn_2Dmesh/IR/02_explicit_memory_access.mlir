@@ -90,7 +90,7 @@ module {
             %58 = math.powf %cst, %57 : f32
             linalg.yield %58 : f32
           } -> tensor<?x?xf32>
-          %50 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %49, %48 : tensor<?x?xf32>, tensor<?x?xf32>, tensor<?x?xf32>) outs(%17 : tensor<?x?xf32>) {
+          %50 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg8, %49, %48 : tensor<?x?xf32>, tensor<?x?xf32>, tensor<?x?xf32>) outs(%arg8 : tensor<?x?xf32>) {
           ^bb0(%in: f32, %in_4: f32, %in_5: f32, %out: f32):
             %57 = arith.mulf %in, %in_4 : f32
             %58 = arith.addf %57, %in_5 : f32
@@ -100,13 +100,13 @@ module {
           %52 = loom.copy_to_tensor %51, %3, interconnect : [], broadcast : [1, 1] : memref<?x?x4096xf32, strided<[16777216, 4096, 1], offset: ?>>, memref<?x?x4096xf32> -> tensor<?x?x4096xf32>
           %53 = linalg.copy ins(%29 : tensor<?x?x4096xf32>) outs(%13 : tensor<?x?x4096xf32>) -> tensor<?x?x4096xf32>
           %54 = linalg.batch_matmul ins(%46, %52 : tensor<?x?x?xf32>, tensor<?x?x4096xf32>) outs(%53 : tensor<?x?x4096xf32>) -> tensor<?x?x4096xf32>
-          %55 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%54, %arg9, %49 : tensor<?x?x4096xf32>, tensor<?x?x4096xf32>, tensor<?x?xf32>) outs(%11 : tensor<?x?x4096xf32>) {
+          %55 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%54, %arg9, %49 : tensor<?x?x4096xf32>, tensor<?x?x4096xf32>, tensor<?x?xf32>) outs(%arg9 : tensor<?x?x4096xf32>) {
           ^bb0(%in: f32, %in_4: f32, %in_5: f32, %out: f32):
             %57 = arith.mulf %in_4, %in_5 : f32
             %58 = arith.addf %in, %57 : f32
             linalg.yield %58 : f32
           } -> tensor<?x?x4096xf32>
-          %56 = linalg.copy ins(%45 : tensor<?x?xf32>) outs(%19 : tensor<?x?xf32>) -> tensor<?x?xf32>
+          %56 = linalg.copy ins(%45 : tensor<?x?xf32>) outs(%arg7 : tensor<?x?xf32>) -> tensor<?x?xf32>
           affine.yield %56, %50, %55 : tensor<?x?xf32>, tensor<?x?xf32>, tensor<?x?x4096xf32>
         }
         %36 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%35#2, %35#1 : tensor<?x?x4096xf32>, tensor<?x?xf32>) outs(%8 : tensor<?x?x4096xf32>) {
