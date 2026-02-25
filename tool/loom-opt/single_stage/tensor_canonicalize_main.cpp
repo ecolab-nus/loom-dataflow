@@ -84,6 +84,10 @@ int main(int argc, char **argv) {
   pm.addPass(loom::passes::createFoldRedundantExtractSlicePass());
   pm.addPass(mlir::createCanonicalizerPass());
 
+  // De-CSE: clone and sink all linalg.fill ops to ensure unique SSA chains
+  // for initialized tensors, eliminating cross-scope fill sharing.
+  pm.addPass(loom::passes::createSinkFillOpsPass());
+
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs())
         << "LOOM tensor canonicalization pipeline failed\n";
