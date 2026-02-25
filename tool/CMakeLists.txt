@@ -9,6 +9,7 @@ set(LOOM_PASSES_INC
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/inc
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/loom-opt/inc
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/constraint-opt/inc
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/cost-model/inc
   ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
   ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
 )
