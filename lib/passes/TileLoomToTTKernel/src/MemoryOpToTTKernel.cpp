@@ -431,6 +431,12 @@ bool multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArg
       memrefArgData->mcast_dest_noc_start_x, 
       memrefArgData->mcast_dest_noc_start_y,
       multicast_l1Addr, nocIdVal);
+
+  //init multicast semaphore
+  // Store 1 to the semaphore pointer: *(mcast_receiver_semaphore_addr_ptr) = 1;
+  Value oneValue = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
+  //TODO, should only work for valid L1 addresses, need to consider how to mantain the parameters of each memref input
+  StoreToL1Op::create(rewriter, memrefArgData->initLoc, oneValue, memrefArgData->mcast_receiver_semaphore_addr_ptr, zero);
   // FIRST: wait for all destinations to be ready (receivers increment this semaphore)
   NocSemaphoreWaitOp::create(rewriter, loc, memrefArgData->mcast_sender_semaphore_addr_ptr, memrefArgData->mcast_dest_num);
   // THEN: reset the semaphore to 0 for the next iteration

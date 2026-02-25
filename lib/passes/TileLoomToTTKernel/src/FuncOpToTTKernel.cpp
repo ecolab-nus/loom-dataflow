@@ -205,17 +205,10 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
             rewriter.create<TensorAccessorOp>(loc, baseAddrArgs.getResult(),
                                               baseAddrOp, pagesize);
         tensorAccessor = baseAddrTensorAccess.getResult();
-        //TODO, need to generate code like "ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>" instead of ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>
+        //TODO, need to generate code like "ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>" instead of ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>, this is currently achieved by using python string processing
         mcast_receiver_semaphore_addr_ptr = CastToL1PtrOp::create(rewriter, loc, mcast_receiver_semaphore_addr_op);
         
         mcast_sender_semaphore_addr_ptr = CastToL1PtrOp::create(rewriter, loc, mcast_sender_semaphore_addr_op);
-        // Store 1 to the semaphore pointer: *(mcast_receiver_semaphore_addr_ptr) = 1;
-        Value oneValue = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
-        Value zeroOffset = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
-        //TODO, should only work for valid L1 addresses, need to consider how to mantain the parameters of each memref input
-        if (isReaderKernel){
-          StoreToL1Op::create(rewriter, loc, oneValue, mcast_receiver_semaphore_addr_ptr, zeroOffset);
-        }
         mcast_sender_semaphore_noc_addr_op = GetNocAddrOp::create(rewriter, loc, 
                            mcast_sender_noc_x_op,
                            mcast_sender_noc_y_op,
