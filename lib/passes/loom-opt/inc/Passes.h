@@ -31,6 +31,7 @@ std::unique_ptr<mlir::Pass> createConstDedupCleanupPass();
 std::unique_ptr<mlir::Pass> createMemoryBindingPass();
 std::unique_ptr<mlir::Pass> createLinalgDestinationSpecializationPass();
 std::unique_ptr<mlir::Pass> createFoldRedundantExtractSlicePass();
+std::unique_ptr<mlir::Pass> createSinkFillOpsPass();
 std::unique_ptr<mlir::Pass> createLowerAffineWithAttrPass();
 
 // Pass registration functions
