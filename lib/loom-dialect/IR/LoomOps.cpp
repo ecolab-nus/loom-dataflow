@@ -20,10 +20,8 @@
 #include "mlir/Interfaces/ViewLikeInterface.h"
 
 #include "LoomDialect.h.inc"
-#include "llvm/ADT/TypeSwitch.h"
-#define GET_TYPEDEF_CLASSES
 #include "LoomEnums.h.inc"
-#include "LoomTypes.h.inc"
+#include "llvm/ADT/TypeSwitch.h"
 #define GET_ATTRDEF_CLASSES
 #include "LoomAttributes.h.inc"
 
@@ -35,9 +33,6 @@ using namespace loom;
 
 #include "LoomDialect.cpp.inc"
 
-#define GET_TYPEDEF_CLASSES
-#include "LoomTypes.cpp.inc"
-
 #include "LoomEnums.cpp.inc"
 
 #define GET_ATTRDEF_CLASSES
@@ -47,10 +42,6 @@ void LoomDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
 #include "LoomOps.cpp.inc"
-      >();
-  addTypes<
-#define GET_TYPEDEF_LIST
-#include "LoomTypes.cpp.inc"
       >();
   addAttributes<
 #define GET_ATTRDEF_LIST

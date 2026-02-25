@@ -18,7 +18,7 @@ def Loom_Dialect : Dialect {
   let name = "loom";
   let cppNamespace = "::loom";
   // Use generated default type printer/parser from types .inc
-  let useDefaultTypePrinterParser = 1;
+  let useDefaultTypePrinterParser = 0;
   let useDefaultAttributePrinterParser = 1;
   let usePropertiesForAttributes = 0;
   let dependentDialects = [
