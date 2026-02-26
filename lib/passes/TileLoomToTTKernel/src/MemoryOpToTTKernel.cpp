@@ -716,17 +716,25 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
     // interconnect : []                  → no broadcast (unicast)
     bool isBroadcast = false;
     bool isBroadcastX = false;
+    bool isBroadcastAll = false;
     auto interconnectAttr = op.getInterconnect();
     if (interconnectAttr && !interconnectAttr.empty()) {
       isBroadcast = true;
+      bool hasHorizontalLinks = false;
+      bool hasVerticalLinks = false;
       for (Attribute attr : interconnectAttr) {
         if (auto symRef = dyn_cast<FlatSymbolRefAttr>(attr)) {
           StringRef name = symRef.getValue();
           if (name == "horizontal_links") {
             isBroadcastX = true;
+            hasHorizontalLinks = true;
+          } else if (name == "vertical_links") {
+            hasVerticalLinks = true;
           }
-          // "vertical_links" → isBroadcastX remains false (isBroadcastY)
         }
+      }
+      if (hasHorizontalLinks && hasVerticalLinks) {
+        isBroadcastAll = true;
       }
     }
 
@@ -760,7 +768,13 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
       Value zero = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), 0);
       Value cond;
-      if (isBroadcastX)
+      if (isBroadcastAll) {
+        Value condX = rewriter.create<arith::CmpIOp>(
+            loc, arith::CmpIPredicate::eq, coreX, zero);
+        Value condY = rewriter.create<arith::CmpIOp>(
+            loc, arith::CmpIPredicate::eq, coreY, zero);
+        cond = rewriter.create<arith::AndIOp>(loc, condX, condY);
+      } else if (isBroadcastX)
         cond = rewriter.create<arith::CmpIOp>(
             loc, arith::CmpIPredicate::eq, coreX, zero);
       else

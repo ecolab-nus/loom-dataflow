@@ -576,7 +576,7 @@ public:
   }
 
 private:
-  enum class MulticastKind { None, Horizontal, Vertical };
+  enum class MulticastKind { None, Horizontal, Vertical, All };
 
   struct DramBufferInfo {
     Value hostArg;
@@ -765,11 +765,13 @@ private:
       }
     }
 
+    if (hasHorizontal && hasVertical)
+      return MulticastKind::All;
     if (hasHorizontal && !hasVertical)
       return MulticastKind::Horizontal;
     if (!hasHorizontal && hasVertical)
       return MulticastKind::Vertical;
-    return MulticastKind::None;
+    return MulticastKind::None; 
   }
 
   MulticastKind findInputMulticastKind(Value hostArg) {
@@ -1064,31 +1066,69 @@ private:
     emitLine("uint32_t num_cores_with_work_r = end_core_y - start_core_y + 1;");
     emitLine("constexpr bool row_major = true;");
     emitLine("auto cores = corerange_to_cores(all_cores, std::nullopt, row_major);");
+
+    auto emitMulticastMappingForKind = [&](StringRef prefix,
+                                           StringRef senderCoreExpr,
+                                           StringRef destStartCoreExpr,
+                                           StringRef destEndCoreExpr) {
+      emitLine("CoreCoord " + prefix.str() + "_sender_core = " +
+               senderCoreExpr.str() + ";");
+      emitLine("CoreCoord " + prefix.str() + "_dest_start_core = " +
+               destStartCoreExpr.str() + ";");
+      emitLine("CoreCoord " + prefix.str() + "_dest_end_core = " +
+               destEndCoreExpr.str() + ";");
+
+      emitLine("auto " + prefix.str() +
+               "_sender_physical = device->worker_core_from_logical_core(" +
+               prefix.str() + "_sender_core);");
+      emitLine("auto " + prefix.str() +
+               "_dest_start_physical = device->worker_core_from_logical_core(" +
+               prefix.str() + "_dest_start_core);");
+      emitLine("auto " + prefix.str() +
+               "_dest_end_physical = device->worker_core_from_logical_core(" +
+               prefix.str() + "_dest_end_core);");
+
+      emitLine("uint32_t " + prefix.str() +
+               "_multicast_dest_noc_start_x = (std::uint32_t)" + prefix.str() +
+               "_dest_start_physical.x;");
+      emitLine("uint32_t " + prefix.str() +
+               "_multicast_dest_noc_start_y = (std::uint32_t)" + prefix.str() +
+               "_dest_start_physical.y;");
+      emitLine("uint32_t " + prefix.str() +
+               "_multicast_dest_noc_end_x = (std::uint32_t)" + prefix.str() +
+               "_dest_end_physical.x;");
+      emitLine("uint32_t " + prefix.str() +
+               "_multicast_dest_noc_end_y = (std::uint32_t)" + prefix.str() +
+               "_dest_end_physical.y;");
+      emitLine("uint32_t " + prefix.str() +
+               "_multicast_sender_noc_x = (std::uint32_t)" + prefix.str() +
+               "_sender_physical.x;");
+      emitLine("uint32_t " + prefix.str() +
+               "_multicast_sender_noc_y = (std::uint32_t)" + prefix.str() +
+               "_sender_physical.y;");
+    };
+
     emitLine("for (const auto& core : cores) {");
-    emitLine("CoreCoord horizontal_sender_core = {(std::size_t)0, (std::size_t)core.y};");
-    emitLine("CoreCoord horizontal_dest_start_core = {(std::size_t)1, (std::size_t)core.y};");
-    emitLine("CoreCoord horizontal_dest_end_core = {(std::size_t)(num_cores_with_work_c - 1), (std::size_t)core.y};");
-    emitLine("CoreCoord vertical_sender_core = {(std::size_t)core.x, (std::size_t)0};");
-    emitLine("CoreCoord vertical_dest_start_core = {(std::size_t)core.x, (std::size_t)1};");
-    emitLine("CoreCoord vertical_dest_end_core = {(std::size_t)core.x, (std::size_t)(num_cores_with_work_r - 1)};");
-    emitLine("auto horizontal_sender_physical = device->worker_core_from_logical_core(horizontal_sender_core);");
-    emitLine("auto horizontal_dest_start_physical = device->worker_core_from_logical_core(horizontal_dest_start_core);");
-    emitLine("auto horizontal_dest_end_physical = device->worker_core_from_logical_core(horizontal_dest_end_core);");
-    emitLine("auto vertical_sender_physical = device->worker_core_from_logical_core(vertical_sender_core);");
-    emitLine("auto vertical_dest_start_physical = device->worker_core_from_logical_core(vertical_dest_start_core);");
-    emitLine("auto vertical_dest_end_physical = device->worker_core_from_logical_core(vertical_dest_end_core);");
-    emitLine("uint32_t horizontal_multicast_dest_noc_start_x = (std::uint32_t)horizontal_dest_start_physical.x;");
-    emitLine("uint32_t horizontal_multicast_dest_noc_start_y = (std::uint32_t)horizontal_dest_start_physical.y;");
-    emitLine("uint32_t horizontal_multicast_dest_noc_end_x = (std::uint32_t)horizontal_dest_end_physical.x;");
-    emitLine("uint32_t horizontal_multicast_dest_noc_end_y = (std::uint32_t)horizontal_dest_end_physical.y;");
-    emitLine("uint32_t horizontal_multicast_sender_noc_x = (std::uint32_t)horizontal_sender_physical.x;");
-    emitLine("uint32_t horizontal_multicast_sender_noc_y = (std::uint32_t)horizontal_sender_physical.y;");
-    emitLine("uint32_t vertical_multicast_dest_noc_start_x = (std::uint32_t)vertical_dest_start_physical.x;");
-    emitLine("uint32_t vertical_multicast_dest_noc_start_y = (std::uint32_t)vertical_dest_start_physical.y;");
-    emitLine("uint32_t vertical_multicast_dest_noc_end_x = (std::uint32_t)vertical_dest_end_physical.x;");
-    emitLine("uint32_t vertical_multicast_dest_noc_end_y = (std::uint32_t)vertical_dest_end_physical.y;");
-    emitLine("uint32_t vertical_multicast_sender_noc_x = (std::uint32_t)vertical_sender_physical.x;");
-    emitLine("uint32_t vertical_multicast_sender_noc_y = (std::uint32_t)vertical_sender_physical.y;");
+
+    emitMulticastMappingForKind(
+        "horizontal",
+        "{(std::size_t)0, (std::size_t)core.y}",
+        "{(std::size_t)1, (std::size_t)core.y}",
+        "{(std::size_t)(num_cores_with_work_c - 1), (std::size_t)core.y}");
+
+    emitMulticastMappingForKind(
+        "vertical",
+        "{(std::size_t)core.x, (std::size_t)0}",
+        "{(std::size_t)core.x, (std::size_t)1}",
+        "{(std::size_t)core.x, (std::size_t)(num_cores_with_work_r - 1)}");
+
+    emitMulticastMappingForKind(
+        "all",
+        "{(std::size_t)0, (std::size_t)0}",
+        "{(std::size_t)0, (std::size_t)0}",
+        "{(std::size_t)(num_cores_with_work_c - 1), "
+        "(std::size_t)(num_cores_with_work_r - 1)}");
+
     emitReaderRuntimeArgsForCore();
     emitLine("}");
   }
@@ -1107,8 +1147,15 @@ private:
         emitLine("0,");
         return;
       }
-
-      if (info.multicastKind == MulticastKind::Horizontal) {
+      if (info.multicastKind == MulticastKind::All) {
+        emitLine("all_multicast_dest_noc_start_x,");
+        emitLine("all_multicast_dest_noc_start_y,");
+        emitLine("all_multicast_dest_noc_end_x,");
+        emitLine("all_multicast_dest_noc_end_y,");
+        emitLine("(num_cores_with_work_c * num_cores_with_work_r - 1),");
+        emitLine("all_multicast_sender_noc_x,");
+        emitLine("all_multicast_sender_noc_y,");
+      } else if (info.multicastKind == MulticastKind::Horizontal) {
         emitLine("horizontal_multicast_dest_noc_start_x,");
         emitLine("horizontal_multicast_dest_noc_start_y,");
         emitLine("horizontal_multicast_dest_noc_end_x,");
