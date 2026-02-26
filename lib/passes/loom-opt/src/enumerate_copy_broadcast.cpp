@@ -603,11 +603,34 @@ static bool applyInterconnectAndBroadcastToCopy(
  * @brief Generate a function name based on interconnect choices.
  */
 static std::string generateFunctionName(StringRef baseName,
-                                        const InterconnectChoice &choice1,
-                                        const InterconnectChoice &choice2) {
-  std::string label1 = getInterconnectShortLabel(choice1);
-  std::string label2 = getInterconnectShortLabel(choice2);
-  return baseName.str() + "__" + label1 + "_" + label2;
+                                        ArrayRef<InterconnectChoice> choices) {
+  std::string newName = baseName.str() + "__";
+  for (size_t i = 0; i < choices.size(); ++i) {
+    if (i > 0)
+      newName += "_";
+    newName += getInterconnectShortLabel(choices[i]);
+  }
+  return newName;
+}
+
+/**
+ * @brief Recursively generate all Cartesian product combinations of candidate
+ * choices.
+ */
+static void generateCartesianProduct(
+    const SmallVector<SmallVector<InterconnectChoice>> &allCandidates,
+    size_t depth, SmallVector<InterconnectChoice> &current,
+    SmallVector<SmallVector<InterconnectChoice>> &results) {
+  if (depth == allCandidates.size()) {
+    results.push_back(current);
+    return;
+  }
+
+  for (const auto &choice : allCandidates[depth]) {
+    current.push_back(choice);
+    generateCartesianProduct(allCandidates, depth + 1, current, results);
+    current.pop_back();
+  }
 }
 
 /**
@@ -668,31 +691,35 @@ private:
         parentModule ? parentModule->getAttrDictionary() : nullptr;
 
     auto copyOps = findCopyOpsInFunc(originalFunc);
-    if (copyOps.size() != 2)
+    if (copyOps.empty())
       return;
 
-    auto candidates1 = findCandidateInterconnects(copyOps[0], module);
-    auto candidates2 = findCandidateInterconnects(copyOps[1], module);
+    // Collect candidate interconnects for each copy operation
+    SmallVector<SmallVector<InterconnectChoice>> allCandidates;
+    for (auto copyOp : copyOps) {
+      allCandidates.push_back(findCandidateInterconnects(copyOp, module));
+    }
+
+    // Generate all Cartesian product combinations
+    SmallVector<SmallVector<InterconnectChoice>> combinations;
+    SmallVector<InterconnectChoice> current;
+    generateCartesianProduct(allCandidates, 0, current, combinations);
 
     Operation *insertAfter = parentModule;
-    for (const auto &choice1 : candidates1) {
-      for (const auto &choice2 : candidates2) {
-        std::string newName =
-            generateFunctionName(originalFunc.getSymName(), choice1, choice2);
+    for (const auto &combo : combinations) {
+      std::string newName =
+          generateFunctionName(originalFunc.getSymName(), combo);
 
-        func::FuncOp clonedFunc = loom::utils::cloneFuncWithConstraints(
-            builder, originalFunc, newName, moduleAttrs,
-            "EnumerateCopyBroadcast",
-            [&](func::FuncOp func, loom::ConstraintSpaceOp cs) {
-              return applyChoicesAndInjectConstraint(func, cs, choice1,
-                                                     choice2);
-            },
-            insertAfter);
+      func::FuncOp clonedFunc = loom::utils::cloneFuncWithConstraints(
+          builder, originalFunc, newName, moduleAttrs, "EnumerateCopyBroadcast",
+          [&](func::FuncOp func, loom::ConstraintSpaceOp cs) {
+            return applyChoices(func, cs, combo);
+          },
+          insertAfter);
 
-        if (clonedFunc) {
-          if (auto clonedParent = loom::utils::getParentModule(clonedFunc))
-            insertAfter = clonedParent;
-        }
+      if (clonedFunc) {
+        if (auto clonedParent = loom::utils::getParentModule(clonedFunc))
+          insertAfter = clonedParent;
       }
     }
 
@@ -702,25 +729,23 @@ private:
       originalFunc.erase();
   }
 
-  LogicalResult applyChoicesAndInjectConstraint(func::FuncOp func,
-                                                loom::ConstraintSpaceOp csOp,
-                                                const InterconnectChoice &c1,
-                                                const InterconnectChoice &c2) {
+  LogicalResult applyChoices(func::FuncOp func, loom::ConstraintSpaceOp csOp,
+                             ArrayRef<InterconnectChoice> choices) {
     auto copyOps = findCopyOpsInFunc(func);
-    if (copyOps.size() != 2)
+    if (copyOps.size() != choices.size())
       return failure();
 
-    // Apply broadcast choices
-    OpBuilder b1(copyOps[0].getOperation());
-    if (!c1.apply(copyOps[0], module, b1))
-      return failure();
-
-    OpBuilder b2(copyOps[1].getOperation());
-    if (!c2.apply(copyOps[1], module, b2))
-      return failure();
+    // Apply broadcast choices to each copy operation
+    for (size_t i = 0; i < copyOps.size(); ++i) {
+      OpBuilder b(copyOps[i].getOperation());
+      if (!choices[i].apply(copyOps[i], module, b))
+        return failure();
+    }
 
     // Inject compute-memory constraint if we have valid hardware timing
-    if (csOp && hwTiming.fpuThroughput > 0 && hwTiming.totalCores > 0) {
+    // Note: This logic is currently tuned for GEMM (2 copy ops).
+    if (copyOps.size() == 2 && csOp && hwTiming.fpuThroughput > 0 &&
+        hwTiming.totalCores > 0) {
       // Get broadcast values for each copy operation after choices are applied
       auto broadcastA = getBroadcastAttribute(copyOps[0]);
       auto broadcastB = getBroadcastAttribute(copyOps[1]);
@@ -779,9 +804,9 @@ struct EnumerateCopyBroadcastPass
 
   /**
    * @brief Execute the pass over the module.
-   * @details For each function with exactly two loom.copy operations, finds
-   * candidate interconnects for each copy and generates function clones for all
-   * combinations (Cartesian product of candidates1 × candidates2).
+   * @details For each function with loom.copy operations, finds candidate
+   * interconnects for each copy and generates function clones for all
+   * combinations (Cartesian product of candidates).
    *
    * Note: This pass operates directly on the existing module without creating
    * a new one, so module-level attributes are automatically preserved.
