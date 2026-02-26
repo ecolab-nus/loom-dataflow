@@ -61,7 +61,7 @@ SmallVector<SmallVector<int64_t>> solveCandidateBlockSizes(unsigned numVars) {
   // Future: call the constraint solver here.
   // For now, return two hardcoded tuples if we have 3 variables.
   if (numVars == 3) {
-    return {{64, 64, 64}, {32, 32, 256}};
+    return {{32, 32, 32}};
   }
   // Fallback: all-64 tuple
   SmallVector<int64_t> fallback(numVars, 64);
