@@ -135,9 +135,9 @@ build/tool/loom-opt/single_stage/memory_binding \
 3) Enumerate spatial mappings and merge DF declarations
 ```bash
 build/tool/loom-opt/single_stage/enumerate_hw_mapping \
-  --input test/Passes/mm_2Dmesh/IR/02_explicit_memory_access.mlir \
+  --input test/Passes/flashattn_2Dmesh/IR/02_explicit_memory_access.mlir \
   --df test/Dialect/DataflowDialect/2D_mesh.mlir \
-  > test/Passes/mm_2Dmesh/IR/03_after_hardware_mapping.mlir
+  > test/Passes/flashattn_2Dmesh/IR/03_after_hardware_mapping.mlir
 ```
 
 <!-- 3) Hoist loading A, B blocks
@@ -150,22 +150,22 @@ build/tool/loom-opt/single_stage/hoist_block_loading \
 4) Analyze reuse pattern on `loom.view`
 ```bash
 build/tool/loom-opt/single_stage/analyze_reuse \
-  --input test/Passes/mm_2Dmesh/IR/03_after_hardware_mapping.mlir \
-  > test/Passes/mm_2Dmesh/IR/04_after_reuse_analyzation.mlir
+  --input test/Passes/flashattn_2Dmesh/IR/03_after_hardware_mapping.mlir \
+  > test/Passes/flashattn_2Dmesh/IR/04_after_reuse_analyzation.mlir
 ```
 
 5) Enumerate copy interconnect broadcast choices on `loom.copy_to_tensor`
 ```bash
 build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
-  --input test/Passes/mm_2Dmesh/IR/04_after_reuse_analyzation.mlir \
-  > test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
-  2> test/Passes/mm_2Dmesh/constraint_space/raw_constraint_space.json
+  --input test/Passes/flashattn_2Dmesh/IR/04_after_reuse_analyzation.mlir \
+  > test/Passes/flashattn_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
+  2> test/Passes/flashattn_2Dmesh/constraint_sapce/raw_constraint_space.json
 ```
 
 6) Materialize symbolic block sizes
 ```bash
 build/tool/loom-opt/single_stage/canonicalize \
-  --input test/Passes/flashattn_2Dmesh/IR/02_explicit_memory_access.mlir \
+  --input test/Passes/flashattn_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
   > test/Passes/flashattn_2Dmesh/IR/06_after_canonicalize.mlir
 ```
 
