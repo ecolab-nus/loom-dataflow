@@ -278,6 +278,8 @@ public:
     target.addLegalDialect<linalg::LinalgDialect>();
     target.addDynamicallyLegalOp<linalg::MatmulOp>(
         [&](linalg::MatmulOp op) { return false; });
+    target.addDynamicallyLegalOp<linalg::BatchMatmulOp>(
+        [&](linalg::BatchMatmulOp op) { return false; });
     target.addDynamicallyLegalOp<linalg::FillOp>(
         [&](linalg::FillOp op) { return false; });
     
