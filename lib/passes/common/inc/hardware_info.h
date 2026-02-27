@@ -37,10 +37,6 @@ struct HardwareInfo {
   int64_t l1Size = 0;
   llvm::SmallVector<MatUnitInfo> matUnits; // Matrix unit info for alignment
   int64_t matUnitCount = 0; // Number of mat_units per core for pipeline
-
-  bool skipPermutation() const {
-    return spatialDimInfoVec.size() == 2 && hasBidirInterconnect;
-  }
 };
 
 typedef llvm::SmallVector<llvm::SmallVector<unsigned>> DimBuckets;
