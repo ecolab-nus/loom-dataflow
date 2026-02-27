@@ -652,17 +652,19 @@ private:
       return std::string(1, static_cast<char>('A' + index));
     return "V" + std::to_string(index);
   }
-
+  //TODO: tmp fix, need to get the total size and then divide by the tile size
   static bool buildTilesExpr(MemRefType memrefType, std::string &expr) {
     expr.clear();
-    bool first = true;
-    for (int64_t dim : memrefType.getShape()) {
-      if (dim == ShapedType::kDynamic)
+    auto shape = memrefType.getShape();
+    size_t rank = shape.size();
+    for (size_t i = 0; i < rank; ++i) {
+      if (shape[i] == ShapedType::kDynamic)
         return false;
-      if (!first)
+      if (i > 0)
         expr += " * ";
-      expr += std::to_string(dim) + " / TILE_HEIGHT";
-      first = false;
+      expr += std::to_string(shape[i]);
+      if (i >= rank - 2)
+        expr += " / TILE_HEIGHT";
     }
     if (expr.empty())
       expr = "1";
