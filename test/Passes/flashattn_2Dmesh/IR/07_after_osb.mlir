@@ -234,6 +234,228 @@ module {
     }
   }
   module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i0_d0i0__f01__d_d_d__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c16777216 = arith.constant 16777216 : index
+      %c128 = arith.constant 128 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c128 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %15 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %16 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %17 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %18 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %23 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = arith.muli %13, %c16777216 : index
+          %26 = arith.muli %arg6, %c4096 : index
+          %27 = arith.addi %25, %26 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %22 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%23 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%17 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%18 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %29 = arith.addi %25, %28 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%29], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%15 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%22, %16 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%15 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%19 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%15 : memref<32x32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %32 = arith.maximumf %in, %out : f32
+              linalg.yield %32 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%18, %19 : memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %32 = arith.truncf %cst_0 : f64 to f32
+              %33 = arith.mulf %in_7, %32 : f32
+              %34 = arith.cmpf ogt, %in, %33 : f32
+              %35 = arith.select %34, %in, %33 : f32
+              linalg.yield %35 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%15, %19 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%15 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %32 = arith.truncf %cst_0 : f64 to f32
+              %33 = arith.mulf %in, %32 : f32
+              %34 = arith.subf %33, %in_7 : f32
+              %35 = math.powf %cst, %34 : f32
+              linalg.yield %35 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%20 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%15 : memref<32x32x32xf32>) outs(%20 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %32 = arith.addf %in, %out : f32
+              linalg.yield %32 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%18, %19 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %32 = arith.subf %in, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%17, %21, %20 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %32 = arith.mulf %in, %in_7 : f32
+              %33 = arith.addf %32, %in_8 : f32
+              linalg.yield %33 : f32
+            }
+            %30 = arith.muli %arg7, %c4096 : index
+            %31 = arith.addi %25, %30 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %14 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%24 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%15, %14 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%24 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%24, %23, %21 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%23 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %32 = arith.mulf %in_7, %in_8 : f32
+              %33 = arith.addf %in, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.copy ins(%19 : memref<32x32xf32>) outs(%18 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%23, %17 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%22 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %22, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i0_d0i0__f10__d_d_d__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c16777216 = arith.constant 16777216 : index
+      %c128 = arith.constant 128 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c128 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %15 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %16 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %17 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %18 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %23 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = arith.muli %13, %c16777216 : index
+          %26 = arith.muli %arg6, %c4096 : index
+          %27 = arith.addi %25, %26 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %22 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%23 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%17 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%18 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %29 = arith.addi %25, %28 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%29], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%15 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%22, %16 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%15 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%19 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%15 : memref<32x32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %32 = arith.maximumf %in, %out : f32
+              linalg.yield %32 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%18, %19 : memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %32 = arith.truncf %cst_0 : f64 to f32
+              %33 = arith.mulf %in_7, %32 : f32
+              %34 = arith.cmpf ogt, %in, %33 : f32
+              %35 = arith.select %34, %in, %33 : f32
+              linalg.yield %35 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%15, %19 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%15 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %32 = arith.truncf %cst_0 : f64 to f32
+              %33 = arith.mulf %in, %32 : f32
+              %34 = arith.subf %33, %in_7 : f32
+              %35 = math.powf %cst, %34 : f32
+              linalg.yield %35 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%20 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%15 : memref<32x32x32xf32>) outs(%20 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %32 = arith.addf %in, %out : f32
+              linalg.yield %32 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%18, %19 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %32 = arith.subf %in, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%17, %21, %20 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %32 = arith.mulf %in, %in_7 : f32
+              %33 = arith.addf %32, %in_8 : f32
+              linalg.yield %33 : f32
+            }
+            %30 = arith.muli %arg7, %c4096 : index
+            %31 = arith.addi %25, %30 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %14 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%24 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%15, %14 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%24 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%24, %23, %21 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%23 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %32 = arith.mulf %in_7, %in_8 : f32
+              %33 = arith.addf %in, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.copy ins(%19 : memref<32x32xf32>) outs(%18 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%23, %17 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%22 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %22, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
     func.func @attention__d0i0_d1i1__f01__d_d_d__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
       %c4096 = arith.constant 4096 : index
       %c16777216 = arith.constant 16777216 : index
@@ -5749,6 +5971,3526 @@ module {
         }
         scf.reduce 
       } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@x, @y]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_d_d__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_d_a__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_d_h__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_d_v__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_a_d__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_a_a__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_a_h__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_a_v__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_h_d__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_h_a__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_h_h__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_h_v__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_v_d__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_v_a__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_v_h__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f01__d_v_v__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_d_d__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_d_a__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_d_h__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_d_v__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_a_d__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_a_a__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_a_h__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_a_v__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_h_d__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_h_a__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_h_h__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_h_v__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_v_d__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_v_a__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_v_h__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
+      return
+    }
+  }
+  module attributes {loom.pass_name = "Materialize"} {
+    func.func @attention__d1i1_d0i1__f10__d_v_v__BB32__BM32__BN32(%arg0: memref<32x128x4096xf32>, %arg1: memref<32x4096x128xf32>, %arg2: memref<32x4096x128xf32>, %arg3: memref<32x4096x128xf32>) {
+      %c4096 = arith.constant 4096 : index
+      %c128 = arith.constant 128 : index
+      %c64 = arith.constant 64 : index
+      %c2 = arith.constant 2 : index
+      %cst = arith.constant 2.000000e+00 : f32
+      %cst_0 = arith.constant 0.12751743074602467 : f64
+      %cst_1 = arith.constant 0.000000e+00 : f32
+      %cst_2 = arith.constant 1.000000e+00 : f32
+      %cst_3 = arith.constant 0xFF800000 : f32
+      %c32 = arith.constant 32 : index
+      %c0 = arith.constant 0 : index
+      %c8 = arith.constant 8 : index
+      %c1 = arith.constant 1 : index
+      scf.parallel (%arg4, %arg5) = (%c0, %c0) to (%c8, %c8) step (%c1, %c1) {
+        scf.for %arg6 = %c0 to %c2 step %c1 {
+          %12 = arith.muli %arg4, %c8 overflow<nsw> : index
+          %13 = arith.addi %12, %arg5 : index
+          %14 = arith.muli %arg6, %c64 overflow<nsw> : index
+          %15 = arith.addi %13, %14 : index
+          %16 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %17 = loom.alloc [32, 32, 32] on @L1 : memref<32x32x32xf32>
+          %18 = loom.alloc [32, 128, 32] on @L1 : memref<32x128x32xf32>
+          %19 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %20 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %21 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %22 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %23 = loom.alloc [32, 32] on @L1 : memref<32x32xf32>
+          %24 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %25 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %26 = loom.alloc [32, 32, 128] on @L1 : memref<32x32x128xf32>
+          %27 = arith.muli %15, %c4096 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+          linalg.fill ins(%cst_1 : f32) outs(%25 : memref<32x32x128xf32>)
+          linalg.fill ins(%cst_2 : f32) outs(%19 : memref<32x32xf32>)
+          linalg.fill ins(%cst_3 : f32) outs(%20 : memref<32x32xf32>)
+          scf.for %arg7 = %c0 to %c128 step %c1 {
+            %28 = arith.muli %arg7, %c32 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %18 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>, memref<32x128x32xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%17 : memref<32x32x32xf32>)
+            linalg.batch_matmul ins(%24, %18 : memref<32x32x128xf32>, memref<32x128x32xf32>) outs(%17 : memref<32x32x32xf32>)
+            linalg.fill ins(%cst_3 : f32) outs(%21 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.maximumf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%21 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in_7, %30 : f32
+              %32 = arith.cmpf ogt, %in, %31 : f32
+              %33 = arith.select %32, %in, %31 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%17, %21 : memref<32x32x32xf32>, memref<32x32xf32>) outs(%17 : memref<32x32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.truncf %cst_0 : f64 to f32
+              %31 = arith.mulf %in, %30 : f32
+              %32 = arith.subf %31, %in_7 : f32
+              %33 = math.powf %cst, %32 : f32
+              linalg.yield %33 : f32
+            }
+            linalg.fill ins(%cst_1 : f32) outs(%22 : memref<32x32xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<32x32x32xf32>) outs(%22 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %out: f32):
+              %30 = arith.addf %in, %out : f32
+              linalg.yield %30 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%20, %21 : memref<32x32xf32>, memref<32x32xf32>) outs(%23 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %out: f32):
+              %30 = arith.subf %in, %in_7 : f32
+              %31 = math.powf %cst, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%19, %23, %22 : memref<32x32xf32>, memref<32x32xf32>, memref<32x32xf32>) outs(%19 : memref<32x32xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in, %in_7 : f32
+              %31 = arith.addf %30, %in_8 : f32
+              linalg.yield %31 : f32
+            }
+            %29 = arith.muli %arg7, %c4096 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %16 src_mem_space @DRAM dst_mem_space @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
+            linalg.fill ins(%cst_1 : f32) outs(%26 : memref<32x32x128xf32>)
+            linalg.batch_matmul ins(%17, %16 : memref<32x32x32xf32>, memref<32x32x128xf32>) outs(%26 : memref<32x32x128xf32>)
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%26, %25, %23 : memref<32x32x128xf32>, memref<32x32x128xf32>, memref<32x32xf32>) outs(%25 : memref<32x32x128xf32>) {
+            ^bb0(%in: f32, %in_7: f32, %in_8: f32, %out: f32):
+              %30 = arith.mulf %in_7, %in_8 : f32
+              %31 = arith.addf %in, %30 : f32
+              linalg.yield %31 : f32
+            }
+            linalg.copy ins(%21 : memref<32x32xf32>) outs(%20 : memref<32x32xf32>)
+          }
+          linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%25, %19 : memref<32x32x128xf32>, memref<32x32xf32>) outs(%24 : memref<32x32x128xf32>) {
+          ^bb0(%in: f32, %in_5: f32, %out: f32):
+            %28 = arith.divf %in, %in_5 : f32
+            linalg.yield %28 : f32
+          }
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+        }
+        scf.reduce 
+      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.mapped_to_dims = [@y, @x]}
       return
     }
   }
