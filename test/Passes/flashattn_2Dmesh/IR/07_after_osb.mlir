@@ -2873,7 +2873,7 @@ module {
           //     range: [0, 127] — linearized (batch, M) tile index
           //     Since BB=32, ceildiv(2,32)=1, so batch_tile=0 always.
           //     Effective M tile index = %15, selects rows [%15*BM, %15*BM+BM) = [%15*32, %15*32+32)
-          %15 = arith.addi %13, %14 : index
+          %15 = arith.addi %13, %14 : index // Manually checked
 
           // =================== L1 Memory Allocations (11 buffers) ===================
           // Same alloc count as other variants after SinkFillOps optimization.
@@ -2913,8 +2913,8 @@ module {
           //       = b*524288 + %15*32*128 + m_local*128 + h
           //       = b*524288 + %15*4096 + m_local*128 + h  ✓
           //     So %27 = %15 * 4096 = %15 * BM * head_dim = %15 * 32 * 128 ✓
-          %27 = arith.muli %15, %c4096 : index
-          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          %27 = arith.muli %15, %c4096 : index // Manually checked
+          %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>> // Manually checked
           // DMA: DRAM → L1, load Q tile into %24 (direct, no broadcast)
           loom.copy %reinterpret_cast, %24 src_mem_space @DRAM dst_mem_space @L1, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>, memref<32x32x128xf32>
 
@@ -2946,8 +2946,8 @@ module {
             //   Should equal: b*524288 + h_local*4096 + (%arg7*32 + n_local)
             //     = b*524288 + h_local*4096 + %arg7*32 + n_local  ✓
             //   So %28 = %arg7 * BN correctly selects the N-tile starting column ✓
-            %28 = arith.muli %arg7, %c32 : index
-            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>>
+            %28 = arith.muli %arg7, %c32 : index // Manually checked
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [32, 128, 32], strides: [524288, 4096, 1] : memref<32x128x4096xf32> to memref<32x128x32xf32, strided<[524288, 4096, 1], offset: ?>> // Manually checked
             // DMA: DRAM → L1, load K^T tile into %18
             // Interconnect: ALL-BROADCAST via horizontal_links + vertical_links, broadcast [8,8]
             // One core loads and the data is replicated to all 8*8=64 cores.
@@ -3050,8 +3050,8 @@ module {
             //     = b*524288 + %arg7*32*128 + n_local*128 + h
             //     = b*524288 + %arg7*4096 + n_local*128 + h  ✓
             //   So %29 = %arg7 * 4096 = %arg7 * BN * head_dim = %arg7 * 32 * 128 ✓
-            %29 = arith.muli %arg7, %c4096 : index
-            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+            %29 = arith.muli %arg7, %c4096 : index // Manually checked
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%29], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>> // Manually checked
             // DMA: DRAM → L1, load V tile into %16
             // Interconnect: ALL-BROADCAST via horizontal_links + vertical_links, broadcast [8,8]
             // One core loads and the data is replicated to all 8*8=64 cores.
@@ -3105,7 +3105,7 @@ module {
           //   Should equal: b*524288 + (%15*32 + m_local)*128 + h
           //     = b*524288 + %15*4096 + m_local*128 + h  ✓
           //   So output is written to the correct M-tile slice of O ✓
-          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg3 to offset: [%27], sizes: [32, 32, 128], strides: [524288, 128, 1] : memref<32x4096x128xf32> to memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>  // Manually checked
           // DMA: L1 → DRAM, store result from %24 to output (direct, no broadcast)
           loom.copy %24, %reinterpret_cast_4 src_mem_space @L1 dst_mem_space @DRAM, interconnect : [], broadcast : [1, 1] : memref<32x32x128xf32>, memref<32x32x128xf32, strided<[524288, 128, 1], offset: ?>>
         }
