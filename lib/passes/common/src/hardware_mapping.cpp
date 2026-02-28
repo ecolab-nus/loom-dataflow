@@ -1,5 +1,4 @@
 #include "affine_utils.h"
-#include "constraint_space_utils.h"
 #include "hardware_info.h"
 #include "index_mapping.h"
 #include "mapping_enumeration.h"
@@ -164,133 +163,6 @@ static LogicalResult applyMappingToFunction(
   return success();
 }
 
-static LogicalResult addL1CacheConstraints(func::FuncOp func,
-                                           loom::ConstraintSpaceOp csOp,
-                                           int64_t l1Size) {
-  if (l1Size <= 0 || !csOp)
-    return success();
-
-  auto allocInfos = loom::utils::collectL1AllocInfos(func);
-  if (allocInfos.empty())
-    return success();
-
-  llvm::SmallVector<StringRef> symVarNames;
-  llvm::StringMap<unsigned> symVarToIndex;
-
-  for (const auto &info : allocInfos) {
-    for (StringRef dimName : info.dims) {
-      if (symVarToIndex.find(dimName) == symVarToIndex.end()) {
-        symVarToIndex[dimName] = symVarNames.size();
-        symVarNames.push_back(dimName);
-      }
-    }
-  }
-
-  llvm::SmallVector<loom::lcs::Monomial> monomials;
-  for (const auto &info : allocInfos) {
-    loom::lcs::Monomial m;
-    for (StringRef dimName : info.dims) {
-      m.varIndices.push_back(symVarToIndex[dimName]);
-    }
-    m.coeff = info.elemSize;
-    monomials.push_back(m);
-  }
-
-  loom::lcs::addPolynomialConstraint(csOp, symVarNames, monomials, l1Size);
-  return success();
-}
-
-static LogicalResult
-addIntraCorePipelineConstraints(loom::ConstraintSpaceOp csOp,
-                                const loom::HardwareInfo &hardwareInfo) {
-  if (!csOp)
-    return success();
-
-  if (!hardwareInfo.matUnits.empty()) {
-    int64_t align = hardwareInfo.matUnits[0].shape[0];
-    loom::lcs::updateRangeLowerBounds(csOp, align);
-    loom::lcs::addAlignConstraintsForAllVars(csOp, align);
-  }
-
-  if (hardwareInfo.matUnitCount > 0 && !hardwareInfo.matUnits.empty()) {
-    int64_t align = hardwareInfo.matUnits[0].shape[0];
-    llvm::SmallVector<StringRef> symVarNames;
-    for (Operation &op : csOp.getBodyBlock()->getOperations()) {
-      if (auto symVar = dyn_cast<loom::SymbolicVarOp>(&op)) {
-        symVarNames.push_back(symVar.getName());
-      }
-    }
-    if (symVarNames.size() >= 3) {
-      loom::lcs::addPipelineParallelismConstraint(
-          csOp, symVarNames, hardwareInfo.matUnitCount, align);
-    }
-  }
-
-  return success();
-}
-
-static LogicalResult addInterCoreBalanceConstraints(
-    loom::ConstraintSpaceOp csOp,
-    const llvm::SmallVector<loom::ParallelToHWMapping> &mappingInfo) {
-  if (!csOp || mappingInfo.empty())
-    return success();
-
-  llvm::StringMap<int64_t> varUpperBounds;
-  llvm::SmallVector<StringRef> symVarNamesOrdered;
-  for (Operation &op : csOp.getBodyBlock()->getOperations()) {
-    if (auto symVar = dyn_cast<loom::SymbolicVarOp>(&op)) {
-      symVarNamesOrdered.push_back(symVar.getName());
-    }
-    if (auto rangeOp = dyn_cast<loom::RangeOp>(&op)) {
-      if (auto symVar =
-              rangeOp.getVariable().getDefiningOp<loom::SymbolicVarOp>()) {
-        varUpperBounds[symVar.getName()] = rangeOp.getUpperBound();
-      }
-    }
-  }
-
-  auto getVarNameForIter = [&](unsigned iterIdx) -> StringRef {
-    if (iterIdx < symVarNamesOrdered.size())
-      return symVarNamesOrdered[iterIdx];
-    return "";
-  };
-
-  llvm::DenseMap<unsigned, int64_t> iterToTotalCores;
-  for (const auto &mapping : mappingInfo) {
-    auto it = iterToTotalCores.find(mapping.parallelIterIdx);
-    if (it == iterToTotalCores.end()) {
-      iterToTotalCores[mapping.parallelIterIdx] = mapping.hwDimSize;
-    } else {
-      it->second *= mapping.hwDimSize;
-    }
-  }
-
-  for (const auto &entry : iterToTotalCores) {
-    unsigned iterIdx = entry.first;
-    int64_t totalCores = entry.second;
-
-    StringRef varName = getVarNameForIter(iterIdx);
-    if (varName.empty())
-      continue;
-
-    auto it = varUpperBounds.find(varName);
-    if (it == varUpperBounds.end())
-      continue;
-
-    int64_t dimUB = it->second;
-
-    llvm::SmallVector<loom::lcs::Monomial> monomials;
-    loom::lcs::Monomial m;
-    m.varIndices.push_back(0);
-    m.coeff = totalCores;
-    monomials.push_back(m);
-
-    loom::lcs::addPolynomialConstraint(csOp, {varName}, monomials, dimUB);
-  }
-
-  return success();
-}
-
 } // namespace
 
 namespace loom {
@@ -326,8 +198,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
       builder.setInsertionPointToEnd(out.getBody());
       (void)loom::utils::cloneFuncWithConstraints(
           builder, func, func.getName(), moduleAttrs, "EnumerateHWMapping",
-          [](func::FuncOp, loom::ConstraintSpaceOp) { return success(); },
-          nullptr);
+          [](func::FuncOp) { return success(); }, nullptr);
       continue;
     }
 
@@ -345,8 +216,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
 
       auto clonedFunc = loom::utils::cloneFuncWithConstraints(
           builder, func, newName, moduleAttrs, "EnumerateHWMapping",
-          [&](func::FuncOp cloned,
-              loom::ConstraintSpaceOp csOp) -> LogicalResult {
+          [&](func::FuncOp cloned) -> LogicalResult {
             markLoopsSequential(cloned);
             affine::AffineParallelOp currentOuter = nullptr;
             cloned.walk([&](affine::AffineParallelOp par) {
@@ -370,13 +240,6 @@ EnumerateSpatialMappings(ModuleOp affineModule,
                 copyFrom.setMemoryAttr(SymbolRefAttr::get(ctx, "DRAM"));
               }
             });
-
-            if (failed(
-                    addL1CacheConstraints(cloned, csOp, hardwareInfo.l1Size)))
-              return failure();
-
-            if (failed(addIntraCorePipelineConstraints(csOp, hardwareInfo)))
-              return failure();
 
             return success();
           },
@@ -405,8 +268,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
 
           auto clonedFunc = loom::utils::cloneFuncWithConstraints(
               builder, func, "", moduleAttrs, "EnumerateHWMapping",
-              [&](func::FuncOp cloned,
-                  loom::ConstraintSpaceOp csOp) -> LogicalResult {
+              [&](func::FuncOp cloned) -> LogicalResult {
                 markLoopsSequential(cloned);
                 affine::AffineParallelOp tar_forOp =
                     getOutermostParallel(cloned);
@@ -439,17 +301,6 @@ EnumerateSpatialMappings(ModuleOp affineModule,
                 });
 
                 loom::utils::composeAndCanonicalizeAffineApplies(cloned);
-
-                if (failed(addIntraCorePipelineConstraints(csOp, hardwareInfo)))
-                  return failure();
-
-                if (failed(addL1CacheConstraints(cloned, csOp,
-                                                 hardwareInfo.l1Size)))
-                  return failure();
-
-                if (failed(addInterCoreBalanceConstraints(csOp, hwMappingInfo)))
-                  return failure();
-
                 return success();
               },
               nullptr);

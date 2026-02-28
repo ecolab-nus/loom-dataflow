@@ -1,12 +1,4 @@
-/**
- * @file materialize.cpp
- * @brief Implementation of materialize pass for canonicalizing IR.
- * @details
- * This pass refactors symbolic block sizes into concrete constant values.
- */
-
 #include "Passes.h"
-#include "constraint_space_utils.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -59,7 +51,7 @@ struct BlockSizeBinding {
 /// Each tuple has one value per symbolic variable, in definition order.
 SmallVector<SmallVector<int64_t>> solveCandidateBlockSizes(unsigned numVars) {
   // Future: call the constraint solver here.
-  // For now, return two hardcoded tuples if we have 3 variables.
+  // For now, return one hardcoded tuple if we have 3 variables.
   if (numVars == 3) {
     return {{1, 64, 128}};
   }
@@ -85,10 +77,10 @@ buildBindings(ArrayRef<StringRef> varNames,
 /// Materialize a function with a specific block size binding.
 LogicalResult materializeFunction(func::FuncOp func,
                                   const BlockSizeBinding &binding) {
-  OpBuilder builder(func.getContext());
+  OpBuilder builder(func->getContext());
   SmallVector<Operation *, 16> opsToErase;
 
-  func.walk([&](loom::GetSymbolicBlockSizeOp op) {
+  func->walk([&](loom::GetSymbolicBlockSizeOp op) {
     SymbolRefAttr ref = op.getSymbolRef();
     StringRef varName;
     if (ref.getNestedReferences().size() > 0) {
@@ -137,24 +129,34 @@ public:
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
-    OpBuilder builder(module.getContext());
+    OpBuilder builder(module->getContext());
 
-    SmallVector<ModuleOp, 4> mappingModules;
+    SmallVector<ModuleOp, 4> nestedModules;
     for (auto nestedModule : module.getOps<ModuleOp>()) {
-      if (loom::lcs::findConstraintSpace(nestedModule)) {
-        mappingModules.push_back(nestedModule);
-      }
+      nestedModules.push_back(nestedModule);
     }
 
-    for (auto nestedModule : mappingModules) {
-      loom::ConstraintSpaceOp csOp =
-          loom::lcs::findConstraintSpace(nestedModule);
-
-      // Collect all symbolic variable names in the order they appear
+    for (auto nestedModule : nestedModules) {
+      // Collect all symbolic variable names from get_symbolic_block_size ops
       SmallVector<StringRef> varNames;
-      csOp.walk([&](loom::SymbolicVarOp symVar) {
-        varNames.push_back(symVar.getName());
+      llvm::SmallPtrSet<StringAttr, 4> seenVars;
+
+      nestedModule->walk([&](loom::GetSymbolicBlockSizeOp op) {
+        SymbolRefAttr ref = op.getSymbolRef();
+        StringAttr varNameAttr;
+        if (ref.getNestedReferences().size() > 0) {
+          varNameAttr = ref.getNestedReferences().back().getLeafReference();
+        } else {
+          varNameAttr = ref.getLeafReference();
+        }
+
+        if (seenVars.insert(varNameAttr).second) {
+          varNames.push_back(varNameAttr.getValue());
+        }
       });
+
+      if (varNames.empty())
+        continue;
 
       auto candidates = solveCandidateBlockSizes(varNames.size());
       auto bindings = buildBindings(varNames, candidates);
@@ -167,7 +169,7 @@ public:
 
       // Create a single nested module in the output to contain all variants
       builder.setInsertionPoint(nestedModule);
-      auto variantsModule = builder.create<ModuleOp>(nestedModule.getLoc());
+      auto variantsModule = builder.create<ModuleOp>(nestedModule->getLoc());
 
       // Copy attributes from the original nested module
       if (!nestedModule->getAttrs().empty()) {
