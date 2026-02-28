@@ -11,8 +11,6 @@
 
 #include "Passes.h"
 #include "compute_unit_registry.h"
-#include "constraint_exporter.h"
-#include "constraint_space_utils.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Attributes.h"
@@ -712,9 +710,7 @@ private:
 
       func::FuncOp clonedFunc = loom::utils::cloneFuncWithConstraints(
           builder, originalFunc, newName, moduleAttrs, "EnumerateCopyBroadcast",
-          [&](func::FuncOp func, loom::ConstraintSpaceOp cs) {
-            return applyChoices(func, cs, combo);
-          },
+          [&](func::FuncOp func) { return applyChoices(func, combo); },
           insertAfter);
 
       if (clonedFunc) {
@@ -729,7 +725,7 @@ private:
       originalFunc.erase();
   }
 
-  LogicalResult applyChoices(func::FuncOp func, loom::ConstraintSpaceOp csOp,
+  LogicalResult applyChoices(func::FuncOp func,
                              ArrayRef<InterconnectChoice> choices) {
     auto copyOps = findCopyOpsInFunc(func);
     if (copyOps.size() != choices.size())
@@ -740,28 +736,6 @@ private:
       OpBuilder b(copyOps[i].getOperation());
       if (!choices[i].apply(copyOps[i], module, b))
         return failure();
-    }
-
-    // Inject compute-memory constraint if we have valid hardware timing
-    // Note: This logic is currently tuned for GEMM (2 copy ops).
-    if (copyOps.size() == 2 && csOp && hwTiming.fpuThroughput > 0 &&
-        hwTiming.totalCores > 0) {
-      // Get broadcast values for each copy operation after choices are applied
-      auto broadcastA = getBroadcastAttribute(copyOps[0]);
-      auto broadcastB = getBroadcastAttribute(copyOps[1]);
-
-      // Calculate effective bandwidths based on broadcast patterns
-      int64_t bwA =
-          hwTiming.getEffectiveBandwidth(broadcastA[0], broadcastA[1]);
-      int64_t bwB =
-          hwTiming.getEffectiveBandwidth(broadcastB[0], broadcastB[1]);
-
-      // Add compute-memory constraint: BW_B*sizeA + BW_A*sizeB -
-      // BW_A*BW_B*compute/T <= 0 Variable order: BM (index 0), BN (index 1), BK
-      // (index 2)
-      loom::lcs::addComputeMemoryConstraint(csOp, {"BM", "BN", "BK"}, bwA, bwB,
-                                            hwTiming.fpuThroughput,
-                                            /*elemSize=*/4, /*flopCoeff=*/2);
     }
 
     return success();
@@ -817,45 +791,6 @@ struct EnumerateCopyBroadcastPass
     // Perform enumeration and cloning
     CopyBroadcastEnumerator enumerator(module);
     enumerator.enumerate();
-
-    // Export simplified constraints to JSON for each constraint space
-    llvm::SmallVector<std::string, 8> allJsonStrings;
-    module.walk([&](ModuleOp wrapperModule) {
-      if (auto csOp = loom::lcs::findConstraintSpace(wrapperModule)) {
-        std::string passName = "EnumerateCopyBroadcast";
-        auto passNameAttr =
-            wrapperModule->getAttrOfType<StringAttr>("loom.pass_name");
-        if (passNameAttr)
-          passName = passNameAttr.getValue().str();
-
-        allJsonStrings.push_back(
-            loom::lcs::exportConstraintSpaceToJson(csOp, passName));
-      }
-    });
-
-    if (!allJsonStrings.empty()) {
-      llvm::errs() << "[\n";
-      for (size_t i = 0; i < allJsonStrings.size(); ++i) {
-        // Indent the internal JSON
-        std::string indented;
-        llvm::raw_string_ostream os(indented);
-        bool firstLine = true;
-        for (char c : allJsonStrings[i]) {
-          if (firstLine) {
-            os << "  ";
-            firstLine = false;
-          }
-          os << c;
-          if (c == '\n')
-            os << "  ";
-        }
-        llvm::errs() << os.str();
-        if (i < allJsonStrings.size() - 1)
-          llvm::errs() << ",";
-        llvm::errs() << "\n";
-      }
-      llvm::errs() << "]\n";
-    }
   }
 
   /// Flag indicating whether this pass should only perform analysis (currently
