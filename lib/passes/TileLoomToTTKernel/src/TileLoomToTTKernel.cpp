@@ -143,6 +143,54 @@ static void eraseHostLoweringArtifacts(ModuleOp module) {
   }
 }
 
+static LogicalResult rewriteBatch1MatmulToMatmul(ModuleOp module) {
+  SmallVector<linalg::BatchMatmulOp> batchMatmuls;
+  module.walk([&](linalg::BatchMatmulOp op) { batchMatmuls.push_back(op); });
+
+  for (linalg::BatchMatmulOp op : batchMatmuls) {
+    auto lhsTy = dyn_cast<MemRefType>(op.getInputs()[0].getType());
+    auto rhsTy = dyn_cast<MemRefType>(op.getInputs()[1].getType());
+    auto outTy = dyn_cast<MemRefType>(op.getOutputs()[0].getType());
+    if (!lhsTy || !rhsTy || !outTy || !lhsTy.hasStaticShape() ||
+        !rhsTy.hasStaticShape() || !outTy.hasStaticShape() ||
+        lhsTy.getRank() != 3 || rhsTy.getRank() != 3 ||
+        outTy.getRank() != 3) {
+      return op.emitOpError(
+          "expected static-rank memref<1xMxK>, memref<1xKxN>, memref<1xMxN>");
+    }
+
+    if (lhsTy.getShape()[0] != 1 || rhsTy.getShape()[0] != 1 ||
+        outTy.getShape()[0] != 1) {
+      return op.emitOpError(
+          "only batch-size 1 linalg.batch_matmul is supported");
+    }
+
+    SmallVector<ReassociationIndices> reassociation = {{0, 1}, {2}};
+    auto makeCollapsedType = [&](MemRefType srcTy) {
+      return MemRefType::get({srcTy.getShape()[1], srcTy.getShape()[2]},
+                             srcTy.getElementType(), AffineMap(),
+                             srcTy.getMemorySpace());
+    };
+
+    OpBuilder builder(op);
+    Value lhs2D = builder.create<memref::CollapseShapeOp>(
+        op.getLoc(), makeCollapsedType(lhsTy), op.getInputs()[0],
+        reassociation);
+    Value rhs2D = builder.create<memref::CollapseShapeOp>(
+        op.getLoc(), makeCollapsedType(rhsTy), op.getInputs()[1],
+        reassociation);
+    Value out2D = builder.create<memref::CollapseShapeOp>(
+        op.getLoc(), makeCollapsedType(outTy), op.getOutputs()[0],
+        reassociation);
+
+    builder.create<linalg::MatmulOp>(op.getLoc(), ValueRange{lhs2D, rhs2D},
+                                     ValueRange{out2D});
+    op.erase();
+  }
+
+  return success();
+}
+
 /**
  * @brief Pass that converts TileLoom IR to TTKernel dialect.
  * 
@@ -232,6 +280,11 @@ public:
       return;
     }
 
+    if (failed(rewriteBatch1MatmulToMatmul(module))) {
+      signalPassFailure();
+      return;
+    }
+
     // Step 3.5: Replace index-type function arguments with GetArgValOp.
     // For each function, insert GetArgValOp at the beginning of the
     // function body to materialize compile-time arguments:
@@ -282,6 +335,14 @@ public:
         [&](linalg::BatchMatmulOp op) { return false; });
     target.addDynamicallyLegalOp<linalg::FillOp>(
         [&](linalg::FillOp op) { return false; });
+    target.addDynamicallyLegalOp<linalg::GenericOp>(
+        [&](linalg::GenericOp op) {
+          return !mlir::loom::isSupportedFlashAttentionGeneric(op);
+        });
+    target.addDynamicallyLegalOp<linalg::CopyOp>(
+        [&](linalg::CopyOp op) {
+          return !mlir::loom::shouldConvertComputeLinalgCopy(op);
+        });
     
     // Mark module and function ops as legal (they will be type-converted)
     target.addLegalOp<ModuleOp>();
@@ -297,6 +358,15 @@ public:
     target.addDynamicallyLegalOp<memref::ReinterpretCastOp>(
         [&](memref::ReinterpretCastOp op) {
           return false;
+        });
+    target.addDynamicallyLegalOp<memref::CollapseShapeOp>(
+        [&](memref::CollapseShapeOp op) {
+          auto srcTy = dyn_cast<MemRefType>(op.getSrcType());
+          auto dstTy = dyn_cast<MemRefType>(op.getResultType());
+          if (!srcTy || !dstTy || !srcTy.hasStaticShape() ||
+              !dstTy.hasStaticShape())
+            return true;
+          return srcTy.getNumElements() != dstTy.getNumElements();
         });
     target.addLegalDialect<mlir::tt::ttkernel::TTKernelDialect>();
 
