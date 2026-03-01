@@ -447,7 +447,8 @@ static bool isLoomLoadOp(::loom::CopyOp op) {
  * @return true if this is a compute operation, false otherwise.
  */
 static bool isComputeOp(Operation *op) {
-  return isa<linalg::MatmulOp, linalg::BatchMatmulOp>(op);
+  return isa<linalg::MatmulOp, linalg::BatchMatmulOp, linalg::GenericOp,
+             linalg::FillOp, linalg::CopyOp>(op);
 }
 
 /**

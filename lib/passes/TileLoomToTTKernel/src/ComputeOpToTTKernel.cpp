@@ -15,6 +15,7 @@
 
 #include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOps.h"
+#include "ttmlir/Dialect/TTKernel/IR/TTKernelOpsTypes.h"
 
 #include "llvm/ADT/STLExtras.h"
 
@@ -36,6 +37,19 @@ enum class FlashAttentionGenericKind {
   AccUpdateBcastCols,
   NormalizeDivBcastCols,
 };
+
+static bool isComputeKernel(Operation *op) {
+  auto parentFunc = op->getParentOfType<func::FuncOp>();
+  if (!parentFunc)
+    return false;
+
+  if (auto threadAttr =
+          parentFunc->getAttrOfType<ThreadTypeAttr>(ThreadTypeAttr::name)) {
+    return threadAttr.getValue() == ThreadType::Compute;
+  }
+
+  return parentFunc.getName().ends_with("__compute");
+}
 
 template <typename OpTy>
 static bool bodyHasOp(linalg::GenericOp op) {
@@ -827,6 +841,9 @@ public:
   LogicalResult
   matchAndRewrite(linalg::GenericOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
+    if (!loom::isSupportedFlashAttentionGeneric(op))
+      return failure();
+
     auto kind = classifyFlashAttentionGeneric(op);
     if (!kind)
       return failure();
@@ -860,10 +877,13 @@ public:
 } // namespace
 
 bool mlir::loom::isSupportedFlashAttentionGeneric(linalg::GenericOp op) {
-  return classifyFlashAttentionGeneric(op).has_value();
+  return isComputeKernel(op.getOperation()) &&
+         classifyFlashAttentionGeneric(op).has_value();
 }
 
 bool mlir::loom::shouldConvertComputeLinalgCopy(linalg::CopyOp op) {
+  if (!isComputeKernel(op.getOperation()))
+    return false;
   if (op.getInputs().size() != 1 || op.getOutputs().size() != 1)
     return false;
   auto srcTy = dyn_cast<MemRefType>(op.getInputs()[0].getType());
