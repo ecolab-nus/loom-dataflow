@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "FuncOpToTTKernel.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Transforms/DialectConversion.h"
 
@@ -16,10 +17,12 @@ namespace mlir::loom {
  * @param patterns Pattern set to populate.
  * @param typeConverter Type converter used for the conversion pipeline.
  * @param context MLIR context.
+ * @param tracker Shared tracker that resolves memref args to CB values.
  */
 void populateComputeOpConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &typeConverter,
-                                         mlir::MLIRContext *context);
+                                         mlir::MLIRContext *context,
+                                         std::shared_ptr<CompileArgTracker> tracker);
 
 /// Returns true when this `linalg.generic` matches one of the supported
 /// FlashAttention compute forms handled by this pass.

@@ -4,6 +4,7 @@
  */
 
 #include "ComputeOpToTTKernel.h"
+#include "FuncOpToTTKernel.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -19,6 +20,11 @@
 
 #include "llvm/ADT/STLExtras.h"
 
+// Loom dialect headers for ::loom::CopyOp.
+#include "mlir/Interfaces/ViewLikeInterface.h"
+#define GET_OP_CLASSES
+#include "LoomOps.h.inc"
+
 #include <cstdint>
 #include <optional>
 
@@ -26,6 +32,13 @@ using namespace mlir;
 using namespace tt::ttkernel;
 
 namespace {
+
+static Value stripMemrefCasts(Value value) {
+  Value current = value;
+  while (auto cast = current.getDefiningOp<memref::CastOp>())
+    current = cast.getSource();
+  return current;
+}
 
 enum class FlashAttentionGenericKind {
   ReduceMaxRow,
@@ -704,22 +717,10 @@ public:
           ValueRange{in0Cb, in1Cb, outCb, transpose, ctDim, rtDim, ktDim});
     }
 
-    auto in0CbType = cast<CBType>(in0Cb.getType());
-    auto in1CbType = cast<CBType>(in1Cb.getType());
-    Value in0NumInputTilesValue = rewriter.create<arith::ConstantIntOp>(
-        loc, static_cast<int32_t>(in0CbType.getNumElements()) / 1024, 32);
-    Value in1NumInputTilesValue = rewriter.create<arith::ConstantIntOp>(
-        loc, static_cast<int32_t>(in1CbType.getNumElements()) / 1024, 32);
-    CBWaitFrontOp::create(rewriter, loc, in0Cb, in0NumInputTilesValue);
-    CBWaitFrontOp::create(rewriter, loc, in1Cb, in1NumInputTilesValue);
-
     rewriter.create<ExperimentalMatmulBlockOp>(
         loc, TypeRange{},
         ValueRange{in0Cb, in1Cb, in0TileIdx, in1TileIdx, dstTileIdx, transpose,
                    ctDim, rtDim, ktDim, ntDim});
-
-    CBPopFrontOp::create(rewriter, loc, in0Cb, in0NumInputTilesValue);
-    CBPopFrontOp::create(rewriter, loc, in1Cb, in1NumInputTilesValue);
 
     rewriter.eraseOp(op);
     return success();
@@ -774,43 +775,49 @@ public:
   }
 };
 
-class ConvertLinalgCopyOp : public OpConversionPattern<linalg::CopyOp> {
+class ConvertLoomCopyOp : public OpConversionPattern<::loom::CopyOp> {
 public:
-  using OpConversionPattern<linalg::CopyOp>::OpConversionPattern;
+  ConvertLoomCopyOp(TypeConverter &typeConverter, MLIRContext *context,
+                    std::shared_ptr<mlir::loom::CompileArgTracker> tracker)
+      : OpConversionPattern<::loom::CopyOp>(typeConverter, context),
+        tracker(std::move(tracker)) {}
 
   LogicalResult
-  matchAndRewrite(linalg::CopyOp op, OpAdaptor adaptor,
+  matchAndRewrite(::loom::CopyOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    if (!loom::shouldConvertComputeLinalgCopy(op))
-      return failure();
-    if (adaptor.getInputs().size() != 1 || adaptor.getOutputs().size() != 1)
-      return failure();
+    Value inCb = adaptor.getSource();
 
-    Value inCb = adaptor.getInputs()[0];
-    Value outCb = adaptor.getOutputs()[0];
-    if (!isa<CBType>(inCb.getType()) || !isa<CBType>(outCb.getType()))
-      return failure();
+    // Prefer tracker lookup for DRAM->L1 copies so compute kernels reuse the
+    // same argument-to-CB mapping as memory lowering, even when adaptor source
+    // is already a type-materialized CB via unrealized_conversion_cast.
+    if (auto sourceRC = op.getSource().getDefiningOp<memref::ReinterpretCastOp>()) {
+      Value inputMemref = stripMemrefCasts(sourceRC.getSource());
+      if (tracker) {
+        if (Value trackedCb = tracker->getCB(inputMemref))
+          inCb = trackedCb;
+      }
+    }
 
-    auto numTiles = getNumTilesFromShapedType(op.getInputs()[0].getType());
-    if (!numTiles)
+    if (!isa<CBType>(inCb.getType()))
       return failure();
 
     Location loc = op.getLoc();
-    CBWaitFrontOp::create(rewriter, loc, inCb, i32Const(rewriter, loc, *numTiles));
-    CBReserveBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *numTiles));
-    rewriter.create<CopyTileInitOp>(loc, inCb);
-    for (int64_t i = 0; i < *numTiles; ++i) {
-      TileRegsAcquireOp::create(rewriter, loc);
-      rewriter.create<CopyTileOp>(loc, inCb, i32Const(rewriter, loc, i),
-                                  i32Const(rewriter, loc, 0));
-      PackTileOp::create(rewriter, loc, i32Const(rewriter, loc, 0), outCb,
-                         i32Const(rewriter, loc, i));
-      TileRegsReleaseOp::create(rewriter, loc);
+    auto srcMemSpace = op.getSrcMemSpace();
+    bool isSrcDRAM =
+        srcMemSpace && srcMemSpace->getRootReference().getValue() == "DRAM";
+    if (isSrcDRAM) {
+      auto inCbType = cast<CBType>(inCb.getType());
+      Value inNumInputTilesValue = rewriter.create<arith::ConstantIntOp>(
+          loc, static_cast<int32_t>(inCbType.getNumElements()) / 1024, 32);
+      CBWaitFrontOp::create(rewriter, loc, inCb, inNumInputTilesValue);
     }
-    CBPushBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *numTiles));
+
     rewriter.eraseOp(op);
     return success();
   }
+
+private:
+  std::shared_ptr<mlir::loom::CompileArgTracker> tracker;
 };
 
 class ConvertMemrefCollapseShapeOp
@@ -841,7 +848,7 @@ public:
   LogicalResult
   matchAndRewrite(linalg::GenericOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    if (!loom::isSupportedFlashAttentionGeneric(op))
+    if (!mlir::loom::isSupportedFlashAttentionGeneric(op))
       return failure();
 
     auto kind = classifyFlashAttentionGeneric(op);
@@ -881,25 +888,12 @@ bool mlir::loom::isSupportedFlashAttentionGeneric(linalg::GenericOp op) {
          classifyFlashAttentionGeneric(op).has_value();
 }
 
-bool mlir::loom::shouldConvertComputeLinalgCopy(linalg::CopyOp op) {
-  if (!isComputeKernel(op.getOperation()))
-    return false;
-  if (op.getInputs().size() != 1 || op.getOutputs().size() != 1)
-    return false;
-  auto srcTy = dyn_cast<MemRefType>(op.getInputs()[0].getType());
-  auto dstTy = dyn_cast<MemRefType>(op.getOutputs()[0].getType());
-  if (!srcTy || !dstTy || !srcTy.hasStaticShape() || !dstTy.hasStaticShape())
-    return false;
-  return srcTy.getShape() == dstTy.getShape() &&
-         srcTy.getElementType() == dstTy.getElementType();
-}
-
 void mlir::loom::populateComputeOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
-    MLIRContext *context) {
-  patterns.add<ConvertLinalgMatmulOp>(typeConverter, context);
+    MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker) {
   patterns.add<ConvertLinalgFillOp>(typeConverter, context);
-  patterns.add<ConvertLinalgCopyOp>(typeConverter, context);
+  patterns.add<ConvertLoomCopyOp>(typeConverter, context, tracker);
+  patterns.add<ConvertLinalgMatmulOp>(typeConverter, context);
   patterns.add<ConvertMemrefCollapseShapeOp>(typeConverter, context);
   patterns.add<ConvertFlashAttentionGenericOp>(typeConverter, context);
 }

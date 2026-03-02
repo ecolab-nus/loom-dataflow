@@ -339,9 +339,9 @@ public:
         [&](linalg::GenericOp op) {
           return !mlir::loom::isSupportedFlashAttentionGeneric(op);
         });
-    target.addDynamicallyLegalOp<linalg::CopyOp>(
-        [&](linalg::CopyOp op) {
-          return !mlir::loom::shouldConvertComputeLinalgCopy(op);
+    target.addDynamicallyLegalOp<::loom::CopyOp>(
+        [&](::loom::CopyOp op) {
+          return false;
         });
     
     // Mark module and function ops as legal (they will be type-converted)
@@ -389,7 +389,8 @@ public:
     populateMemoryOpConversionPatterns(patterns, typeConverter, context,
                                        compileArgTracker);
     // Add compute operation conversion patterns (e.g., linalg.matmul)
-    populateComputeOpConversionPatterns(patterns, typeConverter, context);
+    populateComputeOpConversionPatterns(patterns, typeConverter, context,
+                                        compileArgTracker);
 
     // Apply conversion
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
