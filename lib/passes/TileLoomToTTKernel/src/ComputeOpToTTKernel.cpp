@@ -184,6 +184,33 @@ static bool hasOutputAlias(Value outCb, ValueRange inCbs) {
   return llvm::is_contained(inCbs, outCb);
 }
 
+static Operation *findLastSameBlockUserThroughViews(Value rootValue,
+                                                    Operation *anchorOp) {
+  Operation *lastUser = anchorOp;
+  SmallVector<Value, 8> worklist;
+  worklist.push_back(rootValue);
+
+  while (!worklist.empty()) {
+    Value current = worklist.pop_back_val();
+    for (Operation *user : current.getUsers()) {
+      if (user->getBlock() != anchorOp->getBlock() || !anchorOp->isBeforeInBlock(user))
+        continue;
+
+      if (lastUser->isBeforeInBlock(user))
+        lastUser = user;
+
+      // Follow memref/view aliases so downstream consumers (e.g. matmul using
+      // collapse_shape/cast results) are considered when placing cb_pop_front.
+      if (isa<ViewLikeOpInterface>(user)) {
+        for (Value result : user->getResults())
+          worklist.push_back(result);
+      }
+    }
+  }
+
+  return lastUser;
+}
+
 template <typename BuilderFn>
 static LogicalResult emitElementwiseTiles(
     ConversionPatternRewriter &rewriter, Location loc, Value outCb,
@@ -810,6 +837,19 @@ public:
       Value inNumInputTilesValue = rewriter.create<arith::ConstantIntOp>(
           loc, static_cast<int32_t>(inCbType.getNumElements()) / 1024, 32);
       CBWaitFrontOp::create(rewriter, loc, inCb, inNumInputTilesValue);
+
+      // Release the consumed front tiles only after the last same-block use of
+      // the loaded destination buffer. Consider both pre-conversion memref uses
+      // and converted CB uses, including view/cast chains.
+      Operation *popAnchor = op.getOperation();
+      popAnchor =
+          findLastSameBlockUserThroughViews(op.getDestination(), popAnchor);
+      popAnchor =
+          findLastSameBlockUserThroughViews(adaptor.getDestination(), popAnchor);
+
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPointAfter(popAnchor);
+      CBPopFrontOp::create(rewriter, loc, inCb, inNumInputTilesValue);
     }
 
     rewriter.eraseOp(op);
