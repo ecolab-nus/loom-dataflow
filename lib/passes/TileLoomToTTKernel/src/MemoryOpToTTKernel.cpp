@@ -18,12 +18,14 @@
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "ttmlir/Dialect/TTCore/IR/TTCore.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOps.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOpsTypes.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Casting.h"
 #include <memory>
 
@@ -109,6 +111,71 @@ static Operation *findLastSameBlockUserThroughViews(Value rootValue,
   }
 
   return lastUser;
+}
+
+/**
+ * @brief Find last read and first write users reachable through view aliases.
+ *
+ * @details Starting from `rootValue`, walks use-def through view-like aliases
+ *          within the same block and records:
+ *          - the last operation that reads from the value/aliases
+ *          - the first operation that writes to the value/aliases
+ *
+ * @param rootValue The root value to trace uses from.
+ * @param anchorOp The minimum operation anchor used for block/ordering checks.
+ * @param lastRead [in/out] Tracks the latest reader at or after `anchorOp`.
+ * @param firstWrite [in/out] Tracks the earliest writer at or after `anchorOp`.
+ */
+static void
+findReadWriteUsersThroughViews(Value rootValue, Operation *anchorOp,
+                               Operation *&lastRead,
+                               Operation *&firstWrite) {
+  SmallVector<Value, 8> worklist;
+  llvm::SmallPtrSet<Value, 8> visited;
+  worklist.push_back(rootValue);
+
+  while (!worklist.empty()) {
+    Value current = worklist.pop_back_val();
+    if (!visited.insert(current).second)
+      continue;
+
+    for (Operation *user : current.getUsers()) {
+      if (user->getBlock() != anchorOp->getBlock() ||
+          !anchorOp->isBeforeInBlock(user))
+        continue;
+
+      if (auto viewLike = dyn_cast<ViewLikeOpInterface>(user)) {
+        for (Value result : viewLike->getResults())
+          worklist.push_back(result);
+      }
+
+      auto memEffectOp = dyn_cast<MemoryEffectOpInterface>(user);
+      if (!memEffectOp)
+        continue;
+
+      SmallVector<MemoryEffects::EffectInstance, 4> effects;
+      memEffectOp.getEffects(effects);
+
+      bool hasRead = false;
+      bool hasWrite = false;
+      for (const auto &effect : effects) {
+        Value effectedValue = effect.getValue();
+        if (effectedValue && effectedValue != current)
+          continue;
+
+        if (isa<MemoryEffects::Read>(effect.getEffect()))
+          hasRead = true;
+        if (isa<MemoryEffects::Write>(effect.getEffect()))
+          hasWrite = true;
+      }
+
+      if (hasRead && lastRead->isBeforeInBlock(user))
+        lastRead = user;
+      if (hasWrite &&
+          (!firstWrite || user->isBeforeInBlock(firstWrite)))
+        firstWrite = user;
+    }
+  }
 }
 
 /**
@@ -1161,17 +1228,24 @@ struct ConvertLoomComputeLoadOp : public OpConversionPattern<::loom::CopyOp> {
           loc, static_cast<int32_t>(inCbType.getNumElements()) / 1024, 32);
       CBWaitFrontOp::create(rewriter, loc, inCb, inNumInputTilesValue);
 
-      // Release the consumed front tiles only after the last same-block use of
-      // the loaded destination buffer. Consider both pre-conversion memref uses
-      // and converted CB uses, including view/cast chains.
-      Operation *popAnchor = op.getOperation();
-      popAnchor =
-          findLastSameBlockUserThroughViews(op.getDestination(), popAnchor);
-      popAnchor =
-          findLastSameBlockUserThroughViews(adaptor.getDestination(), popAnchor);
-
       OpBuilder::InsertionGuard guard(rewriter);
-      rewriter.setInsertionPointAfter(popAnchor);
+      // Release the consumed front tiles:
+      // - before the first same-block write to the loaded destination buffer,
+      //   if any writes exist; otherwise
+      // - after the last same-block read of the loaded destination buffer.
+      Operation *anchorOp = op.getOperation();
+      Operation *lastRead = anchorOp;
+      Operation *firstWrite = nullptr;
+
+      findReadWriteUsersThroughViews(op.getDestination(), anchorOp, lastRead,
+                                     firstWrite);
+      findReadWriteUsersThroughViews(adaptor.getDestination(), anchorOp,
+                                     lastRead, firstWrite);
+
+      if (firstWrite)
+        rewriter.setInsertionPoint(firstWrite);
+      else
+        rewriter.setInsertionPointAfter(lastRead);
       CBPopFrontOp::create(rewriter, loc, inCb, inNumInputTilesValue);
     }
 

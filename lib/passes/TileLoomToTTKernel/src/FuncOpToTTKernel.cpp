@@ -24,6 +24,7 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
 
 // Loom dialect headers for ::::loom::CopyOp, ::loom::AllocOp
 #include "mlir/Interfaces/ViewLikeInterface.h"
@@ -672,7 +673,14 @@ private:
         return false;
       if (i > 0)
         expr += " * ";
-      expr += std::to_string(shape[i]);
+      int64_t dim = shape[i];
+      if (i >= rank - 2) {
+        // Guard against zero tile count for small dims (e.g. 1x64).
+        // CB tile count uses the last two dimensions and each must be at least
+        // one tile (32 elements) along tiled axes.
+        dim = std::max<int64_t>(32, dim);
+      }
+      expr += std::to_string(dim);
       if (i >= rank - 2)
         expr += " / TILE_HEIGHT";
     }
