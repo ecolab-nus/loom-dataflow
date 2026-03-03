@@ -1168,9 +1168,9 @@ private:
  * @brief Convert `loom.copy` (store) to CB synchronization for compute
  *        kernels.
  *
- * @details In compute kernels, stores are handled by the writer kernel. The
- *          compute kernel emits tile_regs_acquire/commit/wait/release and
- *          pack operations, then cb_push_back.
+ * @details In compute kernels, matmul lowering materializes tile register
+ *          commit/wait and pack operations. Store lowering only emits
+ *          cb_push_back so writer kernels can drain the CB to DRAM.
  */
 struct ConvertLoomComputeStoreOp : public OpConversionPattern<::loom::CopyOp> {
   using OpConversionPattern<::loom::CopyOp>::OpConversionPattern;
@@ -1204,38 +1204,7 @@ struct ConvertLoomComputeStoreOp : public OpConversionPattern<::loom::CopyOp> {
     Value outcbNumInputTilesValue =
         rewriter.create<arith::ConstantIntOp>(loc, numTiles, 32);
 
-    if (Block *parentBlock = op->getBlock()) {
-      auto savedPt = rewriter.saveInsertionPoint();
-      rewriter.setInsertionPointToStart(parentBlock);
-      TileRegsAcquireOp::create(rewriter, loc);
-      rewriter.restoreInsertionPoint(savedPt);
-    }
-
-    CBReserveBackOp::create(rewriter, loc, outcb, outcbNumInputTilesValue);
-    TileRegsCommitOp::create(rewriter, loc);
-    TileRegsWaitOp::create(rewriter, loc);
-
-    Value lowerBound = rewriter.create<arith::ConstantIntOp>(loc, 0, 32);
-    Value step = rewriter.create<arith::ConstantIntOp>(loc, 1, 32);
-    unsigned dstIndexOffset = 0;
-
-    scf::ForOp packLoop = scf::ForOp::create(rewriter, loc, lowerBound,
-                                             outcbNumInputTilesValue, step);
-    {
-      rewriter.setInsertionPointToStart(packLoop.getBody());
-      Value i = packLoop.getInductionVar();
-      Value dstIdx = i;
-      if (dstIndexOffset != 0) {
-        Value offsetVal = rewriter.create<arith::ConstantIntOp>(
-            loc, static_cast<int32_t>(dstIndexOffset), 32);
-        dstIdx = arith::AddIOp::create(rewriter, loc, i, offsetVal);
-      }
-      PackTileOp::create(rewriter, loc, dstIdx, outcb, i);
-    }
-    rewriter.setInsertionPointAfter(packLoop);
-
-    TileRegsReleaseOp::create(rewriter, loc);
-    CBPushBackOp::create(rewriter, loc, outcb, outcbNumInputTilesValue);
+    //CBPushBackOp::create(rewriter, loc, outcb, outcbNumInputTilesValue);
     rewriter.eraseOp(op);
     return success();
   }

@@ -12,6 +12,7 @@
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Interfaces/ViewLikeInterface.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -22,6 +23,7 @@
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallBitVector.h"
+#include "llvm/ADT/SmallPtrSet.h"
 
 #include <cstdint>
 #include <optional>
@@ -73,6 +75,80 @@ static bool isComputeKernel(Operation *op) {
   }
 
   return parentFunc.getName().ends_with("__compute");
+}
+
+/**
+ * @brief Collect non-view users reachable from a value through view aliases.
+ *
+ * @details Walks users of `rootValue` and follows view-like ops (casts/views)
+ *          to discover the effective non-view consumers. `excludedUser` is
+ *          skipped (used to ignore the producer op currently being rewritten).
+ */
+static void collectNonViewUsersThroughViews(
+    Value rootValue, Operation *excludedUser,
+    SmallVectorImpl<Operation *> &users) {
+  SmallVector<Value, 8> worklist;
+  llvm::SmallPtrSet<Value, 16> seenValues;
+  llvm::SmallPtrSet<Operation *, 16> seenUsers;
+
+  worklist.push_back(rootValue);
+  seenValues.insert(rootValue);
+
+  while (!worklist.empty()) {
+    Value current = worklist.pop_back_val();
+    for (Operation *user : current.getUsers()) {
+      if (user == excludedUser)
+        continue;
+
+      if (isa<ViewLikeOpInterface>(user)) {
+        for (Value result : user->getResults())
+          if (seenValues.insert(result).second)
+            worklist.push_back(result);
+        continue;
+      }
+
+      if (seenUsers.insert(user).second)
+        users.push_back(user);
+    }
+  }
+}
+
+/**
+ * @brief Choose where matmul output tile-reg materialization should be placed.
+ *
+ * @details If a matmul output is consumed in the same block after matmul, the
+ *          materialization scope is the matmul itself. If not, but the output
+ *          is consumed in an ancestor block, the nearest enclosing op whose
+ *          parent block contains that next consumer is returned (e.g. an
+ *          enclosing scf.for). This enables wrapping tile-reg acquire/commit
+ *          around loop scopes when the next use is outside the loop body.
+ */
+static Operation *findMatmulOutputMaterializationScope(Value outputBuffer,
+                                                       Operation *matmulOp) {
+  SmallVector<Operation *, 8> users;
+  collectNonViewUsersThroughViews(outputBuffer, matmulOp, users);
+  if (users.empty())
+    return matmulOp;
+
+  Block *matmulBlock = matmulOp->getBlock();
+  for (Operation *user : users) {
+    if (user->getBlock() == matmulBlock && matmulOp->isBeforeInBlock(user))
+      return matmulOp;
+  }
+
+  for (Operation *ancestor = matmulOp->getParentOp(); ancestor;
+       ancestor = ancestor->getParentOp()) {
+    Block *ancestorBlock = ancestor->getBlock();
+    if (!ancestorBlock)
+      continue;
+    for (Operation *user : users) {
+      if (user->getBlock() == ancestorBlock &&
+          ancestor->isBeforeInBlock(user))
+        return ancestor;
+    }
+  }
+
+  return matmulOp;
 }
 
 template <typename OpTy>
@@ -704,6 +780,7 @@ public:
     Value in0Cb = adaptor.getInputs()[0];
     Value in1Cb = adaptor.getInputs()[1];
     Value outCb = adaptor.getOutputs()[0];
+    Value outBuffer = op.getOutputs()[0];
 
     // Ensure operands are TTKernel CBs.
     if (!isa<CBType>(in0Cb.getType()) || !isa<CBType>(in1Cb.getType()) ||
@@ -797,16 +874,52 @@ public:
           ValueRange{in0Cb, in1Cb, outCb, transpose, ctDim, rtDim, ktDim});
     }
 
+    Operation *materializationScopeOp =
+        findMatmulOutputMaterializationScope(outBuffer, op.getOperation());
+
+    {
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(materializationScopeOp);
+      TileRegsAcquireOp::create(rewriter, loc);
+    }
+
     rewriter.create<ExperimentalMatmulBlockOp>(
         loc, TypeRange{},
         ValueRange{in0Cb, in1Cb, in0TileIdx, in1TileIdx, dstTileIdx, transpose,
                    ctDim, rtDim, ktDim, ntDim});
+
+    {
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPointAfter(materializationScopeOp);
+
+      auto outCbType = cast<CBType>(outCb.getType());
+      int32_t numTiles = static_cast<int32_t>(outCbType.getNumElements()) / 1024;
+      Value outCbNumTiles =
+          rewriter.create<arith::ConstantIntOp>(loc, numTiles, 32);
+      Value lowerBound = rewriter.create<arith::ConstantIntOp>(loc, 0, 32);
+      Value step = rewriter.create<arith::ConstantIntOp>(loc, 1, 32);
+
+      // Materialize tile-register results into L1 CB at the chosen scope.
+      CBReserveBackOp::create(rewriter, loc, outCb, outCbNumTiles);
+      TileRegsCommitOp::create(rewriter, loc);
+      TileRegsWaitOp::create(rewriter, loc);
+
+      scf::ForOp packLoop =
+          scf::ForOp::create(rewriter, loc, lowerBound, outCbNumTiles, step);
+      rewriter.setInsertionPointToStart(packLoop.getBody());
+      Value i = packLoop.getInductionVar();
+      PackTileOp::create(rewriter, loc, i, outCb, i);
+      rewriter.setInsertionPointAfter(packLoop);
+      TileRegsReleaseOp::create(rewriter, loc);
+      CBPushBackOp::create(rewriter, loc, outCb, outCbNumTiles);
+    }
 
     rewriter.eraseOp(op);
     return success();
   }
 };
 
+//TODO, ignore fill op first
 class ConvertLinalgFillOp : public OpConversionPattern<linalg::FillOp> {
 public:
   using OpConversionPattern<linalg::FillOp>::OpConversionPattern;
@@ -821,7 +934,7 @@ public:
     if (!isa<CBType>(outCb.getType()))
       return failure();
 
-    auto numTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
+/*     auto numTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
     if (!numTiles)
       return failure();
 
@@ -849,7 +962,7 @@ public:
                          i32Const(rewriter, loc, i));
       TileRegsReleaseOp::create(rewriter, loc);
     }
-    CBPushBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *numTiles));
+    CBPushBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *numTiles)); */
     rewriter.eraseOp(op);
     return success();
   }
