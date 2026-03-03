@@ -62,6 +62,56 @@ static bool isComputeKernel(Operation *op) {
 }
 
 /**
+ * @brief Strip intermediate memref.cast ops to recover the original memref.
+ *
+ * @param value Value that may be defined by one or more `memref.cast` ops.
+ * @return The first non-`memref.cast` source value.
+ */
+static Value stripMemrefCasts(Value value) {
+  Value current = value;
+  while (auto cast = current.getDefiningOp<memref::CastOp>())
+    current = cast.getSource();
+  return current;
+}
+
+/**
+ * @brief Find the last same-block user reachable through view aliases.
+ *
+ * @details Starts from `rootValue` and walks use-def through view-like aliases
+ *          (e.g. casts/collapses) within the same block to locate the latest
+ *          operation that still uses the loaded data.
+ *
+ * @param rootValue The root value to trace uses from.
+ * @param anchorOp The minimum operation anchor used for block/ordering checks.
+ * @return The last same-block user at or after `anchorOp`.
+ */
+static Operation *findLastSameBlockUserThroughViews(Value rootValue,
+                                                    Operation *anchorOp) {
+  Operation *lastUser = anchorOp;
+  SmallVector<Value, 8> worklist;
+  worklist.push_back(rootValue);
+
+  while (!worklist.empty()) {
+    Value current = worklist.pop_back_val();
+    for (Operation *user : current.getUsers()) {
+      if (user->getBlock() != anchorOp->getBlock() ||
+          !anchorOp->isBeforeInBlock(user))
+        continue;
+
+      if (lastUser->isBeforeInBlock(user))
+        lastUser = user;
+
+      if (isa<ViewLikeOpInterface>(user)) {
+        for (Value result : user->getResults())
+          worklist.push_back(result);
+      }
+    }
+  }
+
+  return lastUser;
+}
+
+/**
  * @brief Emit TTKernel NOC async read operations for a DRAM-to-L1 transfer.
  *
  * @details Given the source value (which must come from a
@@ -1049,9 +1099,10 @@ private:
 /**
  * @brief Convert `loom.copy` (load) to CB synchronization for compute kernels.
  *
- * @details In compute kernels, loads are handled by the reader kernel. The
- *          compute kernel simply erases the copy op because CB wait/push
- *          operations are emitted elsewhere.
+ * @details For DRAM-sourced loads in compute kernels, emit `cb_wait_front`
+ *          before use and `cb_pop_front` after the last same-block use of
+ *          the loaded destination value (tracking view aliases). For
+ *          non-DRAM sources, the op is erased without synchronization.
  */
 struct ConvertLoomComputeLoadOp : public OpConversionPattern<::loom::CopyOp> {
   using OpConversionPattern<::loom::CopyOp>::OpConversionPattern;
@@ -1064,6 +1115,47 @@ struct ConvertLoomComputeLoadOp : public OpConversionPattern<::loom::CopyOp> {
   LogicalResult
   matchAndRewrite(::loom::CopyOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
+    Value inCb = adaptor.getSource();
+
+    // Prefer tracker lookup for DRAM->L1 copies so compute kernels reuse the
+    // same argument-to-CB mapping as memory lowering, even when adaptor source
+    // is already a type-materialized CB via unrealized_conversion_cast.
+    if (auto sourceRC =
+            op.getSource().getDefiningOp<memref::ReinterpretCastOp>()) {
+      Value inputMemref = stripMemrefCasts(sourceRC.getSource());
+      if (tracker) {
+        if (Value trackedCb = tracker->getCB(inputMemref))
+          inCb = trackedCb;
+      }
+    }
+
+    if (!isa<CBType>(inCb.getType()))
+      return failure();
+
+    Location loc = op.getLoc();
+    auto srcMemSpace = op.getSrcMemSpace();
+    bool isSrcDRAM =
+        srcMemSpace && srcMemSpace->getRootReference().getValue() == "DRAM";
+    if (isSrcDRAM) {
+      auto inCbType = cast<CBType>(inCb.getType());
+      Value inNumInputTilesValue = rewriter.create<arith::ConstantIntOp>(
+          loc, static_cast<int32_t>(inCbType.getNumElements()) / 1024, 32);
+      CBWaitFrontOp::create(rewriter, loc, inCb, inNumInputTilesValue);
+
+      // Release the consumed front tiles only after the last same-block use of
+      // the loaded destination buffer. Consider both pre-conversion memref uses
+      // and converted CB uses, including view/cast chains.
+      Operation *popAnchor = op.getOperation();
+      popAnchor =
+          findLastSameBlockUserThroughViews(op.getDestination(), popAnchor);
+      popAnchor =
+          findLastSameBlockUserThroughViews(adaptor.getDestination(), popAnchor);
+
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPointAfter(popAnchor);
+      CBPopFrontOp::create(rewriter, loc, inCb, inNumInputTilesValue);
+    }
+
     rewriter.eraseOp(op);
     return success();
   }

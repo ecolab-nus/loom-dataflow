@@ -11,7 +11,9 @@
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/AffineExpr.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 #include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
@@ -19,37 +21,46 @@
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOpsTypes.h"
 
 #include "llvm/ADT/STLExtras.h"
-
-// Loom dialect headers for ::loom::CopyOp.
-#include "mlir/Interfaces/ViewLikeInterface.h"
-#define GET_OP_CLASSES
-#include "LoomOps.h.inc"
+#include "llvm/ADT/SmallBitVector.h"
 
 #include <cstdint>
 #include <optional>
+#include <tuple>
 
 using namespace mlir;
 using namespace tt::ttkernel;
 
 namespace {
 
-static Value stripMemrefCasts(Value value) {
-  Value current = value;
-  while (auto cast = current.getDefiningOp<memref::CastOp>())
-    current = cast.getSource();
-  return current;
-}
-
 enum class FlashAttentionGenericKind {
-  ReduceMaxRow,
-  MaxWithScale,
-  SubExpBcastCols,
-  ReduceSumRow,
-  AlphaExp,
-  MulAddInplace,
-  AccUpdateBcastCols,
-  NormalizeDivBcastCols,
+  Reduction,
+  Elementwise
 };
+
+struct ElementwiseAnalysis {
+  Value yieldValue;
+  int64_t outTiles = 0;
+  std::optional<unsigned> rowBcastInput;
+  std::optional<int64_t> colTiles;
+  SmallVector<int64_t, 4> inputWaitTiles;
+  llvm::SmallBitVector usedInputs;
+
+  bool needsBinopWithScalar = false;
+  bool needsUnaryBcast = false;
+  bool needsSubBinary = false;
+  bool needsAddBinary = false;
+  bool needsMulBinary = false;
+  bool needsBinaryMax = false;
+  bool needsExp = false;
+  bool needsRecip = false;
+};
+
+static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
+                                               ElementwiseAnalysis &analysis);
+static bool isSupportedElementwiseGeneric(linalg::GenericOp op) {
+  ElementwiseAnalysis analysis;
+  return succeeded(analyzeElementwiseGeneric(op, analysis));
+}
 
 static bool isComputeKernel(Operation *op) {
   auto parentFunc = op->getParentOfType<func::FuncOp>();
@@ -77,39 +88,92 @@ classifyFlashAttentionGeneric(linalg::GenericOp op) {
   if (op.getNumDpsInits() != 1)
     return std::nullopt;
 
-  if (op.getNumLoops() == 3 && op.getNumDpsInputs() == 1) {
-    if (bodyHasOp<arith::MaximumFOp>(op))
-      return FlashAttentionGenericKind::ReduceMaxRow;
-    if (bodyHasOp<arith::AddFOp>(op))
-      return FlashAttentionGenericKind::ReduceSumRow;
-  }
+  if (llvm::any_of(op.getIteratorTypesArray(), [](utils::IteratorType type) {
+        return type == utils::IteratorType::reduction;
+      }))
+    return FlashAttentionGenericKind::Reduction;
 
-  if (op.getNumLoops() == 2 && op.getNumDpsInputs() == 2) {
-    if (bodyHasOp<arith::CmpFOp>(op) && bodyHasOp<arith::SelectOp>(op))
-      return FlashAttentionGenericKind::MaxWithScale;
-    if (bodyHasOp<arith::SubFOp>(op) && bodyHasOp<math::PowFOp>(op))
-      return FlashAttentionGenericKind::AlphaExp;
-  }
-
-  if (op.getNumLoops() == 3 && op.getNumDpsInputs() == 2) {
-    if (bodyHasOp<arith::DivFOp>(op))
-      return FlashAttentionGenericKind::NormalizeDivBcastCols;
-    if (bodyHasOp<arith::SubFOp>(op) && bodyHasOp<math::PowFOp>(op))
-      return FlashAttentionGenericKind::SubExpBcastCols;
-  }
-
-  if (op.getNumLoops() == 2 && op.getNumDpsInputs() == 3 &&
-      bodyHasOp<arith::MulFOp>(op) && bodyHasOp<arith::AddFOp>(op)) {
-    return FlashAttentionGenericKind::MulAddInplace;
-  }
-
-  if (op.getNumLoops() == 3 && op.getNumDpsInputs() == 3 &&
-      bodyHasOp<arith::MulFOp>(op) && bodyHasOp<arith::AddFOp>(op)) {
-    return FlashAttentionGenericKind::AccUpdateBcastCols;
-  }
+  if (isSupportedElementwiseGeneric(op))
+    return FlashAttentionGenericKind::Elementwise;
 
   return std::nullopt;
 }
+
+static bool isIdentityMapForRank(AffineMap map, unsigned rank) {
+  if (!map || map.getNumDims() != rank || map.getNumSymbols() != 0 ||
+      map.getNumResults() != rank)
+    return false;
+  for (unsigned i = 0; i < rank; ++i) {
+    auto dimExpr = dyn_cast<AffineDimExpr>(map.getResult(i));
+    if (!dimExpr || dimExpr.getPosition() != i)
+      return false;
+  }
+  return true;
+}
+
+static bool isBatchRowMap3D(AffineMap map) {
+  if (!map || map.getNumDims() != 3 || map.getNumSymbols() != 0 ||
+      map.getNumResults() != 2)
+    return false;
+  auto d0 = dyn_cast<AffineDimExpr>(map.getResult(0));
+  auto d1 = dyn_cast<AffineDimExpr>(map.getResult(1));
+  return d0 && d1 && d0.getPosition() == 0 && d1.getPosition() == 1;
+}
+
+static bool hasAllIdentityMapsForRank(linalg::GenericOp op, unsigned rank) {
+  if (op.getNumLoops() != rank)
+    return false;
+  for (AffineMap map : op.getIndexingMapsArray())
+    if (!isIdentityMapForRank(map, rank))
+      return false;
+  return true;
+}
+
+static std::optional<unsigned> getRowBroadcastInputIndex3D(linalg::GenericOp op) {
+  if (op.getNumLoops() != 3 || op.getNumDpsInits() != 1)
+    return std::nullopt;
+
+  unsigned numInputs = op.getNumDpsInputs();
+  auto maps = op.getIndexingMapsArray();
+  if (maps.size() != numInputs + 1)
+    return std::nullopt;
+  if (!isIdentityMapForRank(maps[numInputs], 3))
+    return std::nullopt;
+
+  std::optional<unsigned> rowInputIndex;
+  for (unsigned i = 0; i < numInputs; ++i) {
+    if (isBatchRowMap3D(maps[i])) {
+      if (rowInputIndex)
+        return std::nullopt;
+      rowInputIndex = i;
+      continue;
+    }
+    if (!isIdentityMapForRank(maps[i], 3))
+      return std::nullopt;
+  }
+
+  return rowInputIndex;
+}
+
+static std::optional<unsigned> getBodyInputIndex(linalg::GenericOp op, Value value) {
+  auto blockArg = dyn_cast<BlockArgument>(value);
+  if (!blockArg || blockArg.getOwner() != &op.getRegion().front())
+    return std::nullopt;
+  if (blockArg.getArgNumber() >= op.getNumDpsInputs())
+    return std::nullopt;
+  return blockArg.getArgNumber();
+}
+
+static std::optional<float> getConstFloatValue(Value value) {
+  auto cst = value.getDefiningOp<arith::ConstantFloatOp>();
+  if (!cst)
+    return std::nullopt;
+  auto attr = dyn_cast<FloatAttr>(cst.getValue());
+  if (!attr)
+    return std::nullopt;
+  return static_cast<float>(attr.getValueAsDouble());
+}
+
 
 static std::optional<int64_t> ceilDiv32(int64_t value) {
   if (value <= 0)
@@ -143,80 +207,30 @@ static Value i32Const(ConversionPatternRewriter &rewriter, Location loc,
   return rewriter.create<arith::ConstantIntOp>(loc, value, 32);
 }
 
-static Value getOrCreateScalarBitsParam(linalg::GenericOp op, Location loc,
-                                        ConversionPatternRewriter &rewriter) {
-  for (Operation &inner : op.getRegion().front().without_terminator()) {
-    auto trunc = dyn_cast<arith::TruncFOp>(inner);
-    if (!trunc)
-      continue;
-    auto cst = trunc.getIn().getDefiningOp<arith::ConstantFloatOp>();
-    if (!cst)
-      continue;
-    auto floatAttr = dyn_cast<FloatAttr>(cst.getValue());
-    if (!floatAttr)
-      continue;
-    auto f32Value = static_cast<float>(floatAttr.getValueAsDouble());
-    Value f32Const = rewriter.create<arith::ConstantFloatOp>(
-        loc, rewriter.getF32Type(), llvm::APFloat(f32Value));
-    return rewriter.create<arith::BitcastOp>(loc, rewriter.getI32Type(),
-                                             f32Const);
-  }
-
-  Value oneF32 = rewriter.create<arith::ConstantFloatOp>(
-      loc, rewriter.getF32Type(), llvm::APFloat(1.0f));
-  return rewriter.create<arith::BitcastOp>(loc, rewriter.getI32Type(), oneF32);
-}
-
-static LogicalResult checkBF16Operands(Operation *op, ValueRange operands) {
-  for (Value operand : operands) {
-    auto shaped = dyn_cast<ShapedType>(operand.getType());
-    if (!shaped)
-      continue;
-    if (!shaped.getElementType().isBF16()) {
-      return op->emitOpError(
-          "FlashAttention generic lowering currently supports bf16 only");
-    }
-  }
-  return success();
+static Value getScalarBitsFromFloat(ConversionPatternRewriter &rewriter,
+                                    Location loc, float value) {
+  Value f32Const = rewriter.create<arith::ConstantFloatOp>(
+      loc, rewriter.getF32Type(), llvm::APFloat(value));
+  return rewriter.create<arith::BitcastOp>(loc, rewriter.getI32Type(), f32Const);
 }
 
 static bool hasOutputAlias(Value outCb, ValueRange inCbs) {
   return llvm::is_contained(inCbs, outCb);
 }
 
-static Operation *findLastSameBlockUserThroughViews(Value rootValue,
-                                                    Operation *anchorOp) {
-  Operation *lastUser = anchorOp;
-  SmallVector<Value, 8> worklist;
-  worklist.push_back(rootValue);
-
-  while (!worklist.empty()) {
-    Value current = worklist.pop_back_val();
-    for (Operation *user : current.getUsers()) {
-      if (user->getBlock() != anchorOp->getBlock() || !anchorOp->isBeforeInBlock(user))
-        continue;
-
-      if (lastUser->isBeforeInBlock(user))
-        lastUser = user;
-
-      // Follow memref/view aliases so downstream consumers (e.g. matmul using
-      // collapse_shape/cast results) are considered when placing cb_pop_front.
-      if (isa<ViewLikeOpInterface>(user)) {
-        for (Value result : user->getResults())
-          worklist.push_back(result);
-      }
-    }
-  }
-
-  return lastUser;
-}
 
 template <typename BuilderFn>
 static LogicalResult emitElementwiseTiles(
     ConversionPatternRewriter &rewriter, Location loc, Value outCb,
-    int64_t outTiles, ValueRange inputCbs, BuilderFn &&builder) {
-  for (Value inputCb : inputCbs)
-    CBWaitFrontOp::create(rewriter, loc, inputCb, i32Const(rewriter, loc, outTiles));
+    int64_t outTiles, ValueRange inputCbs, ArrayRef<int64_t> inputWaitTiles,
+    BuilderFn &&builder) {
+  if (!inputWaitTiles.empty() && inputWaitTiles.size() != inputCbs.size())
+    return failure();
+  for (auto [idx, inputCb] : llvm::enumerate(inputCbs)) {
+    int64_t waitTiles = inputWaitTiles.empty() ? outTiles : inputWaitTiles[idx];
+    CBWaitFrontOp::create(rewriter, loc, inputCb,
+                          i32Const(rewriter, loc, waitTiles));
+  }
 
   bool outAliasesInput = hasOutputAlias(outCb, inputCbs);
   if (!outAliasesInput)
@@ -236,16 +250,328 @@ static LogicalResult emitElementwiseTiles(
   return success();
 }
 
-static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
-                                          linalg::GenericOp::Adaptor adaptor,
-                                          ConversionPatternRewriter &rewriter,
-                                          ReduceType reduceType) {
-  if (adaptor.getInputs().size() != 1 || adaptor.getOutputs().size() != 1)
+static bool isGreaterCmp(arith::CmpFPredicate pred) {
+  return pred == arith::CmpFPredicate::OGT ||
+         pred == arith::CmpFPredicate::OGE ||
+         pred == arith::CmpFPredicate::UGT ||
+         pred == arith::CmpFPredicate::UGE;
+}
+
+static bool isLessCmp(arith::CmpFPredicate pred) {
+  return pred == arith::CmpFPredicate::OLT ||
+         pred == arith::CmpFPredicate::OLE ||
+         pred == arith::CmpFPredicate::ULT ||
+         pred == arith::CmpFPredicate::ULE;
+}
+
+static bool matchMaxSelect(arith::SelectOp selectOp, Value &lhs, Value &rhs) {
+  auto cmp = selectOp.getCondition().getDefiningOp<arith::CmpFOp>();
+  if (!cmp)
+    return false;
+
+  arith::CmpFPredicate pred = cmp.getPredicate();
+  Value cmpLhs = cmp.getLhs();
+  Value cmpRhs = cmp.getRhs();
+  Value trueV = selectOp.getTrueValue();
+  Value falseV = selectOp.getFalseValue();
+
+  if (isGreaterCmp(pred) && trueV == cmpLhs && falseV == cmpRhs) {
+    lhs = cmpLhs;
+    rhs = cmpRhs;
+    return true;
+  }
+
+  if (isLessCmp(pred) && trueV == cmpRhs && falseV == cmpLhs) {
+    lhs = cmpLhs;
+    rhs = cmpRhs;
+    return true;
+  }
+
+  return false;
+}
+
+static LogicalResult analyzeElementwiseExpr(Value exprValue, linalg::GenericOp op,
+                                            ElementwiseAnalysis &analysis) {
+  if (auto inputIdx = getBodyInputIndex(op, exprValue)) {
+    analysis.usedInputs.set(*inputIdx);
+    return success();
+  }
+
+  if (getConstFloatValue(exprValue).has_value())
+    return success();
+
+  Operation *defOp = exprValue.getDefiningOp();
+  if (!defOp || defOp->getBlock() != &op.getRegion().front())
     return failure();
 
+  if (auto mulOp = dyn_cast<arith::MulFOp>(defOp)) {
+    auto lhsConst = getConstFloatValue(mulOp.getLhs());
+    auto rhsConst = getConstFloatValue(mulOp.getRhs());
+    if (lhsConst && !rhsConst) {
+      analysis.needsBinopWithScalar = true;
+      return analyzeElementwiseExpr(mulOp.getRhs(), op, analysis);
+    }
+    if (rhsConst && !lhsConst) {
+      analysis.needsBinopWithScalar = true;
+      return analyzeElementwiseExpr(mulOp.getLhs(), op, analysis);
+    }
+    analysis.needsMulBinary = true;
+    if (failed(analyzeElementwiseExpr(mulOp.getLhs(), op, analysis)))
+      return failure();
+    return analyzeElementwiseExpr(mulOp.getRhs(), op, analysis);
+  }
+
+  if (auto addOp = dyn_cast<arith::AddFOp>(defOp)) {
+    analysis.needsAddBinary = true;
+    if (failed(analyzeElementwiseExpr(addOp.getLhs(), op, analysis)))
+      return failure();
+    return analyzeElementwiseExpr(addOp.getRhs(), op, analysis);
+  }
+
+  if (auto subOp = dyn_cast<arith::SubFOp>(defOp)) {
+    analysis.needsSubBinary = true;
+    if (failed(analyzeElementwiseExpr(subOp.getLhs(), op, analysis)))
+      return failure();
+    return analyzeElementwiseExpr(subOp.getRhs(), op, analysis);
+  }
+
+  if (auto divOp = dyn_cast<arith::DivFOp>(defOp)) {
+    analysis.needsRecip = true;
+    analysis.needsMulBinary = true;
+    if (failed(analyzeElementwiseExpr(divOp.getLhs(), op, analysis)))
+      return failure();
+    return analyzeElementwiseExpr(divOp.getRhs(), op, analysis);
+  }
+
+  if (auto powOp = dyn_cast<math::PowFOp>(defOp)) {
+    if (!getConstFloatValue(powOp.getLhs()).has_value())
+      return failure();
+    analysis.needsExp = true;
+    return analyzeElementwiseExpr(powOp.getRhs(), op, analysis);
+  }
+
+  if (auto selectOp = dyn_cast<arith::SelectOp>(defOp)) {
+    Value lhs;
+    Value rhs;
+    if (!matchMaxSelect(selectOp, lhs, rhs))
+      return failure();
+    analysis.needsBinaryMax = true;
+    if (failed(analyzeElementwiseExpr(lhs, op, analysis)))
+      return failure();
+    return analyzeElementwiseExpr(rhs, op, analysis);
+  }
+
+  return failure();
+}
+
+static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
+                                               ElementwiseAnalysis &analysis) {
+  if (op.getNumDpsInits() != 1)
+    return failure();
+
+  for (utils::IteratorType iterType : op.getIteratorTypesArray())
+    if (iterType == utils::IteratorType::reduction)
+      return failure();
+
+  unsigned rank = op.getNumLoops();
+  bool allIdentity = hasAllIdentityMapsForRank(op, rank);
+  std::optional<unsigned> rowBcastInput;
+  if (!allIdentity) {
+    if (rank != 3)
+      return failure();
+    rowBcastInput = getRowBroadcastInputIndex3D(op);
+    if (!rowBcastInput)
+      return failure();
+  }
+  analysis.rowBcastInput = rowBcastInput;
+
+  auto outTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
+  if (!outTiles)
+    return failure();
+  analysis.outTiles = *outTiles;
+
+  analysis.inputWaitTiles.assign(op.getNumDpsInputs(), *outTiles);
+  analysis.usedInputs.resize(op.getNumDpsInputs());
+  analysis.usedInputs.reset();
+
+  if (analysis.rowBcastInput) {
+    auto rowTiles =
+        getNumTilesFromShapedType(op.getDpsInputs()[*analysis.rowBcastInput].getType());
+    auto outType = dyn_cast<ShapedType>(op.getDpsInits()[0].getType());
+    auto colTiles = outType ? getTileDim(outType, 2) : std::nullopt;
+    if (!rowTiles || !colTiles || *colTiles <= 0)
+      return failure();
+    analysis.inputWaitTiles[*analysis.rowBcastInput] = *rowTiles;
+    analysis.colTiles = *colTiles;
+  }
+
+  auto yieldOp = dyn_cast<linalg::YieldOp>(op.getRegion().front().getTerminator());
+  if (!yieldOp || yieldOp.getValues().size() != 1)
+    return failure();
+  analysis.yieldValue = yieldOp.getValues().front();
+
+  if (failed(analyzeElementwiseExpr(analysis.yieldValue, op, analysis)))
+    return failure();
+
+  if (analysis.rowBcastInput && analysis.usedInputs.test(*analysis.rowBcastInput))
+    analysis.needsUnaryBcast = true;
+
+  return success();
+}
+
+static LogicalResult emitElementwiseExprToReg(
+    Value exprValue, int dstReg, int tmpRegA, int tmpRegB, linalg::GenericOp op,
+    linalg::GenericOp::Adaptor adaptor, ConversionPatternRewriter &rewriter,
+    Location loc, Value tileIdx, std::optional<Value> rowIdx,
+    std::optional<unsigned> rowBcastInput) {
+  Value dstRegVal = i32Const(rewriter, loc, dstReg);
+  Value tmpRegAVal = i32Const(rewriter, loc, tmpRegA);
+
+  if (auto inputIdx = getBodyInputIndex(op, exprValue)) {
+    if (rowBcastInput && *inputIdx == *rowBcastInput) {
+      if (!rowIdx)
+        return failure();
+      rewriter.create<UnaryBcastTileOp>(loc, adaptor.getInputs()[*inputIdx],
+                                        *rowIdx, dstRegVal, BcastType::Col);
+    } else {
+      rewriter.create<CopyTileInitOp>(loc, adaptor.getInputs()[*inputIdx]);
+      rewriter.create<CopyTileOp>(loc, adaptor.getInputs()[*inputIdx], tileIdx,
+                                  dstRegVal);
+    }
+    return success();
+  }
+
+  Operation *defOp = exprValue.getDefiningOp();
+  if (!defOp || defOp->getBlock() != &op.getRegion().front())
+    return failure();
+
+  if (auto mulOp = dyn_cast<arith::MulFOp>(defOp)) {
+    auto lhsConst = getConstFloatValue(mulOp.getLhs());
+    auto rhsConst = getConstFloatValue(mulOp.getRhs());
+    if (lhsConst && !rhsConst) {
+      if (failed(emitElementwiseExprToReg(
+              mulOp.getRhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput)))
+        return failure();
+      rewriter.create<MulUnaryTileOp>(loc, dstRegVal,
+                                      getScalarBitsFromFloat(rewriter, loc, *lhsConst));
+      return success();
+    }
+    if (rhsConst && !lhsConst) {
+      if (failed(emitElementwiseExprToReg(
+              mulOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput)))
+        return failure();
+      rewriter.create<MulUnaryTileOp>(loc, dstRegVal,
+                                      getScalarBitsFromFloat(rewriter, loc, *rhsConst));
+      return success();
+    }
+
+    if (failed(emitElementwiseExprToReg(mulOp.getLhs(), dstReg, tmpRegA, tmpRegB,
+                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
+                                        rowBcastInput)))
+      return failure();
+    if (failed(emitElementwiseExprToReg(mulOp.getRhs(), tmpRegA, tmpRegB, dstReg,
+                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
+                                        rowBcastInput)))
+      return failure();
+    rewriter.create<MulBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
+    return success();
+  }
+
+  if (auto addOp = dyn_cast<arith::AddFOp>(defOp)) {
+    if (failed(emitElementwiseExprToReg(addOp.getLhs(), dstReg, tmpRegA, tmpRegB,
+                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
+                                        rowBcastInput)))
+      return failure();
+    if (failed(emitElementwiseExprToReg(addOp.getRhs(), tmpRegA, tmpRegB, dstReg,
+                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
+                                        rowBcastInput)))
+      return failure();
+    rewriter.create<AddBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
+    return success();
+  }
+
+  if (auto subOp = dyn_cast<arith::SubFOp>(defOp)) {
+    if (failed(emitElementwiseExprToReg(subOp.getLhs(), dstReg, tmpRegA, tmpRegB,
+                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
+                                        rowBcastInput)))
+      return failure();
+    if (failed(emitElementwiseExprToReg(subOp.getRhs(), tmpRegA, tmpRegB, dstReg,
+                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
+                                        rowBcastInput)))
+      return failure();
+    rewriter.create<SubBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
+    return success();
+  }
+
+  if (auto divOp = dyn_cast<arith::DivFOp>(defOp)) {
+    if (failed(emitElementwiseExprToReg(divOp.getLhs(), dstReg, tmpRegA, tmpRegB,
+                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
+                                        rowBcastInput)))
+      return failure();
+    if (failed(emitElementwiseExprToReg(divOp.getRhs(), tmpRegA, tmpRegB, dstReg,
+                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
+                                        rowBcastInput)))
+      return failure();
+    rewriter.create<RecipTileOp>(loc, tmpRegAVal);
+    rewriter.create<MulBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
+    return success();
+  }
+
+  if (auto powOp = dyn_cast<math::PowFOp>(defOp)) {
+    if (!getConstFloatValue(powOp.getLhs()).has_value())
+      return failure();
+    if (failed(emitElementwiseExprToReg(powOp.getRhs(), dstReg, tmpRegA, tmpRegB,
+                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
+                                        rowBcastInput)))
+      return failure();
+    rewriter.create<ExpTileOp>(loc, dstRegVal);
+    return success();
+  }
+
+  if (auto selectOp = dyn_cast<arith::SelectOp>(defOp)) {
+    Value lhs;
+    Value rhs;
+    if (!matchMaxSelect(selectOp, lhs, rhs))
+      return failure();
+    if (failed(emitElementwiseExprToReg(lhs, dstReg, tmpRegA, tmpRegB, op, adaptor,
+                                        rewriter, loc, tileIdx, rowIdx,
+                                        rowBcastInput)))
+      return failure();
+    if (failed(emitElementwiseExprToReg(rhs, tmpRegA, tmpRegB, dstReg, op, adaptor,
+                                        rewriter, loc, tileIdx, rowIdx,
+                                        rowBcastInput)))
+      return failure();
+    rewriter.create<BinaryMaxTileOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
+    return success();
+  }
+
+  return failure();
+}
+
+static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
+                                          linalg::GenericOp::Adaptor adaptor,
+                                          ConversionPatternRewriter &rewriter) {
+  if ((adaptor.getInputs().size() != 1 && adaptor.getInputs().size() != 2) ||
+      adaptor.getOutputs().size() != 1)
+    return failure();
+
+  ReduceType reduceType;
+  if (bodyHasOp<arith::MaximumFOp>(op)) {
+    reduceType = ReduceType::Max;
+  } else if (bodyHasOp<arith::AddFOp>(op)) {
+    reduceType = ReduceType::Sum;
+  } else {
+    return failure();
+  }
+
   Value inCb = adaptor.getInputs()[0];
+  Value scaleCb =
+      adaptor.getInputs().size() == 2 ? adaptor.getInputs()[1] : inCb;
   Value outCb = adaptor.getOutputs()[0];
-  if (!isa<CBType>(inCb.getType()) || !isa<CBType>(outCb.getType()))
+  if (!isa<CBType>(inCb.getType()) || !isa<CBType>(scaleCb.getType()) ||
+      !isa<CBType>(outCb.getType()))
     return failure();
 
   auto inType = dyn_cast<ShapedType>(op.getDpsInputs()[0].getType());
@@ -260,31 +586,33 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
   if (!bTiles || !mTiles || !nTiles || !outTiles)
     return failure();
 
+  int64_t rows = (*bTiles) * (*mTiles);
+  int64_t cols = *nTiles;
+  int64_t numTiles = rows * cols;
+
   Location loc = op.getLoc();
-  Value totalInTiles = i32Const(rewriter, loc, (*bTiles) * (*mTiles) * (*nTiles));
-  Value outTilesV = i32Const(rewriter, loc, *outTiles);
+  Value totalInTiles = i32Const(rewriter, loc, numTiles);
+  Value outTilesV = i32Const(rewriter, loc, rows);
+  Value oneI32 = i32Const(rewriter, loc, 1);
   Value zeroI32 = i32Const(rewriter, loc, 0);
 
+  CBWaitFrontOp::create(rewriter, loc, scaleCb, oneI32);
   CBWaitFrontOp::create(rewriter, loc, inCb, totalInTiles);
   CBReserveBackOp::create(rewriter, loc, outCb, outTilesV);
 
-  for (int64_t b = 0; b < *bTiles; ++b) {
-    for (int64_t m = 0; m < *mTiles; ++m) {
-      int64_t rowTile = b * (*mTiles) + m;
-      TileRegsAcquireOp::create(rewriter, loc);
-      rewriter.create<ReduceInitOp>(loc, inCb, inCb, outCb, reduceType,
-                                    ReduceDim::Row);
-      for (int64_t n = 0; n < *nTiles; ++n) {
-        int64_t inTile = rowTile * (*nTiles) + n;
-        rewriter.create<ReduceTileOp>(loc, inCb, inCb, i32Const(rewriter, loc, inTile),
-                                      zeroI32, zeroI32, reduceType,
-                                      ReduceDim::Row);
-      }
-      rewriter.create<ReduceUninitOp>(loc);
-      PackTileOp::create(rewriter, loc, zeroI32, outCb,
-                         i32Const(rewriter, loc, rowTile));
-      TileRegsReleaseOp::create(rewriter, loc);
+  for (int64_t i = 0; i < rows; ++i) {
+    TileRegsAcquireOp::create(rewriter, loc);
+    rewriter.create<ReduceInitOp>(loc, inCb, scaleCb, outCb, reduceType,
+                                  ReduceDim::Row);
+    for (int64_t j = 0; j < cols; ++j) {
+      int64_t inTile = i * cols + j;
+      rewriter.create<ReduceTileOp>(loc, inCb, scaleCb,
+                                    i32Const(rewriter, loc, inTile), zeroI32,
+                                    zeroI32, reduceType, ReduceDim::Row);
     }
+    rewriter.create<ReduceUninitOp>(loc);
+    PackTileOp::create(rewriter, loc, zeroI32, outCb, i32Const(rewriter, loc, i));
+    TileRegsReleaseOp::create(rewriter, loc);
   }
 
   CBPushBackOp::create(rewriter, loc, outCb, outTilesV);
@@ -292,345 +620,70 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
   return success();
 }
 
-static LogicalResult rewriteMaxWithScaleGeneric(
-    linalg::GenericOp op, linalg::GenericOp::Adaptor adaptor,
-    ConversionPatternRewriter &rewriter) {
-  if (adaptor.getInputs().size() != 2 || adaptor.getOutputs().size() != 1)
+static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
+                                               linalg::GenericOp::Adaptor adaptor,
+                                               ConversionPatternRewriter &rewriter) {
+  if (adaptor.getOutputs().size() != 1 || adaptor.getInputs().empty())
     return failure();
 
-  Value lhsCb = adaptor.getInputs()[0];
-  Value rhsCb = adaptor.getInputs()[1];
+  ElementwiseAnalysis analysis;
+  if (failed(analyzeElementwiseGeneric(op, analysis)))
+    return failure();
+
   Value outCb = adaptor.getOutputs()[0];
-  if (!isa<CBType>(lhsCb.getType()) || !isa<CBType>(rhsCb.getType()) ||
-      !isa<CBType>(outCb.getType()))
+  if (!isa<CBType>(outCb.getType()))
     return failure();
-
-  auto outTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
-  if (!outTiles)
-    return failure();
+  for (Value inputCb : adaptor.getInputs())
+    if (!isa<CBType>(inputCb.getType()))
+      return failure();
 
   Location loc = op.getLoc();
-  Value scalarBits = getOrCreateScalarBitsParam(op, loc, rewriter);
-  rewriter.create<InitSFPUOp>(loc, rhsCb, outCb);
-  rewriter.create<BinopWithScalarTileInitOp>(loc);
-  rewriter.create<BinaryMaxTileInitOp>(loc);
-
-  auto builder = [&](int64_t tileIdx) -> LogicalResult {
-    Value tileI32 = i32Const(rewriter, loc, tileIdx);
-    Value dst0 = i32Const(rewriter, loc, 0);
-    Value dst1 = i32Const(rewriter, loc, 1);
-
-    rewriter.create<CopyTileInitOp>(loc, rhsCb);
-    rewriter.create<CopyTileOp>(loc, rhsCb, tileI32, dst0);
-    rewriter.create<MulUnaryTileOp>(loc, dst0, scalarBits);
-
-    rewriter.create<CopyTileInitOp>(loc, lhsCb);
-    rewriter.create<CopyTileOp>(loc, lhsCb, tileI32, dst1);
-    rewriter.create<BinaryMaxTileOp>(loc, dst1, dst0, dst0);
-    return success();
-  };
-
-  if (failed(emitElementwiseTiles(rewriter, loc, outCb, *outTiles,
-                                  ValueRange{lhsCb, rhsCb}, builder)))
-    return failure();
-  rewriter.eraseOp(op);
-  return success();
-}
-
-static LogicalResult rewriteSubExpBcastColsGeneric(
-    linalg::GenericOp op, linalg::GenericOp::Adaptor adaptor,
-    ConversionPatternRewriter &rewriter) {
-  if (adaptor.getInputs().size() != 2 || adaptor.getOutputs().size() != 1)
-    return failure();
-
-  Value inCb = adaptor.getInputs()[0];
-  Value bcastCb = adaptor.getInputs()[1];
-  Value outCb = adaptor.getOutputs()[0];
-  if (!isa<CBType>(inCb.getType()) || !isa<CBType>(bcastCb.getType()) ||
-      !isa<CBType>(outCb.getType()))
-    return failure();
-
-  auto inType = dyn_cast<ShapedType>(op.getDpsInputs()[0].getType());
-  if (!inType || inType.getRank() != 3)
-    return failure();
-  auto bTiles = getTileDim(inType, 0);
-  auto mTiles = getTileDim(inType, 1);
-  auto nTiles = getTileDim(inType, 2);
-  auto outTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
-  auto bcastTiles = getNumTilesFromShapedType(op.getDpsInputs()[1].getType());
-  if (!bTiles || !mTiles || !nTiles || !outTiles || !bcastTiles)
-    return failure();
-
-  Location loc = op.getLoc();
-  Value scalarBits = getOrCreateScalarBitsParam(op, loc, rewriter);
-  rewriter.create<InitSFPUOp>(loc, inCb, outCb);
-  rewriter.create<BinopWithScalarTileInitOp>(loc);
-  rewriter.create<UnaryBcastInitOp>(loc, bcastCb, outCb, BcastType::Col);
-  rewriter.create<SubBinaryTilesInitOp>(loc);
-  rewriter.create<ExpTileInitOp>(loc);
-
-  CBWaitFrontOp::create(rewriter, loc, inCb, i32Const(rewriter, loc, *outTiles));
-  CBWaitFrontOp::create(rewriter, loc, bcastCb, i32Const(rewriter, loc, *bcastTiles));
-  if (!hasOutputAlias(outCb, ValueRange{inCb, bcastCb}))
-    CBReserveBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *outTiles));
-
-  for (int64_t b = 0; b < *bTiles; ++b) {
-    for (int64_t m = 0; m < *mTiles; ++m) {
-      int64_t rowTile = b * (*mTiles) + m;
-      for (int64_t n = 0; n < *nTiles; ++n) {
-        int64_t outTile = rowTile * (*nTiles) + n;
-        TileRegsAcquireOp::create(rewriter, loc);
-        rewriter.create<CopyTileInitOp>(loc, inCb);
-        rewriter.create<CopyTileOp>(loc, inCb, i32Const(rewriter, loc, outTile),
-                                    i32Const(rewriter, loc, 0));
-        rewriter.create<MulUnaryTileOp>(loc, i32Const(rewriter, loc, 0), scalarBits);
-        rewriter.create<UnaryBcastTileOp>(loc, bcastCb, i32Const(rewriter, loc, rowTile),
-                                          i32Const(rewriter, loc, 1),
-                                          BcastType::Col);
-        rewriter.create<SubBinaryTilesOp>(loc, i32Const(rewriter, loc, 0),
-                                          i32Const(rewriter, loc, 1),
-                                          i32Const(rewriter, loc, 0));
-        rewriter.create<ExpTileOp>(loc, i32Const(rewriter, loc, 0));
-        PackTileOp::create(rewriter, loc, i32Const(rewriter, loc, 0), outCb,
-                           i32Const(rewriter, loc, outTile));
-        TileRegsReleaseOp::create(rewriter, loc);
+  rewriter.create<InitSFPUOp>(loc, outCb, outCb);
+  if (analysis.needsBinopWithScalar)
+    rewriter.create<BinopWithScalarTileInitOp>(loc);
+  if (analysis.needsUnaryBcast) {
+    unsigned rowInput = *analysis.rowBcastInput;
+    unsigned refInput = rowInput;
+    for (unsigned i = 0; i < adaptor.getInputs().size(); ++i) {
+      if (i != rowInput && analysis.usedInputs.test(i)) {
+        refInput = i;
+        break;
       }
     }
+    rewriter.create<UnaryBcastInitOp>(loc, adaptor.getInputs()[rowInput],
+                                      adaptor.getInputs()[refInput],
+                                      BcastType::Col);
   }
+  if (analysis.needsSubBinary)
+    rewriter.create<SubBinaryTilesInitOp>(loc);
+  if (analysis.needsAddBinary)
+    rewriter.create<AddBinaryTilesInitOp>(loc);
+  if (analysis.needsMulBinary)
+    rewriter.create<MulBinaryTilesInitOp>(loc);
+  if (analysis.needsBinaryMax)
+    rewriter.create<BinaryMaxTileInitOp>(loc);
+  if (analysis.needsExp)
+    rewriter.create<ExpTileInitOp>(loc);
+  if (analysis.needsRecip)
+    rewriter.create<RecipTileInitOp>(loc);
 
-  if (!hasOutputAlias(outCb, ValueRange{inCb, bcastCb}))
-    CBPushBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *outTiles));
-  rewriter.eraseOp(op);
-  return success();
-}
-
-static LogicalResult rewriteAlphaExpGeneric(linalg::GenericOp op,
-                                            linalg::GenericOp::Adaptor adaptor,
-                                            ConversionPatternRewriter &rewriter) {
-  if (adaptor.getInputs().size() != 2 || adaptor.getOutputs().size() != 1)
+  LogicalResult result = emitElementwiseTiles(
+      rewriter, loc, outCb, analysis.outTiles, adaptor.getInputs(),
+      analysis.inputWaitTiles, [&](int64_t tile) -> LogicalResult {
+        Value tileIdx = i32Const(rewriter, loc, tile);
+        std::optional<Value> rowIdx;
+        if (analysis.rowBcastInput) {
+          if (!analysis.colTiles || *analysis.colTiles <= 0)
+            return failure();
+          rowIdx = i32Const(rewriter, loc, tile / *analysis.colTiles);
+        }
+        return emitElementwiseExprToReg(
+            analysis.yieldValue, /*dstReg=*/0, /*tmpRegA=*/1, /*tmpRegB=*/2, op,
+            adaptor, rewriter, loc, tileIdx, rowIdx, analysis.rowBcastInput);
+      });
+  if (failed(result))
     return failure();
 
-  Value lhsCb = adaptor.getInputs()[0];
-  Value rhsCb = adaptor.getInputs()[1];
-  Value outCb = adaptor.getOutputs()[0];
-  if (!isa<CBType>(lhsCb.getType()) || !isa<CBType>(rhsCb.getType()) ||
-      !isa<CBType>(outCb.getType()))
-    return failure();
-
-  auto outTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
-  if (!outTiles)
-    return failure();
-
-  Location loc = op.getLoc();
-  rewriter.create<InitSFPUOp>(loc, lhsCb, outCb);
-  rewriter.create<SubBinaryTilesInitOp>(loc);
-  rewriter.create<ExpTileInitOp>(loc);
-
-  auto builder = [&](int64_t tileIdx) -> LogicalResult {
-    Value tileI32 = i32Const(rewriter, loc, tileIdx);
-    Value dst0 = i32Const(rewriter, loc, 0);
-    Value dst1 = i32Const(rewriter, loc, 1);
-    rewriter.create<CopyTileInitOp>(loc, lhsCb);
-    rewriter.create<CopyTileOp>(loc, lhsCb, tileI32, dst0);
-    rewriter.create<CopyTileInitOp>(loc, rhsCb);
-    rewriter.create<CopyTileOp>(loc, rhsCb, tileI32, dst1);
-    rewriter.create<SubBinaryTilesOp>(loc, dst0, dst1, dst0);
-    rewriter.create<ExpTileOp>(loc, dst0);
-    return success();
-  };
-
-  if (failed(emitElementwiseTiles(rewriter, loc, outCb, *outTiles,
-                                  ValueRange{lhsCb, rhsCb}, builder)))
-    return failure();
-  rewriter.eraseOp(op);
-  return success();
-}
-
-static LogicalResult rewriteMulAddInplaceGeneric(
-    linalg::GenericOp op, linalg::GenericOp::Adaptor adaptor,
-    ConversionPatternRewriter &rewriter) {
-  if (adaptor.getInputs().size() != 3 || adaptor.getOutputs().size() != 1)
-    return failure();
-
-  Value in0Cb = adaptor.getInputs()[0];
-  Value in1Cb = adaptor.getInputs()[1];
-  Value in2Cb = adaptor.getInputs()[2];
-  Value outCb = adaptor.getOutputs()[0];
-  if (!isa<CBType>(in0Cb.getType()) || !isa<CBType>(in1Cb.getType()) ||
-      !isa<CBType>(in2Cb.getType()) || !isa<CBType>(outCb.getType()))
-    return failure();
-
-  auto outTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
-  if (!outTiles)
-    return failure();
-
-  Location loc = op.getLoc();
-  rewriter.create<InitSFPUOp>(loc, in0Cb, outCb);
-  rewriter.create<MulBinaryTilesInitOp>(loc);
-  rewriter.create<AddBinaryTilesInitOp>(loc);
-
-  auto builder = [&](int64_t tileIdx) -> LogicalResult {
-    Value tileI32 = i32Const(rewriter, loc, tileIdx);
-    Value dst0 = i32Const(rewriter, loc, 0);
-    Value dst1 = i32Const(rewriter, loc, 1);
-    Value dst2 = i32Const(rewriter, loc, 2);
-    rewriter.create<CopyTileInitOp>(loc, in0Cb);
-    rewriter.create<CopyTileOp>(loc, in0Cb, tileI32, dst0);
-    rewriter.create<CopyTileInitOp>(loc, in1Cb);
-    rewriter.create<CopyTileOp>(loc, in1Cb, tileI32, dst1);
-    rewriter.create<MulBinaryTilesOp>(loc, dst0, dst1, dst0);
-    rewriter.create<CopyTileInitOp>(loc, in2Cb);
-    rewriter.create<CopyTileOp>(loc, in2Cb, tileI32, dst2);
-    rewriter.create<AddBinaryTilesOp>(loc, dst0, dst2, dst0);
-    return success();
-  };
-
-  if (failed(emitElementwiseTiles(rewriter, loc, outCb, *outTiles,
-                                  ValueRange{in0Cb, in1Cb, in2Cb}, builder)))
-    return failure();
-  rewriter.eraseOp(op);
-  return success();
-}
-
-static LogicalResult rewriteAccUpdateBcastColsGeneric(
-    linalg::GenericOp op, linalg::GenericOp::Adaptor adaptor,
-    ConversionPatternRewriter &rewriter) {
-  if (adaptor.getInputs().size() != 3 || adaptor.getOutputs().size() != 1)
-    return failure();
-
-  Value pvCb = adaptor.getInputs()[0];
-  Value accCb = adaptor.getInputs()[1];
-  Value alphaCb = adaptor.getInputs()[2];
-  Value outCb = adaptor.getOutputs()[0];
-  if (!isa<CBType>(pvCb.getType()) || !isa<CBType>(accCb.getType()) ||
-      !isa<CBType>(alphaCb.getType()) || !isa<CBType>(outCb.getType()))
-    return failure();
-
-  auto outType = dyn_cast<ShapedType>(op.getDpsInits()[0].getType());
-  if (!outType || outType.getRank() != 3)
-    return failure();
-  auto bTiles = getTileDim(outType, 0);
-  auto mTiles = getTileDim(outType, 1);
-  auto nTiles = getTileDim(outType, 2);
-  auto outTiles = getNumTilesFromShapedType(outType);
-  auto alphaTiles = getNumTilesFromShapedType(op.getDpsInputs()[2].getType());
-  if (!bTiles || !mTiles || !nTiles || !outTiles || !alphaTiles)
-    return failure();
-
-  Location loc = op.getLoc();
-  rewriter.create<InitSFPUOp>(loc, accCb, outCb);
-  rewriter.create<UnaryBcastInitOp>(loc, alphaCb, outCb, BcastType::Col);
-  rewriter.create<MulBinaryTilesInitOp>(loc);
-  rewriter.create<AddBinaryTilesInitOp>(loc);
-
-  CBWaitFrontOp::create(rewriter, loc, pvCb, i32Const(rewriter, loc, *outTiles));
-  CBWaitFrontOp::create(rewriter, loc, accCb, i32Const(rewriter, loc, *outTiles));
-  CBWaitFrontOp::create(rewriter, loc, alphaCb, i32Const(rewriter, loc, *alphaTiles));
-  if (!hasOutputAlias(outCb, ValueRange{pvCb, accCb, alphaCb}))
-    CBReserveBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *outTiles));
-
-  for (int64_t b = 0; b < *bTiles; ++b) {
-    for (int64_t m = 0; m < *mTiles; ++m) {
-      int64_t rowTile = b * (*mTiles) + m;
-      for (int64_t n = 0; n < *nTiles; ++n) {
-        int64_t outTile = rowTile * (*nTiles) + n;
-        TileRegsAcquireOp::create(rewriter, loc);
-        rewriter.create<CopyTileInitOp>(loc, accCb);
-        rewriter.create<CopyTileOp>(loc, accCb, i32Const(rewriter, loc, outTile),
-                                    i32Const(rewriter, loc, 0));
-        rewriter.create<UnaryBcastTileOp>(loc, alphaCb, i32Const(rewriter, loc, rowTile),
-                                          i32Const(rewriter, loc, 1),
-                                          BcastType::Col);
-        rewriter.create<MulBinaryTilesOp>(loc, i32Const(rewriter, loc, 0),
-                                          i32Const(rewriter, loc, 1),
-                                          i32Const(rewriter, loc, 0));
-        rewriter.create<CopyTileInitOp>(loc, pvCb);
-        rewriter.create<CopyTileOp>(loc, pvCb, i32Const(rewriter, loc, outTile),
-                                    i32Const(rewriter, loc, 2));
-        rewriter.create<AddBinaryTilesOp>(loc, i32Const(rewriter, loc, 2),
-                                          i32Const(rewriter, loc, 0),
-                                          i32Const(rewriter, loc, 0));
-        PackTileOp::create(rewriter, loc, i32Const(rewriter, loc, 0), outCb,
-                           i32Const(rewriter, loc, outTile));
-        TileRegsReleaseOp::create(rewriter, loc);
-      }
-    }
-  }
-
-  if (!hasOutputAlias(outCb, ValueRange{pvCb, accCb, alphaCb}))
-    CBPushBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *outTiles));
-  rewriter.eraseOp(op);
-  return success();
-}
-
-static LogicalResult rewriteNormalizeDivBcastColsGeneric(
-    linalg::GenericOp op, linalg::GenericOp::Adaptor adaptor,
-    ConversionPatternRewriter &rewriter) {
-  if (adaptor.getInputs().size() != 2 || adaptor.getOutputs().size() != 1)
-    return failure();
-
-  Value accCb = adaptor.getInputs()[0];
-  Value liCb = adaptor.getInputs()[1];
-  Value outCb = adaptor.getOutputs()[0];
-  if (!isa<CBType>(accCb.getType()) || !isa<CBType>(liCb.getType()) ||
-      !isa<CBType>(outCb.getType()))
-    return failure();
-
-  auto outType = dyn_cast<ShapedType>(op.getDpsInits()[0].getType());
-  if (!outType || outType.getRank() != 3)
-    return failure();
-  auto bTiles = getTileDim(outType, 0);
-  auto mTiles = getTileDim(outType, 1);
-  auto nTiles = getTileDim(outType, 2);
-  auto outTiles = getNumTilesFromShapedType(outType);
-  auto liTiles = getNumTilesFromShapedType(op.getDpsInputs()[1].getType());
-  if (!bTiles || !mTiles || !nTiles || !outTiles || !liTiles)
-    return failure();
-
-  Location loc = op.getLoc();
-  rewriter.create<InitSFPUOp>(loc, liCb, liCb);
-  rewriter.create<RecipTileInitOp>(loc);
-  CBWaitFrontOp::create(rewriter, loc, liCb, i32Const(rewriter, loc, *liTiles));
-  for (int64_t t = 0; t < *liTiles; ++t) {
-    TileRegsAcquireOp::create(rewriter, loc);
-    rewriter.create<CopyTileInitOp>(loc, liCb);
-    rewriter.create<CopyTileOp>(loc, liCb, i32Const(rewriter, loc, t),
-                                i32Const(rewriter, loc, 0));
-    rewriter.create<RecipTileOp>(loc, i32Const(rewriter, loc, 0));
-    PackTileOp::create(rewriter, loc, i32Const(rewriter, loc, 0), liCb,
-                       i32Const(rewriter, loc, t));
-    TileRegsReleaseOp::create(rewriter, loc);
-  }
-
-  rewriter.create<InitSFPUOp>(loc, accCb, outCb);
-  rewriter.create<UnaryBcastInitOp>(loc, liCb, outCb, BcastType::Col);
-  rewriter.create<MulBinaryTilesInitOp>(loc);
-  CBWaitFrontOp::create(rewriter, loc, accCb, i32Const(rewriter, loc, *outTiles));
-  CBWaitFrontOp::create(rewriter, loc, liCb, i32Const(rewriter, loc, *liTiles));
-  CBReserveBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *outTiles));
-
-  for (int64_t b = 0; b < *bTiles; ++b) {
-    for (int64_t m = 0; m < *mTiles; ++m) {
-      int64_t rowTile = b * (*mTiles) + m;
-      for (int64_t n = 0; n < *nTiles; ++n) {
-        int64_t outTile = rowTile * (*nTiles) + n;
-        TileRegsAcquireOp::create(rewriter, loc);
-        rewriter.create<CopyTileInitOp>(loc, accCb);
-        rewriter.create<CopyTileOp>(loc, accCb, i32Const(rewriter, loc, outTile),
-                                    i32Const(rewriter, loc, 0));
-        rewriter.create<UnaryBcastTileOp>(loc, liCb, i32Const(rewriter, loc, rowTile),
-                                          i32Const(rewriter, loc, 1),
-                                          BcastType::Col);
-        rewriter.create<MulBinaryTilesOp>(loc, i32Const(rewriter, loc, 0),
-                                          i32Const(rewriter, loc, 1),
-                                          i32Const(rewriter, loc, 0));
-        PackTileOp::create(rewriter, loc, i32Const(rewriter, loc, 0), outCb,
-                           i32Const(rewriter, loc, outTile));
-        TileRegsReleaseOp::create(rewriter, loc);
-      }
-    }
-  }
-  CBPushBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *outTiles));
   rewriter.eraseOp(op);
   return success();
 }
@@ -802,64 +855,6 @@ public:
   }
 };
 
-class ConvertLoomCopyOp : public OpConversionPattern<::loom::CopyOp> {
-public:
-  ConvertLoomCopyOp(TypeConverter &typeConverter, MLIRContext *context,
-                    std::shared_ptr<mlir::loom::CompileArgTracker> tracker)
-      : OpConversionPattern<::loom::CopyOp>(typeConverter, context),
-        tracker(std::move(tracker)) {}
-
-  LogicalResult
-  matchAndRewrite(::loom::CopyOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    Value inCb = adaptor.getSource();
-
-    // Prefer tracker lookup for DRAM->L1 copies so compute kernels reuse the
-    // same argument-to-CB mapping as memory lowering, even when adaptor source
-    // is already a type-materialized CB via unrealized_conversion_cast.
-    if (auto sourceRC = op.getSource().getDefiningOp<memref::ReinterpretCastOp>()) {
-      Value inputMemref = stripMemrefCasts(sourceRC.getSource());
-      if (tracker) {
-        if (Value trackedCb = tracker->getCB(inputMemref))
-          inCb = trackedCb;
-      }
-    }
-
-    if (!isa<CBType>(inCb.getType()))
-      return failure();
-
-    Location loc = op.getLoc();
-    auto srcMemSpace = op.getSrcMemSpace();
-    bool isSrcDRAM =
-        srcMemSpace && srcMemSpace->getRootReference().getValue() == "DRAM";
-    if (isSrcDRAM) {
-      auto inCbType = cast<CBType>(inCb.getType());
-      Value inNumInputTilesValue = rewriter.create<arith::ConstantIntOp>(
-          loc, static_cast<int32_t>(inCbType.getNumElements()) / 1024, 32);
-      CBWaitFrontOp::create(rewriter, loc, inCb, inNumInputTilesValue);
-
-      // Release the consumed front tiles only after the last same-block use of
-      // the loaded destination buffer. Consider both pre-conversion memref uses
-      // and converted CB uses, including view/cast chains.
-      Operation *popAnchor = op.getOperation();
-      popAnchor =
-          findLastSameBlockUserThroughViews(op.getDestination(), popAnchor);
-      popAnchor =
-          findLastSameBlockUserThroughViews(adaptor.getDestination(), popAnchor);
-
-      OpBuilder::InsertionGuard guard(rewriter);
-      rewriter.setInsertionPointAfter(popAnchor);
-      CBPopFrontOp::create(rewriter, loc, inCb, inNumInputTilesValue);
-    }
-
-    rewriter.eraseOp(op);
-    return success();
-  }
-
-private:
-  std::shared_ptr<mlir::loom::CompileArgTracker> tracker;
-};
-
 class ConvertMemrefCollapseShapeOp
     : public OpConversionPattern<memref::CollapseShapeOp> {
 public:
@@ -895,26 +890,11 @@ public:
     if (!kind)
       return failure();
 
-    if (failed(checkBF16Operands(op, op->getOperands())))
-      return failure();
-
     switch (*kind) {
-    case FlashAttentionGenericKind::ReduceMaxRow:
-      return rewriteReduceGeneric(op, adaptor, rewriter, ReduceType::Max);
-    case FlashAttentionGenericKind::ReduceSumRow:
-      return rewriteReduceGeneric(op, adaptor, rewriter, ReduceType::Sum);
-    case FlashAttentionGenericKind::MaxWithScale:
-      return rewriteMaxWithScaleGeneric(op, adaptor, rewriter);
-    case FlashAttentionGenericKind::SubExpBcastCols:
-      return rewriteSubExpBcastColsGeneric(op, adaptor, rewriter);
-    case FlashAttentionGenericKind::AlphaExp:
-      return rewriteAlphaExpGeneric(op, adaptor, rewriter);
-    case FlashAttentionGenericKind::MulAddInplace:
-      return rewriteMulAddInplaceGeneric(op, adaptor, rewriter);
-    case FlashAttentionGenericKind::AccUpdateBcastCols:
-      return rewriteAccUpdateBcastColsGeneric(op, adaptor, rewriter);
-    case FlashAttentionGenericKind::NormalizeDivBcastCols:
-      return rewriteNormalizeDivBcastColsGeneric(op, adaptor, rewriter);
+    case FlashAttentionGenericKind::Reduction:
+      return rewriteReduceGeneric(op, adaptor, rewriter);
+    case FlashAttentionGenericKind::Elementwise:
+      return rewriteElementwiseGeneric(op, adaptor, rewriter);
     }
 
     return failure();
@@ -930,9 +910,8 @@ bool mlir::loom::isSupportedFlashAttentionGeneric(linalg::GenericOp op) {
 
 void mlir::loom::populateComputeOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
-    MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker) {
+    MLIRContext *context) {
   patterns.add<ConvertLinalgFillOp>(typeConverter, context);
-  patterns.add<ConvertLoomCopyOp>(typeConverter, context, tracker);
   patterns.add<ConvertLinalgMatmulOp>(typeConverter, context);
   patterns.add<ConvertMemrefCollapseShapeOp>(typeConverter, context);
   patterns.add<ConvertFlashAttentionGenericOp>(typeConverter, context);

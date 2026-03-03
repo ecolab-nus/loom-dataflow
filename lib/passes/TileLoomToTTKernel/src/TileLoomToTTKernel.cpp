@@ -389,8 +389,7 @@ public:
     populateMemoryOpConversionPatterns(patterns, typeConverter, context,
                                        compileArgTracker);
     // Add compute operation conversion patterns (e.g., linalg.matmul)
-    populateComputeOpConversionPatterns(patterns, typeConverter, context,
-                                        compileArgTracker);
+    populateComputeOpConversionPatterns(patterns, typeConverter, context);
 
     // Apply conversion
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
