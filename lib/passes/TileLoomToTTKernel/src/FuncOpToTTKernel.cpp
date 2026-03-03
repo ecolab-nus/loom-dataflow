@@ -637,18 +637,6 @@ private:
     return {};
   }
 
-  static Value findOutputMemref(::loom::AllocOp alloc) {
-    for (Operation *user : alloc.getResult().getUsers()) {
-      if (auto loomCopy = dyn_cast<::loom::CopyOp>(user)) {
-        if (loomCopy.getSource() != alloc.getResult())
-          continue;
-        if (auto rc = loomCopy.getDestination().getDefiningOp<memref::ReinterpretCastOp>())
-          return stripCasts(rc.getSource());
-      }
-    }
-    return {};
-  }
-
   static bool containsValue(ArrayRef<Value> values, Value value) {
     return llvm::find(values, value) != values.end();
   }
@@ -906,9 +894,6 @@ private:
       Value linkedInput = findInputMemref(alloc);
       if (linkedInput)
         linkedInput = stripCasts(linkedInput);
-      Value linkedOutput = findOutputMemref(alloc);
-      if (linkedOutput)
-        linkedOutput = stripCasts(linkedOutput);
 
       CircularBufferInfo info;
       if (!buildTilesExpr(cbMemrefType, info.tilesExpr))
@@ -921,8 +906,6 @@ private:
       info.memrefOrdinal = -1;
       if (const DramBufferInfo *dramInfo = findDramInfo(linkedInput))
         info.memrefOrdinal = static_cast<int>(dramInfo->memrefOrdinal);
-      else if (const DramBufferInfo *dramInfo = findDramInfo(linkedOutput))
-        info.memrefOrdinal = static_cast<int>(dramInfo->memrefOrdinal);
 
       auto assignDramCbIndex = [&](Value linkedMemref) {
         if (!linkedMemref)
@@ -933,13 +916,13 @@ private:
         }
       };
       assignDramCbIndex(linkedInput);
-      assignDramCbIndex(linkedOutput);
 
       cbInfos.push_back(info);
     });
 
     // Ensure every DRAM memref argument has a concrete CB mapping.
-    // If an argument has no linked loom.alloc, synthesize a CB entry using
+    // Output memrefs intentionally do not reuse loom.alloc-created CBs; if an
+    // argument has no linked input CB, synthesize a dedicated CB entry using
     // DRAM shape-derived tile count so runtime arg mapping stays complete.
     for (DramBufferInfo &dramInfo : dramInfos) {
       if (dramInfo.cbIndex >= 0)
