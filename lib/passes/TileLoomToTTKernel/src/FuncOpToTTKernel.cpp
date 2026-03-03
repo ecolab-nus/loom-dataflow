@@ -339,6 +339,13 @@ Value mlir::loom::CompileArgTracker::createIndexCompileArg(Value value, Location
   return indexCast.getResult();
 }
 
+Value mlir::loom::CompileArgTracker::createTypedCompileArg(
+    Location loc, OpBuilder &rewriter, Operation *funcOp, Type resultType) {
+  if (!funcOp || !resultType)
+    return nullptr;
+  return createGetArgValOp(loc, rewriter, funcOp, resultType);
+}
+
 void mlir::loom::CompileArgTracker::appendToCoreList(Operation *funcOp, Value value) {
   //add type transformation to i32
   funcToCoreList[funcOp].push_back(value);
@@ -1190,7 +1197,22 @@ private:
     }
 
     emitLine(coreCoordArg0Expr + ",");
-    emitLine(coreCoordArg1Expr);
+    emitLine(coreCoordArg1Expr + ",");
+
+    // Append CB index for every created CB buffer (stable loom.alloc order).
+    // This allows kernel-side GetArgValOp users to recover CB IDs for
+    // internal-only loom.alloc buffers.
+    for (const CircularBufferInfo &info : cbInfos)
+      emitLine("static_cast<uint32_t>(" + info.cbIndexName + "),");
+
+    // Keep ordered input CB indexes as the final tail of runtime args.
+    for (const DramBufferInfo &info : dramInfos) {
+      if (!info.isInput)
+        continue;
+      emitLine("static_cast<uint32_t>(CBIndex::c_" +
+               std::to_string(info.memrefOrdinal) + "),");
+    }
+
     emitLine("};");
 
     emitLine("tt_metal::SetRuntimeArgs(program, reader_id, core, runtime_args_for_core);");

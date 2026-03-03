@@ -637,6 +637,11 @@ struct ConvertLoomAllocOp : public OpConversionPattern<::loom::AllocOp> {
     Location loc = op.getLoc();
     auto expectedCBType = dyn_cast_or_null<CBType>(
         getTypeConverter()->convertType(op.getType()));
+    auto memrefType = dyn_cast<MemRefType>(op.getType());
+    if (!memrefType) {
+      return rewriter.notifyMatchFailure(
+          op, "loom.alloc result must be a ranked memref type");
+    }
 
     auto replaceWithCheckedCB = [&](Value cb) -> LogicalResult {
       if (!cb)
@@ -654,34 +659,48 @@ struct ConvertLoomAllocOp : public OpConversionPattern<::loom::AllocOp> {
       return success();
     };
 
-    // Case 1: This alloc is the destination of a load-direction loom.copy.
-    // Use the pre-created CB from the tracker keyed by the source memref.
+    // Step 1: Always allocate an internal CB compile-arg for this loom.alloc.
+    // This supports pure internal L1 buffers that are not tied to any memref
+    // function argument.
+    CBType defaultCBType = expectedCBType ? expectedCBType : CBType::get(memrefType);
+    auto parentFunc = op->getParentOfType<func::FuncOp>();
+    if (!parentFunc)
+      return rewriter.notifyMatchFailure(op, "loom.alloc must be inside func.func");
+    if (!tracker)
+      return rewriter.notifyMatchFailure(op, "compile-arg tracker is null");
+
+    Value replacementCb =
+        tracker->createTypedCompileArg(loc, rewriter, parentFunc, defaultCBType);
+    if (!replacementCb)
+      return rewriter.notifyMatchFailure(
+          op, "failed to create compile-arg CB for loom.alloc");
+    bool mappedToMemrefCB = false;
+
+    // Step 2: If this alloc participates in loom.copy load/store with a memref
+    // function argument, remap it to that argument's pre-created CB.
+    // Case 2a: destination of load-direction loom.copy (DRAM -> L1).
     Value inputMemref = findInputMemref(op);
     if (inputMemref) {
       Value cb = tracker->getCB(inputMemref);
-      return replaceWithCheckedCB(cb);
+      if (cb) {
+        replacementCb = cb;
+        mappedToMemrefCB = true;
+      }
     }
 
-    // Case 2: This alloc is the source of a store-direction loom.copy
-    // (e.g., an output accumulator for linalg.matmul outs that is later
-    // written back to DRAM). Look up the CB for the destination memref.
-    Value outputMemref = findOutputMemref(op);
-    if (outputMemref) {
-      Value cb = tracker->getCB(outputMemref);
-      if (cb)
-        return replaceWithCheckedCB(cb);
+    // Case 2b: source of store-direction loom.copy (L1 -> DRAM).
+    if (!mappedToMemrefCB) {
+      Value outputMemref = findOutputMemref(op);
+      if (outputMemref) {
+        Value cb = tracker->getCB(outputMemref);
+        if (cb) {
+          replacementCb = cb;
+          mappedToMemrefCB = true;
+        }
+      }
     }
 
-    // Fallback: no associated loom.copy found at all. Create a new CB
-    // using the tracker so that a proper compile-arg index is assigned.
-    auto memrefType = op.getType();
-    auto cbType = CBType::get(memrefType);
-
-    Value argIdx = rewriter.create<arith::ConstantIntOp>(
-        loc, /*value=*/0, /*width=*/32);
-    Value newCb = GetArgValOp::create(rewriter, loc, cbType, argIdx);
-    rewriter.replaceOp(op, newCb);
-    return success();
+    return replaceWithCheckedCB(replacementCb);
   }
 
 private:

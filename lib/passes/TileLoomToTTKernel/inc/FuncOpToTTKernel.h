@@ -176,6 +176,24 @@ public:
   Value createIndexCompileArg(Value value, Location loc, OpBuilder &rewriter);
 
   /**
+   * @brief Create a typed compile-arg value for non-argument lowering sites.
+   *
+   * @details Allocates the next per-function compile-arg index and emits a
+   *          `GetArgValOp` with `resultType`. This is used by conversion
+   *          patterns that need an internal kernel argument (e.g., CB handles
+   *          for `loom.alloc`) that is not directly tied to an original
+   *          function block argument.
+   *
+   * @param loc Location for the created operations.
+   * @param rewriter Builder used to create operations.
+   * @param funcOp Parent function that scopes compile-arg index allocation.
+   * @param resultType Result type for the `GetArgValOp`.
+   * @return The created compile-arg value, or null on invalid input.
+   */
+  Value createTypedCompileArg(Location loc, OpBuilder &rewriter,
+                              Operation *funcOp, Type resultType);
+
+  /**
    * @brief Append a value to the tracker core list.
    *
    * @details The core list is a simple ordered collection of values that
