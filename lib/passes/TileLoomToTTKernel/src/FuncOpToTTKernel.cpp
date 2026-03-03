@@ -591,6 +591,7 @@ private:
     MemRefType type;
     unsigned argIndex;
     unsigned memrefOrdinal;
+    int cbIndex;
     bool isInput;
     bool isOutput;
     MulticastKind multicastKind;
@@ -604,6 +605,7 @@ private:
 
   struct CircularBufferInfo {
     int memrefOrdinal;
+    unsigned cbIndex;
     std::string tilesVarName;
     std::string tilesExpr;
     std::string cbIndexName;
@@ -809,6 +811,14 @@ private:
     return nullptr;
   }
 
+  DramBufferInfo *findDramInfoMutable(Value hostArg) {
+    for (DramBufferInfo &info : dramInfos) {
+      if (info.hostArg == hostArg)
+        return &info;
+    }
+    return nullptr;
+  }
+
   void collectDramInfos() {
     SmallVector<Value, 8> loadMemrefs;
     SmallVector<Value, 8> storeMemrefs;
@@ -866,6 +876,7 @@ private:
           memrefType,
           static_cast<unsigned>(index),
           static_cast<unsigned>(dramInfos.size()),
+          /*cbIndex=*/-1,
           isInput,
           isOutput,
           multicastKind,
@@ -879,39 +890,64 @@ private:
   }
 
   void collectCbInfos() {
-    unsigned fallbackIdx = 0;
-
     hostFunc.walk([&](::loom::AllocOp alloc) {
       auto cbMemrefType = dyn_cast<MemRefType>(alloc.getType());
       if (!cbMemrefType)
         return;
 
-      Value linked = findInputMemref(alloc);
-      if (!linked)
-        linked = findOutputMemref(alloc);
-      if (linked)
-        linked = stripCasts(linked);
+      Value linkedInput = findInputMemref(alloc);
+      if (linkedInput)
+        linkedInput = stripCasts(linkedInput);
+      Value linkedOutput = findOutputMemref(alloc);
+      if (linkedOutput)
+        linkedOutput = stripCasts(linkedOutput);
 
       CircularBufferInfo info;
       if (!buildTilesExpr(cbMemrefType, info.tilesExpr))
         return;
+      info.cbIndex = static_cast<unsigned>(cbInfos.size());
       info.tilesVarName =
           "cb_tiles_per_block_" + std::to_string(cbInfos.size());
+      info.cbIndexName = "CBIndex::c_" + std::to_string(info.cbIndex);
 
-      if (const DramBufferInfo *dramInfo = findDramInfo(linked)) {
+      info.memrefOrdinal = -1;
+      if (const DramBufferInfo *dramInfo = findDramInfo(linkedInput))
         info.memrefOrdinal = static_cast<int>(dramInfo->memrefOrdinal);
-        info.cbIndexName =
-            "CBIndex::c_" + std::to_string(dramInfo->memrefOrdinal);
-      } else {
-        info.memrefOrdinal = -1;
-        unsigned fallbackCbIndex =
-            static_cast<unsigned>(dramInfos.size() + fallbackIdx);
-        info.cbIndexName = "CBIndex::c_" + std::to_string(fallbackCbIndex);
-        ++fallbackIdx;
-      }
+      else if (const DramBufferInfo *dramInfo = findDramInfo(linkedOutput))
+        info.memrefOrdinal = static_cast<int>(dramInfo->memrefOrdinal);
+
+      auto assignDramCbIndex = [&](Value linkedMemref) {
+        if (!linkedMemref)
+          return;
+        if (DramBufferInfo *dramInfo = findDramInfoMutable(linkedMemref)) {
+          if (dramInfo->cbIndex < 0)
+            dramInfo->cbIndex = static_cast<int>(info.cbIndex);
+        }
+      };
+      assignDramCbIndex(linkedInput);
+      assignDramCbIndex(linkedOutput);
 
       cbInfos.push_back(info);
     });
+
+    // Ensure every DRAM memref argument has a concrete CB mapping.
+    // If an argument has no linked loom.alloc, synthesize a CB entry using
+    // DRAM shape-derived tile count so runtime arg mapping stays complete.
+    for (DramBufferInfo &dramInfo : dramInfos) {
+      if (dramInfo.cbIndex >= 0)
+        continue;
+
+      CircularBufferInfo info;
+      info.memrefOrdinal = static_cast<int>(dramInfo.memrefOrdinal);
+      info.cbIndex = static_cast<unsigned>(cbInfos.size());
+      info.tilesExpr = dramInfo.tilesExpr;
+      info.tilesVarName =
+          "cb_tiles_per_block_" + std::to_string(cbInfos.size());
+      info.cbIndexName = "CBIndex::c_" + std::to_string(info.cbIndex);
+      cbInfos.push_back(info);
+
+      dramInfo.cbIndex = static_cast<int>(info.cbIndex);
+    }
   }
 
   void eraseNonHostOps() {
@@ -1190,8 +1226,11 @@ private:
     emitLine("std::vector<uint32_t> runtime_args_for_core = {");
 
     for (const DramBufferInfo &info : dramInfos) {
+      unsigned cbIndex = info.cbIndex >= 0
+                             ? static_cast<unsigned>(info.cbIndex)
+                             : info.memrefOrdinal;
       emitLine("static_cast<uint32_t>(CBIndex::c_" +
-               std::to_string(info.memrefOrdinal) + "),");
+               std::to_string(cbIndex) + "),");
       emitLine(info.bufferName + "->address(),");
       emitMulticastTuple(info);
     }
@@ -1209,8 +1248,11 @@ private:
     for (const DramBufferInfo &info : dramInfos) {
       if (!info.isInput)
         continue;
+      unsigned cbIndex = info.cbIndex >= 0
+                             ? static_cast<unsigned>(info.cbIndex)
+                             : info.memrefOrdinal;
       emitLine("static_cast<uint32_t>(CBIndex::c_" +
-               std::to_string(info.memrefOrdinal) + "),");
+               std::to_string(cbIndex) + "),");
     }
 
     emitLine("};");
