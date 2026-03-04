@@ -1,0 +1,8318 @@
+[
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i0_d1i0__f01__d_d_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i0_d1i0__f10__d_d_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i0_d0i0__f01__d_d_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i0_d0i0__f10__d_d_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i0_d1i1__f01__d_d_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i0_d1i1__f01__d_d_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i0_d1i1__f01__d_v_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i0_d1i1__f01__d_v_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i0_d1i1__f10__d_d_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i0_d1i1__f10__d_d_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i0_d1i1__f10__d_v_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i0_d1i1__f10__d_v_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i0_d0i1__f01__d_d_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i0_d0i1__f01__d_d_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i0_d0i1__f01__d_h_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i0_d0i1__f01__d_h_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i0_d0i1__f10__d_d_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i0_d0i1__f10__d_d_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i0_d0i1__f10__d_h_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i0_d0i1__f10__d_h_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_d_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_d_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_d_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_d_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_a_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_a_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_a_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_a_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_h_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_h_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_h_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_h_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_v_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_v_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_v_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f01__d_v_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_d_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_d_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_d_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_d_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_a_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_a_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_a_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_a_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_h_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_h_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_h_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_h_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_v_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_v_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_v_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d0i1_d1i1__f10__d_v_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_d_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_d_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_d_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_d_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_a_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_a_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_a_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_a_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_h_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_h_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_h_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_h_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_v_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_v_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_v_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f01__d_v_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_d_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_d_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_d_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_d_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_a_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_a_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_a_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_a_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_h_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_h_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_h_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_h_v"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_v_d"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_v_a"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_v_h"
+  },
+  {
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": []
+          },
+          "stage_id": 0
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.maximumf"
+            ]
+          },
+          "stage_id": 1
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.cmpf",
+              "arith.select"
+            ]
+          },
+          "stage_id": 2
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.truncf",
+              "arith.mulf",
+              "arith.subf",
+              "math.powf",
+              "arith.subf",
+              "math.powf"
+            ]
+          },
+          "stage_id": 3
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": [
+              "linalg.batch_matmul"
+            ]
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.addf"
+            ]
+          },
+          "stage_id": 4
+        },
+        {
+          "fpu_queue": {
+            "type": "FPU",
+            "workloads": []
+          },
+          "sfpu_queue": {
+            "type": "SFPU",
+            "workloads": [
+              "arith.mulf",
+              "arith.addf",
+              "arith.mulf",
+              "arith.addf"
+            ]
+          },
+          "stage_id": 5
+        }
+      ]
+    },
+    "variant_name": "attention__d1i1_d0i1__f10__d_v_v"
+  }
+]
