@@ -182,6 +182,8 @@ def SemaphoreOp : Loom_Op<"semaphore", [
   let arguments = (ins AnyMemRef:$source);
   let results = (outs AnyMemRef:$result);
 
+  let hasCanonicalizer = 1;
+
   let assemblyFormat = [{
     $source attr-dict `:` type($source) `->` type($result)
   }];

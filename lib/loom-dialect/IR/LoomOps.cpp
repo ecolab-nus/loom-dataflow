@@ -591,6 +591,38 @@ struct FoldCopyToTensorType : public OpRewritePattern<CopyToTensorOp> {
   }
 };
 
+struct FoldSemaphoreType : public OpRewritePattern<SemaphoreOp> {
+  using OpRewritePattern<SemaphoreOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(SemaphoreOp op,
+                                PatternRewriter &rewriter) const override {
+    Value source = op.getSource();
+    // Unwrap memref.cast to reach the underlying static alloc
+    if (auto cast = source.getDefiningOp<memref::CastOp>())
+      source = cast.getSource();
+
+    auto sourceType = llvm::dyn_cast<MemRefType>(source.getType());
+    if (!sourceType)
+      return failure();
+
+    auto resultType = llvm::dyn_cast<MemRefType>(op.getType());
+    if (!resultType)
+      return failure();
+
+    bool needsSourceUpdate = (source != op.getSource());
+    // Propagate static shape if source is now fully static
+    bool needsTypeUpdate =
+        sourceType.hasStaticShape() && !resultType.hasStaticShape();
+
+    if (!needsSourceUpdate && !needsTypeUpdate)
+      return failure();
+
+    auto newResultType = needsTypeUpdate ? sourceType : resultType;
+    rewriter.replaceOpWithNewOp<SemaphoreOp>(op, newResultType, source);
+    return success();
+  }
+};
+
 } // namespace
 
 void SubviewOp::getCanonicalizationPatterns(RewritePatternSet &results,
@@ -616,4 +648,9 @@ void CopyFromTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void CopyToTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                                  MLIRContext *context) {
   results.add<FoldCopyToTensorType>(context);
+}
+
+void SemaphoreOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                              MLIRContext *context) {
+  results.add<FoldSemaphoreType>(context);
 }
