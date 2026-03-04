@@ -247,6 +247,13 @@ void loom::CopyOp::getEffects(
   effects.emplace_back(MemoryEffects::Read::get());
   effects.emplace_back(MemoryEffects::Write::get());
 }
+void loom::SemaphoreOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  // Declare a virtual MemAlloc effect to prevent CSE from merging
+  // two semaphore ops that share the same source alloc.
+  effects.emplace_back(MemoryEffects::Allocate::get());
+}
 
 //===----------------------------------------------------------------------===//
 // ViewOp Canonicalizers

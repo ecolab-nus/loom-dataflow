@@ -72,11 +72,17 @@ struct ReadBlockLoadingLowering
     Value allocVal = allocIt->second;
 
     // 3. Create loom.copy_to_tensor
+    // Interpose a semaphore for the physical buffer used by copy_to_tensor
+    OpBuilder semBuilder(rewriter.getContext());
+    semBuilder.setInsertionPoint(op);
+    Value semaphore = semBuilder.create<loom::SemaphoreOp>(
+        loc, cast<MemRefType>(allocVal.getType()), allocVal);
+
     auto emptyArray = rewriter.getArrayAttr({});
     auto defaultBroadcast = rewriter.getI64ArrayAttr({1, 1});
     rewriter.replaceOp(op, loom::CopyToTensorOp::create(
                                rewriter, loc, op.getType(),
-                               loomSubviewOp.getResult(), allocVal, nullptr,
+                               loomSubviewOp.getResult(), semaphore, nullptr,
                                Value(), emptyArray, defaultBroadcast));
 
     // We can't safely remove subview yet if it has other uses.
@@ -161,12 +167,24 @@ private:
     // 2. Secondary path: Manual trace (for intermediate or untracked tensors)
     Value current = tensor;
     while (current) {
-      if (auto initOp = current.getDefiningOp<loom::InitTensorOp>())
-        return initOp.getBuffer();
-      if (auto copyOp = current.getDefiningOp<loom::CopyToTensorOp>())
-        return copyOp.getBuffer();
-      if (auto toTensorOp = current.getDefiningOp<bufferization::ToTensorOp>())
-        return toTensorOp->getOperand(0);
+      if (auto initOp = current.getDefiningOp<loom::InitTensorOp>()) {
+        current = initOp.getBuffer();
+        continue;
+      }
+      if (auto copyOp = current.getDefiningOp<loom::CopyToTensorOp>()) {
+        current = copyOp.getBuffer();
+        continue;
+      }
+      // See through semaphore to find the underlying alloc
+      if (auto semOp = current.getDefiningOp<loom::SemaphoreOp>()) {
+        current = semOp.getSource();
+        continue;
+      }
+      if (auto toTensorOp =
+              current.getDefiningOp<bufferization::ToTensorOp>()) {
+        current = toTensorOp->getOperand(0);
+        continue;
+      }
 
       if (auto castOp = current.getDefiningOp<tensor::CastOp>()) {
         current = castOp.getSource();
@@ -180,6 +198,9 @@ private:
           continue;
         }
       }
+
+      if (auto allocOp = current.getDefiningOp<loom::AllocOp>())
+        return current;
 
       // Handle loop-carried dependencies (iter_args)
       if (auto blockArg = mlir::dyn_cast<BlockArgument>(current)) {
@@ -204,7 +225,12 @@ private:
 
     OpBuilder b(context);
     b.setInsertionPointAfter(allocVal.getDefiningOp());
+
+    // Interpose a semaphore between physical buffer and tensor binding
     auto memrefType = cast<MemRefType>(allocVal.getType());
+    Value semaphore =
+        b.create<loom::SemaphoreOp>(allocVal.getLoc(), memrefType, allocVal);
+
     auto tensorType = RankedTensorType::get(memrefType.getShape(),
                                             memrefType.getElementType());
 
@@ -213,7 +239,7 @@ private:
       dynamicSizes = allocOp.getSizes();
 
     auto initOp = loom::InitTensorOp::create(
-        b, allocVal.getLoc(), tensorType, allocVal, dynamicSizes,
+        b, allocVal.getLoc(), tensorType, semaphore, dynamicSizes,
         b.getDenseI64ArrayAttr(memrefType.getShape()));
     allocToInitTensor[allocVal] = initOp.getResult();
     return initOp.getResult();
