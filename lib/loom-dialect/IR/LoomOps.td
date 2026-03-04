@@ -11,6 +11,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
+include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.td"
 include "mlir/IR/EnumAttr.td"
 
 //===----------------------------------------------------------------------===//
@@ -153,6 +154,38 @@ def AllocOp : Loom_Op<"alloc"> {
     static ::mlir::MemRefType inferResultType(
         ::llvm::ArrayRef<int64_t> staticSizes,
         ::mlir::Type elementType);
+  }];
+}
+def SemaphoreOp : Loom_Op<"semaphore", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = "Allocate a unique synchronization semaphore over a physical buffer";
+  let description = [{
+    The `loom.semaphore` operation accepts a memref (typically from `loom.alloc`)
+    and returns a memref of the same type. The returned SSA value represents a
+    unique hardware synchronization semaphore. The backend can trace the source
+    operand to discover the physical buffer, while treating each semaphore result
+    as an independent sync barrier.
+
+    This op is intentionally NOT Pure: it declares a MemAlloc effect so that CSE
+    cannot merge two semaphore ops that share the same source alloc.
+
+    Example:
+    ```mlir
+    %buf = loom.alloc [64, 128] on @L1 : memref<64x128xf32>
+    %sem_q = loom.semaphore %buf : memref<64x128xf32>
+    %sem_o = loom.semaphore %buf : memref<64x128xf32>
+    // %sem_q and %sem_o share physical memory but have independent semaphores
+    ```
+  }];
+
+  let arguments = (ins AnyMemRef:$source);
+  let results = (outs AnyMemRef:$result);
+
+  let hasCanonicalizer = 1;
+
+  let assemblyFormat = [{
+    $source attr-dict `:` type($source) `->` type($result)
   }];
 }
 
@@ -747,3 +780,4 @@ def GetSymbolicBlockSizeOp : Loom_Op<"get_symbolic_block_size", [
   
   let hasVerifier = 1;
 }
+

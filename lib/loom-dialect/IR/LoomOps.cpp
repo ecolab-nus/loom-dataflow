@@ -20,10 +20,8 @@
 #include "mlir/Interfaces/ViewLikeInterface.h"
 
 #include "LoomDialect.h.inc"
-#include "llvm/ADT/TypeSwitch.h"
-#define GET_TYPEDEF_CLASSES
 #include "LoomEnums.h.inc"
-#include "LoomTypes.h.inc"
+#include "llvm/ADT/TypeSwitch.h"
 #define GET_ATTRDEF_CLASSES
 #include "LoomAttributes.h.inc"
 
@@ -35,9 +33,6 @@ using namespace loom;
 
 #include "LoomDialect.cpp.inc"
 
-#define GET_TYPEDEF_CLASSES
-#include "LoomTypes.cpp.inc"
-
 #include "LoomEnums.cpp.inc"
 
 #define GET_ATTRDEF_CLASSES
@@ -47,10 +42,6 @@ void LoomDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
 #include "LoomOps.cpp.inc"
-      >();
-  addTypes<
-#define GET_TYPEDEF_LIST
-#include "LoomTypes.cpp.inc"
       >();
   addAttributes<
 #define GET_ATTRDEF_LIST
@@ -255,6 +246,13 @@ void loom::CopyOp::getEffects(
         &effects) {
   effects.emplace_back(MemoryEffects::Read::get());
   effects.emplace_back(MemoryEffects::Write::get());
+}
+void loom::SemaphoreOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  // Declare a virtual MemAlloc effect to prevent CSE from merging
+  // two semaphore ops that share the same source alloc.
+  effects.emplace_back(MemoryEffects::Allocate::get());
 }
 
 //===----------------------------------------------------------------------===//
@@ -489,8 +487,9 @@ struct StaticizeAffineFor : public OpRewritePattern<affine::AffineForOp> {
         }
         if (!castFound) {
           // If no cast found, insert one to the expected static type
-          newYieldOperands.push_back(rewriter.create<tensor::CastOp>(
-              yieldOp.getLoc(), newIterTypes[idx], yieldVal));
+          auto castOp = mlir::tensor::CastOp::create(
+              rewriter, yieldOp.getLoc(), newIterTypes[idx], yieldVal);
+          newYieldOperands.push_back(castOp.getResult());
         }
       } else {
         newYieldOperands.push_back(yieldVal);
@@ -504,8 +503,9 @@ struct StaticizeAffineFor : public OpRewritePattern<affine::AffineForOp> {
     SmallVector<Value> replacedResults;
     for (auto [idx, result] : llvm::enumerate(newForOp.getResults())) {
       if (result.getType() != op.getResult(idx).getType()) {
-        replacedResults.push_back(rewriter.create<tensor::CastOp>(
-            op.getLoc(), op.getResult(idx).getType(), result));
+        auto castOp = mlir::tensor::CastOp::create(
+            rewriter, op.getLoc(), op.getResult(idx).getType(), result);
+        replacedResults.push_back(castOp.getResult());
       } else {
         replacedResults.push_back(result);
       }
@@ -590,6 +590,39 @@ struct FoldCopyToTensorType : public OpRewritePattern<CopyToTensorOp> {
     return success();
   }
 };
+
+struct FoldSemaphoreType : public OpRewritePattern<SemaphoreOp> {
+  using OpRewritePattern<SemaphoreOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(SemaphoreOp op,
+                                PatternRewriter &rewriter) const override {
+    Value source = op.getSource();
+    // Unwrap memref.cast to reach the underlying static alloc
+    if (auto cast = source.getDefiningOp<memref::CastOp>())
+      source = cast.getSource();
+
+    auto sourceType = llvm::dyn_cast<MemRefType>(source.getType());
+    if (!sourceType)
+      return failure();
+
+    auto resultType = llvm::dyn_cast<MemRefType>(op.getType());
+    if (!resultType)
+      return failure();
+
+    bool needsSourceUpdate = (source != op.getSource());
+    // Propagate static shape if source is now fully static
+    bool needsTypeUpdate =
+        sourceType.hasStaticShape() && !resultType.hasStaticShape();
+
+    if (!needsSourceUpdate && !needsTypeUpdate)
+      return failure();
+
+    auto newResultType = needsTypeUpdate ? sourceType : resultType;
+    rewriter.replaceOpWithNewOp<SemaphoreOp>(op, newResultType, source);
+    return success();
+  }
+};
+
 } // namespace
 
 void SubviewOp::getCanonicalizationPatterns(RewritePatternSet &results,
@@ -615,4 +648,9 @@ void CopyFromTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void CopyToTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                                  MLIRContext *context) {
   results.add<FoldCopyToTensorType>(context);
+}
+
+void SemaphoreOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                              MLIRContext *context) {
+  results.add<FoldSemaphoreType>(context);
 }

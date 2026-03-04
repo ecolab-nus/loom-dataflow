@@ -55,26 +55,30 @@ struct BlockSizeBinding {
   }
 };
 
-/// Enumerate all valid (BM, BN, BK) combinations satisfying constraints.
-/// Placeholder implementation with hardcoded values as requested.
-llvm::SmallVector<BlockSizeBinding>
-enumerateBlockSizeBindings(loom::ConstraintSpaceOp /*csOp*/) {
-  llvm::SmallVector<BlockSizeBinding> bindings;
+/// Placeholder for a future solver. Returns hardcoded candidate tuples.
+/// Each tuple has one value per symbolic variable, in definition order.
+SmallVector<SmallVector<int64_t>> solveCandidateBlockSizes(unsigned numVars) {
+  // Future: call the constraint solver here.
+  // For now, return two hardcoded tuples if we have 3 variables.
+  if (numVars == 3) {
+    return {{1, 64, 128}};
+  }
+  // Fallback: all-64 tuple
+  SmallVector<int64_t> fallback(numVars, 64);
+  return {fallback};
+}
 
-  // Combination 1: (32, 32, 32)
-  BlockSizeBinding b1;
-  b1.varValues["BM"] = 64;
-  b1.varValues["BN"] = 64;
-  b1.varValues["BK"] = 64;
-  bindings.push_back(b1);
-
-  // Combination 2: (32, 32, 64)
-  BlockSizeBinding b2;
-  b2.varValues["BM"] = 32;
-  b2.varValues["BN"] = 32;
-  b2.varValues["BK"] = 256;
-  bindings.push_back(b2);
-
+/// Build bindings by zipping variable names with candidate tuples.
+SmallVector<BlockSizeBinding>
+buildBindings(ArrayRef<StringRef> varNames,
+              ArrayRef<SmallVector<int64_t>> candidates) {
+  SmallVector<BlockSizeBinding> bindings;
+  for (const auto &tuple : candidates) {
+    BlockSizeBinding b;
+    for (auto [name, val] : llvm::zip(varNames, tuple))
+      b.varValues[name] = val;
+    bindings.push_back(b);
+  }
   return bindings;
 }
 
@@ -145,7 +149,15 @@ public:
     for (auto nestedModule : mappingModules) {
       loom::ConstraintSpaceOp csOp =
           loom::lcs::findConstraintSpace(nestedModule);
-      auto bindings = enumerateBlockSizeBindings(csOp);
+
+      // Collect all symbolic variable names in the order they appear
+      SmallVector<StringRef> varNames;
+      csOp.walk([&](loom::SymbolicVarOp symVar) {
+        varNames.push_back(symVar.getName());
+      });
+
+      auto candidates = solveCandidateBlockSizes(varNames.size());
+      auto bindings = buildBindings(varNames, candidates);
 
       // Collect functions to clone
       SmallVector<func::FuncOp, 4> funcs;

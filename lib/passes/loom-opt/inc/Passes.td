@@ -88,6 +88,16 @@ def LinalgDestinationSpecializationPass : Pass<"loom-linalg-destination-speciali
   let constructor = "loom::passes::createLinalgDestinationSpecializationPass()";
 }
 
+def FoldRedundantExtractSlice : Pass<"loom-fold-redundant-extract-slice", "mlir::ModuleOp"> {
+  let summary = "Fold redundant tensor.extract_slice operations";
+  let description = [{
+    Eliminate tensor.extract_slice operations that are essentially no-ops:
+    offsets are all 0, strides are all 1, and the sizes match the source
+    tensor's shape.
+  }];
+  let constructor = "loom::passes::createFoldRedundantExtractSlicePass()";
+}
+
 def MemoryBindingPass : Pass<"loom-memory-binding", "mlir::ModuleOp"> {
   let summary = "Bind memory allocations to tensor operations";
   let description = [{
@@ -95,6 +105,16 @@ def MemoryBindingPass : Pass<"loom-memory-binding", "mlir::ModuleOp"> {
     bind physical memory allocations with tensor semantics for dataflow analysis.
   }];
   let constructor = "loom::passes::createMemoryBindingPass()";
+}
+
+def LowerAffineWithAttr : Pass<"loom-lower-affine-with-attr", "mlir::ModuleOp"> {
+  let summary = "Lower affine to SCF while preserving loom attributes";
+  let description = [{
+    Lower affine.parallel to scf.parallel while preserving loom.mapped_to
+    and loom.iter_type attributes as array attributes on the resulting
+    scf.parallel operation.
+  }];
+  let constructor = "loom::passes::createLowerAffineWithAttrPass()";
 }
 
 #endif // LOOM_TRITON_SHARED_PASSES

@@ -68,9 +68,7 @@ MappingEnumerator::permuteBuckets(const DimBuckets &baseBuckets) {
 
   for (unsigned it = 0; it < numIters; ++it) {
     llvm::SmallVector<unsigned> dims = baseBuckets[it];
-    if (dims.size() <= 1 ||
-        (dims.size() == hardwareInfo.spatialDimInfoVec.size() &&
-         hardwareInfo.skipPermutation())) {
+    if (dims.size() <= 1) {
       permutedBucketsPerIter[it].push_back(dims);
     } else {
       std::sort(dims.begin(), dims.end());

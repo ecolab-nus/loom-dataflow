@@ -74,24 +74,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -217,24 +217,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -360,24 +360,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -503,24 +503,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -646,24 +646,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -789,24 +789,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -932,24 +932,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -1075,24 +1075,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -1218,24 +1218,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -1300,7 +1300,7 @@
   ]
   },
   {
-    "func_name": "matmul__d0i0_d1i1__f01__d_v",
+    "func_name": "matmul__d0i0_d1i1__f01__d_h",
     "pass_name": "EnumerateCopyBroadcast",
     "variables": [
     {
@@ -1374,24 +1374,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -1456,7 +1456,7 @@
   ]
   },
   {
-    "func_name": "matmul__d0i0_d1i1__f01__h_d",
+    "func_name": "matmul__d0i0_d1i1__f01__v_d",
     "pass_name": "EnumerateCopyBroadcast",
     "variables": [
     {
@@ -1530,24 +1530,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -1612,7 +1612,7 @@
   ]
   },
   {
-    "func_name": "matmul__d0i0_d1i1__f01__h_v",
+    "func_name": "matmul__d0i0_d1i1__f01__v_h",
     "pass_name": "EnumerateCopyBroadcast",
     "variables": [
     {
@@ -1686,24 +1686,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -1842,24 +1842,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -1924,7 +1924,7 @@
   ]
   },
   {
-    "func_name": "matmul__d0i0_d1i1__f10__d_v",
+    "func_name": "matmul__d0i0_d1i1__f10__d_h",
     "pass_name": "EnumerateCopyBroadcast",
     "variables": [
     {
@@ -1998,24 +1998,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -2080,7 +2080,7 @@
   ]
   },
   {
-    "func_name": "matmul__d0i0_d1i1__f10__h_d",
+    "func_name": "matmul__d0i0_d1i1__f10__v_d",
     "pass_name": "EnumerateCopyBroadcast",
     "variables": [
     {
@@ -2154,24 +2154,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -2236,7 +2236,7 @@
   ]
   },
   {
-    "func_name": "matmul__d0i0_d1i1__f10__h_v",
+    "func_name": "matmul__d0i0_d1i1__f10__v_h",
     "pass_name": "EnumerateCopyBroadcast",
     "variables": [
     {
@@ -2310,24 +2310,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -2466,24 +2466,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -2548,7 +2548,7 @@
   ]
   },
   {
-    "func_name": "matmul__d1i0_d0i1__f01__d_h",
+    "func_name": "matmul__d1i0_d0i1__f01__d_v",
     "pass_name": "EnumerateCopyBroadcast",
     "variables": [
     {
@@ -2622,24 +2622,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -2704,7 +2704,7 @@
   ]
   },
   {
-    "func_name": "matmul__d1i0_d0i1__f01__v_d",
+    "func_name": "matmul__d1i0_d0i1__f01__h_d",
     "pass_name": "EnumerateCopyBroadcast",
     "variables": [
     {
@@ -2778,24 +2778,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -2860,7 +2860,7 @@
   ]
   },
   {
-    "func_name": "matmul__d1i0_d0i1__f01__v_h",
+    "func_name": "matmul__d1i0_d0i1__f01__h_v",
     "pass_name": "EnumerateCopyBroadcast",
     "variables": [
     {
@@ -2934,24 +2934,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -3090,24 +3090,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -3172,7 +3172,7 @@
   ]
   },
   {
-    "func_name": "matmul__d1i0_d0i1__f10__d_h",
+    "func_name": "matmul__d1i0_d0i1__f10__d_v",
     "pass_name": "EnumerateCopyBroadcast",
     "variables": [
     {
@@ -3246,24 +3246,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -3328,7 +3328,7 @@
   ]
   },
   {
-    "func_name": "matmul__d1i0_d0i1__f10__v_d",
+    "func_name": "matmul__d1i0_d0i1__f10__h_d",
     "pass_name": "EnumerateCopyBroadcast",
     "variables": [
     {
@@ -3402,24 +3402,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -3484,7 +3484,7 @@
   ]
   },
   {
-    "func_name": "matmul__d1i0_d0i1__f10__v_h",
+    "func_name": "matmul__d1i0_d0i1__f10__h_v",
     "pass_name": "EnumerateCopyBroadcast",
     "variables": [
     {
@@ -3558,24 +3558,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -3714,24 +3714,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -3857,24 +3857,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -4000,24 +4000,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -4143,24 +4143,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -4286,24 +4286,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -4429,24 +4429,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -4572,24 +4572,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -4715,24 +4715,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],
@@ -4858,24 +4858,24 @@
       "is_equality": false,
       "terms": [
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
+            "BK",
             "BN"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
-            "BM",
-            "BK"
+            "BK",
+            "BM"
           ]
         },
         {
-          "coefficient": 4,
+          "coefficient": 2,
           "variables": [
             "BN",
-            "BK"
+            "BM"
           ]
         }
       ],

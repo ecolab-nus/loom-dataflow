@@ -27,16 +27,16 @@ mkdir -p test/Passes/mm_2Dmesh/constraint_space
 mkdir -p test/Passes/mm_2Dmesh/viz
 
 echo "1) Specialize linalg operations' destination..."
-if ! build/tool/loom-opt/single_stage/linalg_destination_specialization \
+if ! build/tool/loom-opt/single_stage/tensor_canonicalize \
   --input test/Passes/mm_2Dmesh/IR/00_from_helion_frontend.mlir  \
-  > test/Passes/mm_2Dmesh/IR/01_linalg_destination_specialized.mlir; then
+  > test/Passes/mm_2Dmesh/IR/01_tensor_canonicalized.mlir; then
     echo "Error: Step 1 failed."
     exit 1
 fi
 
 echo "2) Replace grid indices with a 3-D affine.parallel..."
 if ! build/tool/loom-opt/single_stage/memory_binding \
-  --input test/Passes/mm_2Dmesh/IR/01_linalg_destination_specialized.mlir  \
+  --input test/Passes/mm_2Dmesh/IR/01_tensor_canonicalized.mlir  \
   > test/Passes/mm_2Dmesh/IR/02_explicit_memory_access.mlir; then
     echo "Error: Step 2 failed."
     exit 1
@@ -77,11 +77,19 @@ if ! build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
 fi
 
 # optional) Materialize symbolic block sizes
-echo "(optional) Materialize symbolic block sizes..."
+echo "6) Materialize symbolic block sizes..."
 if ! build/tool/loom-opt/single_stage/canonicalize \
   --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
   > test/Passes/mm_2Dmesh/IR/06_after_canonicalize.mlir; then
-    echo "Error: (optional) Materialize symbolic block sizes failed."
+    echo "Error: Step 6 failed."
+    exit 1
+fi
+
+echo "7) OSB..."
+if ! build/tool/loom-opt/single_stage/one_shot_bufferize \
+  --input test/Passes/mm_2Dmesh/IR/06_after_canonicalize.mlir \
+  > test/Passes/mm_2Dmesh/IR/07_after_osb.mlir; then
+    echo "Error: Step 7 failed."
     exit 1
 fi
 

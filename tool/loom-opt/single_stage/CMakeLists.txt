@@ -226,17 +226,17 @@ set_target_properties(memory_binding PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-# linalg_destination_specialization: Specialize LinalgOp destinations
-add_executable(linalg_destination_specialization
-  ${CMAKE_CURRENT_LIST_DIR}/linalg_destination_specialization_main.cpp
+# tensor_canonicalize: Specialize LinalgOp destinations and fold redundant tensors
+add_executable(tensor_canonicalize
+  ${CMAKE_CURRENT_LIST_DIR}/tensor_canonicalize_main.cpp
 )
 
-target_include_directories(linalg_destination_specialization PRIVATE
+target_include_directories(tensor_canonicalize PRIVATE
   ${MLIR_INCLUDE_DIRS}
   ${LOOM_PASSES_INC}
 )
 
-target_link_libraries(linalg_destination_specialization PRIVATE
+target_link_libraries(tensor_canonicalize PRIVATE
   loomTritonSharedPasses
   MLIRIR
   MLIRParser
@@ -259,11 +259,11 @@ target_link_libraries(linalg_destination_specialization PRIVATE
   loomDataflowDialect
   loomDialect
 )
-mlir_check_all_link_libraries(linalg_destination_specialization)
+mlir_check_all_link_libraries(tensor_canonicalize)
 
-target_compile_options(linalg_destination_specialization PRIVATE -fno-rtti)
+target_compile_options(tensor_canonicalize PRIVATE -fno-rtti)
 
-set_target_properties(linalg_destination_specialization PROPERTIES
+set_target_properties(tensor_canonicalize PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
@@ -301,6 +301,7 @@ target_link_libraries(one_shot_bufferize PRIVATE
   MLIRPass
   MLIRTransforms
   MLIRLinalgTransforms
+  MLIRTensorTransforms
   MLIRAsmParser
   MLIRBytecodeReader
 )

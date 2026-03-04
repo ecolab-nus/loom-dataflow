@@ -36,7 +36,8 @@ struct InitTensorOpInterface
 
   AliasingValueList getAliasingValues(Operation *op, OpOperand &opOperand,
                                       const AnalysisState &state) const {
-    return {};
+    return {AliasingValue(op->getOpResult(0), BufferRelation::Equivalent,
+                          /*isDefinite=*/true)};
   }
 
   LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
@@ -63,7 +64,8 @@ struct CopyToTensorOpInterface
 
   AliasingValueList getAliasingValues(Operation *op, OpOperand &opOperand,
                                       const AnalysisState &state) const {
-    return {};
+    return {AliasingValue(op->getOpResult(0), BufferRelation::Equivalent,
+                          /*isDefinite=*/true)};
   }
 
   LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
@@ -75,9 +77,9 @@ struct CopyToTensorOpInterface
     auto dramSymbol = SymbolRefAttr::get(op->getContext(), "DRAM");
     auto l1Symbol = SymbolRefAttr::get(op->getContext(), "L1");
 
-    rewriter.create<loom::CopyOp>(
-        loc, copyOp.getSourceView(), copyOp.getBuffer(), dramSymbol, l1Symbol,
-        copyOp.getInterconnectAttr(), copyOp.getBroadcastAttr());
+    loom::CopyOp::create(
+        rewriter, loc, copyOp.getSourceView(), copyOp.getBuffer(), dramSymbol,
+        l1Symbol, copyOp.getInterconnectAttr(), copyOp.getBroadcastAttr());
 
     replaceOpWithBufferizedValues(rewriter, op, copyOp.getBuffer());
     return success();
@@ -116,10 +118,10 @@ struct CopyFromTensorOpInterface
     auto l1Symbol = SymbolRefAttr::get(op->getContext(), "L1");
     auto dramSymbol = SymbolRefAttr::get(op->getContext(), "DRAM");
 
-    rewriter.create<loom::CopyOp>(
-        loc, *srcBuffer, copyOp.getTargetView(), l1Symbol, dramSymbol,
-        /*interconnect=*/rewriter.getArrayAttr({}),
-        /*broadcast=*/rewriter.getI64ArrayAttr({1, 1}));
+    loom::CopyOp::create(rewriter, loc, *srcBuffer, copyOp.getTargetView(),
+                         l1Symbol, dramSymbol,
+                         /*interconnect=*/rewriter.getArrayAttr({}),
+                         /*broadcast=*/rewriter.getI64ArrayAttr({1, 1}));
 
     rewriter.eraseOp(op);
     return success();
