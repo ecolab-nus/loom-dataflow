@@ -339,6 +339,10 @@ public:
         [&](linalg::GenericOp op) {
           return !mlir::loom::isSupportedFlashAttentionGeneric(op);
         });
+    target.addDynamicallyLegalOp<linalg::CopyOp>(
+        [&](linalg::CopyOp op) {
+          return !mlir::loom::shouldConvertComputeLinalgCopy(op);
+        });
     target.addDynamicallyLegalOp<::loom::CopyOp>(
         [&](::loom::CopyOp op) {
           return false;

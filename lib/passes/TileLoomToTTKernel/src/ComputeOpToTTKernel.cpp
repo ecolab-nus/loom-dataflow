@@ -968,6 +968,56 @@ public:
   }
 };
 
+class ConvertLinalgCopyOp : public OpConversionPattern<linalg::CopyOp> {
+public:
+  using OpConversionPattern<linalg::CopyOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(linalg::CopyOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (!mlir::loom::shouldConvertComputeLinalgCopy(op))
+      return failure();
+
+    if (adaptor.getInputs().size() != 1 || adaptor.getOutputs().size() != 1)
+      return failure();
+
+    Value inCb = adaptor.getInputs()[0];
+    Value outCb = adaptor.getOutputs()[0];
+    if (!isa<CBType>(inCb.getType()) || !isa<CBType>(outCb.getType()))
+      return failure();
+
+    auto inTiles = getNumTilesFromShapedType(op.getInputs()[0].getType());
+    auto outTiles = getNumTilesFromShapedType(op.getOutputs()[0].getType());
+    if (!inTiles || !outTiles || *inTiles != *outTiles)
+      return failure();
+
+    if (inCb == outCb) {
+      rewriter.eraseOp(op);
+      return success();
+    }
+
+    Location loc = op.getLoc();
+    Value zero = i32Const(rewriter, loc, 0);
+    Value tileCount = i32Const(rewriter, loc, *inTiles);
+
+    CBWaitFrontOp::create(rewriter, loc, inCb, tileCount);
+    CBReserveBackOp::create(rewriter, loc, outCb, tileCount);
+    rewriter.create<CopyTileInitOp>(loc, inCb);
+
+    for (int64_t i = 0; i < *inTiles; ++i) {
+      Value tileIdx = i32Const(rewriter, loc, i);
+      TileRegsAcquireOp::create(rewriter, loc);
+      rewriter.create<CopyTileOp>(loc, inCb, tileIdx, zero);
+      PackTileOp::create(rewriter, loc, zero, outCb, tileIdx);
+      TileRegsReleaseOp::create(rewriter, loc);
+    }
+
+    CBPushBackOp::create(rewriter, loc, outCb, tileCount);
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
 class ConvertMemrefCollapseShapeOp
     : public OpConversionPattern<memref::CollapseShapeOp> {
 public:
@@ -1021,10 +1071,23 @@ bool mlir::loom::isSupportedFlashAttentionGeneric(linalg::GenericOp op) {
          classifyFlashAttentionGeneric(op).has_value();
 }
 
+bool mlir::loom::shouldConvertComputeLinalgCopy(linalg::CopyOp op) {
+  if (!isComputeKernel(op.getOperation()))
+    return false;
+
+  if (op.getInputs().size() != 1 || op.getOutputs().size() != 1)
+    return false;
+
+  auto inTiles = getNumTilesFromShapedType(op.getInputs()[0].getType());
+  auto outTiles = getNumTilesFromShapedType(op.getOutputs()[0].getType());
+  return inTiles && outTiles && *inTiles == *outTiles;
+}
+
 void mlir::loom::populateComputeOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context) {
   patterns.add<ConvertLinalgFillOp>(typeConverter, context);
+  patterns.add<ConvertLinalgCopyOp>(typeConverter, context);
   patterns.add<ConvertLinalgMatmulOp>(typeConverter, context);
   patterns.add<ConvertMemrefCollapseShapeOp>(typeConverter, context);
   patterns.add<ConvertFlashAttentionGenericOp>(typeConverter, context);
