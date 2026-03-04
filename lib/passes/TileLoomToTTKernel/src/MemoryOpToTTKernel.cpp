@@ -80,9 +80,14 @@ static Value stripMemrefCasts(Value value) {
  * @brief Find last read and first write users reachable through view aliases.
  *
  * @details Starting from `rootValue`, walks use-def through view-like aliases
- *          within the same block and records:
+ *          and records:
  *          - the last operation that reads from the value/aliases
  *          - the first operation that writes to the value/aliases
+ *
+ *          Ordering is tracked in the `anchorOp` block. For users in nested
+ *          regions, their nearest enclosing operation in the anchor block is
+ *          used as the ordering representative. This keeps same-block ordering
+ *          while including nested uses (e.g., inside scf.for bodies).
  *
  * @param rootValue The root value to trace uses from.
  * @param anchorOp The minimum operation anchor used for block/ordering checks.
@@ -103,8 +108,16 @@ findReadWriteUsersThroughViews(Value rootValue, Operation *anchorOp,
       continue;
 
     for (Operation *user : current.getUsers()) {
-      if (user->getBlock() != anchorOp->getBlock() ||
-          !anchorOp->isBeforeInBlock(user))
+      // Project nested-region users to the nearest enclosing op in the anchor
+      // block so we can reason with same-block ordering while still including
+      // nested uses.
+      Operation *orderingOp = user;
+      if (orderingOp->getBlock() != anchorOp->getBlock()) {
+        while (orderingOp && orderingOp->getBlock() != anchorOp->getBlock())
+          orderingOp = orderingOp->getParentOp();
+      }
+      if (!orderingOp || orderingOp == anchorOp ||
+          !anchorOp->isBeforeInBlock(orderingOp))
         continue;
 
       if (auto viewLike = dyn_cast<ViewLikeOpInterface>(user)) {
@@ -132,11 +145,11 @@ findReadWriteUsersThroughViews(Value rootValue, Operation *anchorOp,
           hasWrite = true;
       }
 
-      if (hasRead && lastRead->isBeforeInBlock(user))
-        lastRead = user;
+      if (hasRead && lastRead->isBeforeInBlock(orderingOp))
+        lastRead = orderingOp;
       if (hasWrite &&
-          (!firstWrite || user->isBeforeInBlock(firstWrite)))
-        firstWrite = user;
+          (!firstWrite || orderingOp->isBeforeInBlock(firstWrite)))
+        firstWrite = orderingOp;
     }
   }
 }
@@ -582,19 +595,21 @@ struct ConvertReinterpretCastOp
 };
 
 //===----------------------------------------------------------------------===//
-// Loom Dialect Patterns (loom.alloc, loom.copy)
+// Loom Dialect Patterns (loom.alloc, loom.semaphore, loom.copy)
 //===----------------------------------------------------------------------===//
 
 /**
- * @brief Convert `loom.alloc` to TTKernel CB.
+ * @brief Convert `loom.semaphore` to a fresh runtime-arg CB.
  *
- * @details This pattern handles `loom.alloc` operations:
- *          - For allocs whose result is the destination of a `loom.copy`
- *            (load direction), use the pre-created CB from the tracker.
- *          - For other allocs (output accumulators), create a new CB.
+ * @details Each semaphore materializes an independent CB handle. This pattern
+ *          allocates a new compile/runtime arg (GetArgValOp-backed) per
+ *          `loom.semaphore`, even when multiple semaphores share the same
+ *          physical source buffer. it first check whether the semaphore is the source of a DRAM->L1 copy, if so, return the source memref arg.
+ *          otherwise, return the destination memref arg. else, create a new compile-arg CB.
  */
-struct ConvertLoomAllocOp : public OpConversionPattern<::loom::AllocOp> {
-  using OpConversionPattern<::loom::AllocOp>::OpConversionPattern;
+struct ConvertLoomSemaphoreOp
+    : public OpConversionPattern<::loom::SemaphoreOp> {
+  using OpConversionPattern<::loom::SemaphoreOp>::OpConversionPattern;
 
   /**
    * @brief Construct the pattern with a type converter and context.
@@ -602,140 +617,121 @@ struct ConvertLoomAllocOp : public OpConversionPattern<::loom::AllocOp> {
    * @param context MLIR context.
    * @param tracker Shared tracker for compile-arg values.
    */
-  ConvertLoomAllocOp(TypeConverter &typeConverter, MLIRContext *context,
-                     std::shared_ptr<CompileArgTracker> tracker)
-      : OpConversionPattern<::loom::AllocOp>(typeConverter, context),
+  ConvertLoomSemaphoreOp(TypeConverter &typeConverter, MLIRContext *context,
+                         std::shared_ptr<CompileArgTracker> tracker)
+      : OpConversionPattern<::loom::SemaphoreOp>(typeConverter, context),
         tracker(std::move(tracker)) {}
 
-  /**
-   * @brief Find the input memref that flows into this alloc via loom.copy.
-   *
-   * @details Looks at the users of the alloc to find a loom.copy where
-   *          this alloc is the destination (load direction). Then traces back
-   *          through reinterpret_cast to find the original input memref
-   *          (typically a function argument).
-   *
-   * @param alloc The loom.alloc op to analyze.
-   * @return The source memref if found, or nullptr.
-   */
-  Value findInputMemref(::loom::AllocOp alloc) const {
-    for (Operation *user : alloc.getResult().getUsers()) {
-      // Check loom.copy users where this alloc is the destination (load).
-      if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(user)) {
-        if (loomCopyOp.getDestination() == alloc.getResult()) {
-          Value source = loomCopyOp.getSource();
-          if (auto reinterpretCastOp =
-                  source.getDefiningOp<memref::ReinterpretCastOp>()) {
-            return reinterpretCastOp.getSource();
-          }
-        }
+  /// If semaphore is destination of DRAM->L1 copy, return the source memref arg.
+  Value findInputMemref(::loom::SemaphoreOp semaphore) const {
+    for (Operation *user : semaphore.getResult().getUsers()) {
+      auto loomCopyOp = dyn_cast<::loom::CopyOp>(user);
+      if (!loomCopyOp || loomCopyOp.getDestination() != semaphore.getResult())
+        continue;
+
+      Value source = stripMemrefCasts(loomCopyOp.getSource());
+      if (auto reinterpretCastOp =
+              source.getDefiningOp<memref::ReinterpretCastOp>()) {
+        return stripMemrefCasts(reinterpretCastOp.getSource());
       }
     }
-    return nullptr;
+    return {};
   }
 
-  /**
-   * @brief Find the output memref that this alloc feeds via loom.copy (store).
-   *
-   * @details Looks at the users of the alloc to find a loom.copy where
-   *          this alloc is the source (store direction). Then traces the
-   *          destination through reinterpret_cast to find the original output
-   *          memref (typically a function argument).
-   *
-   * @param alloc The loom.alloc op to analyze.
-   * @return The destination memref if found, or nullptr.
-   */
-  Value findOutputMemref(::loom::AllocOp alloc) const {
-    for (Operation *user : alloc.getResult().getUsers()) {
-      // Check loom.copy users where this alloc is the source (store).
-      if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(user)) {
-        if (loomCopyOp.getSource() == alloc.getResult()) {
-          Value destination = loomCopyOp.getDestination();
-          if (auto reinterpretCastOp =
-                  destination.getDefiningOp<memref::ReinterpretCastOp>()) {
-            return reinterpretCastOp.getSource();
-          }
-        }
+  /// If semaphore is source of L1->DRAM copy, return the destination memref arg.
+  Value findOutputMemref(::loom::SemaphoreOp semaphore) const {
+    for (Operation *user : semaphore.getResult().getUsers()) {
+      auto loomCopyOp = dyn_cast<::loom::CopyOp>(user);
+      if (!loomCopyOp || loomCopyOp.getSource() != semaphore.getResult())
+        continue;
+
+      Value destination = stripMemrefCasts(loomCopyOp.getDestination());
+      if (auto reinterpretCastOp =
+              destination.getDefiningOp<memref::ReinterpretCastOp>()) {
+        return stripMemrefCasts(reinterpretCastOp.getSource());
       }
     }
-    return nullptr;
+    return {};
   }
 
   LogicalResult
-  matchAndRewrite(::loom::AllocOp op, OpAdaptor adaptor,
+  matchAndRewrite(::loom::SemaphoreOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     Location loc = op.getLoc();
     auto expectedCBType = dyn_cast_or_null<CBType>(
-        getTypeConverter()->convertType(op.getType()));
-    auto memrefType = dyn_cast<MemRefType>(op.getType());
-    if (!memrefType) {
+        getTypeConverter()->convertType(op.getResult().getType()));
+    auto memrefType = dyn_cast<MemRefType>(op.getResult().getType());
+    if (!memrefType)
       return rewriter.notifyMatchFailure(
-          op, "loom.alloc result must be a ranked memref type");
-    }
-
-    auto replaceWithCheckedCB = [&](Value cb) -> LogicalResult {
-      if (!cb)
-        return failure();
-
-      if (expectedCBType && cb.getType() != expectedCBType) {
-        return rewriter.notifyMatchFailure(
-            op, [&](Diagnostic &diag) {
-              diag << "CB type mismatch for loom.alloc replacement, expected "
-                   << expectedCBType << " but got " << cb.getType();
-            });
-      }
-
-      rewriter.replaceOp(op, cb);
-      return success();
-    };
-
-    // Step 1: Always allocate an internal CB compile-arg for this loom.alloc.
-    // This supports pure internal L1 buffers that are not tied to any memref
-    // function argument.
-    CBType defaultCBType = expectedCBType ? expectedCBType : CBType::get(memrefType);
+          op, "loom.semaphore result must be a ranked memref type");
+    CBType defaultCBType =
+        expectedCBType ? expectedCBType : CBType::get(memrefType);
     auto parentFunc = op->getParentOfType<func::FuncOp>();
     if (!parentFunc)
-      return rewriter.notifyMatchFailure(op, "loom.alloc must be inside func.func");
+      return rewriter.notifyMatchFailure(op,
+                                         "loom.semaphore must be inside func.func");
     if (!tracker)
       return rewriter.notifyMatchFailure(op, "compile-arg tracker is null");
 
-    Value replacementCb =
-        tracker->createTypedCompileArg(loc, rewriter, parentFunc, defaultCBType);
-    if (!replacementCb)
+    // Prefer reusing already-created memref-argument CB indexes.
+    Value cb;
+    if (Value inputMemref = findInputMemref(op))
+      cb = tracker->getCB(inputMemref);
+
+    if (!cb) {
+      if (Value outputMemref = findOutputMemref(op))
+        cb = tracker->getCB(outputMemref);
+    }
+
+    // Fallback for internal-only semaphore buffers not tied to memref args.
+    if (!cb) {
+      cb = tracker->createTypedCompileArg(loc, rewriter, parentFunc, defaultCBType);
+    }
+    if (!cb)
       return rewriter.notifyMatchFailure(
-          op, "failed to create compile-arg CB for loom.alloc");
-    bool mappedToMemrefCB = false;
+          op, "failed to create compile-arg CB for loom.semaphore");
 
-    // Step 2: If this alloc participates in loom.copy load/store with a memref
-    // function argument, remap it to that argument's pre-created CB.
-    // Case 2a: destination of load-direction loom.copy (DRAM -> L1).
-    Value inputMemref = findInputMemref(op);
-    if (inputMemref) {
-      Value cb = tracker->getCB(inputMemref);
-      if (cb) {
-        replacementCb = cb;
-        mappedToMemrefCB = true;
-      }
+    if (expectedCBType && cb.getType() != expectedCBType) {
+      return rewriter.notifyMatchFailure(op, [&](Diagnostic &diag) {
+        diag << "CB type mismatch for loom.semaphore replacement, expected "
+             << expectedCBType << " but got " << cb.getType();
+      });
     }
 
-    // Case 2b: source of store-direction loom.copy (L1 -> DRAM).
-    if (!mappedToMemrefCB) {
-      Value outputMemref = findOutputMemref(op);
-      if (outputMemref) {
-        Value cb = tracker->getCB(outputMemref);
-        if (cb) {
-          replacementCb = cb;
-          mappedToMemrefCB = true;
-        }
-      }
-    }
-
-    return replaceWithCheckedCB(replacementCb);
+    rewriter.replaceOp(op, cb);
+    return success();
   }
 
 private:
   /// Shared tracker for compile-arg values.
   std::shared_ptr<CompileArgTracker> tracker;
+};
+
+/**
+ * @brief Temporarily drop `loom.alloc` semantics.
+ *
+ * @details For now we lower `loom.alloc` to a plain `memref.alloc` placeholder
+ *          and erase the Loom op. This keeps existing memref users valid while
+ *          semaphore lowering takes ownership of CB runtime-arg creation.
+ */
+struct ConvertLoomAllocOp : public OpConversionPattern<::loom::AllocOp> {
+  using OpConversionPattern<::loom::AllocOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(::loom::AllocOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto memrefType = dyn_cast<MemRefType>(op.getResult().getType());
+    if (!memrefType) {
+      return rewriter.notifyMatchFailure(
+          op, "loom.alloc result must be a ranked memref type");
+    }
+
+    auto tempAlloc = memref::AllocOp::create(
+        rewriter, op.getLoc(), memrefType, op.getSizes(), ValueRange{},
+        op.getAlignmentAttr());
+    rewriter.replaceOp(op, tempAlloc.getResult());
+    return success();
+  }
 };
 
 //===----------------------------------------------------------------------===//
@@ -1346,8 +1342,9 @@ private:
 void mlir::loom::populateMemoryOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker) {
-  // loom.alloc / loom.copy patterns.
-  patterns.add<ConvertLoomAllocOp>(typeConverter, context, tracker);
+  // loom.alloc / loom.semaphore / loom.copy patterns.
+  patterns.add<ConvertLoomSemaphoreOp>(typeConverter, context, tracker);
+  patterns.add<ConvertLoomAllocOp>(typeConverter, context);
   patterns.add<ConvertLoomLoadOp>(typeConverter, context, tracker);
   patterns.add<ConvertLoomStoreOp>(typeConverter, context, tracker);
   // Reinterpret cast erasure.

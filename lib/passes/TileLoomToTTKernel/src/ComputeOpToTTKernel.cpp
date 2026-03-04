@@ -241,13 +241,20 @@ static std::optional<unsigned> getBodyInputIndex(linalg::GenericOp op, Value val
 }
 
 static std::optional<float> getConstFloatValue(Value value) {
-  auto cst = value.getDefiningOp<arith::ConstantFloatOp>();
-  if (!cst)
-    return std::nullopt;
-  auto attr = dyn_cast<FloatAttr>(cst.getValue());
-  if (!attr)
-    return std::nullopt;
-  return static_cast<float>(attr.getValueAsDouble());
+  if (auto cst = value.getDefiningOp<arith::ConstantFloatOp>()) {
+    auto attr = dyn_cast<FloatAttr>(cst.getValue());
+    if (!attr)
+      return std::nullopt;
+    return static_cast<float>(attr.getValueAsDouble());
+  }
+
+  // Accept casted float constants (e.g. f32 const -> truncf -> f16 scalar).
+  if (auto trunc = value.getDefiningOp<arith::TruncFOp>())
+    return getConstFloatValue(trunc.getIn());
+  if (auto ext = value.getDefiningOp<arith::ExtFOp>())
+    return getConstFloatValue(ext.getIn());
+
+  return std::nullopt;
 }
 
 
@@ -781,6 +788,10 @@ public:
     Value in1Cb = adaptor.getInputs()[1];
     Value outCb = adaptor.getOutputs()[0];
     Value outBuffer = op.getOutputs()[0];
+    llvm::errs() << "in0Cb: " << in0Cb << "\n";
+    llvm::errs() << "in1Cb: " << in1Cb << "\n";
+    llvm::errs() << "outCb: " << outCb << "\n";
+    llvm::errs() << "outBuffer: " << outBuffer << "\n";
 
     // Ensure operands are TTKernel CBs.
     if (!isa<CBType>(in0Cb.getType()) || !isa<CBType>(in1Cb.getType()) ||

@@ -52,6 +52,16 @@ static Value stripMemrefCasts(Value value) {
   return current;
 }
 
+// Follow loom.semaphore wrappers to recover the underlying physical buffer
+// producer (typically loom.alloc). Multiple semaphore ops may chain on the
+// same base value in transformed IR.
+static Value stripLoomSemaphores(Value value) {
+  Value current = value;
+  while (auto sem = current.getDefiningOp<::loom::SemaphoreOp>())
+    current = sem.getSource();
+  return current;
+}
+
 // Infer per-argument CB memref shape from loom.copy links to loom.alloc.
 // This decouples DRAM tensor shape (function args / host buffers) from
 // on-core CB tile shape (loom.alloc).
@@ -86,7 +96,8 @@ static LogicalResult inferArgToCBMemrefType(
     // DRAM -> L1: source is reinterpret_cast(arg), destination is loom.alloc.
     if (auto sourceRC = copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>()) {
       Value linkedArg = stripMemrefCasts(sourceRC.getSource());
-      Value destination = stripMemrefCasts(copyOp.getDestination());
+      Value destination =
+          stripLoomSemaphores(stripMemrefCasts(copyOp.getDestination()));
       if (auto allocOp = destination.getDefiningOp<::loom::AllocOp>()) {
         if (auto allocMemrefType = dyn_cast<MemRefType>(allocOp.getType()))
           status = recordLinkedType(linkedArg, allocMemrefType);
@@ -97,7 +108,7 @@ static LogicalResult inferArgToCBMemrefType(
     if (auto destinationRC =
             copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>()) {
       Value linkedArg = stripMemrefCasts(destinationRC.getSource());
-      Value source = stripMemrefCasts(copyOp.getSource());
+      Value source = stripLoomSemaphores(stripMemrefCasts(copyOp.getSource()));
       if (auto allocOp = source.getDefiningOp<::loom::AllocOp>()) {
         if (auto allocMemrefType = dyn_cast<MemRefType>(allocOp.getType()))
           status = recordLinkedType(linkedArg, allocMemrefType);

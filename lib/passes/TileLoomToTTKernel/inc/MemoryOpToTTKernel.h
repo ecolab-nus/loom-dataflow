@@ -19,8 +19,9 @@ namespace loom {
 /**
  * @brief Populate conversion patterns for memory operations to TTKernel.
  * 
- * @details This function adds conversion patterns for loom.alloc and loom.copy
- *          operations to the provided pattern set.
+ * @details This function adds conversion patterns for loom.alloc,
+ *          loom.semaphore, and loom.copy operations to the provided pattern
+ *          set.
  * 
  * @param patterns The pattern set to populate.
  * @param typeConverter The type converter for the conversion pipeline.
@@ -35,4 +36,3 @@ void populateMemoryOpConversionPatterns(
 } // namespace mlir
 
 #endif // LOOM_PASSES_TILELOOMTOTTKERNEL_MEMORYOPTOTTKERNEL_H
-

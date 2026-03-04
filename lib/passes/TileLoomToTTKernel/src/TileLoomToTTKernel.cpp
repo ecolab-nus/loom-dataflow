@@ -307,8 +307,10 @@ public:
     // Set up conversion target
     ConversionTarget target(*context);
     
-    // Mark loom.alloc and loom.copy as illegal (needs conversion).
-    target.addIllegalOp<::loom::AllocOp>();
+    // Mark loom.alloc, loom.semaphore, and loom.copy as illegal
+    // (needs conversion).
+    //target.addIllegalOp<::loom::AllocOp>();
+    target.addIllegalOp<::loom::SemaphoreOp>();
     target.addIllegalOp<::loom::CopyOp>();
     
     // Mark memref operations that don't need conversion as legal
