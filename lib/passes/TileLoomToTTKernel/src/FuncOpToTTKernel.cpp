@@ -995,6 +995,29 @@ private:
 
       dramInfo.cbIndex = static_cast<int>(cbIndex);
     }
+
+    // Runtime-arg CB tail must only include internal CBs (those that do not
+    // correspond to memref arguments). Memref-linked CB IDs are already emitted
+    // at fixed per-memref positions at the beginning of runtime args.
+    SmallVector<unsigned, 8> memrefCbIndices;
+    for (const DramBufferInfo &dramInfo : dramInfos) {
+      if (dramInfo.cbIndex < 0)
+        continue;
+      unsigned cbIndex = static_cast<unsigned>(dramInfo.cbIndex);
+      if (!llvm::is_contained(memrefCbIndices, cbIndex))
+        memrefCbIndices.push_back(cbIndex);
+    }
+
+    internalCbRuntimeArgOrder.clear();
+    for (const CircularBufferInfo &info : cbInfos) {
+      for (unsigned cbIndex : info.cbIndices) {
+        if (llvm::is_contained(memrefCbIndices, cbIndex))
+          continue;
+        if (llvm::is_contained(internalCbRuntimeArgOrder, cbIndex))
+          continue;
+        internalCbRuntimeArgOrder.push_back(cbIndex);
+      }
+    }
   }
 
   void eraseNonHostOps() {
@@ -1288,12 +1311,11 @@ private:
     emitLine(coreCoordArg0Expr + ",");
     emitLine(coreCoordArg1Expr + ",");
 
-    // Append CB index for every created CB buffer (stable loom.alloc order).
-    // This allows kernel-side GetArgValOp users to recover CB IDs for
-    // internal-only loom.alloc buffers.
-    for (const CircularBufferInfo &info : cbInfos) {
-      for (const std::string &cbIndexName : info.cbIndexNames)
-        emitLine("static_cast<uint32_t>(" + cbIndexName + "),");
+    // Append CB indexes for internal-only buffers. CB IDs tied to memref
+    // arguments are already emitted in the per-memref prefix above.
+    for (unsigned cbIndex : internalCbRuntimeArgOrder) {
+      emitLine("static_cast<uint32_t>(CBIndex::c_" + std::to_string(cbIndex) +
+               "),");
     }
 
     // Keep ordered input CB indexes as the final tail of runtime args.
@@ -1355,6 +1377,7 @@ private:
   OpBuilder builder;
   SmallVector<DramBufferInfo, 8> dramInfos;
   SmallVector<CircularBufferInfo, 8> cbInfos;
+  SmallVector<unsigned, 8> internalCbRuntimeArgOrder;
   llvm::DenseMap<Value, unsigned> semaphoreToCbIndex;
   llvm::DenseMap<Value, unsigned> allocToCbInfo;
   unsigned nextCbIndex = 0;
