@@ -307,9 +307,9 @@ public:
     // Set up conversion target
     ConversionTarget target(*context);
     
-    // Mark loom.alloc, loom.semaphore, and loom.copy as illegal
-    // (needs conversion).
-    //target.addIllegalOp<::loom::AllocOp>();
+    // Mark loom.semaphore and loom.copy as illegal in the main lowering stage.
+    // loom.alloc is cleaned up in a dedicated follow-up conversion pass once
+    // semaphore/copy rewrites have consumed it.
     target.addIllegalOp<::loom::SemaphoreOp>();
     target.addIllegalOp<::loom::CopyOp>();
     
@@ -406,6 +406,22 @@ public:
     // Host specialization can leave loop shells containing only unused
     // get_arg_val/index_cast artifacts. Remove them before final cleanup.
     eraseHostLoweringArtifacts(module);
+
+    // Finalize loom.alloc cleanup after all dependent rewrites have run.
+    ConversionTarget allocCleanupTarget(*context);
+    allocCleanupTarget.markUnknownOpDynamicallyLegal(
+        [](Operation *) { return true; });
+    allocCleanupTarget.addIllegalOp<::loom::AllocOp>();
+
+    RewritePatternSet allocCleanupPatterns(context);
+    populateLoomAllocCleanupPatterns(allocCleanupPatterns, typeConverter,
+                                     context);
+
+    if (failed(applyPartialConversion(module, allocCleanupTarget,
+                                      std::move(allocCleanupPatterns)))) {
+      signalPassFailure();
+      return;
+    }
 
     // Post-conversion: Remove all function arguments.
     // After conversion, memref args used in reinterpret_cast should be dead

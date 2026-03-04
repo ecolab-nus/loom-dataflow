@@ -22,6 +22,7 @@
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -616,11 +617,11 @@ private:
   };
 
   struct CircularBufferInfo {
-    int memrefOrdinal;
-    unsigned cbIndex;
+    Value allocValue;
     std::string tilesVarName;
     std::string tilesExpr;
-    std::string cbIndexName;
+    SmallVector<unsigned, 4> cbIndices;
+    SmallVector<std::string, 4> cbIndexNames;
   };
 
   struct KernelRoleInfo {
@@ -634,18 +635,6 @@ private:
     while (auto cast = curr.getDefiningOp<memref::CastOp>())
       curr = cast.getSource();
     return curr;
-  }
-
-  static Value findInputMemref(::loom::AllocOp alloc) {
-    for (Operation *user : alloc.getResult().getUsers()) {
-      if (auto loomCopy = dyn_cast<::loom::CopyOp>(user)) {
-        if (loomCopy.getDestination() != alloc.getResult())
-          continue;
-        if (auto rc = loomCopy.getSource().getDefiningOp<memref::ReinterpretCastOp>())
-          return stripCasts(rc.getSource());
-      }
-    }
-    return {};
   }
 
   static bool containsValue(ArrayRef<Value> values, Value value) {
@@ -816,20 +805,37 @@ private:
     return result;
   }
 
-  const DramBufferInfo *findDramInfo(Value hostArg) const {
-    for (const DramBufferInfo &info : dramInfos) {
-      if (info.hostArg == hostArg)
-        return &info;
-    }
-    return nullptr;
-  }
-
   DramBufferInfo *findDramInfoMutable(Value hostArg) {
     for (DramBufferInfo &info : dramInfos) {
       if (info.hostArg == hostArg)
         return &info;
     }
     return nullptr;
+  }
+
+  int resolveCbIndexFromEndpoint(Value endpoint) const {
+    Value current = stripCasts(endpoint);
+
+    if (auto sem = current.getDefiningOp<::loom::SemaphoreOp>()) {
+      auto semIt = semaphoreToCbIndex.find(sem.getResult());
+      if (semIt != semaphoreToCbIndex.end())
+        return static_cast<int>(semIt->second);
+      current = stripCasts(sem.getSource());
+    }
+
+    current = stripLoomSemaphores(stripCasts(current));
+    auto alloc = current.getDefiningOp<::loom::AllocOp>();
+    if (!alloc)
+      return -1;
+
+    auto allocIt = allocToCbInfo.find(alloc.getResult());
+    if (allocIt == allocToCbInfo.end())
+      return -1;
+
+    const CircularBufferInfo &cbInfo = cbInfos[allocIt->second];
+    if (cbInfo.cbIndices.empty())
+      return -1;
+    return static_cast<int>(cbInfo.cbIndices.front());
   }
 
   void collectDramInfos() {
@@ -903,58 +909,91 @@ private:
   }
 
   void collectCbInfos() {
+    llvm::DenseMap<Value, SmallVector<Value, 4>> semaphoresByAlloc;
+    hostFunc.walk([&](::loom::SemaphoreOp sem) {
+      Value base = stripLoomSemaphores(stripCasts(sem.getSource()));
+      if (!base.getDefiningOp<::loom::AllocOp>())
+        return;
+      semaphoresByAlloc[base].push_back(sem.getResult());
+    });
+
     hostFunc.walk([&](::loom::AllocOp alloc) {
       auto cbMemrefType = dyn_cast<MemRefType>(alloc.getType());
       if (!cbMemrefType)
         return;
 
-      Value linkedInput = findInputMemref(alloc);
-      if (linkedInput)
-        linkedInput = stripCasts(linkedInput);
-
       CircularBufferInfo info;
       if (!buildTilesExpr(cbMemrefType, info.tilesExpr))
         return;
-      info.cbIndex = static_cast<unsigned>(cbInfos.size());
+      info.allocValue = alloc.getResult();
       info.tilesVarName =
           "cb_tiles_per_block_" + std::to_string(cbInfos.size());
-      info.cbIndexName = "CBIndex::c_" + std::to_string(info.cbIndex);
 
-      info.memrefOrdinal = -1;
-      if (const DramBufferInfo *dramInfo = findDramInfo(linkedInput))
-        info.memrefOrdinal = static_cast<int>(dramInfo->memrefOrdinal);
-
-      auto assignDramCbIndex = [&](Value linkedMemref) {
-        if (!linkedMemref)
-          return;
-        if (DramBufferInfo *dramInfo = findDramInfoMutable(linkedMemref)) {
-          if (dramInfo->cbIndex < 0)
-            dramInfo->cbIndex = static_cast<int>(info.cbIndex);
+      auto semIt = semaphoresByAlloc.find(alloc.getResult());
+      if (semIt != semaphoresByAlloc.end()) {
+        for (Value semValue : semIt->second) {
+          unsigned cbIndex = nextCbIndex++;
+          info.cbIndices.push_back(cbIndex);
+          info.cbIndexNames.push_back("CBIndex::c_" + std::to_string(cbIndex));
+          semaphoreToCbIndex[semValue] = cbIndex;
         }
-      };
-      assignDramCbIndex(linkedInput);
+      }
 
+      // Keep one fallback entry if an alloc has no explicit semaphore.
+      if (info.cbIndices.empty()) {
+        unsigned cbIndex = nextCbIndex++;
+        info.cbIndices.push_back(cbIndex);
+        info.cbIndexNames.push_back("CBIndex::c_" + std::to_string(cbIndex));
+      }
+
+      allocToCbInfo[alloc.getResult()] = static_cast<unsigned>(cbInfos.size());
       cbInfos.push_back(info);
     });
 
-    // Ensure every DRAM memref argument has a concrete CB mapping.
-    // Output memrefs intentionally do not reuse loom.alloc-created CBs; if an
-    // argument has no linked input CB, synthesize a dedicated CB entry using
-    // DRAM shape-derived tile count so runtime arg mapping stays complete.
+    // Resolve memref argument CB mapping using copy edges:
+    // reinterpret_cast(arg) <-> (semaphore|alloc) <-> CBIndex.
+    hostFunc.walk([&](::loom::CopyOp copyOp) {
+      if (auto sourceRC =
+              copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>()) {
+        Value memrefArg = stripCasts(sourceRC.getSource());
+        int cbIndex = resolveCbIndexFromEndpoint(copyOp.getDestination());
+        if (cbIndex >= 0) {
+          if (DramBufferInfo *dramInfo = findDramInfoMutable(memrefArg)) {
+            if (dramInfo->cbIndex < 0)
+              dramInfo->cbIndex = cbIndex;
+          }
+        }
+      }
+
+      if (auto destRC =
+              copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>()) {
+        Value memrefArg = stripCasts(destRC.getSource());
+        int cbIndex = resolveCbIndexFromEndpoint(copyOp.getSource());
+        if (cbIndex >= 0) {
+          if (DramBufferInfo *dramInfo = findDramInfoMutable(memrefArg)) {
+            if (dramInfo->cbIndex < 0)
+              dramInfo->cbIndex = cbIndex;
+          }
+        }
+      }
+    });
+
+    // Final fallback for memrefs with no copy->alloc/semaphore mapping.
     for (DramBufferInfo &dramInfo : dramInfos) {
       if (dramInfo.cbIndex >= 0)
         continue;
 
       CircularBufferInfo info;
-      info.memrefOrdinal = static_cast<int>(dramInfo.memrefOrdinal);
-      info.cbIndex = static_cast<unsigned>(cbInfos.size());
+      info.allocValue = {};
       info.tilesExpr = dramInfo.tilesExpr;
       info.tilesVarName =
           "cb_tiles_per_block_" + std::to_string(cbInfos.size());
-      info.cbIndexName = "CBIndex::c_" + std::to_string(info.cbIndex);
+      unsigned cbIndex = nextCbIndex++;
+      info.cbIndices.push_back(cbIndex);
+      info.cbIndexNames.push_back("CBIndex::c_" + std::to_string(cbIndex));
       cbInfos.push_back(info);
 
-      dramInfo.cbIndex = static_cast<int>(info.cbIndex);
+      dramInfo.cbIndex = static_cast<int>(cbIndex);
     }
   }
 
@@ -1049,33 +1088,36 @@ private:
 
   void emitCircularBuffers() {
     auto emitCbInfo = [&](const CircularBufferInfo &info) {
+      if (info.cbIndexNames.empty())
+        return;
+
       if (!hasEmittedTilesVar(info.tilesVarName)) {
         emitLine("const uint32_t " + info.tilesVarName + " = " + info.tilesExpr +
                  ";");
         emittedTilesVars.push_back(info.tilesVarName);
       }
 
+      std::string cbEntries;
+      for (auto [idx, cbIndexName] : llvm::enumerate(info.cbIndexNames)) {
+        if (idx > 0)
+          cbEntries += "}, {";
+        cbEntries += cbIndexName + ", cb_data_format";
+      }
+
+      std::string setPageSizeChain;
+      for (const std::string &cbIndexName : info.cbIndexNames)
+        setPageSizeChain +=
+            ".set_page_size(" + cbIndexName + ", single_tile_size)";
+
       emitLine("tt_metal::CreateCircularBuffer(program, all_cores, "
                "CircularBufferConfig(" +
                info.tilesVarName +
-               " * cb_buffer_depth * single_tile_size, {{" + info.cbIndexName +
-               ", cb_data_format}}).set_page_size(" + info.cbIndexName +
-               ", single_tile_size));");
+               " * cb_buffer_depth * single_tile_size, {{" + cbEntries +
+               "}})" + setPageSizeChain + ");");
     };
 
-    // Emit CBs linked to DRAM args in stable memref order (A, B, C, ...).
-    for (const DramBufferInfo &dramInfo : dramInfos) {
-      for (const CircularBufferInfo &info : cbInfos) {
-        if (info.memrefOrdinal == static_cast<int>(dramInfo.memrefOrdinal))
-          emitCbInfo(info);
-      }
-    }
-
-    // Emit any fallback CBs not linked to a DRAM argument.
-    for (const CircularBufferInfo &info : cbInfos) {
-      if (info.memrefOrdinal < 0)
-        emitCbInfo(info);
-    }
+    for (const CircularBufferInfo &info : cbInfos)
+      emitCbInfo(info);
   }
 
   void emitInputSemaphores() {
@@ -1249,8 +1291,10 @@ private:
     // Append CB index for every created CB buffer (stable loom.alloc order).
     // This allows kernel-side GetArgValOp users to recover CB IDs for
     // internal-only loom.alloc buffers.
-    for (const CircularBufferInfo &info : cbInfos)
-      emitLine("static_cast<uint32_t>(" + info.cbIndexName + "),");
+    for (const CircularBufferInfo &info : cbInfos) {
+      for (const std::string &cbIndexName : info.cbIndexNames)
+        emitLine("static_cast<uint32_t>(" + cbIndexName + "),");
+    }
 
     // Keep ordered input CB indexes as the final tail of runtime args.
     for (const DramBufferInfo &info : dramInfos) {
@@ -1311,6 +1355,9 @@ private:
   OpBuilder builder;
   SmallVector<DramBufferInfo, 8> dramInfos;
   SmallVector<CircularBufferInfo, 8> cbInfos;
+  llvm::DenseMap<Value, unsigned> semaphoreToCbIndex;
+  llvm::DenseMap<Value, unsigned> allocToCbInfo;
+  unsigned nextCbIndex = 0;
   SmallVector<std::string, 8> emittedTilesVars;
   std::string coreCoordArg0Expr = "core.x";
   std::string coreCoordArg1Expr = "core.y";

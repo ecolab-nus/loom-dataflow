@@ -19,9 +19,9 @@ namespace loom {
 /**
  * @brief Populate conversion patterns for memory operations to TTKernel.
  * 
- * @details This function adds conversion patterns for loom.alloc,
- *          loom.semaphore, and loom.copy operations to the provided pattern
- *          set.
+ * @details This function adds conversion patterns for loom.semaphore and
+ *          loom.copy operations (plus reinterpret-cast cleanup) to the
+ *          provided pattern set.
  * 
  * @param patterns The pattern set to populate.
  * @param typeConverter The type converter for the conversion pipeline.
@@ -31,6 +31,16 @@ namespace loom {
 void populateMemoryOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker);
+
+/**
+ * @brief Populate cleanup patterns that erase dead loom.alloc operations.
+ *
+ * @details This is intended to run after other conversion patterns that still
+ *          need loom.alloc for CB linkage discovery.
+ */
+void populateLoomAllocCleanupPatterns(
+    RewritePatternSet &patterns, TypeConverter &typeConverter,
+    MLIRContext *context);
 
 } // namespace loom
 } // namespace mlir

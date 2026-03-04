@@ -708,28 +708,23 @@ private:
 };
 
 /**
- * @brief Temporarily drop `loom.alloc` semantics.
+ * @brief Erase dead `loom.alloc` once downstream users are rewritten.
  *
- * @details For now we lower `loom.alloc` to a plain `memref.alloc` placeholder
- *          and erase the Loom op. This keeps existing memref users valid while
- *          semaphore lowering takes ownership of CB runtime-arg creation.
+ * @details `loom.alloc` must stay available while semaphore/copy patterns
+ *          discover CB mappings. After those rewrites run, dead allocs are
+ *          simply removed instead of materializing placeholder memref.alloc ops.
  */
 struct ConvertLoomAllocOp : public OpConversionPattern<::loom::AllocOp> {
   using OpConversionPattern<::loom::AllocOp>::OpConversionPattern;
 
   LogicalResult
-  matchAndRewrite(::loom::AllocOp op, OpAdaptor adaptor,
+  matchAndRewrite(::loom::AllocOp op, OpAdaptor /*adaptor*/,
                   ConversionPatternRewriter &rewriter) const override {
-    auto memrefType = dyn_cast<MemRefType>(op.getResult().getType());
-    if (!memrefType) {
+    if (!op.getResult().use_empty()) {
       return rewriter.notifyMatchFailure(
-          op, "loom.alloc result must be a ranked memref type");
+          op, "loom.alloc still has users; defer erasure until dependent rewrites finish");
     }
-
-    auto tempAlloc = memref::AllocOp::create(
-        rewriter, op.getLoc(), memrefType, op.getSizes(), ValueRange{},
-        op.getAlignmentAttr());
-    rewriter.replaceOp(op, tempAlloc.getResult());
+    rewriter.eraseOp(op);
     return success();
   }
 };
@@ -1342,11 +1337,16 @@ private:
 void mlir::loom::populateMemoryOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker) {
-  // loom.alloc / loom.semaphore / loom.copy patterns.
+  // loom.semaphore / loom.copy patterns.
   patterns.add<ConvertLoomSemaphoreOp>(typeConverter, context, tracker);
-  patterns.add<ConvertLoomAllocOp>(typeConverter, context);
   patterns.add<ConvertLoomLoadOp>(typeConverter, context, tracker);
   patterns.add<ConvertLoomStoreOp>(typeConverter, context, tracker);
   // Reinterpret cast erasure.
   patterns.add<ConvertReinterpretCastOp>(typeConverter, context);
+}
+
+void mlir::loom::populateLoomAllocCleanupPatterns(
+    RewritePatternSet &patterns, TypeConverter &typeConverter,
+    MLIRContext *context) {
+  patterns.add<ConvertLoomAllocOp>(typeConverter, context);
 }
