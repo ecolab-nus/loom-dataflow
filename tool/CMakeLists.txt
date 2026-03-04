@@ -5,6 +5,7 @@ set(LOOM_PASSES_INC
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/inc
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/loom-opt/inc
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/LCS/inc
   ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
   ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
 )
