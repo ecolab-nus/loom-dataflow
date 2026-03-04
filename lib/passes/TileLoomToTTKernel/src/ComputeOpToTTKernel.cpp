@@ -934,7 +934,7 @@ public:
     if (!isa<CBType>(outCb.getType()))
       return failure();
 
-/*     auto numTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
+    auto numTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
     if (!numTiles)
       return failure();
 
@@ -962,7 +962,7 @@ public:
                          i32Const(rewriter, loc, i));
       TileRegsReleaseOp::create(rewriter, loc);
     }
-    CBPushBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *numTiles)); */
+    CBPushBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *numTiles));
     rewriter.eraseOp(op);
     return success();
   }

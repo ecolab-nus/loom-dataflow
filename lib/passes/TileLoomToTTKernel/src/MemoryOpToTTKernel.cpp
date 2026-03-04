@@ -77,43 +77,6 @@ static Value stripMemrefCasts(Value value) {
 }
 
 /**
- * @brief Find the last same-block user reachable through view aliases.
- *
- * @details Starts from `rootValue` and walks use-def through view-like aliases
- *          (e.g. casts/collapses) within the same block to locate the latest
- *          operation that still uses the loaded data.
- *
- * @param rootValue The root value to trace uses from.
- * @param anchorOp The minimum operation anchor used for block/ordering checks.
- * @return The last same-block user at or after `anchorOp`.
- */
-static Operation *findLastSameBlockUserThroughViews(Value rootValue,
-                                                    Operation *anchorOp) {
-  Operation *lastUser = anchorOp;
-  SmallVector<Value, 8> worklist;
-  worklist.push_back(rootValue);
-
-  while (!worklist.empty()) {
-    Value current = worklist.pop_back_val();
-    for (Operation *user : current.getUsers()) {
-      if (user->getBlock() != anchorOp->getBlock() ||
-          !anchorOp->isBeforeInBlock(user))
-        continue;
-
-      if (lastUser->isBeforeInBlock(user))
-        lastUser = user;
-
-      if (isa<ViewLikeOpInterface>(user)) {
-        for (Value result : user->getResults())
-          worklist.push_back(result);
-      }
-    }
-  }
-
-  return lastUser;
-}
-
-/**
  * @brief Find last read and first write users reachable through view aliases.
  *
  * @details Starting from `rootValue`, walks use-def through view-like aliases

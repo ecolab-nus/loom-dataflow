@@ -654,26 +654,32 @@ private:
   //TODO: tmp fix, need to get the total size and then divide by the tile size
   static bool buildTilesExpr(MemRefType memrefType, std::string &expr) {
     expr.clear();
+  
     auto shape = memrefType.getShape();
-    size_t rank = shape.size();
-    for (size_t i = 0; i < rank; ++i) {
-      if (shape[i] == ShapedType::kDynamic)
-        return false;
-      if (i > 0)
-        expr += " * ";
-      int64_t dim = shape[i];
-      if (i >= rank - 2) {
-        // Guard against zero tile count for small dims (e.g. 1x64).
-        // CB tile count uses the last two dimensions and each must be at least
-        // one tile (32 elements) along tiled axes.
-        dim = std::max<int64_t>(32, dim);
-      }
-      expr += std::to_string(dim);
-      if (i >= rank - 2)
-        expr += " / TILE_HEIGHT";
-    }
-    if (expr.empty())
+    const size_t rank = shape.size();
+  
+    // Need at least 2 dims to "tile the last two dimensions".
+    // If you prefer returning "1" for rank < 2, change this behavior accordingly.
+    if (rank < 2) {
       expr = "1";
+      return true;
+    }
+  
+    auto appendOne = [&](int64_t dim) -> bool {
+      if (dim == ShapedType::kDynamic) return false;
+      dim = std::max<int64_t>(32, dim);
+      expr += std::to_string(dim);
+      expr += " / TILE_HEIGHT";
+      return true;
+    };
+  
+    // Exactly last two dims: rank-2 and rank-1
+    if (!appendOne(shape[rank - 2])) return false;
+    expr += " * ";
+    if (!appendOne(shape[rank - 1])) return false;
+  
+    // (Now expr can’t be empty if rank>=2, but keep the old fallback behavior.)
+    if (expr.empty()) expr = "1";
     return true;
   }
 
