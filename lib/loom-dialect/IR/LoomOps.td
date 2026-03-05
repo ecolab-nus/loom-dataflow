@@ -156,12 +156,12 @@ def AllocOp : Loom_Op<"alloc"> {
         ::mlir::Type elementType);
   }];
 }
-def SemaphoreOp : Loom_Op<"semaphore", [
+def SemaphoreBirthOp : Loom_Op<"semaphore_birth", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
 ]> {
   let summary = "Allocate a unique synchronization semaphore over a physical buffer";
   let description = [{
-    The `loom.semaphore` operation accepts a memref (typically from `loom.alloc`)
+    The `loom.semaphore_birth` operation accepts a memref (typically from `loom.alloc`)
     and returns a memref of the same type. The returned SSA value represents a
     unique hardware synchronization semaphore. The backend can trace the source
     operand to discover the physical buffer, while treating each semaphore result
@@ -173,8 +173,8 @@ def SemaphoreOp : Loom_Op<"semaphore", [
     Example:
     ```mlir
     %buf = loom.alloc [64, 128] on @L1 : memref<64x128xf32>
-    %sem_q = loom.semaphore %buf : memref<64x128xf32>
-    %sem_o = loom.semaphore %buf : memref<64x128xf32>
+    %sem_q = loom.semaphore_birth %buf : memref<64x128xf32>
+    %sem_o = loom.semaphore_birth %buf : memref<64x128xf32>
     // %sem_q and %sem_o share physical memory but have independent semaphores
     ```
   }];
@@ -186,6 +186,31 @@ def SemaphoreOp : Loom_Op<"semaphore", [
 
   let assemblyFormat = [{
     $source attr-dict `:` type($source) `->` type($result)
+  }];
+}
+
+def SemaphoreDeathOp : Loom_Op<"semaphore_death", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = "Declare the death of a circular buffer related to a semaphore";
+  let description = [{
+    The `loom.semaphore_death` operation accepts a semaphore memref (from `loom.semaphore_birth`).
+    It declares the end of liveness for the corresponding circular buffer.
+
+    This operation has memory effects (Free) to ensure it is not optimized away or
+    moved incorrectly across the lifespan of the buffer.
+
+    Example:
+    ```mlir
+    loom.semaphore_death %sem_q : memref<64x128xf32>
+    ```
+  }];
+
+  let arguments = (ins AnyMemRef:$source);
+  let results = (outs);
+
+  let assemblyFormat = [{
+    $source attr-dict `:` type($source)
   }];
 }
 
