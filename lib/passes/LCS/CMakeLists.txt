@@ -18,6 +18,7 @@ target_link_libraries(loomLCS PUBLIC
     MLIRArithDialect
     MLIRMathDialect
     MLIRLinalgDialect
+    loomDialect
 )
 
 target_compile_options(loomLCS PRIVATE -fno-rtti)

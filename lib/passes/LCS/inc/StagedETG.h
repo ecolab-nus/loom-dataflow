@@ -14,11 +14,9 @@
 namespace loom {
 namespace lcs {
 
-enum class HardwareUnitType { FPU, SFPU };
-
 struct HardwareQueue {
-  HardwareUnitType type;
-  std::vector<mlir::Operation *> workloads;
+  std::string unit_name;
+  std::vector<std::string> workloads;
 
   void dump(llvm::raw_ostream &os, int indent = 0) const;
   llvm::json::Value toJSON() const;
@@ -26,11 +24,10 @@ struct HardwareQueue {
 
 struct Stage {
   int stage_id;
-  HardwareQueue fpu_queue;
-  HardwareQueue sfpu_queue;
+  std::map<std::string, HardwareQueue> queues;
 
   Stage(int id);
-  void assignWorkload(HardwareUnitType unit_type, mlir::Operation *op);
+  void pushWorkload(const std::string &unit_name, const std::string &label);
   void dump(llvm::raw_ostream &os, int indent = 0) const;
   llvm::json::Value toJSON() const;
 };
@@ -49,6 +46,7 @@ class VariantETG {
 public:
   std::string variant_name;
   Scope compute_scope;
+  Scope memory_scope;
 
   VariantETG(llvm::StringRef name);
   void buildFromAffineFor(mlir::affine::AffineForOp for_op);
@@ -56,7 +54,9 @@ public:
   llvm::json::Value toJSON() const;
 
 private:
-  void dispatchToHardwareQueues(mlir::Operation *op, Stage &target_stage);
+  void dispatchToComputeQueues(mlir::Operation *op, Stage &target_stage);
+  void dispatchToMemoryQueues(mlir::Operation *op, Stage &target_stage);
+  static std::string classifyCopyTransfer(mlir::Operation *op);
 };
 
 } // namespace lcs
