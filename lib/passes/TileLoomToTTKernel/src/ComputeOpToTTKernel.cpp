@@ -13,7 +13,6 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Interfaces/ViewLikeInterface.h"
-#include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -357,90 +356,6 @@ static bool hasOutputAlias(Value outCb, ValueRange inCbs) {
   return llvm::is_contained(inCbs, outCb);
 }
 
-struct FutureAccessFlags {
-  bool hasRead = false;
-  bool hasWrite = false;
-};
-
-static bool hasFutureReadBeforeOrAtNextWrite(Value rootValue,
-                                             Operation *anchorOp) {
-  if (!rootValue || !anchorOp || !anchorOp->getBlock())
-    return false;
-
-  SmallVector<Value, 8> worklist;
-  llvm::SmallPtrSet<Value, 16> seenValues;
-  llvm::DenseMap<Operation *, FutureAccessFlags> accessByOrderingOp;
-
-  worklist.push_back(rootValue);
-  seenValues.insert(rootValue);
-
-  while (!worklist.empty()) {
-    Value current = worklist.pop_back_val();
-    for (Operation *user : current.getUsers()) {
-      Operation *orderingOp = user;
-      if (orderingOp->getBlock() != anchorOp->getBlock()) {
-        while (orderingOp && orderingOp->getBlock() != anchorOp->getBlock())
-          orderingOp = orderingOp->getParentOp();
-      }
-      if (!orderingOp || orderingOp == anchorOp ||
-          !anchorOp->isBeforeInBlock(orderingOp))
-        continue;
-
-      if (auto viewLike = dyn_cast<ViewLikeOpInterface>(user)) {
-        for (Value result : viewLike->getResults())
-          if (seenValues.insert(result).second)
-            worklist.push_back(result);
-      }
-
-      auto memEffectOp = dyn_cast<MemoryEffectOpInterface>(user);
-      if (!memEffectOp)
-        continue;
-
-      SmallVector<MemoryEffects::EffectInstance, 4> effects;
-      memEffectOp.getEffects(effects);
-
-      bool hasRead = false;
-      bool hasWrite = false;
-      for (const auto &effect : effects) {
-        Value effectedValue = effect.getValue();
-        if (effectedValue && effectedValue != current)
-          continue;
-        if (isa<MemoryEffects::Read>(effect.getEffect()))
-          hasRead = true;
-        if (isa<MemoryEffects::Write>(effect.getEffect()))
-          hasWrite = true;
-      }
-      if (!hasRead && !hasWrite)
-        continue;
-
-      auto &flags = accessByOrderingOp[orderingOp];
-      flags.hasRead |= hasRead;
-      flags.hasWrite |= hasWrite;
-    }
-  }
-
-  Operation *firstWrite = nullptr;
-  for (const auto &entry : accessByOrderingOp) {
-    Operation *op = entry.first;
-    const auto &flags = entry.second;
-    if (!flags.hasWrite)
-      continue;
-    if (!firstWrite || op->isBeforeInBlock(firstWrite))
-      firstWrite = op;
-  }
-
-  for (const auto &entry : accessByOrderingOp) {
-    Operation *op = entry.first;
-    const auto &flags = entry.second;
-    if (!flags.hasRead)
-      continue;
-    if (!firstWrite || op == firstWrite || op->isBeforeInBlock(firstWrite))
-      return true;
-  }
-
-  return false;
-}
-
 static int64_t getOutstandingWaitTiles(const llvm::DenseMap<Value, int64_t> &state,
                                        Value cb) {
   auto it = state.find(cb);
@@ -457,16 +372,6 @@ static void emitWaitFrontIfNeeded(ConversionPatternRewriter &rewriter, Location 
     return;
   CBWaitFrontOp::create(rewriter, loc, cb, i32Const(rewriter, loc, tiles));
   state[cb] = tiles;
-}
-
-static void emitPopFrontAndUpdateState(ConversionPatternRewriter &rewriter,
-                                       Location loc, Value cb, int64_t tiles,
-                                       llvm::DenseMap<Value, int64_t> &state) {
-  if (tiles <= 0)
-    return;
-  CBPopFrontOp::create(rewriter, loc, cb, i32Const(rewriter, loc, tiles));
-  int64_t outstanding = getOutstandingWaitTiles(state, cb);
-  state[cb] = outstanding > tiles ? (outstanding - tiles) : 0;
 }
 
 template <typename BuilderFn>
@@ -860,21 +765,6 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
   CBPushBackOp::create(rewriter, loc, outCb, outTilesV);
   waitState[outCb] = 0;
 
-  SmallVector<Value, 2> poppedCbs;
-  for (const auto &plan : inputPlans) {
-    Value inputCb = std::get<0>(plan);
-    Value rootValue = std::get<1>(plan);
-    if (llvm::is_contained(poppedCbs, inputCb))
-      continue;
-    if (hasFutureReadBeforeOrAtNextWrite(rootValue, op.getOperation()))
-      continue;
-    int64_t outstanding = getOutstandingWaitTiles(waitState, inputCb);
-    if (outstanding <= 0)
-      continue;
-    emitPopFrontAndUpdateState(rewriter, loc, inputCb, outstanding, waitState);
-    poppedCbs.push_back(inputCb);
-  }
-
   rewriter.eraseOp(op);
   return success();
 }
@@ -900,7 +790,6 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
   Location loc = op.getLoc();
   bool outAliasesInput = hasOutputAlias(outCb, adaptor.getInputs());
 
-  SmallVector<bool, 4> popAfterCurrentOp(adaptor.getInputs().size(), false);
   for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
     if (!analysis.usedInputs.test(idx))
       continue;
@@ -912,10 +801,6 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
 
     if (inputCb == outCb)
       continue;
-
-    if (!hasFutureReadBeforeOrAtNextWrite(op.getDpsInputs()[idx],
-                                          op.getOperation()))
-      popAfterCurrentOp[idx] = true;
   }
 
   if (!outAliasesInput)
@@ -968,10 +853,6 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
     return failure();
 
   if (outAliasesInput) {
-    int64_t outstanding = getOutstandingWaitTiles(waitState, outCb);
-    if (outstanding <= 0)
-      return failure();
-    emitPopFrontAndUpdateState(rewriter, loc, outCb, outstanding, waitState);
     CBReserveBackOp::create(rewriter, loc, outCb,
                             i32Const(rewriter, loc, analysis.outTiles));
     CBPushBackOp::create(rewriter, loc, outCb,
@@ -981,22 +862,6 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
     CBPushBackOp::create(rewriter, loc, outCb,
                          i32Const(rewriter, loc, analysis.outTiles));
     waitState[outCb] = 0;
-  }
-
-  SmallVector<Value, 4> poppedCbs;
-  for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
-    if (!analysis.usedInputs.test(idx))
-      continue;
-    if (!popAfterCurrentOp[idx])
-      continue;
-    if (llvm::is_contained(poppedCbs, inputCb))
-      continue;
-
-    int64_t outstanding = getOutstandingWaitTiles(waitState, inputCb);
-    if (outstanding <= 0)
-      continue;
-    emitPopFrontAndUpdateState(rewriter, loc, inputCb, outstanding, waitState);
-    poppedCbs.push_back(inputCb);
   }
 
   rewriter.eraseOp(op);
@@ -1028,6 +893,11 @@ public:
     // Ensure operands are TTKernel CBs.
     if (!isa<CBType>(in0Cb.getType()) || !isa<CBType>(in1Cb.getType()) ||
         !isa<CBType>(outCb.getType()))
+      return failure();
+
+    auto in0Tiles = getNumTilesFromShapedType(op.getInputs()[0].getType());
+    auto in1Tiles = getNumTilesFromShapedType(op.getInputs()[1].getType());
+    if (!in0Tiles || !in1Tiles)
       return failure();
 
     // Use the original linalg.matmul input type to query the tensor/memref shape.
@@ -1062,6 +932,17 @@ public:
     Value rtDim;
     Value ntDim;
     Value ktDim;
+
+    Value in0TileCount = i32Const(rewriter, loc, *in0Tiles);
+    Value in1TileCount = i32Const(rewriter, loc, *in1Tiles);
+    if (in0Cb == in1Cb) {
+      int64_t sharedTiles = std::max(*in0Tiles, *in1Tiles);
+      CBWaitFrontOp::create(rewriter, loc, in0Cb,
+                            i32Const(rewriter, loc, sharedTiles));
+    } else {
+      CBWaitFrontOp::create(rewriter, loc, in0Cb, in0TileCount);
+      CBWaitFrontOp::create(rewriter, loc, in1Cb, in1TileCount);
+    }
 
     {
       OpBuilder::InsertionGuard guard(rewriter);

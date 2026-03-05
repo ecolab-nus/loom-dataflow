@@ -18,7 +18,6 @@
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "ttmlir/Dialect/TTCore/IR/TTCore.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOps.h"
@@ -30,7 +29,6 @@
 #include <memory>
 
 // Loom dialect headers for ::::loom::AllocOp, ::::loom::CopyOp
-#include "mlir/Interfaces/ViewLikeInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -74,84 +72,6 @@ static Value stripMemrefCasts(Value value) {
   while (auto cast = current.getDefiningOp<memref::CastOp>())
     current = cast.getSource();
   return current;
-}
-
-/**
- * @brief Find last read and first write users reachable through view aliases.
- *
- * @details Starting from `rootValue`, walks use-def through view-like aliases
- *          and records:
- *          - the last operation that reads from the value/aliases
- *          - the first operation that writes to the value/aliases
- *
- *          Ordering is tracked in the `anchorOp` block. For users in nested
- *          regions, their nearest enclosing operation in the anchor block is
- *          used as the ordering representative. This keeps same-block ordering
- *          while including nested uses (e.g., inside scf.for bodies).
- *
- * @param rootValue The root value to trace uses from.
- * @param anchorOp The minimum operation anchor used for block/ordering checks.
- * @param lastRead [in/out] Tracks the latest reader at or after `anchorOp`.
- * @param firstWrite [in/out] Tracks the earliest writer at or after `anchorOp`.
- */
-static void
-findReadWriteUsersThroughViews(Value rootValue, Operation *anchorOp,
-                               Operation *&lastRead,
-                               Operation *&firstWrite) {
-  SmallVector<Value, 8> worklist;
-  llvm::SmallPtrSet<Value, 8> visited;
-  worklist.push_back(rootValue);
-
-  while (!worklist.empty()) {
-    Value current = worklist.pop_back_val();
-    if (!visited.insert(current).second)
-      continue;
-
-    for (Operation *user : current.getUsers()) {
-      // Project nested-region users to the nearest enclosing op in the anchor
-      // block so we can reason with same-block ordering while still including
-      // nested uses.
-      Operation *orderingOp = user;
-      if (orderingOp->getBlock() != anchorOp->getBlock()) {
-        while (orderingOp && orderingOp->getBlock() != anchorOp->getBlock())
-          orderingOp = orderingOp->getParentOp();
-      }
-      if (!orderingOp || orderingOp == anchorOp ||
-          !anchorOp->isBeforeInBlock(orderingOp))
-        continue;
-
-      if (auto viewLike = dyn_cast<ViewLikeOpInterface>(user)) {
-        for (Value result : viewLike->getResults())
-          worklist.push_back(result);
-      }
-
-      auto memEffectOp = dyn_cast<MemoryEffectOpInterface>(user);
-      if (!memEffectOp)
-        continue;
-
-      SmallVector<MemoryEffects::EffectInstance, 4> effects;
-      memEffectOp.getEffects(effects);
-
-      bool hasRead = false;
-      bool hasWrite = false;
-      for (const auto &effect : effects) {
-        Value effectedValue = effect.getValue();
-        if (effectedValue && effectedValue != current)
-          continue;
-
-        if (isa<MemoryEffects::Read>(effect.getEffect()))
-          hasRead = true;
-        if (isa<MemoryEffects::Write>(effect.getEffect()))
-          hasWrite = true;
-      }
-
-      if (hasRead && lastRead->isBeforeInBlock(orderingOp))
-        lastRead = orderingOp;
-      if (hasWrite &&
-          (!firstWrite || orderingOp->isBeforeInBlock(firstWrite)))
-        firstWrite = orderingOp;
-    }
-  }
 }
 
 /**
@@ -1122,7 +1042,6 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
     rewriter.setInsertionPointAfter(rowLoop);
 
     NocAsyncWriteBarrierOp::create(rewriter, loc);
-    CBPopFrontOp::create(rewriter, loc, cb, numPages);
 
     rewriter.eraseOp(op);
     return success();
@@ -1137,12 +1056,10 @@ private:
 //===----------------------------------------------------------------------===//
 
 /**
- * @brief Convert `loom.copy` (load) to CB synchronization for compute kernels.
+ * @brief Convert `loom.copy` (load) in compute kernels.
  *
- * @details For DRAM-sourced loads in compute kernels, emit `cb_wait_front`
- *          before use and `cb_pop_front` after the last same-block use of
- *          the loaded destination value (tracking view aliases). For
- *          non-DRAM sources, the op is erased without synchronization.
+ * @details Compute-side CB synchronization is handled by compute op lowering
+ *          (e.g. matmul/generic patterns). The load op is erased here.
  */
 struct ConvertLoomComputeLoadOp : public OpConversionPattern<::loom::CopyOp> {
   using OpConversionPattern<::loom::CopyOp>::OpConversionPattern;
@@ -1155,54 +1072,6 @@ struct ConvertLoomComputeLoadOp : public OpConversionPattern<::loom::CopyOp> {
   LogicalResult
   matchAndRewrite(::loom::CopyOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    Value inCb = adaptor.getSource();
-
-    // Prefer tracker lookup for DRAM->L1 copies so compute kernels reuse the
-    // same argument-to-CB mapping as memory lowering, even when adaptor source
-    // is already a type-materialized CB via unrealized_conversion_cast.
-    if (auto sourceRC =
-            op.getSource().getDefiningOp<memref::ReinterpretCastOp>()) {
-      Value inputMemref = stripMemrefCasts(sourceRC.getSource());
-      if (tracker) {
-        if (Value trackedCb = tracker->getCB(inputMemref))
-          inCb = trackedCb;
-      }
-    }
-
-    if (!isa<CBType>(inCb.getType()))
-      return failure();
-
-    Location loc = op.getLoc();
-    auto srcMemSpace = op.getSrcMemSpace();
-    bool isSrcDRAM =
-        srcMemSpace && srcMemSpace->getRootReference().getValue() == "DRAM";
-    if (isSrcDRAM) {
-      auto inCbType = cast<CBType>(inCb.getType());
-      Value inNumInputTilesValue = rewriter.create<arith::ConstantIntOp>(
-          loc, static_cast<int32_t>(inCbType.getNumElements()) / 1024, 32);
-      CBWaitFrontOp::create(rewriter, loc, inCb, inNumInputTilesValue);
-
-      OpBuilder::InsertionGuard guard(rewriter);
-      // Release the consumed front tiles:
-      // - before the first same-block write to the loaded destination buffer,
-      //   if any writes exist; otherwise
-      // - after the last same-block read of the loaded destination buffer.
-      Operation *anchorOp = op.getOperation();
-      Operation *lastRead = anchorOp;
-      Operation *firstWrite = nullptr;
-
-      findReadWriteUsersThroughViews(op.getDestination(), anchorOp, lastRead,
-                                     firstWrite);
-      findReadWriteUsersThroughViews(adaptor.getDestination(), anchorOp,
-                                     lastRead, firstWrite);
-
-      if (firstWrite)
-        rewriter.setInsertionPoint(firstWrite);
-      else
-        rewriter.setInsertionPointAfter(lastRead);
-      CBPopFrontOp::create(rewriter, loc, inCb, inNumInputTilesValue);
-    }
-
     rewriter.eraseOp(op);
     return success();
   }
@@ -1230,8 +1099,6 @@ struct ConvertLoomComputeStoreOp : public OpConversionPattern<::loom::CopyOp> {
   LogicalResult
   matchAndRewrite(::loom::CopyOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    Location loc = op.getLoc();
-
     // Store: destination is a reinterpret_cast.
     Value target = op.getDestination();
     auto reinterpretCastOp = target.getDefiningOp<memref::ReinterpretCastOp>();
@@ -1248,10 +1115,9 @@ struct ConvertLoomComputeStoreOp : public OpConversionPattern<::loom::CopyOp> {
 
     auto outcbType = cast<CBType>(outcb.getType());
     int32_t numTiles = static_cast<int32_t>(outcbType.getNumElements()) / 1024;
-    Value outcbNumInputTilesValue =
-        rewriter.create<arith::ConstantIntOp>(loc, numTiles, 32);
+    (void)numTiles;
 
-    //CBPushBackOp::create(rewriter, loc, outcb, outcbNumInputTilesValue);
+    // CBPushBack stays disabled for now.
     rewriter.eraseOp(op);
     return success();
   }
