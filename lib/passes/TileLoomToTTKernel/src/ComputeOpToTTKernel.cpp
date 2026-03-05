@@ -13,6 +13,7 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Interfaces/ViewLikeInterface.h"
+#include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -22,6 +23,7 @@
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOpsTypes.h"
 
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 
@@ -149,6 +151,60 @@ static Operation *findMatmulOutputMaterializationScope(Value outputBuffer,
   }
 
   return matmulOp;
+}
+
+struct NextUseInBlock {
+  Operation *user = nullptr;
+  Value usedValue;
+};
+
+/**
+ * @brief Find the first non-view same-block consumer after `anchorOp`.
+ *
+ * @details Traverses view-like aliases from `rootValue` and returns the first
+ *          non-view user in the same block that appears after `anchorOp`.
+ *          Also returns the concrete alias value consumed by that user.
+ */
+static std::optional<NextUseInBlock>
+findNextNonViewUseInSameBlock(Value rootValue, Operation *anchorOp) {
+  if (!anchorOp || !anchorOp->getBlock())
+    return std::nullopt;
+
+  Block *anchorBlock = anchorOp->getBlock();
+  SmallVector<Value, 8> worklist;
+  llvm::SmallPtrSet<Value, 16> seenValues;
+  std::optional<NextUseInBlock> nextUse;
+
+  worklist.push_back(rootValue);
+  seenValues.insert(rootValue);
+
+  while (!worklist.empty()) {
+    Value current = worklist.pop_back_val();
+    for (Operation *user : current.getUsers()) {
+      if (user == anchorOp || user->getBlock() != anchorBlock ||
+          !anchorOp->isBeforeInBlock(user))
+        continue;
+
+      if (isa<ViewLikeOpInterface>(user)) {
+        for (Value result : user->getResults())
+          if (seenValues.insert(result).second)
+            worklist.push_back(result);
+        continue;
+      }
+
+      if (!nextUse || user->isBeforeInBlock(nextUse->user))
+        nextUse = NextUseInBlock{user, current};
+    }
+  }
+
+  return nextUse;
+}
+
+static bool isUsedAsLinalgOutput(Operation *user, Value value) {
+  auto linalgOp = dyn_cast<linalg::LinalgOp>(user);
+  if (!linalgOp)
+    return false;
+  return llvm::is_contained(linalgOp.getDpsInits(), value);
 }
 
 template <typename OpTy>
@@ -301,24 +357,122 @@ static bool hasOutputAlias(Value outCb, ValueRange inCbs) {
   return llvm::is_contained(inCbs, outCb);
 }
 
+struct FutureAccessFlags {
+  bool hasRead = false;
+  bool hasWrite = false;
+};
+
+static bool hasFutureReadBeforeOrAtNextWrite(Value rootValue,
+                                             Operation *anchorOp) {
+  if (!rootValue || !anchorOp || !anchorOp->getBlock())
+    return false;
+
+  SmallVector<Value, 8> worklist;
+  llvm::SmallPtrSet<Value, 16> seenValues;
+  llvm::DenseMap<Operation *, FutureAccessFlags> accessByOrderingOp;
+
+  worklist.push_back(rootValue);
+  seenValues.insert(rootValue);
+
+  while (!worklist.empty()) {
+    Value current = worklist.pop_back_val();
+    for (Operation *user : current.getUsers()) {
+      Operation *orderingOp = user;
+      if (orderingOp->getBlock() != anchorOp->getBlock()) {
+        while (orderingOp && orderingOp->getBlock() != anchorOp->getBlock())
+          orderingOp = orderingOp->getParentOp();
+      }
+      if (!orderingOp || orderingOp == anchorOp ||
+          !anchorOp->isBeforeInBlock(orderingOp))
+        continue;
+
+      if (auto viewLike = dyn_cast<ViewLikeOpInterface>(user)) {
+        for (Value result : viewLike->getResults())
+          if (seenValues.insert(result).second)
+            worklist.push_back(result);
+      }
+
+      auto memEffectOp = dyn_cast<MemoryEffectOpInterface>(user);
+      if (!memEffectOp)
+        continue;
+
+      SmallVector<MemoryEffects::EffectInstance, 4> effects;
+      memEffectOp.getEffects(effects);
+
+      bool hasRead = false;
+      bool hasWrite = false;
+      for (const auto &effect : effects) {
+        Value effectedValue = effect.getValue();
+        if (effectedValue && effectedValue != current)
+          continue;
+        if (isa<MemoryEffects::Read>(effect.getEffect()))
+          hasRead = true;
+        if (isa<MemoryEffects::Write>(effect.getEffect()))
+          hasWrite = true;
+      }
+      if (!hasRead && !hasWrite)
+        continue;
+
+      auto &flags = accessByOrderingOp[orderingOp];
+      flags.hasRead |= hasRead;
+      flags.hasWrite |= hasWrite;
+    }
+  }
+
+  Operation *firstWrite = nullptr;
+  for (const auto &entry : accessByOrderingOp) {
+    Operation *op = entry.first;
+    const auto &flags = entry.second;
+    if (!flags.hasWrite)
+      continue;
+    if (!firstWrite || op->isBeforeInBlock(firstWrite))
+      firstWrite = op;
+  }
+
+  for (const auto &entry : accessByOrderingOp) {
+    Operation *op = entry.first;
+    const auto &flags = entry.second;
+    if (!flags.hasRead)
+      continue;
+    if (!firstWrite || op == firstWrite || op->isBeforeInBlock(firstWrite))
+      return true;
+  }
+
+  return false;
+}
+
+static int64_t getOutstandingWaitTiles(const llvm::DenseMap<Value, int64_t> &state,
+                                       Value cb) {
+  auto it = state.find(cb);
+  return it == state.end() ? 0 : it->second;
+}
+
+static void emitWaitFrontIfNeeded(ConversionPatternRewriter &rewriter, Location loc,
+                                  Value cb, int64_t tiles,
+                                  llvm::DenseMap<Value, int64_t> &state) {
+  if (tiles <= 0)
+    return;
+  int64_t outstanding = getOutstandingWaitTiles(state, cb);
+  if (outstanding >= tiles)
+    return;
+  CBWaitFrontOp::create(rewriter, loc, cb, i32Const(rewriter, loc, tiles));
+  state[cb] = tiles;
+}
+
+static void emitPopFrontAndUpdateState(ConversionPatternRewriter &rewriter,
+                                       Location loc, Value cb, int64_t tiles,
+                                       llvm::DenseMap<Value, int64_t> &state) {
+  if (tiles <= 0)
+    return;
+  CBPopFrontOp::create(rewriter, loc, cb, i32Const(rewriter, loc, tiles));
+  int64_t outstanding = getOutstandingWaitTiles(state, cb);
+  state[cb] = outstanding > tiles ? (outstanding - tiles) : 0;
+}
 
 template <typename BuilderFn>
 static LogicalResult emitElementwiseTiles(
-    ConversionPatternRewriter &rewriter, Location loc, Value outCb,
-    int64_t outTiles, ValueRange inputCbs, ArrayRef<int64_t> inputWaitTiles,
+    ConversionPatternRewriter &rewriter, Location loc, Value outCb, int64_t outTiles,
     BuilderFn &&builder) {
-  if (!inputWaitTiles.empty() && inputWaitTiles.size() != inputCbs.size())
-    return failure();
-  for (auto [idx, inputCb] : llvm::enumerate(inputCbs)) {
-    int64_t waitTiles = inputWaitTiles.empty() ? outTiles : inputWaitTiles[idx];
-    CBWaitFrontOp::create(rewriter, loc, inputCb,
-                          i32Const(rewriter, loc, waitTiles));
-  }
-
-  bool outAliasesInput = hasOutputAlias(outCb, inputCbs);
-  if (!outAliasesInput)
-    CBReserveBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, outTiles));
-
   for (int64_t i = 0; i < outTiles; ++i) {
     TileRegsAcquireOp::create(rewriter, loc);
     if (failed(builder(i)))
@@ -327,9 +481,6 @@ static LogicalResult emitElementwiseTiles(
                        i32Const(rewriter, loc, i));
     TileRegsReleaseOp::create(rewriter, loc);
   }
-
-  if (!outAliasesInput)
-    CBPushBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, outTiles));
   return success();
 }
 
@@ -635,7 +786,8 @@ static LogicalResult emitElementwiseExprToReg(
 
 static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
                                           linalg::GenericOp::Adaptor adaptor,
-                                          ConversionPatternRewriter &rewriter) {
+                                          ConversionPatternRewriter &rewriter,
+                                          llvm::DenseMap<Value, int64_t> &waitState) {
   if ((adaptor.getInputs().size() != 1 && adaptor.getInputs().size() != 2) ||
       adaptor.getOutputs().size() != 1)
     return failure();
@@ -674,13 +826,20 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
   int64_t numTiles = rows * cols;
 
   Location loc = op.getLoc();
-  Value totalInTiles = i32Const(rewriter, loc, numTiles);
   Value outTilesV = i32Const(rewriter, loc, rows);
-  Value oneI32 = i32Const(rewriter, loc, 1);
   Value zeroI32 = i32Const(rewriter, loc, 0);
 
-  CBWaitFrontOp::create(rewriter, loc, scaleCb, oneI32);
-  CBWaitFrontOp::create(rewriter, loc, inCb, totalInTiles);
+  SmallVector<std::tuple<Value, Value, int64_t>, 2> inputPlans;
+  inputPlans.emplace_back(inCb, op.getDpsInputs()[0], numTiles);
+  if (adaptor.getInputs().size() == 2)
+    inputPlans.emplace_back(scaleCb, op.getDpsInputs()[1], 1);
+
+  for (const auto &plan : inputPlans) {
+    Value inputCb = std::get<0>(plan);
+    int64_t waitTiles = std::get<2>(plan);
+    emitWaitFrontIfNeeded(rewriter, loc, inputCb, waitTiles, waitState);
+  }
+
   CBReserveBackOp::create(rewriter, loc, outCb, outTilesV);
 
   for (int64_t i = 0; i < rows; ++i) {
@@ -699,13 +858,31 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
   }
 
   CBPushBackOp::create(rewriter, loc, outCb, outTilesV);
+  waitState[outCb] = 0;
+
+  SmallVector<Value, 2> poppedCbs;
+  for (const auto &plan : inputPlans) {
+    Value inputCb = std::get<0>(plan);
+    Value rootValue = std::get<1>(plan);
+    if (llvm::is_contained(poppedCbs, inputCb))
+      continue;
+    if (hasFutureReadBeforeOrAtNextWrite(rootValue, op.getOperation()))
+      continue;
+    int64_t outstanding = getOutstandingWaitTiles(waitState, inputCb);
+    if (outstanding <= 0)
+      continue;
+    emitPopFrontAndUpdateState(rewriter, loc, inputCb, outstanding, waitState);
+    poppedCbs.push_back(inputCb);
+  }
+
   rewriter.eraseOp(op);
   return success();
 }
 
 static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
                                                linalg::GenericOp::Adaptor adaptor,
-                                               ConversionPatternRewriter &rewriter) {
+                                               ConversionPatternRewriter &rewriter,
+                                               llvm::DenseMap<Value, int64_t> &waitState) {
   if (adaptor.getOutputs().size() != 1 || adaptor.getInputs().empty())
     return failure();
 
@@ -721,6 +898,30 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
       return failure();
 
   Location loc = op.getLoc();
+  bool outAliasesInput = hasOutputAlias(outCb, adaptor.getInputs());
+
+  SmallVector<bool, 4> popAfterCurrentOp(adaptor.getInputs().size(), false);
+  for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
+    if (!analysis.usedInputs.test(idx))
+      continue;
+
+    int64_t waitTiles = analysis.inputWaitTiles.empty()
+                            ? analysis.outTiles
+                            : analysis.inputWaitTiles[idx];
+    emitWaitFrontIfNeeded(rewriter, loc, inputCb, waitTiles, waitState);
+
+    if (inputCb == outCb)
+      continue;
+
+    if (!hasFutureReadBeforeOrAtNextWrite(op.getDpsInputs()[idx],
+                                          op.getOperation()))
+      popAfterCurrentOp[idx] = true;
+  }
+
+  if (!outAliasesInput)
+    CBReserveBackOp::create(rewriter, loc, outCb,
+                            i32Const(rewriter, loc, analysis.outTiles));
+
   rewriter.create<InitSFPUOp>(loc, outCb, outCb);
   if (analysis.needsBinopWithScalar)
     rewriter.create<BinopWithScalarTileInitOp>(loc);
@@ -751,8 +952,7 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
     rewriter.create<RecipTileInitOp>(loc);
 
   LogicalResult result = emitElementwiseTiles(
-      rewriter, loc, outCb, analysis.outTiles, adaptor.getInputs(),
-      analysis.inputWaitTiles, [&](int64_t tile) -> LogicalResult {
+      rewriter, loc, outCb, analysis.outTiles, [&](int64_t tile) -> LogicalResult {
         Value tileIdx = i32Const(rewriter, loc, tile);
         std::optional<Value> rowIdx;
         if (analysis.rowBcastInput) {
@@ -766,6 +966,38 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
       });
   if (failed(result))
     return failure();
+
+  if (outAliasesInput) {
+    int64_t outstanding = getOutstandingWaitTiles(waitState, outCb);
+    if (outstanding <= 0)
+      return failure();
+    emitPopFrontAndUpdateState(rewriter, loc, outCb, outstanding, waitState);
+    CBReserveBackOp::create(rewriter, loc, outCb,
+                            i32Const(rewriter, loc, analysis.outTiles));
+    CBPushBackOp::create(rewriter, loc, outCb,
+                         i32Const(rewriter, loc, analysis.outTiles));
+    waitState[outCb] = 0;
+  } else {
+    CBPushBackOp::create(rewriter, loc, outCb,
+                         i32Const(rewriter, loc, analysis.outTiles));
+    waitState[outCb] = 0;
+  }
+
+  SmallVector<Value, 4> poppedCbs;
+  for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
+    if (!analysis.usedInputs.test(idx))
+      continue;
+    if (!popAfterCurrentOp[idx])
+      continue;
+    if (llvm::is_contained(poppedCbs, inputCb))
+      continue;
+
+    int64_t outstanding = getOutstandingWaitTiles(waitState, inputCb);
+    if (outstanding <= 0)
+      continue;
+    emitPopFrontAndUpdateState(rewriter, loc, inputCb, outstanding, waitState);
+    poppedCbs.push_back(inputCb);
+  }
 
   rewriter.eraseOp(op);
   return success();
@@ -930,7 +1162,6 @@ public:
   }
 };
 
-//TODO, ignore fill op first
 class ConvertLinalgFillOp : public OpConversionPattern<linalg::FillOp> {
 public:
   using OpConversionPattern<linalg::FillOp>::OpConversionPattern;
@@ -944,6 +1175,14 @@ public:
     Value outCb = adaptor.getOutputs()[0];
     if (!isa<CBType>(outCb.getType()))
       return failure();
+
+    if (auto nextUse =
+            findNextNonViewUseInSameBlock(op.getDpsInits()[0], op.getOperation())) {
+      if (isUsedAsLinalgOutput(nextUse->user, nextUse->usedValue)) {
+        rewriter.eraseOp(op);
+        return success();
+      }
+    }
 
     auto numTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
     if (!numTiles)
@@ -1057,6 +1296,12 @@ public:
   LogicalResult
   matchAndRewrite(linalg::GenericOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
+    func::FuncOp parentFunc = op->getParentOfType<func::FuncOp>();
+    if (parentFunc != activeFunc) {
+      waitState.clear();
+      activeFunc = parentFunc;
+    }
+
     if (!mlir::loom::isSupportedFlashAttentionGeneric(op))
       return failure();
 
@@ -1066,13 +1311,17 @@ public:
 
     switch (*kind) {
     case FlashAttentionGenericKind::Reduction:
-      return rewriteReduceGeneric(op, adaptor, rewriter);
+      return rewriteReduceGeneric(op, adaptor, rewriter, waitState);
     case FlashAttentionGenericKind::Elementwise:
-      return rewriteElementwiseGeneric(op, adaptor, rewriter);
+      return rewriteElementwiseGeneric(op, adaptor, rewriter, waitState);
     }
 
     return failure();
   }
+
+private:
+  mutable llvm::DenseMap<Value, int64_t> waitState;
+  mutable func::FuncOp activeFunc;
 };
 
 } // namespace
