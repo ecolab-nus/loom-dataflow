@@ -35,12 +35,17 @@ struct ReadBlockLoadingLowering
   const llvm::DenseMap<std::pair<ShapeSignature, int>, Value> &colorToAlloc;
   const llvm::DenseMap<Value, LoomAllocationPlan::Assignment>
       &tensorToBufferMap;
+  const llvm::DenseMap<Value, int> &tensorToVBIdMap;
+  const llvm::DenseMap<int, Value> &vbIdToSemaphoreMap;
 
   ReadBlockLoadingLowering(
       MLIRContext *ctx,
       const llvm::DenseMap<std::pair<ShapeSignature, int>, Value> &c2a,
-      const llvm::DenseMap<Value, LoomAllocationPlan::Assignment> &t2b)
-      : OpRewritePattern(ctx), colorToAlloc(c2a), tensorToBufferMap(t2b) {}
+      const llvm::DenseMap<Value, LoomAllocationPlan::Assignment> &t2b,
+      const llvm::DenseMap<Value, int> &t2v,
+      const llvm::DenseMap<int, Value> &v2s)
+      : OpRewritePattern(ctx), colorToAlloc(c2a), tensorToBufferMap(t2b),
+        tensorToVBIdMap(t2v), vbIdToSemaphoreMap(v2s) {}
 
   LogicalResult matchAndRewrite(bufferization::ToTensorOp op,
                                 PatternRewriter &rewriter) const override {
@@ -72,11 +77,20 @@ struct ReadBlockLoadingLowering
     Value allocVal = allocIt->second;
 
     // 3. Create loom.copy_to_tensor
-    // Interpose a semaphore for the physical buffer used by copy_to_tensor
-    OpBuilder semBuilder(rewriter.getContext());
-    semBuilder.setInsertionPoint(op);
-    Value semaphore = semBuilder.create<loom::SemaphoreOp>(
-        loc, cast<MemRefType>(allocVal.getType()), allocVal);
+    // Use the pre-created semaphore for the virtual buffer
+    Value semaphore;
+    auto vbIt = tensorToVBIdMap.find(op.getResult());
+    if (vbIt != tensorToVBIdMap.end()) {
+      semaphore = vbIdToSemaphoreMap.lookup(vbIt->second);
+    }
+
+    if (!semaphore) {
+      // Fallback: This should ideally not happen with centralized management
+      OpBuilder semBuilder(rewriter.getContext());
+      semBuilder.setInsertionPoint(op);
+      semaphore = semBuilder.create<loom::SemaphoreBirthOp>(
+          loc, cast<MemRefType>(allocVal.getType()), allocVal);
+    }
 
     auto emptyArray = rewriter.getArrayAttr({});
     auto defaultBroadcast = rewriter.getI64ArrayAttr({1, 1});
@@ -98,7 +112,12 @@ struct ReadBlockLoadingLowering
 /// (memref.subview + bufferization.to_buffer + memref.copy)
 /// to loom.subview + loom.copy_from_tensor
 struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
-  using OpRewritePattern::OpRewritePattern;
+  WriteBackLowering(MLIRContext *context,
+                    const llvm::DenseMap<Value, int> &tensorToVBIdMap,
+                    const llvm::DenseMap<int, Value> &vbIdToSemaphoreMap)
+      : OpRewritePattern<memref::CopyOp>(context),
+        tensorToVBIdMap(tensorToVBIdMap),
+        vbIdToSemaphoreMap(vbIdToSemaphoreMap) {}
 
   LogicalResult matchAndRewrite(memref::CopyOp op,
                                 PatternRewriter &rewriter) const override {
@@ -122,8 +141,24 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
         subviewOp.getStaticStrides(), false, false, false);
 
     // 2. Create loom.copy_from_tensor
-    loom::CopyFromTensorOp::create(rewriter, loc, toBufferOp.getTensor(),
-                                   loomSubviewOp.getResult(), nullptr);
+    auto copyFromTensorOp =
+        loom::CopyFromTensorOp::create(rewriter, loc, toBufferOp.getTensor(),
+                                       loomSubviewOp.getResult(), nullptr);
+
+    // 3. Move semaphore_death if it exists
+    Value srcTensor = toBufferOp.getTensor();
+    auto vbIt = tensorToVBIdMap.find(srcTensor);
+    if (vbIt != tensorToVBIdMap.end()) {
+      Value semaphore = vbIdToSemaphoreMap.lookup(vbIt->second);
+      if (semaphore) {
+        // Look for the death op of this semaphore
+        for (Operation *user : semaphore.getUsers()) {
+          if (isa<loom::SemaphoreDeathOp>(user)) {
+            user->moveAfter(copyFromTensorOp);
+          }
+        }
+      }
+    }
 
     // Erase original ops
     rewriter.eraseOp(op);
@@ -134,6 +169,10 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
 
     return success();
   }
+
+private:
+  const llvm::DenseMap<Value, int> &tensorToVBIdMap;
+  const llvm::DenseMap<int, Value> &vbIdToSemaphoreMap;
 };
 
 /// Helper to materialize physical buffers and bind them to tensors
@@ -146,6 +185,7 @@ public:
   void run() {
     resolveBucketScopes();
     materializePhysicalBuffers();
+    manageSemaphoreLifecycles();
     anchorVirtualBuffers();
     applyPatternRewrites();
   }
@@ -176,7 +216,7 @@ private:
         continue;
       }
       // See through semaphore to find the underlying alloc
-      if (auto semOp = current.getDefiningOp<loom::SemaphoreOp>()) {
+      if (auto semOp = current.getDefiningOp<loom::SemaphoreBirthOp>()) {
         current = semOp.getSource();
         continue;
       }
@@ -218,19 +258,17 @@ private:
     return nullptr;
   }
 
-  Value getOrCreateInitTensor(Value allocVal) {
-    if (auto it = allocToInitTensor.find(allocVal);
-        it != allocToInitTensor.end())
+  Value getOrCreateInitTensor(Value allocVal, Value semaphore) {
+    if (auto it = semaphoreToInitTensor.find(semaphore);
+        it != semaphoreToInitTensor.end())
       return it->second;
 
     OpBuilder b(context);
-    b.setInsertionPointAfter(allocVal.getDefiningOp());
+    if (!semaphore || !semaphore.getDefiningOp())
+      return nullptr;
+    b.setInsertionPointAfter(semaphore.getDefiningOp());
 
-    // Interpose a semaphore between physical buffer and tensor binding
     auto memrefType = cast<MemRefType>(allocVal.getType());
-    Value semaphore =
-        b.create<loom::SemaphoreOp>(allocVal.getLoc(), memrefType, allocVal);
-
     auto tensorType = RankedTensorType::get(memrefType.getShape(),
                                             memrefType.getElementType());
 
@@ -241,8 +279,74 @@ private:
     auto initOp = loom::InitTensorOp::create(
         b, allocVal.getLoc(), tensorType, semaphore, dynamicSizes,
         b.getDenseI64ArrayAttr(memrefType.getShape()));
-    allocToInitTensor[allocVal] = initOp.getResult();
+    semaphoreToInitTensor[semaphore] = initOp.getResult();
     return initOp.getResult();
+  }
+
+  void manageSemaphoreLifecycles() {
+    for (const auto &[sig, bucket] : analysisCtx.getBuckets()) {
+      for (const auto &vb : bucket.virtualBuffers) {
+        if (vb->members.empty())
+          continue;
+
+        Value allocVal = colorToAlloc.lookup({sig, vb->color});
+        if (!allocVal)
+          continue;
+
+        // 1. Determine Birth Ops
+        int birthIdx = vb->liveness.birth;
+        Operation *birthOp = analysisCtx.getOpFromIndex(birthIdx);
+
+        // 2. Determine Death Ops
+        int deathIdx = vb->liveness.death;
+        Operation *deathOp = analysisCtx.getOpFromIndex(deathIdx);
+
+        if (!birthOp || !deathOp)
+          continue;
+
+        OpBuilder builder(context);
+        Location loc = birthOp->getLoc();
+
+        // Step 1: Birth Insertion
+        // We insert right before the birthOp (or after alloc if it's external)
+        // To be safe and centralized, we insert right after the defining alloc.
+        builder.setInsertionPointAfter(allocVal.getDefiningOp());
+        auto memrefType = cast<MemRefType>(allocVal.getType());
+        Value semaphore =
+            builder.create<loom::SemaphoreBirthOp>(loc, memrefType, allocVal);
+        vbIdToSemaphoreMap[vb->id] = semaphore;
+
+        // Step 2: Death Insertion
+        // Determine correct Insertion Point based on scope and terminator rules
+        Operation *insertionPoint = deathOp;
+        bool insertAfter = true;
+
+        // Terminator guard: never insert AFTER a terminator
+        if (insertionPoint->hasTrait<OpTrait::IsTerminator>()) {
+          insertAfter = false;
+        }
+
+        // Scope hoisting: If birth was outside a loop but death is inside,
+        // hoist death to after the loop.
+        Operation *birthScope = bucket.scopeOp; // Parallel scope
+        // Actually, birth is relative to the linear flow.
+        // For simplicity in this version, if the deathOp is deep inside a loop
+        // where birth was not, we should hoist.
+        // However, VirtualBuffer analysis ALREADY accounts for this by setting
+        // endIndex as the death for VBs that cross loop boundaries.
+        // If liveness.death == loopContext.endIndex, deathOp will be yield.
+        // The Terminator guard already handles insertion before yield.
+
+        OpBuilder deathBuilder(context);
+        if (insertAfter) {
+          deathBuilder.setInsertionPointAfter(insertionPoint);
+        } else {
+          deathBuilder.setInsertionPoint(insertionPoint);
+        }
+
+        deathBuilder.create<loom::SemaphoreDeathOp>(loc, semaphore);
+      }
+    }
   }
 
   void resolveBucketScopes() {
@@ -270,11 +374,11 @@ private:
         SmallVector<Value> dynamicSizes;
         SmallVector<int64_t> staticSizes;
         for (const auto &dim : sig.dims) {
-          if (auto attr = mlir::dyn_cast<Attribute>(dim)) {
+          if (auto attr = dim.dyn_cast<Attribute>()) {
             staticSizes.push_back(cast<IntegerAttr>(attr).getInt());
           } else {
             staticSizes.push_back(ShapedType::kDynamic);
-            dynamicSizes.push_back(mlir::dyn_cast<Value>(dim));
+            dynamicSizes.push_back(dim.dyn_cast<Value>());
           }
         }
         auto allocType = MemRefType::get(staticSizes, sig.elementType);
@@ -313,6 +417,10 @@ private:
           }
         }
 
+        Value semaphore = vbIdToSemaphoreMap.lookup(vb->id);
+        if (!semaphore)
+          continue;
+
         for (TensorNode *member : vb->members) {
           auto linalgOp =
               dyn_cast_or_null<linalg::LinalgOp>(member->definingOp);
@@ -326,7 +434,7 @@ private:
               if (iterArg && forOp->isProperAncestor(linalgOp)) {
                 outsOp.set(iterArg);
               } else {
-                outsOp.set(getOrCreateInitTensor(allocVal));
+                outsOp.set(getOrCreateInitTensor(allocVal, semaphore));
               }
             }
           }
@@ -362,7 +470,10 @@ private:
           Operation *initDefOp = initVal.getDefiningOp();
           if (initDefOp && isa<linalg::LinalgOp>(initDefOp)) {
             // Create init_tensor bound directly to PB alloc
-            Value initTensor = getOrCreateInitTensor(allocVal);
+            Value semaphore = vbIdToSemaphoreMap.lookup(vb->id);
+            if (!semaphore)
+              continue;
+            Value initTensor = getOrCreateInitTensor(allocVal, semaphore);
             // Clone the init op, redirect outs to init_tensor
             OpBuilder cloneBuilder(context);
             cloneBuilder.setInsertionPointAfter(initDefOp);
@@ -387,16 +498,22 @@ private:
             Value currentAlloc = traceOutsToAlloc(outsTensor);
 
             if (currentAlloc && currentAlloc != allocVal) {
-              Value newOuts = getOrCreateInitTensor(allocVal);
-              auto copyOp = builder.create<linalg::CopyOp>(linalgOp.getLoc(),
-                                                           outsTensor, newOuts);
-              outsOperand.set(copyOp.getResult(0));
-              // Update result type to match new init_tensor
-              linalgOp->getResult(0).setType(newOuts.getType());
+              Value semaphore = vbIdToSemaphoreMap.lookup(vb->id);
+              if (semaphore) {
+                Value newOuts = getOrCreateInitTensor(allocVal, semaphore);
+                auto copyOp = builder.create<linalg::CopyOp>(
+                    linalgOp.getLoc(), outsTensor, newOuts);
+                outsOperand.set(copyOp.getResult(0));
+                // Update result type to match new init_tensor
+                linalgOp->getResult(0).setType(newOuts.getType());
+              }
             } else if (!currentAlloc) {
               // No known source buffer (e.g. tensor.empty or external subview)
-              outsOperand.set(getOrCreateInitTensor(allocVal));
-              linalgOp->getResult(0).setType(outsOperand.get().getType());
+              Value semaphore = vbIdToSemaphoreMap.lookup(vb->id);
+              if (semaphore) {
+                outsOperand.set(getOrCreateInitTensor(allocVal, semaphore));
+                linalgOp->getResult(0).setType(outsOperand.get().getType());
+              }
             }
           }
         }
@@ -437,10 +554,22 @@ private:
   }
 
   void applyPatternRewrites() {
+    // Build a temporary tensor-to-VB mapping for the pattern
+    llvm::DenseMap<Value, int> tensorToVBIdMap;
+    for (const auto &[sig, bucket] : analysisCtx.getBuckets()) {
+      for (const auto &vb : bucket.virtualBuffers) {
+        for (TensorNode *member : vb->members) {
+          tensorToVBIdMap[member->value] = vb->id;
+        }
+      }
+    }
+
     RewritePatternSet patterns(context);
     patterns.add<ReadBlockLoadingLowering>(context, colorToAlloc,
-                                           plan.tensorToBufferMap);
-    patterns.add<WriteBackLowering>(context);
+                                           plan.tensorToBufferMap,
+                                           tensorToVBIdMap, vbIdToSemaphoreMap);
+    patterns.add<WriteBackLowering>(context, tensorToVBIdMap,
+                                    vbIdToSemaphoreMap);
 
     if (failed(applyPatternsGreedily(funcOp, std::move(patterns)))) {
       funcOp.emitError("Failed to apply pattern rewrites");
@@ -453,7 +582,8 @@ private:
   MemoryAnalysisContext analysisCtx;
   const LoomAllocationPlan &plan;
   llvm::DenseMap<std::pair<ShapeSignature, int>, Value> colorToAlloc;
-  llvm::DenseMap<Value, Value> allocToInitTensor;
+  llvm::DenseMap<Value, Value> semaphoreToInitTensor;
+  llvm::DenseMap<int, Value> vbIdToSemaphoreMap;
 };
 
 struct MemoryBindingPass

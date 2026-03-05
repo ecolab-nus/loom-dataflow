@@ -84,9 +84,9 @@ TensorNode *Bucket::findNode(Value v) {
 unsigned ShapeSignature::getHashValue() const {
   size_t hash = llvm::hash_value(elementType.getAsOpaquePointer());
   for (auto dim : dims) {
-    if (auto val = mlir::dyn_cast<Value>(dim)) {
+    if (auto val = dim.dyn_cast<Value>()) {
       hash = llvm::hash_combine(hash, val.getAsOpaquePointer());
-    } else if (auto attr = mlir::dyn_cast<Attribute>(dim)) {
+    } else if (auto attr = dim.dyn_cast<Attribute>()) {
       if (auto intAttr = mlir::dyn_cast<IntegerAttr>(attr)) {
         hash = llvm::hash_combine(hash, llvm::hash_value(intAttr.getInt()));
       }
@@ -99,9 +99,9 @@ void ShapeSignature::print(llvm::raw_ostream &os) const {
   os << "[";
   for (size_t i = 0; i < dims.size(); ++i) {
     auto dim = dims[i];
-    if (auto val = mlir::dyn_cast<Value>(dim)) {
+    if (auto val = dim.dyn_cast<Value>()) {
       os << val;
-    } else if (auto attr = mlir::dyn_cast<Attribute>(dim)) {
+    } else if (auto attr = dim.dyn_cast<Attribute>()) {
       if (auto intAttr = mlir::dyn_cast<IntegerAttr>(attr)) {
         os << intAttr.getInt();
       } else {
@@ -120,6 +120,9 @@ void ShapeSignature::print(llvm::raw_ostream &os) const {
 
 void MemoryAnalysisContext::setOpIndex(Operation *op, int idx) {
   opIndexMap_[op] = idx;
+  if (idx >= (int)indexToOpMap_.size())
+    indexToOpMap_.resize(idx + 1, nullptr);
+  indexToOpMap_[idx] = op;
 }
 
 void MemoryAnalysisContext::addTensor(Value v, ShapeSignature sig,
@@ -138,6 +141,12 @@ void MemoryAnalysisContext::addTensor(Value v, ShapeSignature sig,
 int MemoryAnalysisContext::getOpIndex(Operation *op) const {
   auto it = opIndexMap_.find(op);
   return it != opIndexMap_.end() ? it->second : -1;
+}
+
+Operation *MemoryAnalysisContext::getOpFromIndex(int index) const {
+  if (index < 0 || index >= (int)indexToOpMap_.size())
+    return nullptr;
+  return indexToOpMap_[index];
 }
 
 int MemoryAnalysisContext::getLoopEndIndex(affine::AffineForOp forOp) const {
@@ -324,6 +333,56 @@ void MemoryAnalysisContext::buildVirtualBuffers() {
   }
 }
 
+void MemoryAnalysisContext::fuseRelayVirtualBuffers() {
+  for (auto &[sig, bucket] : buckets_) {
+    if (bucket.virtualBuffers.size() < 2)
+      continue;
+
+    InterferenceGraph graph(bucket, *this);
+
+    bool changed = true;
+    while (changed) {
+      changed = false;
+      int n = bucket.virtualBuffers.size();
+      int mergeA = -1, mergeB = -1;
+
+      for (int i = 0; i < n && mergeA == -1; ++i) {
+        if (bucket.virtualBuffers[i]->type != VBType::Standard)
+          continue;
+        for (int j = i + 1; j < n; ++j) {
+          if (bucket.virtualBuffers[j]->type != VBType::Standard)
+            continue;
+
+          if (graph.canRelay(*bucket.virtualBuffers[i],
+                             *bucket.virtualBuffers[j])) {
+            mergeA = i;
+            mergeB = j;
+            break;
+          }
+        }
+      }
+
+      if (mergeA != -1) {
+        // Merge B into A
+        auto &vbA = bucket.virtualBuffers[mergeA];
+        auto &vbB = bucket.virtualBuffers[mergeB];
+
+        for (TensorNode *member : vbB->members) {
+          vbA->addMember(member);
+        }
+        vbA->liveness.birth =
+            std::min(vbA->liveness.birth, vbB->liveness.birth);
+        vbA->liveness.death =
+            std::max(vbA->liveness.death, vbB->liveness.death);
+        vbA->updateDefiningOp();
+
+        bucket.virtualBuffers.erase(bucket.virtualBuffers.begin() + mergeB);
+        changed = true;
+      }
+    }
+  }
+}
+
 // ============================================================================
 // Interference Graph
 // ============================================================================
@@ -410,6 +469,14 @@ bool InterferenceGraph::checkHandoffInterference(
   }
 
   return false;
+}
+
+bool InterferenceGraph::canRelay(const VirtualBuffer &vbA,
+                                 const VirtualBuffer &vbB) const {
+  int overlap = classifyOverlap(vbA, vbB);
+  if (overlap != 0)
+    return false; // Not touching
+  return !checkHandoffInterference(vbA, vbB);
 }
 
 void InterferenceGraph::build() {
@@ -634,6 +701,7 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
 
   // Axioms phase
   ctx.buildVirtualBuffers();
+  ctx.fuseRelayVirtualBuffers();
   ctx.buildInterferenceGraphs();
   ctx.solveColoring();
   ctx.buildAllocationPlan();

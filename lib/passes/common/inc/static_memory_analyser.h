@@ -135,6 +135,7 @@ public:
   void build();
   void dump(llvm::raw_ostream &os) const;
   bool interferes(int vbIdA, int vbIdB) const;
+  bool canRelay(const VirtualBuffer &vbA, const VirtualBuffer &vbB) const;
 
 private:
   const Bucket &bucket_;
@@ -222,6 +223,7 @@ public:
   }
 
   int getOpIndex(mlir::Operation *op) const;
+  mlir::Operation *getOpFromIndex(int index) const;
   int getLoopEndIndex(mlir::affine::AffineForOp forOp) const;
   int getValueDeathIndex(mlir::Value v) const;
 
@@ -231,6 +233,7 @@ public:
                  int idx);
   void computeDeathIndices();
   void buildVirtualBuffers();
+  void fuseRelayVirtualBuffers();
   void buildInterferenceGraphs();
   void solveColoring();
   void buildAllocationPlan();
@@ -240,6 +243,7 @@ public:
 private:
   llvm::MapVector<ShapeSignature, Bucket> buckets_;
   llvm::DenseMap<mlir::Operation *, int> opIndexMap_;
+  std::vector<mlir::Operation *> indexToOpMap_;
   llvm::DenseMap<mlir::Value, TensorNode *> valueToNodeMap_;
   std::vector<SplitYieldInfo> splitYields_;
   int nextVBId_ = 0;
