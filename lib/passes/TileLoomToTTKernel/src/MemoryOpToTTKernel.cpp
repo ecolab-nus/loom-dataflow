@@ -75,6 +75,57 @@ static Value stripMemrefCasts(Value value) {
 }
 
 /**
+ * @brief Check whether a loom.copy is an L1->DRAM store.
+ */
+static bool isL1ToDramStoreCopy(::loom::CopyOp copyOp) {
+  return copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>() !=
+         nullptr;
+}
+
+/**
+ * @brief Find an adjacent semaphore_give paired with an L1->DRAM copy source.
+ *
+ * @details Matches the common pattern:
+ *          `loom.copy %src, %dst_rc ...`
+ *          `loom.semaphore_give %src`
+ *          allowing optional intervening `memref.cast` ops.
+ */
+static ::loom::SemaphoreGiveOp
+findAdjacentSemaphoreGiveAfterStore(::loom::CopyOp copyOp) {
+  if (!isL1ToDramStoreCopy(copyOp))
+    return nullptr;
+
+  Value copySource = stripMemrefCasts(copyOp.getSource());
+  Operation *next = copyOp->getNextNode();
+  while (next && isa<memref::CastOp>(next))
+    next = next->getNextNode();
+
+  auto giveOp = dyn_cast_or_null<::loom::SemaphoreGiveOp>(next);
+  if (!giveOp)
+    return nullptr;
+  if (stripMemrefCasts(giveOp.getSource()) != copySource)
+    return nullptr;
+  return giveOp;
+}
+
+/**
+ * @brief Check if semaphore_give is paired with a preceding L1->DRAM copy.
+ */
+static bool isSemaphoreGiveForAdjacentL1ToDramStore(
+    ::loom::SemaphoreGiveOp giveOp) {
+  Operation *prev = giveOp->getPrevNode();
+  while (prev && isa<memref::CastOp>(prev))
+    prev = prev->getPrevNode();
+
+  auto copyOp = dyn_cast_or_null<::loom::CopyOp>(prev);
+  if (!copyOp || !isL1ToDramStoreCopy(copyOp))
+    return false;
+
+  return stripMemrefCasts(copyOp.getSource()) ==
+         stripMemrefCasts(giveOp.getSource());
+}
+
+/**
  * @brief Emit TTKernel NOC async read operations for a DRAM-to-L1 transfer.
  *
  * @details Given the source value (which must come from a
@@ -575,8 +626,16 @@ struct ConvertLoomSemaphoreTakeOp
   }
 
   LogicalResult
-  matchAndRewrite(::loom::SemaphoreTakeOp op, OpAdaptor adaptor,
+  matchAndRewrite(::loom::SemaphoreTakeOp op, OpAdaptor /*adaptor*/,
                   ConversionPatternRewriter &rewriter) const override {
+    // semaphore_take participates in CB handle materialization only for
+    // compute kernels. In reader/writer/host kernels, keep the underlying
+    // memref flow so loom.copy rewrites can consume it and erase the op.
+    if (!isComputeKernel(op)) {
+      rewriter.replaceOp(op, op.getSource());
+      return success();
+    }
+
     Location loc = op.getLoc();
     auto expectedCBType = dyn_cast_or_null<CBType>(
         getTypeConverter()->convertType(op.getResult().getType()));
@@ -641,6 +700,20 @@ struct ConvertLoomSemaphoreGiveOp
   LogicalResult
   matchAndRewrite(::loom::SemaphoreGiveOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
+    // L1->DRAM stores are drained by writer kernels. The adjacent give is
+    // only a liveness marker and must not lower to cb_pop_front in compute.
+    if (isSemaphoreGiveForAdjacentL1ToDramStore(op)) {
+      rewriter.eraseOp(op);
+      return success();
+    }
+
+    // semaphore_give maps to CB release only for compute kernels.
+    // In reader/writer/host kernels, it is a liveness marker only.
+    if (!isComputeKernel(op)) {
+      rewriter.eraseOp(op);
+      return success();
+    }
+
     Location loc = op.getLoc();
     Value cb = adaptor.getSource();
     auto cbType = dyn_cast_or_null<CBType>(cb.getType());
@@ -1093,7 +1166,7 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
     rewriter.setInsertionPointAfter(rowLoop);
 
     NocAsyncWriteBarrierOp::create(rewriter, loc);
-
+    CBPopFrontOp::create(rewriter, loc, cb, numPages);
     rewriter.eraseOp(op);
     return success();
   }
@@ -1167,6 +1240,9 @@ struct ConvertLoomComputeStoreOp : public OpConversionPattern<::loom::CopyOp> {
     auto outcbType = cast<CBType>(outcb.getType());
     int32_t numTiles = static_cast<int32_t>(outcbType.getNumElements()) / 1024;
     (void)numTiles;
+
+    if (auto pairedGive = findAdjacentSemaphoreGiveAfterStore(op))
+      rewriter.eraseOp(pairedGive);
 
     // CBPushBack stays disabled for now.
     rewriter.eraseOp(op);
