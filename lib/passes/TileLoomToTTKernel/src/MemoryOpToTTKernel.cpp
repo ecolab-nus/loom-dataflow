@@ -27,6 +27,7 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Casting.h"
 #include <memory>
+#include <optional>
 
 // Loom dialect headers for ::::loom::AllocOp, ::::loom::CopyOp
 #define GET_OP_CLASSES
@@ -40,6 +41,45 @@ using namespace tt::ttcore;
 //===----------------------------------------------------------------------===//
 // Helper Functions
 //===----------------------------------------------------------------------===//
+
+/**
+ * @brief Compute ceiling division of a dimension by the tile size (32).
+ *
+ * @param value Dimension size to be divided.
+ * @return Number of tiles needed to cover the dimension, or nullopt for
+ *         non-positive values.
+ */
+static std::optional<int64_t> ceilDiv32(int64_t value) {
+  if (value <= 0)
+    return std::nullopt;
+  return (value + 31) / 32;
+}
+
+/**
+ * @brief Compute the total number of 32x32 tiles needed for a shaped type.
+ *
+ * @details For each static dimension $d_i$ of the shaped type, this computes
+ *          $\lceil d_i / 32 \rceil$ and returns the product across all
+ *          dimensions. Dynamic or non-shaped types yield std::nullopt.
+ *
+ * @param type The shaped type (e.g., tensor/memref) describing the logical data.
+ * @return Total number of tiles required, or nullopt if the shape is not
+ *         statically known.
+ */
+static std::optional<int64_t> getNumTilesFromShapedType(Type type) {
+  auto shaped = dyn_cast<ShapedType>(type);
+  if (!shaped || !shaped.hasStaticShape())
+    return std::nullopt;
+
+  int64_t tiles = 1;
+  for (int64_t dim : shaped.getShape()) {
+    auto dimTiles = ceilDiv32(dim);
+    if (!dimTiles)
+      return std::nullopt;
+    tiles *= *dimTiles;
+  }
+  return tiles;
+}
 
 /**
  * @brief Check if the operation is inside a compute kernel function.
@@ -723,26 +763,14 @@ struct ConvertLoomSemaphoreGiveOp
     }
 
     Value numPages;
-    Type elementType = cbType.getElementType();
-    if (isa<TileType>(elementType)) {
-      numPages = rewriter.create<arith::ConstantIntOp>(
-          loc, rewriter.getI32Type(), cbType.getNumTiles());
-    } else {
-      const int64_t numElements = cbType.getNumElements();
-      int32_t elementSizeBytes = 4;
-      if (elementType.isF16() || elementType.isBF16())
-        elementSizeBytes = 2;
-      else if (elementType.isF32())
-        elementSizeBytes = 4;
-      else if (auto intType = llvm::dyn_cast<IntegerType>(elementType))
-        elementSizeBytes = (intType.getWidth() + 7) / 8;
+    auto elementType = cbType.getElementType();
+      auto tilesOpt = getNumTilesFromShapedType(op.getSource().getType());
+      int64_t numTiles =
+          tilesOpt ? *tilesOpt : static_cast<int64_t>(cbType.getNumTiles());
 
-      Value pageSize = GetTileSizeOp::create(rewriter, loc, cb);
-      Value totalSizeBytes = rewriter.create<arith::ConstantIntOp>(
-          loc, rewriter.getI32Type(), numElements * elementSizeBytes);
-      numPages =
-          arith::DivSIOp::create(rewriter, loc, totalSizeBytes, pageSize);
-    }
+      numPages = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), numTiles);
+
 
     CBPopFrontOp::create(rewriter, loc, cb, numPages);
     rewriter.eraseOp(op);

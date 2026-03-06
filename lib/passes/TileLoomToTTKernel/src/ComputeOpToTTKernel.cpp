@@ -853,6 +853,9 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
     return failure();
 
   if (outAliasesInput) {
+    //release the input cb first for later usage of output cb
+    CBPopFrontOp::create(rewriter, loc, outCb,
+                         i32Const(rewriter, loc, analysis.outTiles));
     CBReserveBackOp::create(rewriter, loc, outCb,
                             i32Const(rewriter, loc, analysis.outTiles));
     CBPushBackOp::create(rewriter, loc, outCb,
