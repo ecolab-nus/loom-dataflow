@@ -119,12 +119,12 @@ module {
           } -> tensor<?x?x128xf32>
           loom.semaphore_death %23 : memref<?x?xf32>
           loom.semaphore_death %33 : memref<?x?x128xf32>
-          loom.semaphore_death %28 : memref<?x?x128xf32>
-          loom.semaphore_death %14 : memref<?x?xf32>
-          loom.semaphore_death %17 : memref<?x?xf32>
           %63 = linalg.copy ins(%52 : tensor<?x?xf32>) outs(%arg7 : tensor<?x?xf32>) -> tensor<?x?xf32>
+          loom.semaphore_death %17 : memref<?x?xf32>
           affine.yield %63, %57, %62 : tensor<?x?xf32>, tensor<?x?xf32>, tensor<?x?x128xf32>
         }
+        loom.semaphore_death %14 : memref<?x?xf32>
+        loom.semaphore_death %28 : memref<?x?x128xf32>
         %43 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%42#2, %42#1 : tensor<?x?x128xf32>, tensor<?x?xf32>) outs(%27 : tensor<?x?x128xf32>) {
         ^bb0(%in: f32, %in_4: f32, %out: f32):
           %45 = arith.divf %in, %in_4 : f32

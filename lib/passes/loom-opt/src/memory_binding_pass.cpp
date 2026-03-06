@@ -185,8 +185,9 @@ public:
   void run() {
     resolveBucketScopes();
     materializePhysicalBuffers();
-    manageSemaphoreLifecycles();
+    manageSemaphoreBirths();
     anchorVirtualBuffers();
+    manageSemaphoreDeaths();
     applyPatternRewrites();
   }
 
@@ -283,7 +284,7 @@ private:
     return initOp.getResult();
   }
 
-  void manageSemaphoreLifecycles() {
+  void manageSemaphoreBirths() {
     for (const auto &[sig, bucket] : analysisCtx.getBuckets()) {
       for (const auto &vb : bucket.virtualBuffers) {
         if (vb->members.empty())
@@ -297,45 +298,60 @@ private:
         int birthIdx = vb->liveness.birth;
         Operation *birthOp = analysisCtx.getOpFromIndex(birthIdx);
 
-        // 2. Determine Death Ops
-        int deathIdx = vb->liveness.death;
-        Operation *deathOp = analysisCtx.getOpFromIndex(deathIdx);
-
-        if (!birthOp || !deathOp)
+        if (!birthOp)
           continue;
 
         OpBuilder builder(context);
         Location loc = birthOp->getLoc();
 
         // Step 1: Birth Insertion
-        // We insert right before the birthOp (or after alloc if it's external)
-        // To be safe and centralized, we insert right after the defining alloc.
         builder.setInsertionPointAfter(allocVal.getDefiningOp());
         auto memrefType = cast<MemRefType>(allocVal.getType());
         Value semaphore =
             builder.create<loom::SemaphoreBirthOp>(loc, memrefType, allocVal);
         vbIdToSemaphoreMap[vb->id] = semaphore;
+      }
+    }
+  }
+
+  void manageSemaphoreDeaths() {
+    for (const auto &[sig, bucket] : analysisCtx.getBuckets()) {
+      for (const auto &vb : bucket.virtualBuffers) {
+        if (vb->members.empty())
+          continue;
+
+        Value semaphore = vbIdToSemaphoreMap.lookup(vb->id);
+        if (!semaphore)
+          continue;
+
+        // 2. Determine Death Ops
+        int deathIdx = vb->liveness.death;
+        Operation *deathOp = analysisCtx.getOpFromIndex(deathIdx);
+
+        if (!deathOp)
+          continue;
+
+        Location loc = deathOp->getLoc();
 
         // Step 2: Death Insertion
-        // Determine correct Insertion Point based on scope and terminator rules
         Operation *insertionPoint = deathOp;
         bool insertAfter = true;
+
+        // Scope hoisting: For Eternal and Fused VBs, their lifetime spans
+        // across inner loop iterations. If their last use (deathOp) is inside a
+        // nested loop, we must hoist their death to after that loop, instead of
+        // killing them inside.
+        if (vb->type == VBType::Eternal || vb->type == VBType::Fused) {
+          while (insertionPoint->getParentOp() != bucket.scopeOp) {
+            insertionPoint = insertionPoint->getParentOp();
+            insertAfter = true;
+          }
+        }
 
         // Terminator guard: never insert AFTER a terminator
         if (insertionPoint->hasTrait<OpTrait::IsTerminator>()) {
           insertAfter = false;
         }
-
-        // Scope hoisting: If birth was outside a loop but death is inside,
-        // hoist death to after the loop.
-        Operation *birthScope = bucket.scopeOp; // Parallel scope
-        // Actually, birth is relative to the linear flow.
-        // For simplicity in this version, if the deathOp is deep inside a loop
-        // where birth was not, we should hoist.
-        // However, VirtualBuffer analysis ALREADY accounts for this by setting
-        // endIndex as the death for VBs that cross loop boundaries.
-        // If liveness.death == loopContext.endIndex, deathOp will be yield.
-        // The Terminator guard already handles insertion before yield.
 
         OpBuilder deathBuilder(context);
         if (insertAfter) {
