@@ -58,7 +58,7 @@ static Value stripMemrefCasts(Value value) {
 // same base value in transformed IR.
 static Value stripLoomSemaphores(Value value) {
   Value current = value;
-  while (auto sem = current.getDefiningOp<::loom::SemaphoreOp>())
+  while (auto sem = current.getDefiningOp<::loom::SemaphoreTakeOp>())
     current = sem.getSource();
   return current;
 }
@@ -816,7 +816,7 @@ private:
   int resolveCbIndexFromEndpoint(Value endpoint) const {
     Value current = stripCasts(endpoint);
 
-    if (auto sem = current.getDefiningOp<::loom::SemaphoreOp>()) {
+    if (auto sem = current.getDefiningOp<::loom::SemaphoreTakeOp>()) {
       auto semIt = semaphoreToCbIndex.find(sem.getResult());
       if (semIt != semaphoreToCbIndex.end())
         return static_cast<int>(semIt->second);
@@ -910,7 +910,7 @@ private:
 
   void collectCbInfos() {
     llvm::DenseMap<Value, SmallVector<Value, 4>> semaphoresByAlloc;
-    hostFunc.walk([&](::loom::SemaphoreOp sem) {
+    hostFunc.walk([&](::loom::SemaphoreTakeOp sem) {
       Value base = stripLoomSemaphores(stripCasts(sem.getSource()));
       if (!base.getDefiningOp<::loom::AllocOp>())
         return;

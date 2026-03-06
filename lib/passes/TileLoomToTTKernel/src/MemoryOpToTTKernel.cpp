@@ -527,9 +527,9 @@ struct ConvertReinterpretCastOp
  *          physical source buffer. it first check whether the semaphore is the source of a DRAM->L1 copy, if so, return the source memref arg.
  *          otherwise, return the destination memref arg. else, create a new compile-arg CB.
  */
-struct ConvertLoomSemaphoreOp
-    : public OpConversionPattern<::loom::SemaphoreOp> {
-  using OpConversionPattern<::loom::SemaphoreOp>::OpConversionPattern;
+struct ConvertLoomSemaphoreTakeOp
+    : public OpConversionPattern<::loom::SemaphoreTakeOp> {
+  using OpConversionPattern<::loom::SemaphoreTakeOp>::OpConversionPattern;
 
   /**
    * @brief Construct the pattern with a type converter and context.
@@ -537,13 +537,13 @@ struct ConvertLoomSemaphoreOp
    * @param context MLIR context.
    * @param tracker Shared tracker for compile-arg values.
    */
-  ConvertLoomSemaphoreOp(TypeConverter &typeConverter, MLIRContext *context,
+  ConvertLoomSemaphoreTakeOp(TypeConverter &typeConverter, MLIRContext *context,
                          std::shared_ptr<CompileArgTracker> tracker)
-      : OpConversionPattern<::loom::SemaphoreOp>(typeConverter, context),
+      : OpConversionPattern<::loom::SemaphoreTakeOp>(typeConverter, context),
         tracker(std::move(tracker)) {}
 
   /// If semaphore is destination of DRAM->L1 copy, return the source memref arg.
-  Value findInputMemref(::loom::SemaphoreOp semaphore) const {
+  Value findInputMemref(::loom::SemaphoreTakeOp semaphore) const {
     for (Operation *user : semaphore.getResult().getUsers()) {
       auto loomCopyOp = dyn_cast<::loom::CopyOp>(user);
       if (!loomCopyOp || loomCopyOp.getDestination() != semaphore.getResult())
@@ -559,7 +559,7 @@ struct ConvertLoomSemaphoreOp
   }
 
   /// If semaphore is source of L1->DRAM copy, return the destination memref arg.
-  Value findOutputMemref(::loom::SemaphoreOp semaphore) const {
+  Value findOutputMemref(::loom::SemaphoreTakeOp semaphore) const {
     for (Operation *user : semaphore.getResult().getUsers()) {
       auto loomCopyOp = dyn_cast<::loom::CopyOp>(user);
       if (!loomCopyOp || loomCopyOp.getSource() != semaphore.getResult())
@@ -575,7 +575,7 @@ struct ConvertLoomSemaphoreOp
   }
 
   LogicalResult
-  matchAndRewrite(::loom::SemaphoreOp op, OpAdaptor adaptor,
+  matchAndRewrite(::loom::SemaphoreTakeOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     Location loc = op.getLoc();
     auto expectedCBType = dyn_cast_or_null<CBType>(
@@ -1204,7 +1204,7 @@ void mlir::loom::populateMemoryOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker) {
   // loom.semaphore / loom.copy patterns.
-  patterns.add<ConvertLoomSemaphoreOp>(typeConverter, context, tracker);
+  patterns.add<ConvertLoomSemaphoreTakeOp>(typeConverter, context, tracker);
   patterns.add<ConvertLoomLoadOp>(typeConverter, context, tracker);
   patterns.add<ConvertLoomStoreOp>(typeConverter, context, tracker);
   // Reinterpret cast erasure.
