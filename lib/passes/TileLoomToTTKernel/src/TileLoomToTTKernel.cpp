@@ -307,10 +307,11 @@ public:
     // Set up conversion target
     ConversionTarget target(*context);
     
-    // Mark loom.semaphore and loom.copy as illegal in the main lowering stage.
+    // Mark loom semaphore/copy ops as illegal in the main lowering stage.
     // loom.alloc is cleaned up in a dedicated follow-up conversion pass once
     // semaphore/copy rewrites have consumed it.
     target.addIllegalOp<::loom::SemaphoreTakeOp>();
+    target.addIllegalOp<::loom::SemaphoreGiveOp>();
     target.addIllegalOp<::loom::CopyOp>();
     
     // Mark memref operations that don't need conversion as legal

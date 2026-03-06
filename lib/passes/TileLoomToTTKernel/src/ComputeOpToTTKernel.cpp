@@ -885,10 +885,6 @@ public:
     Value in1Cb = adaptor.getInputs()[1];
     Value outCb = adaptor.getOutputs()[0];
     Value outBuffer = op.getOutputs()[0];
-    llvm::errs() << "in0Cb: " << in0Cb << "\n";
-    llvm::errs() << "in1Cb: " << in1Cb << "\n";
-    llvm::errs() << "outCb: " << outCb << "\n";
-    llvm::errs() << "outBuffer: " << outBuffer << "\n";
 
     // Ensure operands are TTKernel CBs.
     if (!isa<CBType>(in0Cb.getType()) || !isa<CBType>(in1Cb.getType()) ||

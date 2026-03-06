@@ -628,6 +628,56 @@ private:
 };
 
 /**
+ * @brief Lower `loom.semaphore_give` to `ttkernel.cb_pop_front`.
+ *
+ * @details The semaphore operand is already type-converted to a TTKernel CB.
+ *          Releasing the semaphore corresponds to consuming the front pages of
+ *          that CB.
+ */
+struct ConvertLoomSemaphoreGiveOp
+    : public OpConversionPattern<::loom::SemaphoreGiveOp> {
+  using OpConversionPattern<::loom::SemaphoreGiveOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(::loom::SemaphoreGiveOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+    Value cb = adaptor.getSource();
+    auto cbType = dyn_cast_or_null<CBType>(cb.getType());
+    if (!cbType) {
+      return rewriter.notifyMatchFailure(
+          op, "expected semaphore_give source to be converted to CB type");
+    }
+
+    Value numPages;
+    Type elementType = cbType.getElementType();
+    if (isa<TileType>(elementType)) {
+      numPages = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), cbType.getNumTiles());
+    } else {
+      const int64_t numElements = cbType.getNumElements();
+      int32_t elementSizeBytes = 4;
+      if (elementType.isF16() || elementType.isBF16())
+        elementSizeBytes = 2;
+      else if (elementType.isF32())
+        elementSizeBytes = 4;
+      else if (auto intType = llvm::dyn_cast<IntegerType>(elementType))
+        elementSizeBytes = (intType.getWidth() + 7) / 8;
+
+      Value pageSize = GetTileSizeOp::create(rewriter, loc, cb);
+      Value totalSizeBytes = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), numElements * elementSizeBytes);
+      numPages =
+          arith::DivSIOp::create(rewriter, loc, totalSizeBytes, pageSize);
+    }
+
+    CBPopFrontOp::create(rewriter, loc, cb, numPages);
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
+/**
  * @brief Erase dead `loom.alloc` once downstream users are rewritten.
  *
  * @details `loom.alloc` must stay available while semaphore/copy patterns
@@ -687,6 +737,7 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
     MemrefArgData *memrefArgData = tracker->getMemrefData(inputMemref);
     if (!memrefArgData) {
       llvm::errs() << "No MemrefArgData found for input memref\n";
+      llvm::errs() << "inputMemref: " << inputMemref << "\n";
       return failure();
     }
     Value cb = tracker->getCB(inputMemref);
@@ -1205,6 +1256,7 @@ void mlir::loom::populateMemoryOpConversionPatterns(
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker) {
   // loom.semaphore / loom.copy patterns.
   patterns.add<ConvertLoomSemaphoreTakeOp>(typeConverter, context, tracker);
+  patterns.add<ConvertLoomSemaphoreGiveOp>(typeConverter, context);
   patterns.add<ConvertLoomLoadOp>(typeConverter, context, tracker);
   patterns.add<ConvertLoomStoreOp>(typeConverter, context, tracker);
   // Reinterpret cast erasure.
