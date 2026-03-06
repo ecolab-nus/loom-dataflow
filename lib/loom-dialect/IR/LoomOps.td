@@ -156,12 +156,12 @@ def AllocOp : Loom_Op<"alloc"> {
         ::mlir::Type elementType);
   }];
 }
-def SemaphoreBirthOp : Loom_Op<"semaphore_birth", [
+def SemaphoreTakeOp : Loom_Op<"semaphore_take", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
 ]> {
-  let summary = "Allocate a unique synchronization semaphore over a physical buffer";
+  let summary = "Take a unique synchronization semaphore over a physical buffer";
   let description = [{
-    The `loom.semaphore_birth` operation accepts a memref (typically from `loom.alloc`)
+    The `loom.semaphore_take` operation accepts a memref (typically from `loom.alloc`)
     and returns a memref of the same type. The returned SSA value represents a
     unique hardware synchronization semaphore. The backend can trace the source
     operand to discover the physical buffer, while treating each semaphore result
@@ -173,8 +173,8 @@ def SemaphoreBirthOp : Loom_Op<"semaphore_birth", [
     Example:
     ```mlir
     %buf = loom.alloc [64, 128] on @L1 : memref<64x128xf32>
-    %sem_q = loom.semaphore_birth %buf : memref<64x128xf32>
-    %sem_o = loom.semaphore_birth %buf : memref<64x128xf32>
+    %sem_q = loom.semaphore_take %buf : memref<64x128xf32>
+    %sem_o = loom.semaphore_take %buf : memref<64x128xf32>
     // %sem_q and %sem_o share physical memory but have independent semaphores
     ```
   }];
@@ -189,12 +189,12 @@ def SemaphoreBirthOp : Loom_Op<"semaphore_birth", [
   }];
 }
 
-def SemaphoreDeathOp : Loom_Op<"semaphore_death", [
+def SemaphoreGiveOp : Loom_Op<"semaphore_give", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
 ]> {
-  let summary = "Declare the death of a circular buffer related to a semaphore";
+  let summary = "Give/Release a synchronization semaphore over a physical buffer";
   let description = [{
-    The `loom.semaphore_death` operation accepts a semaphore memref (from `loom.semaphore_birth`).
+    The `loom.semaphore_give` operation accepts a semaphore memref (from `loom.semaphore_take`).
     It declares the end of liveness for the corresponding circular buffer.
 
     This operation has memory effects (Free) to ensure it is not optimized away or
@@ -202,7 +202,7 @@ def SemaphoreDeathOp : Loom_Op<"semaphore_death", [
 
     Example:
     ```mlir
-    loom.semaphore_death %sem_q : memref<64x128xf32>
+    loom.semaphore_give %sem_q : memref<64x128xf32>
     ```
   }];
 

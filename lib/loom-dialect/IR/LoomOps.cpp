@@ -247,7 +247,7 @@ void loom::CopyOp::getEffects(
   effects.emplace_back(MemoryEffects::Read::get());
   effects.emplace_back(MemoryEffects::Write::get());
 }
-void loom::SemaphoreBirthOp::getEffects(
+void loom::SemaphoreTakeOp::getEffects(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects) {
   // Declare a virtual MemAlloc effect to prevent CSE from merging
@@ -255,7 +255,7 @@ void loom::SemaphoreBirthOp::getEffects(
   effects.emplace_back(MemoryEffects::Allocate::get());
 }
 
-void loom::SemaphoreDeathOp::getEffects(
+void loom::SemaphoreGiveOp::getEffects(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects) {
   effects.emplace_back(MemoryEffects::Free::get());
@@ -597,10 +597,10 @@ struct FoldCopyToTensorType : public OpRewritePattern<CopyToTensorOp> {
   }
 };
 
-struct FoldSemaphoreBirthType : public OpRewritePattern<SemaphoreBirthOp> {
-  using OpRewritePattern<SemaphoreBirthOp>::OpRewritePattern;
+struct FoldSemaphoreTakeType : public OpRewritePattern<SemaphoreTakeOp> {
+  using OpRewritePattern<SemaphoreTakeOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(SemaphoreBirthOp op,
+  LogicalResult matchAndRewrite(SemaphoreTakeOp op,
                                 PatternRewriter &rewriter) const override {
     Value source = op.getSource();
     // Unwrap memref.cast to reach the underlying static alloc
@@ -624,7 +624,7 @@ struct FoldSemaphoreBirthType : public OpRewritePattern<SemaphoreBirthOp> {
       return failure();
 
     auto newResultType = needsTypeUpdate ? sourceType : resultType;
-    rewriter.replaceOpWithNewOp<SemaphoreBirthOp>(op, newResultType, source);
+    rewriter.replaceOpWithNewOp<SemaphoreTakeOp>(op, newResultType, source);
     return success();
   }
 };
@@ -656,7 +656,7 @@ void CopyToTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
   results.add<FoldCopyToTensorType>(context);
 }
 
-void SemaphoreBirthOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                                   MLIRContext *context) {
-  results.add<FoldSemaphoreBirthType>(context);
+void SemaphoreTakeOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                                  MLIRContext *context) {
+  results.add<FoldSemaphoreTakeType>(context);
 }

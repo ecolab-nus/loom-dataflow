@@ -88,7 +88,7 @@ struct ReadBlockLoadingLowering
       // Fallback: This should ideally not happen with centralized management
       OpBuilder semBuilder(rewriter.getContext());
       semBuilder.setInsertionPoint(op);
-      semaphore = semBuilder.create<loom::SemaphoreBirthOp>(
+      semaphore = semBuilder.create<loom::SemaphoreTakeOp>(
           loc, cast<MemRefType>(allocVal.getType()), allocVal);
     }
 
@@ -145,15 +145,15 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
         loom::CopyFromTensorOp::create(rewriter, loc, toBufferOp.getTensor(),
                                        loomSubviewOp.getResult(), nullptr);
 
-    // 3. Move semaphore_death if it exists
+    // 3. Move semaphore_give if it exists
     Value srcTensor = toBufferOp.getTensor();
     auto vbIt = tensorToVBIdMap.find(srcTensor);
     if (vbIt != tensorToVBIdMap.end()) {
       Value semaphore = vbIdToSemaphoreMap.lookup(vbIt->second);
       if (semaphore) {
-        // Look for the death op of this semaphore
+        // Look for the give op of this semaphore
         for (Operation *user : semaphore.getUsers()) {
-          if (isa<loom::SemaphoreDeathOp>(user)) {
+          if (isa<loom::SemaphoreGiveOp>(user)) {
             user->moveAfter(copyFromTensorOp);
           }
         }
@@ -185,9 +185,9 @@ public:
   void run() {
     resolveBucketScopes();
     materializePhysicalBuffers();
-    manageSemaphoreBirths();
+    manageSemaphoreTakes();
     anchorVirtualBuffers();
-    manageSemaphoreDeaths();
+    manageSemaphoreGives();
     applyPatternRewrites();
   }
 
@@ -217,7 +217,7 @@ private:
         continue;
       }
       // See through semaphore to find the underlying alloc
-      if (auto semOp = current.getDefiningOp<loom::SemaphoreBirthOp>()) {
+      if (auto semOp = current.getDefiningOp<loom::SemaphoreTakeOp>()) {
         current = semOp.getSource();
         continue;
       }
@@ -284,7 +284,7 @@ private:
     return initOp.getResult();
   }
 
-  void manageSemaphoreBirths() {
+  void manageSemaphoreTakes() {
     for (const auto &[sig, bucket] : analysisCtx.getBuckets()) {
       for (const auto &vb : bucket.virtualBuffers) {
         if (vb->members.empty())
@@ -294,7 +294,7 @@ private:
         if (!allocVal)
           continue;
 
-        // 1. Determine Birth Ops
+        // 1. Determine Take Ops
         int birthIdx = vb->liveness.birth;
         Operation *birthOp = analysisCtx.getOpFromIndex(birthIdx);
 
@@ -304,17 +304,17 @@ private:
         OpBuilder builder(context);
         Location loc = birthOp->getLoc();
 
-        // Step 1: Birth Insertion
+        // Step 1: Take Insertion
         builder.setInsertionPointAfter(allocVal.getDefiningOp());
         auto memrefType = cast<MemRefType>(allocVal.getType());
         Value semaphore =
-            builder.create<loom::SemaphoreBirthOp>(loc, memrefType, allocVal);
+            builder.create<loom::SemaphoreTakeOp>(loc, memrefType, allocVal);
         vbIdToSemaphoreMap[vb->id] = semaphore;
       }
     }
   }
 
-  void manageSemaphoreDeaths() {
+  void manageSemaphoreGives() {
     for (const auto &[sig, bucket] : analysisCtx.getBuckets()) {
       for (const auto &vb : bucket.virtualBuffers) {
         if (vb->members.empty())
@@ -324,7 +324,7 @@ private:
         if (!semaphore)
           continue;
 
-        // 2. Determine Death Ops
+        // 2. Determine Give Ops
         int deathIdx = vb->liveness.death;
         Operation *deathOp = analysisCtx.getOpFromIndex(deathIdx);
 
@@ -333,7 +333,7 @@ private:
 
         Location loc = deathOp->getLoc();
 
-        // Step 2: Death Insertion
+        // Step 2: Give Insertion
         Operation *insertionPoint = deathOp;
         bool insertAfter = true;
 
@@ -360,7 +360,7 @@ private:
           deathBuilder.setInsertionPoint(insertionPoint);
         }
 
-        deathBuilder.create<loom::SemaphoreDeathOp>(loc, semaphore);
+        deathBuilder.create<loom::SemaphoreGiveOp>(loc, semaphore);
       }
     }
   }
