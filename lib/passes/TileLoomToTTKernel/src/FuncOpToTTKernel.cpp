@@ -24,6 +24,7 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 
@@ -45,6 +46,9 @@ using namespace tt::ttkernel;
 //===----------------------------------------------------------------------===//
 
 namespace {
+
+constexpr llvm::StringLiteral kReductionScaleCbAttrName =
+    "loom.reduction_scale_cb";
 
 static Value stripMemrefCasts(Value value) {
   Value current = value;
@@ -120,6 +124,116 @@ static LogicalResult inferArgToCBMemrefType(
   return status;
 }
 
+static bool isReductionGenericWithoutScaleInput(linalg::GenericOp op) {
+  if (op.getNumDpsInputs() != 1 || op.getNumDpsInits() != 1)
+    return false;
+  return llvm::any_of(op.getIteratorTypesArray(), [](utils::IteratorType type) {
+    return type == utils::IteratorType::reduction;
+  });
+}
+
+static SymbolRefAttr findL1MemorySymbol(func::FuncOp func) {
+  SymbolRefAttr l1Memory;
+  func.walk([&](::loom::AllocOp alloc) {
+    if (l1Memory)
+      return;
+    l1Memory = alloc.getMemoryAttr();
+  });
+  if (!l1Memory)
+    l1Memory = SymbolRefAttr::get(func.getContext(), "L1");
+  return l1Memory;
+}
+
+static Value getOrCreateReductionScaleSemaphore(
+    func::FuncOp func, MemRefType scaleType, SymbolRefAttr l1Memory,
+    llvm::DenseMap<Type, Value> &cache) {
+  auto cached = cache.find(scaleType);
+  if (cached != cache.end())
+    return cached->second;
+
+  Value existing;
+  func.walk([&](::loom::SemaphoreTakeOp sem) {
+    if (existing || !sem->hasAttr(kReductionScaleCbAttrName))
+      return;
+    auto semType = dyn_cast<MemRefType>(sem.getResult().getType());
+    if (!semType || semType != scaleType)
+      return;
+    existing = sem.getResult();
+  });
+  if (existing) {
+    cache.try_emplace(scaleType, existing);
+    return existing;
+  }
+
+  OpBuilder builder(func.getContext());
+  builder.setInsertionPointToStart(&func.front());
+  auto loc = func.getLoc();
+  SmallVector<int64_t, 4> scaleShape(scaleType.getShape().begin(),
+                                     scaleType.getShape().end());
+  auto alloc = builder.create<::loom::AllocOp>(
+      loc, scaleType, ValueRange{}, builder.getDenseI64ArrayAttr(scaleShape),
+      IntegerAttr{}, builder.getI64IntegerAttr(1), l1Memory);
+  auto sem = builder.create<::loom::SemaphoreTakeOp>(loc, scaleType,
+                                                      alloc.getResult());
+  sem->setAttr(kReductionScaleCbAttrName, builder.getUnitAttr());
+  cache.try_emplace(scaleType, sem.getResult());
+  return sem.getResult();
+}
+
+static LogicalResult rewriteReductionGenericWithScale(linalg::GenericOp op,
+                                                      Value scaleInput) {
+  auto scaleType = dyn_cast<ShapedType>(scaleInput.getType());
+  if (!scaleType)
+    return failure();
+
+  unsigned oldNumInputs = op.getNumDpsInputs();
+  unsigned oldNumOutputs = op.getNumDpsInits();
+
+  SmallVector<AffineMap, 6> newIndexingMaps;
+  auto oldMaps = op.getIndexingMapsArray();
+  if (oldMaps.size() != oldNumInputs + oldNumOutputs)
+    return failure();
+  newIndexingMaps.append(oldMaps.begin(), oldMaps.begin() + oldNumInputs);
+  newIndexingMaps.push_back(oldMaps[oldNumInputs]);
+  newIndexingMaps.append(oldMaps.begin() + oldNumInputs, oldMaps.end());
+
+  Block &body = op.getRegion().front();
+  body.insertArgument(oldNumInputs, scaleType.getElementType(), op.getLoc());
+  op->insertOperands(oldNumInputs, scaleInput);
+
+  OpBuilder builder(op);
+  op.setIndexingMapsAttr(builder.getAffineMapArrayAttr(newIndexingMaps));
+  op->setAttr(
+      "operandSegmentSizes",
+      builder.getDenseI32ArrayAttr(
+          {static_cast<int32_t>(oldNumInputs + 1),
+           static_cast<int32_t>(oldNumOutputs)}));
+  return success();
+}
+
+static void ensureReductionScaleInputs(func::FuncOp func) {
+  SmallVector<linalg::GenericOp, 8> targets;
+  func.walk([&](linalg::GenericOp genericOp) {
+    if (isReductionGenericWithoutScaleInput(genericOp))
+      targets.push_back(genericOp);
+  });
+  if (targets.empty())
+    return;
+
+  SymbolRefAttr l1Memory = findL1MemorySymbol(func);
+  llvm::DenseMap<Type, Value> scaleSemaphoresByType;
+
+  for (linalg::GenericOp genericOp : targets) {
+    auto outputType = dyn_cast<MemRefType>(genericOp.getDpsInits()[0].getType());
+    if (!outputType)
+      continue;
+
+    Value scaleSemaphore = getOrCreateReductionScaleSemaphore(
+        func, outputType, l1Memory, scaleSemaphoresByType);
+    (void)rewriteReductionGenericWithScale(genericOp, scaleSemaphore);
+  }
+}
+
 } // namespace
 
 LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
@@ -138,8 +252,6 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
           func->getAttrOfType<ThreadTypeAttr>(ThreadTypeAttr::name)) {
     isComputeKernel = threadAttr.getValue() == ThreadType::Compute;
   }
-  bool isReaderKernel = func.getName().ends_with("reader");
-
 
   // Save insertion point and set to start of function body.
   OpBuilder::InsertionGuard guard(rewriter);
@@ -1468,6 +1580,10 @@ void mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
     // Skip external/declaration-only functions
     if (func.isExternal())
       continue;
+
+    // Ensure every reduction generic has a dedicated scaler semaphore input.
+    // This avoids reusing reduction outputs as scaler CBs during compute lowering.
+    ensureReductionScaleInputs(func);
 
     // Create specialized versions
     FunctionSpecializer specializer(module, func);

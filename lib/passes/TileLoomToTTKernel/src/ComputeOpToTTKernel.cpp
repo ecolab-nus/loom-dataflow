@@ -378,12 +378,22 @@ template <typename BuilderFn>
 static LogicalResult emitElementwiseTiles(
     ConversionPatternRewriter &rewriter, Location loc, Value outCb, int64_t outTiles,
     BuilderFn &&builder) {
-  for (int64_t i = 0; i < outTiles; ++i) {
+  Value zeroI32 = i32Const(rewriter, loc, 0);
+  Value oneI32 = i32Const(rewriter, loc, 1);
+  Value outTilesV = i32Const(rewriter, loc, outTiles);
+  scf::ForOp tileLoop =
+      scf::ForOp::create(rewriter, loc, zeroI32, outTilesV, oneI32);
+  {
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(tileLoop.getBody());
+    Value tileIdx = tileLoop.getInductionVar();
+
     TileRegsAcquireOp::create(rewriter, loc);
-    if (failed(builder(i)))
+    if (failed(builder(tileIdx)))
       return failure();
-    PackTileOp::create(rewriter, loc, i32Const(rewriter, loc, 0), outCb,
-                       i32Const(rewriter, loc, i));
+    TileRegsCommitOp::create(rewriter, loc);
+    TileRegsWaitOp::create(rewriter, loc);
+    PackTileOp::create(rewriter, loc, zeroI32, outCb, tileIdx);
     TileRegsReleaseOp::create(rewriter, loc);
   }
   return success();
@@ -573,7 +583,6 @@ static LogicalResult emitElementwiseExprToReg(
       rewriter.create<UnaryBcastTileOp>(loc, adaptor.getInputs()[*inputIdx],
                                         *rowIdx, dstRegVal, BcastType::Col);
     } else {
-      rewriter.create<CopyTileInitOp>(loc, adaptor.getInputs()[*inputIdx]);
       rewriter.create<CopyTileOp>(loc, adaptor.getInputs()[*inputIdx], tileIdx,
                                   dstRegVal);
     }
@@ -693,8 +702,7 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
                                           linalg::GenericOp::Adaptor adaptor,
                                           ConversionPatternRewriter &rewriter,
                                           llvm::DenseMap<Value, int64_t> &waitState) {
-  if ((adaptor.getInputs().size() != 1 && adaptor.getInputs().size() != 2) ||
-      adaptor.getOutputs().size() != 1)
+  if (adaptor.getInputs().size() != 2 || adaptor.getOutputs().size() != 1)
     return failure();
 
   ReduceType reduceType;
@@ -707,9 +715,8 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
   }
 
   Value inCb = adaptor.getInputs()[0];
-  Value scaleCb =
-      adaptor.getInputs().size() == 2 ? adaptor.getInputs()[1] : inCb;
   Value outCb = adaptor.getOutputs()[0];
+  Value scaleCb = adaptor.getInputs()[1];
   if (!isa<CBType>(inCb.getType()) || !isa<CBType>(scaleCb.getType()) ||
       !isa<CBType>(outCb.getType()))
     return failure();
@@ -733,11 +740,11 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
   Location loc = op.getLoc();
   Value outTilesV = i32Const(rewriter, loc, rows);
   Value zeroI32 = i32Const(rewriter, loc, 0);
+  Value oneI32 = i32Const(rewriter, loc, 1);
 
   SmallVector<std::tuple<Value, Value, int64_t>, 2> inputPlans;
   inputPlans.emplace_back(inCb, op.getDpsInputs()[0], numTiles);
-  if (adaptor.getInputs().size() == 2)
-    inputPlans.emplace_back(scaleCb, op.getDpsInputs()[1], 1);
+  inputPlans.emplace_back(scaleCb, op.getDpsInputs()[1], 1);
 
   for (const auto &plan : inputPlans) {
     Value inputCb = std::get<0>(plan);
@@ -747,18 +754,36 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
 
   CBReserveBackOp::create(rewriter, loc, outCb, outTilesV);
 
-  for (int64_t i = 0; i < rows; ++i) {
+  Value rowsV = i32Const(rewriter, loc, rows);
+  Value colsV = i32Const(rewriter, loc, cols);
+  scf::ForOp rowLoop =
+      scf::ForOp::create(rewriter, loc, zeroI32, rowsV, oneI32);
+  {
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(rowLoop.getBody());
+
+    Value rowIdx = rowLoop.getInductionVar();
     TileRegsAcquireOp::create(rewriter, loc);
     rewriter.create<ReduceInitOp>(loc, inCb, scaleCb, outCb, reduceType,
                                   ReduceDim::Row);
-    for (int64_t j = 0; j < cols; ++j) {
-      int64_t inTile = i * cols + j;
-      rewriter.create<ReduceTileOp>(loc, inCb, scaleCb,
-                                    i32Const(rewriter, loc, inTile), zeroI32,
+
+    Value rowOffset = rewriter.create<arith::MulIOp>(loc, rowIdx, colsV);
+    scf::ForOp colLoop =
+        scf::ForOp::create(rewriter, loc, zeroI32, colsV, oneI32);
+    {
+      OpBuilder::InsertionGuard innerGuard(rewriter);
+      rewriter.setInsertionPointToStart(colLoop.getBody());
+      Value colIdx = colLoop.getInductionVar();
+      Value inTile = rewriter.create<arith::AddIOp>(loc, rowOffset, colIdx);
+      rewriter.create<ReduceTileOp>(loc, inCb, scaleCb, inTile, zeroI32,
                                     zeroI32, reduceType, ReduceDim::Row);
     }
+
+    rewriter.setInsertionPointAfter(colLoop);
     rewriter.create<ReduceUninitOp>(loc);
-    PackTileOp::create(rewriter, loc, zeroI32, outCb, i32Const(rewriter, loc, i));
+    TileRegsCommitOp::create(rewriter, loc);
+    TileRegsWaitOp::create(rewriter, loc);
+    PackTileOp::create(rewriter, loc, zeroI32, outCb, rowIdx);
     TileRegsReleaseOp::create(rewriter, loc);
   }
 
@@ -807,7 +832,21 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
     CBReserveBackOp::create(rewriter, loc, outCb,
                             i32Const(rewriter, loc, analysis.outTiles));
 
-  rewriter.create<InitSFPUOp>(loc, outCb, outCb);
+  Value inCbForInit = outCb;
+  for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
+    if (analysis.usedInputs.test(idx)) {
+      inCbForInit = inputCb;
+      break;
+    }
+  }
+  rewriter.create<InitSFPUOp>(loc, inCbForInit, outCb);
+  for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
+    if (!analysis.usedInputs.test(idx))
+      continue;
+    if (analysis.rowBcastInput && idx == *analysis.rowBcastInput)
+      continue;
+    rewriter.create<CopyTileInitOp>(loc, inputCb);
+  }
   if (analysis.needsBinopWithScalar)
     rewriter.create<BinopWithScalarTileInitOp>(loc);
   if (analysis.needsUnaryBcast) {
@@ -837,13 +876,13 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
     rewriter.create<RecipTileInitOp>(loc);
 
   LogicalResult result = emitElementwiseTiles(
-      rewriter, loc, outCb, analysis.outTiles, [&](int64_t tile) -> LogicalResult {
-        Value tileIdx = i32Const(rewriter, loc, tile);
+      rewriter, loc, outCb, analysis.outTiles, [&](Value tileIdx) -> LogicalResult {
         std::optional<Value> rowIdx;
         if (analysis.rowBcastInput) {
           if (!analysis.colTiles || *analysis.colTiles <= 0)
             return failure();
-          rowIdx = i32Const(rewriter, loc, tile / *analysis.colTiles);
+          Value colTiles = i32Const(rewriter, loc, *analysis.colTiles);
+          rowIdx = rewriter.create<arith::DivUIOp>(loc, tileIdx, colTiles);
         }
         return emitElementwiseExprToReg(
             analysis.yieldValue, /*dstReg=*/0, /*tmpRegA=*/1, /*tmpRegB=*/2, op,

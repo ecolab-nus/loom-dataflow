@@ -42,6 +42,9 @@ using namespace tt::ttcore;
 // Helper Functions
 //===----------------------------------------------------------------------===//
 
+constexpr llvm::StringLiteral kReductionScaleCbAttrName =
+    "loom.reduction_scale_cb";
+
 /**
  * @brief Compute ceiling division of a dimension by the tile size (32).
  *
@@ -99,6 +102,39 @@ static bool isComputeKernel(Operation *op) {
   auto threadAttr =
       parentFunc->getAttrOfType<ThreadTypeAttr>(ThreadTypeAttr::name);
   return threadAttr && threadAttr.getValue() == ThreadType::Compute;
+}
+
+static bool isWriterKernel(Operation *op) {
+  auto parentFunc = op->getParentOfType<func::FuncOp>();
+  if (!parentFunc)
+    return false;
+  StringRef name = parentFunc.getName();
+  return name.ends_with("__writer");
+}
+
+static void emitReductionScaleCbInit(ConversionPatternRewriter &rewriter,
+                                     Location loc, Value cb) {
+  Value zero = rewriter.create<arith::ConstantIntOp>(loc, 0, 32);
+  Value one = rewriter.create<arith::ConstantIntOp>(loc, 1, 32);
+  Value four = rewriter.create<arith::ConstantIntOp>(loc, 4, 32);
+  Value packedFp16One =
+      rewriter.create<arith::ConstantIntOp>(loc, 0x3c003c00, 32);
+
+  CBReserveBackOp::create(rewriter, loc, cb, one);
+  Value writePtr = GetWritePtrOp::create(rewriter, loc, cb);
+  Value l1Ptr = CastToL1PtrOp::create(rewriter, loc, writePtr);
+  Value tileSizeBytes = GetTileSizeOp::create(rewriter, loc, cb);
+  Value wordCount = rewriter.create<arith::DivSIOp>(loc, tileSizeBytes, four);
+
+  scf::ForOp fillLoop = scf::ForOp::create(rewriter, loc, zero, wordCount, one);
+  {
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(fillLoop.getBody());
+    Value wordOffset = fillLoop.getInductionVar();
+    StoreToL1Op::create(rewriter, loc, packedFp16One, l1Ptr, wordOffset);
+  }
+
+  CBPushBackOp::create(rewriter, loc, cb, one);
 }
 
 /**
@@ -668,10 +704,14 @@ struct ConvertLoomSemaphoreTakeOp
   LogicalResult
   matchAndRewrite(::loom::SemaphoreTakeOp op, OpAdaptor /*adaptor*/,
                   ConversionPatternRewriter &rewriter) const override {
+    bool isReductionScaleCb = op->hasAttr(kReductionScaleCbAttrName);
+    bool isDataMovementScaleInitTarget =
+        isReductionScaleCb && isWriterKernel(op);
+
     // semaphore_take participates in CB handle materialization only for
     // compute kernels. In reader/writer/host kernels, keep the underlying
     // memref flow so loom.copy rewrites can consume it and erase the op.
-    if (!isComputeKernel(op)) {
+    if (!isComputeKernel(op) && !isDataMovementScaleInitTarget) {
       rewriter.replaceOp(op, op.getSource());
       return success();
     }
@@ -716,6 +756,9 @@ struct ConvertLoomSemaphoreTakeOp
              << expectedCBType << " but got " << cb.getType();
       });
     }
+
+    if (isDataMovementScaleInitTarget)
+      emitReductionScaleCbInit(rewriter, loc, cb);
 
     rewriter.replaceOp(op, cb);
     return success();
