@@ -144,6 +144,18 @@ static SymbolRefAttr findL1MemorySymbol(func::FuncOp func) {
   return l1Memory;
 }
 
+static Block *findReductionScaleInsertionBlock(func::FuncOp func) {
+  scf::ParallelOp targetParallel;
+  func.walk([&](scf::ParallelOp parallelOp) {
+    if (targetParallel)
+      return;
+    targetParallel = parallelOp;
+  });
+  if (targetParallel)
+    return targetParallel.getBody();
+  return &func.front();
+}
+
 static Value getOrCreateReductionScaleSemaphore(
     func::FuncOp func, MemRefType scaleType, SymbolRefAttr l1Memory,
     llvm::DenseMap<Type, Value> &cache) {
@@ -166,7 +178,7 @@ static Value getOrCreateReductionScaleSemaphore(
   }
 
   OpBuilder builder(func.getContext());
-  builder.setInsertionPointToStart(&func.front());
+  builder.setInsertionPointToStart(findReductionScaleInsertionBlock(func));
   auto loc = func.getLoc();
   SmallVector<int64_t, 4> scaleShape(scaleType.getShape().begin(),
                                      scaleType.getShape().end());

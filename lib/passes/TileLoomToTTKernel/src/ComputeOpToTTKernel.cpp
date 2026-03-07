@@ -1121,17 +1121,26 @@ public:
       }
     }
 
-    CBReserveBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *numTiles));
+    Value zeroI32 = i32Const(rewriter, loc, 0);
+    Value oneI32 = i32Const(rewriter, loc, 1);
+    Value numTilesV = i32Const(rewriter, loc, *numTiles);
+    CBReserveBackOp::create(rewriter, loc, outCb, numTilesV);
     rewriter.create<InitSFPUOp>(loc, outCb, outCb);
     rewriter.create<FillTileInitOp>(loc);
-    for (int64_t i = 0; i < *numTiles; ++i) {
+
+    scf::ForOp fillLoop =
+        scf::ForOp::create(rewriter, loc, zeroI32, numTilesV, oneI32);
+    {
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPointToStart(fillLoop.getBody());
+      Value tileIdx = fillLoop.getInductionVar();
       TileRegsAcquireOp::create(rewriter, loc);
-      rewriter.create<FillTileOp>(loc, i32Const(rewriter, loc, 0), fillValue);
-      PackTileOp::create(rewriter, loc, i32Const(rewriter, loc, 0), outCb,
-                         i32Const(rewriter, loc, i));
+      rewriter.create<FillTileOp>(loc, zeroI32, fillValue);
+      PackTileOp::create(rewriter, loc, zeroI32, outCb, tileIdx);
       TileRegsReleaseOp::create(rewriter, loc);
     }
-    CBPushBackOp::create(rewriter, loc, outCb, i32Const(rewriter, loc, *numTiles));
+
+    CBPushBackOp::create(rewriter, loc, outCb, numTilesV);
     rewriter.eraseOp(op);
     return success();
   }
