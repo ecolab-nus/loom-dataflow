@@ -1,13 +1,23 @@
-#include "StagedETG.h"
+#include "staged_etg_builder.h"
+#include "lcs_utils.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/JSON.h"
+#define GET_OP_CLASSES
+#include "LoomOps.h.inc"
 
 namespace loom {
 namespace lcs {
+
+// ==========================================
+// Workload
+// ==========================================
+llvm::json::Value Workload::toJSON() const {
+  return llvm::json::Object{{"op", op}, {"dims", dims}};
+}
 
 // ==========================================
 // HardwareQueue
@@ -19,18 +29,20 @@ void HardwareQueue::dump(llvm::raw_ostream &os, int indent) const {
     return;
   }
   os << "\n";
-  for (const auto &label : workloads) {
-    os.indent(indent + 2) << "└─ " << label << "\n";
+  for (const auto &workload : workloads) {
+    os.indent(indent + 2) << "└─ " << workload.op << " [" << workload.dims
+                          << "]\n";
   }
 }
 
 llvm::json::Value HardwareQueue::toJSON() const {
   llvm::json::Array workloads_json;
-  for (const auto &label : workloads) {
-    workloads_json.push_back(label);
+  for (const auto &workload : workloads) {
+    workloads_json.push_back(workload.toJSON());
   }
   return llvm::json::Object{{"unit_name", unit_name},
-                            {"workloads", std::move(workloads_json)}};
+                            {"workloads", std::move(workloads_json)},
+                            {"resolved_time", nullptr}};
 }
 
 // ==========================================
@@ -38,12 +50,12 @@ llvm::json::Value HardwareQueue::toJSON() const {
 // ==========================================
 Stage::Stage(int id) : stage_id(id) {}
 
-void Stage::pushWorkload(const std::string &unit_name,
-                         const std::string &label) {
+void Stage::pushWorkload(const std::string &unit_name, const std::string &op,
+                         const std::string &dims) {
   if (queues.find(unit_name) == queues.end()) {
-    queues[unit_name] = HardwareQueue{unit_name, {}};
+    queues[unit_name] = HardwareQueue{unit_name, {}, std::nullopt};
   }
-  queues[unit_name].workloads.push_back(label);
+  queues[unit_name].workloads.push_back(Workload{op, dims});
 }
 
 void Stage::dump(llvm::raw_ostream &os, int indent) const {
@@ -59,6 +71,7 @@ llvm::json::Value Stage::toJSON() const {
     queues_json[name] = queue.toJSON();
   }
   return llvm::json::Object{{"stage_id", stage_id},
+                            {"stage_time", stage_time},
                             {"queues", std::move(queues_json)}};
 }
 
@@ -87,11 +100,12 @@ llvm::json::Value Scope::toJSON() const {
     stages_json.push_back(pair.second.toJSON());
   }
   return llvm::json::Object{{"scope_name", scope_name},
+                            {"scope_time", scope_time},
                             {"stages", std::move(stages_json)}};
 }
 
 // ==========================================
-// VariantETG
+// VariantETG Builder
 // ==========================================
 VariantETG::VariantETG(llvm::StringRef name)
     : variant_name(name.str()), compute_scope("ComputeScope"),
@@ -149,18 +163,30 @@ void VariantETG::dispatchToComputeQueues(mlir::Operation *op,
                                          Stage &target_stage) {
   // FPU: Matmul, BatchMatmul
   if (llvm::isa<mlir::linalg::BatchMatmulOp, mlir::linalg::MatmulOp>(op)) {
-    target_stage.pushWorkload("FPU", op->getName().getStringRef().str());
+    auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
+    llvm::SmallVector<std::string> inputDims;
+    for (mlir::Value input : linalgOp.getDpsInputs()) {
+      inputDims.push_back(traceAllocDimsFromTensor(input));
+    }
+    std::string dims = llvm::join(inputDims, ", ");
+    target_stage.pushWorkload("FPU", op->getName().getStringRef().str(), dims);
     return;
   }
 
   // SFPU: generic body's arith/math ops
   if (auto generic_op = llvm::dyn_cast<mlir::linalg::GenericOp>(op)) {
+    std::string dims = "";
+    auto inits = generic_op.getDpsInits();
+    if (!inits.empty()) {
+      dims = traceAllocDimsFromTensor(inits[0]);
+    }
     generic_op.getBody()->walk([&](mlir::Operation *inner_op) {
       auto *dialect = inner_op->getDialect();
       if (dialect && (llvm::isa<mlir::arith::ArithDialect>(dialect) ||
                       llvm::isa<mlir::math::MathDialect>(dialect))) {
         target_stage.pushWorkload("SFPU",
-                                  inner_op->getName().getStringRef().str());
+                                  inner_op->getName().getStringRef().str(),
+                                  dims);
       }
     });
     return;
@@ -196,13 +222,19 @@ std::string VariantETG::classifyCopyTransfer(mlir::Operation *op) {
 void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
                                         Stage &target_stage) {
   std::string label = classifyCopyTransfer(op);
+  std::string dims = "";
+  if (auto copyOp = llvm::dyn_cast<loom::CopyToTensorOp>(op)) {
+    if (auto allocOp = traceToAlloc(copyOp.getBuffer())) {
+      dims = formatAllocDims(allocOp);
+    }
+  }
   if (label == "d" || label == "a") {
-    target_stage.pushWorkload("NoC_H", label);
-    target_stage.pushWorkload("NoC_V", label);
+    target_stage.pushWorkload("NoC_H", label, dims);
+    target_stage.pushWorkload("NoC_V", label, dims);
   } else if (label == "h") {
-    target_stage.pushWorkload("NoC_H", label);
+    target_stage.pushWorkload("NoC_H", label, dims);
   } else if (label == "v") {
-    target_stage.pushWorkload("NoC_V", label);
+    target_stage.pushWorkload("NoC_V", label, dims);
   }
 }
 

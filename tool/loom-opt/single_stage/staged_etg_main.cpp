@@ -1,4 +1,4 @@
-#include "StagedETG.h"
+#include "staged_etg_builder.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
