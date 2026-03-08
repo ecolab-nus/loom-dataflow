@@ -1136,6 +1136,8 @@ public:
       Value tileIdx = fillLoop.getInductionVar();
       TileRegsAcquireOp::create(rewriter, loc);
       rewriter.create<FillTileOp>(loc, zeroI32, fillValue);
+      TileRegsCommitOp::create(rewriter, loc);
+      TileRegsWaitOp::create(rewriter, loc);
       PackTileOp::create(rewriter, loc, zeroI32, outCb, tileIdx);
       TileRegsReleaseOp::create(rewriter, loc);
     }
