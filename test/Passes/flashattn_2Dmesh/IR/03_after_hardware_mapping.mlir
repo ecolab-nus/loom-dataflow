@@ -23,7 +23,7 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BN : index
       affine.parallel (%arg4) = (0) to (8) {
         affine.parallel (%arg5) = (0) to (8) {
-          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (((32 ceildiv s0) ceildiv 8) ceildiv 8)>()[%12, %13] {
+          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (32 ceildiv (s0 * 64))>()[%12, %13] {
             affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg4, %arg5, %arg6)
               %16 = loom.alloc [%12, %14, 128] on @L1 : memref<?x?x128xf32>
@@ -163,7 +163,7 @@ module {
       affine.parallel (%arg4) = (0) to (8) {
         affine.parallel (%arg5) = (0) to (8) {
           affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%12, %13] {
-            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (((32 ceildiv s0) ceildiv 8) ceildiv 8)>()[%12, %13] {
+            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (32 ceildiv (s0 * 64))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg4, %arg5, %arg7)
               %16 = loom.alloc [%12, %14, 128] on @L1 : memref<?x?x128xf32>
               %17 = loom.semaphore_take %16 : memref<?x?x128xf32> -> memref<?x?x128xf32>
@@ -301,7 +301,7 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BN : index
       affine.parallel (%arg4) = (0) to (8) {
         affine.parallel (%arg5) = (0) to (8) {
-          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (((32 ceildiv s0) ceildiv 8) ceildiv 8)>()[%12, %13] {
+          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (32 ceildiv (s0 * 64))>()[%12, %13] {
             affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg4, %arg5, %arg6)
               %16 = loom.alloc [%12, %14, 128] on @L1 : memref<?x?x128xf32>
@@ -441,7 +441,7 @@ module {
       affine.parallel (%arg4) = (0) to (8) {
         affine.parallel (%arg5) = (0) to (8) {
           affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%12, %13] {
-            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (((32 ceildiv s0) ceildiv 8) ceildiv 8)>()[%12, %13] {
+            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (32 ceildiv (s0 * 64))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg4, %arg5, %arg7)
               %16 = loom.alloc [%12, %14, 128] on @L1 : memref<?x?x128xf32>
               %17 = loom.semaphore_take %16 : memref<?x?x128xf32> -> memref<?x?x128xf32>
@@ -579,8 +579,8 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BN : index
       affine.parallel (%arg4) = (0) to (8) {
         affine.parallel (%arg5) = (0) to (8) {
-          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((32 ceildiv s0) ceildiv 8)>()[%12, %13] {
-            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> ((4096 ceildiv s1) ceildiv 8)>()[%12, %13] {
+          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (32 ceildiv (s0 * 8))>()[%12, %13] {
+            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %16 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg5, %arg7)
               %17 = loom.alloc [%12, %14, 128] on @L1 : memref<?x?x128xf32>
@@ -719,8 +719,8 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BN : index
       affine.parallel (%arg4) = (0) to (8) {
         affine.parallel (%arg5) = (0) to (8) {
-          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((4096 ceildiv s1) ceildiv 8)>()[%12, %13] {
-            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> ((32 ceildiv s0) ceildiv 8)>()[%12, %13] {
+          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%12, %13] {
+            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (32 ceildiv (s0 * 8))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg7)
               %16 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg5, %arg6)
               %17 = loom.alloc [%12, %14, 128] on @L1 : memref<?x?x128xf32>
@@ -859,8 +859,8 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BN : index
       affine.parallel (%arg4) = (0) to (8) {
         affine.parallel (%arg5) = (0) to (8) {
-          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((32 ceildiv s0) ceildiv 8)>()[%12, %13] {
-            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> ((4096 ceildiv s1) ceildiv 8)>()[%12, %13] {
+          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (32 ceildiv (s0 * 8))>()[%12, %13] {
+            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %16 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg5, %arg7)
               %17 = loom.alloc [%12, %14, 128] on @L1 : memref<?x?x128xf32>
@@ -999,8 +999,8 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BN : index
       affine.parallel (%arg4) = (0) to (8) {
         affine.parallel (%arg5) = (0) to (8) {
-          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((4096 ceildiv s1) ceildiv 8)>()[%12, %13] {
-            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> ((32 ceildiv s0) ceildiv 8)>()[%12, %13] {
+          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%12, %13] {
+            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (32 ceildiv (s0 * 8))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg7)
               %16 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg5, %arg6)
               %17 = loom.alloc [%12, %14, 128] on @L1 : memref<?x?x128xf32>
@@ -1140,7 +1140,7 @@ module {
       affine.parallel (%arg4) = (0) to (8) {
         affine.parallel (%arg5) = (0) to (8) {
           affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (32 ceildiv s0)>()[%12, %13] {
-            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (((4096 ceildiv s1) ceildiv 8) ceildiv 8)>()[%12, %13] {
+            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg4, %arg5, %arg7)
               %16 = loom.alloc [%12, %14, 128] on @L1 : memref<?x?x128xf32>
               %17 = loom.semaphore_take %16 : memref<?x?x128xf32> -> memref<?x?x128xf32>
@@ -1278,7 +1278,7 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BN : index
       affine.parallel (%arg4) = (0) to (8) {
         affine.parallel (%arg5) = (0) to (8) {
-          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (((4096 ceildiv s1) ceildiv 8) ceildiv 8)>()[%12, %13] {
+          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%12, %13] {
             affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (32 ceildiv s0)>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg4, %arg5, %arg6)
               %16 = loom.alloc [%12, %14, 128] on @L1 : memref<?x?x128xf32>
@@ -1418,7 +1418,7 @@ module {
       affine.parallel (%arg4) = (0) to (8) {
         affine.parallel (%arg5) = (0) to (8) {
           affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (32 ceildiv s0)>()[%12, %13] {
-            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (((4096 ceildiv s1) ceildiv 8) ceildiv 8)>()[%12, %13] {
+            affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg4, %arg5, %arg7)
               %16 = loom.alloc [%12, %14, 128] on @L1 : memref<?x?x128xf32>
               %17 = loom.semaphore_take %16 : memref<?x?x128xf32> -> memref<?x?x128xf32>
@@ -1556,7 +1556,7 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BN : index
       affine.parallel (%arg4) = (0) to (8) {
         affine.parallel (%arg5) = (0) to (8) {
-          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (((4096 ceildiv s1) ceildiv 8) ceildiv 8)>()[%12, %13] {
+          affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%12, %13] {
             affine.for %arg7 = 0 to affine_map<()[s0, s1] -> (32 ceildiv s0)>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg4, %arg5, %arg6)
               %16 = loom.alloc [%12, %14, 128] on @L1 : memref<?x?x128xf32>
