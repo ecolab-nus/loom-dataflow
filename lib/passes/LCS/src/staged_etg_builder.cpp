@@ -1,13 +1,20 @@
 #include "staged_etg_builder.h"
 #include "lcs_utils.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Math/IR/Math.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/JSON.h"
+#include <cassert>
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
+#include "LoomEnums.h.inc"
+#define GET_ATTRDEF_CLASSES
+#include "LoomAttributes.h.inc"
 
 namespace loom {
 namespace lcs {
@@ -102,6 +109,60 @@ llvm::json::Value Scope::toJSON() const {
   return llvm::json::Object{{"scope_name", scope_name},
                             {"scope_time", scope_time},
                             {"stages", std::move(stages_json)}};
+}
+
+// ==========================================
+// ConstraintScope
+// ==========================================
+llvm::json::Value ConstraintScope::toJSON() const {
+  // Build symbols JSON object
+  llvm::json::Object symbols_json;
+  for (const auto &[name, type] : symbols) {
+    symbols_json[name] = type;
+  }
+
+  // Build temp_iter JSON array
+  llvm::json::Array temp_iter_json;
+  for (const auto &t : temp_iter) {
+    temp_iter_json.push_back(t);
+  }
+
+  // Build iter_num JSON object
+  llvm::json::Object iter_num_json;
+  iter_num_json["seq_iter"] = seq_iter;
+  iter_num_json["temp_iter"] = std::move(temp_iter_json);
+
+  // Build L1_footprint JSON array
+  llvm::json::Array footprint_json;
+  for (const auto &term : l1_footprint) {
+    footprint_json.push_back(term);
+  }
+
+  // Build metadata JSON object
+  llvm::json::Object metadata_json;
+  metadata_json["symbols"] = std::move(symbols_json);
+  metadata_json["L1_footprint"] = std::move(footprint_json);
+  metadata_json["datatype"] = datatype;
+  metadata_json["iter_num"] = std::move(iter_num_json);
+
+  // Build hard_constraints JSON array (empty)
+  llvm::json::Array hard_constraints_json;
+
+  // Build assembly JSON object with fixed formulas
+  llvm::json::Object assembly_json;
+  assembly_json["T_comp"] = "SUM($.comp_scope.stages[*].stage_time)";
+  assembly_json["T_mem"] = "SUM($.mem_scope.stages[*].stage_time)";
+  assembly_json["T_seq"] =
+      "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)";
+  assembly_json["T_temp"] =
+      "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq";
+  assembly_json["T_total"] =
+      "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp";
+
+  // Build final ConstraintScope JSON object
+  return llvm::json::Object{{"metadata", std::move(metadata_json)},
+                            {"hard_constraints", std::move(hard_constraints_json)},
+                            {"assembly", std::move(assembly_json)}};
 }
 
 // ==========================================
@@ -238,6 +299,61 @@ void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
   }
 }
 
+void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
+  // 1. Collect symbols from loom.get_symbolic_block_size ops
+  constraint_scope.symbols["is_double_buffer"] = "bool";
+  func_op.walk([&](loom::GetSymbolicBlockSizeOp op) {
+    std::string name = op.getSymbolRef().getLeafReference().str();
+    constraint_scope.symbols[name] = "int";
+  });
+
+  // 2. Walk affine.for loops in the func, check iter_type attribute
+  func_op.walk([&](mlir::affine::AffineForOp forOp) {
+    auto iterAttr =
+        forOp->getAttrOfType<loom::IterTypeAttr>("loom.iter_type");
+    if (!iterAttr)
+      return;
+
+    std::string tripCount = extractLoopTripCount(forOp);
+    if (tripCount.empty())
+      return;
+
+    if (iterAttr.getValue() == loom::IterType::Sequential) {
+      constraint_scope.seq_iter = tripCount;
+    } else if (iterAttr.getValue() == loom::IterType::Temporal) {
+      constraint_scope.temp_iter.push_back(tripCount);
+    }
+  });
+
+  // 3. Collect L1 allocations for footprint and datatype
+  mlir::Type expectedElemType;
+  func_op.walk([&](loom::AllocOp allocOp) {
+    // Filter: only @L1 allocations
+    if (allocOp.getMemory().getLeafReference() != "L1")
+      return;
+
+    // Extract element type from the memref result type
+    auto memrefType =
+        mlir::cast<mlir::MemRefType>(allocOp.getResult().getType());
+    mlir::Type elemType = memrefType.getElementType();
+
+    // Guard: assert all @L1 allocs share the same element type
+    if (!expectedElemType) {
+      expectedElemType = elemType;
+      constraint_scope.datatype = formatElementType(elemType);
+    } else {
+      assert(elemType == expectedElemType &&
+             "All L1 allocations must have the same element type");
+    }
+
+    // Collect symbolic footprint for this alloc
+    std::string dims = formatAllocDims(allocOp);
+    if (!dims.empty()) {
+      constraint_scope.l1_footprint.push_back(dims);
+    }
+  });
+}
+
 void VariantETG::dump(llvm::raw_ostream &os) const {
   os << "Variant ETG: [" << variant_name << "]\n";
   compute_scope.dump(os, 0);
@@ -247,7 +363,8 @@ void VariantETG::dump(llvm::raw_ostream &os) const {
 llvm::json::Value VariantETG::toJSON() const {
   return llvm::json::Object{{"variant_name", variant_name},
                             {"compute_scope", compute_scope.toJSON()},
-                            {"memory_scope", memory_scope.toJSON()}};
+                            {"memory_scope", memory_scope.toJSON()},
+                            {"constraint_scope", constraint_scope.toJSON()}};
 }
 
 } // namespace lcs

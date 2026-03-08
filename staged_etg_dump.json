@@ -156,6 +156,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM",
+            "32 / BB / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -354,6 +393,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB / 8 / 8",
+            "4096 / BM"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -554,6 +632,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM",
+            "32 / BB / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -752,6 +869,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB / 8 / 8",
+            "4096 / BM"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -952,6 +1108,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8",
+            "32 / BB / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -1151,6 +1346,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8",
+            "32 / BB / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -1345,6 +1579,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8",
+            "32 / BB / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -1541,6 +1814,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8",
+            "32 / BB / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -1725,6 +2037,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB / 8",
+            "4096 / BM / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -1925,6 +2276,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB / 8",
+            "4096 / BM / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -2119,6 +2509,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB / 8",
+            "4096 / BM / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -2315,6 +2744,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB / 8",
+            "4096 / BM / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -2499,6 +2967,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8",
+            "32 / BB / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -2699,6 +3206,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8",
+            "32 / BB / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -2893,6 +3439,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8",
+            "32 / BB / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -3089,6 +3674,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8",
+            "32 / BB / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -3273,6 +3897,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB / 8",
+            "4096 / BM / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -3473,6 +4136,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB / 8",
+            "4096 / BM / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -3667,6 +4369,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB / 8",
+            "4096 / BM / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -3863,6 +4604,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB / 8",
+            "4096 / BM / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -4047,6 +4827,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -4247,6 +5066,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -4446,6 +5304,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -4641,6 +5538,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -4835,6 +5771,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -5035,6 +6010,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -5234,6 +6248,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -5428,6 +6481,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -5624,6 +6716,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -5818,6 +6949,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -6014,6 +7184,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -6198,6 +7407,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -6389,6 +7637,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -6585,6 +7872,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -6780,6 +8106,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -6971,6 +8336,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -7155,6 +8559,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -7355,6 +8798,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -7554,6 +9036,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -7749,6 +9270,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -7943,6 +9503,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -8143,6 +9742,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -8342,6 +9980,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -8536,6 +10213,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -8732,6 +10448,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -8926,6 +10681,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -9122,6 +10916,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -9306,6 +11139,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -9497,6 +11369,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -9693,6 +11604,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -9888,6 +11838,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -10079,6 +12068,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -10263,6 +12291,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -10463,6 +12530,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -10662,6 +12768,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -10857,6 +13002,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -11051,6 +13235,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -11251,6 +13474,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -11450,6 +13712,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -11644,6 +13945,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -11840,6 +14180,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -12034,6 +14413,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -12230,6 +14648,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -12414,6 +14871,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -12605,6 +15101,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -12801,6 +15336,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -12996,6 +15570,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -13187,6 +15800,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "4096 / BM / 8 / 8",
+            "32 / BB"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -13371,6 +16023,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -13571,6 +16262,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -13770,6 +16500,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -13965,6 +16734,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -14159,6 +16967,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -14359,6 +17206,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -14558,6 +17444,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -14752,6 +17677,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -14948,6 +17912,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -15142,6 +18145,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -15338,6 +18380,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -15522,6 +18603,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -15713,6 +18833,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",
@@ -15909,6 +19068,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -16104,6 +19302,45 @@
         }
       ]
     },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
+    },
     "memory_scope": {
       "scope_name": "MemoryScope",
       "scope_time": "SUM(.stages[*].stage_time)",
@@ -16294,6 +19531,45 @@
           "stage_time": "MAX(.queues[*].resolved_time)"
         }
       ]
+    },
+    "constraint_scope": {
+      "assembly": {
+        "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
+        "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
+        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+      },
+      "hard_constraints": [],
+      "metadata": {
+        "L1_footprint": [
+          "BB * BN * 128",
+          "BB * BM * BN",
+          "BB * 128 * BN",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM",
+          "BB * BM * 128",
+          "BB * BM * 128",
+          "BB * BM * 128"
+        ],
+        "datatype": "f32",
+        "iter_num": {
+          "seq_iter": "4096 / BN",
+          "temp_iter": [
+            "32 / BB",
+            "4096 / BM / 8 / 8"
+          ]
+        },
+        "symbols": {
+          "BB": "int",
+          "BM": "int",
+          "BN": "int",
+          "is_double_buffer": "bool"
+        }
+      }
     },
     "memory_scope": {
       "scope_name": "MemoryScope",

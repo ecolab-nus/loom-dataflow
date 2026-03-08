@@ -92,6 +92,7 @@ int main(int argc, char **argv) {
     if (target_loop) {
       VariantETG etg(func_op.getName());
       etg.buildFromAffineFor(target_loop);
+      etg.buildConstraintScope(func_op);
       json_etgs.push_back(etg.toJSON());
     }
   });
