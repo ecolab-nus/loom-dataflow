@@ -153,11 +153,11 @@ llvm::json::Value ConstraintScope::toJSON() const {
   assembly_json["T_comp"] = "SUM($.comp_scope.stages[*].stage_time)";
   assembly_json["T_mem"] = "SUM($.mem_scope.stages[*].stage_time)";
   assembly_json["T_seq"] =
-      "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)";
+      "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)";
   assembly_json["T_temp"] =
       "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq";
   assembly_json["T_total"] =
-      "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp";
+      "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp";
 
   // Build final ConstraintScope JSON object
   return llvm::json::Object{{"metadata", std::move(metadata_json)},

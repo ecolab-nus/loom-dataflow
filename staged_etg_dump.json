@@ -160,9 +160,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -398,9 +398,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -636,9 +636,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -874,9 +874,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -1112,9 +1112,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -1350,9 +1350,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -1584,9 +1584,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -1818,9 +1818,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -2042,9 +2042,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -2280,9 +2280,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -2514,9 +2514,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -2748,9 +2748,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -2972,9 +2972,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -3210,9 +3210,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -3444,9 +3444,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -3678,9 +3678,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -3902,9 +3902,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -4140,9 +4140,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -4374,9 +4374,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -4608,9 +4608,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -4832,9 +4832,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -5070,9 +5070,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -5308,9 +5308,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -5542,9 +5542,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -5776,9 +5776,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -6014,9 +6014,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -6252,9 +6252,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -6486,9 +6486,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -6720,9 +6720,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -6954,9 +6954,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -7188,9 +7188,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -7412,9 +7412,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -7642,9 +7642,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -7876,9 +7876,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -8110,9 +8110,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -8340,9 +8340,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -8564,9 +8564,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -8802,9 +8802,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -9040,9 +9040,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -9274,9 +9274,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -9508,9 +9508,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -9746,9 +9746,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -9984,9 +9984,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -10218,9 +10218,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -10452,9 +10452,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -10686,9 +10686,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -10920,9 +10920,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -11144,9 +11144,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -11374,9 +11374,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -11608,9 +11608,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -11842,9 +11842,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -12072,9 +12072,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -12296,9 +12296,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -12534,9 +12534,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -12772,9 +12772,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -13006,9 +13006,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -13240,9 +13240,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -13478,9 +13478,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -13716,9 +13716,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -13950,9 +13950,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -14184,9 +14184,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -14418,9 +14418,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -14652,9 +14652,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -14876,9 +14876,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -15106,9 +15106,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -15340,9 +15340,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -15574,9 +15574,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -15804,9 +15804,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -16028,9 +16028,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -16266,9 +16266,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -16504,9 +16504,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -16738,9 +16738,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -16972,9 +16972,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -17210,9 +17210,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -17448,9 +17448,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -17682,9 +17682,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -17916,9 +17916,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -18150,9 +18150,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -18384,9 +18384,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -18608,9 +18608,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -18838,9 +18838,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -19072,9 +19072,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -19306,9 +19306,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
@@ -19536,9 +19536,9 @@
       "assembly": {
         "T_comp": "SUM($.comp_scope.stages[*].stage_time)",
         "T_mem": "SUM($.mem_scope.stages[*].stage_time)",
-        "T_seq": "IF(is_double_buffer, Max(.T_comp, .T_mem), .T_comp + .T_mem)",
+        "T_seq": "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)",
         "T_temp": "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq",
-        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * T_temp"
+        "T_total": "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp"
       },
       "hard_constraints": [],
       "metadata": {
