@@ -225,6 +225,10 @@ std::string affineExprToSymbolicString(
     auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
     auto lhs = affineExprToSymbolicString(binExpr.getLHS(), symbolNames);
     auto rhs = affineExprToSymbolicString(binExpr.getRHS(), symbolNames);
+    // Wrap the denominator in parentheses when it is a product so that
+    // e.g.  "32 ceildiv (s0 * 64)"  is unambiguous.
+    if (binExpr.getRHS().getKind() == AffineExprKind::Mul)
+      return lhs + " / (" + rhs + ")";
     return lhs + " / " + rhs;
   }
   case AffineExprKind::Mod: {
@@ -235,6 +239,19 @@ std::string affineExprToSymbolicString(
   }
   }
   return "";
+}
+
+/// Count the number of CeilDiv nodes anywhere in an AffineExpr tree.
+static unsigned countCeilDivs(mlir::AffineExpr expr) {
+  if (!expr)
+    return 0;
+  if (expr.getKind() == mlir::AffineExprKind::CeilDiv) {
+    auto bin = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
+    return 1 + countCeilDivs(bin.getLHS()) + countCeilDivs(bin.getRHS());
+  }
+  if (auto bin = mlir::dyn_cast<mlir::AffineBinaryOpExpr>(expr))
+    return countCeilDivs(bin.getLHS()) + countCeilDivs(bin.getRHS());
+  return 0;
 }
 
 std::string extractLoopTripCount(mlir::affine::AffineForOp forOp) {
@@ -258,8 +275,13 @@ std::string extractLoopTripCount(mlir::affine::AffineForOp forOp) {
     symbolNames.push_back(std::string(symName));
   }
 
-  // Convert the result expression to symbolic string
+  // Expect at most one ceildiv after the flattening pass.
   auto resultExpr = upperBoundMap.getResult(0);
+  assert(countCeilDivs(resultExpr) <= 1 &&
+         "UB affine expression must contain at most one ceildiv; "
+         "run flattenCeilDivInForBounds first");
+
+  // Convert the result expression to symbolic string
   return affineExprToSymbolicString(resultExpr, symbolNames);
 }
 
