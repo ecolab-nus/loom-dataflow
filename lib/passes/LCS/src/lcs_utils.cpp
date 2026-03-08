@@ -169,5 +169,99 @@ std::string traceAllocDimsFromTensor(mlir::Value tensorVal) {
   return "";
 }
 
+std::string formatElementType(mlir::Type elemType) {
+  std::string typeStr;
+  llvm::raw_string_ostream os(typeStr);
+  elemType.print(os);
+  os.flush();
+  return typeStr;
+}
+
+std::string affineExprToSymbolicString(
+    mlir::AffineExpr expr,
+    const llvm::SmallVector<std::string> &symbolNames) {
+  using namespace mlir;
+
+  if (!expr)
+    return "";
+
+  switch (expr.getKind()) {
+  case AffineExprKind::Constant: {
+    auto constExpr = mlir::cast<mlir::AffineConstantExpr>(expr);
+    return std::to_string(constExpr.getValue());
+  }
+  case AffineExprKind::SymbolId: {
+    auto symExpr = mlir::cast<mlir::AffineSymbolExpr>(expr);
+    unsigned symId = symExpr.getPosition();
+    if (symId < symbolNames.size()) {
+      return symbolNames[symId];
+    }
+    return "s" + std::to_string(symId);
+  }
+  case AffineExprKind::DimId: {
+    auto dimExpr = mlir::cast<mlir::AffineDimExpr>(expr);
+    unsigned dimId = dimExpr.getPosition();
+    return "d" + std::to_string(dimId);
+  }
+  case AffineExprKind::Add: {
+    auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
+    auto lhs = affineExprToSymbolicString(binExpr.getLHS(), symbolNames);
+    auto rhs = affineExprToSymbolicString(binExpr.getRHS(), symbolNames);
+    return lhs + " + " + rhs;
+  }
+  case AffineExprKind::Mul: {
+    auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
+    auto lhs = affineExprToSymbolicString(binExpr.getLHS(), symbolNames);
+    auto rhs = affineExprToSymbolicString(binExpr.getRHS(), symbolNames);
+    return lhs + " * " + rhs;
+  }
+  case AffineExprKind::FloorDiv: {
+    auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
+    auto lhs = affineExprToSymbolicString(binExpr.getLHS(), symbolNames);
+    auto rhs = affineExprToSymbolicString(binExpr.getRHS(), symbolNames);
+    return lhs + " / " + rhs;
+  }
+  case AffineExprKind::CeilDiv: {
+    auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
+    auto lhs = affineExprToSymbolicString(binExpr.getLHS(), symbolNames);
+    auto rhs = affineExprToSymbolicString(binExpr.getRHS(), symbolNames);
+    return lhs + " / " + rhs;
+  }
+  case AffineExprKind::Mod: {
+    auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
+    auto lhs = affineExprToSymbolicString(binExpr.getLHS(), symbolNames);
+    auto rhs = affineExprToSymbolicString(binExpr.getRHS(), symbolNames);
+    return lhs + " % " + rhs;
+  }
+  }
+  return "";
+}
+
+std::string extractLoopTripCount(mlir::affine::AffineForOp forOp) {
+  using namespace mlir;
+
+  if (!forOp)
+    return "";
+
+  // Get the upper bound map
+  auto upperBoundMap = forOp.getUpperBoundMap();
+  if (upperBoundMap.getNumResults() != 1)
+    return "";
+
+  // Get upper bound operands
+  auto upperBoundOperands = forOp.getUpperBoundOperands();
+
+  // Build symbol names from operands using traceToSymbolicVar
+  llvm::SmallVector<std::string> symbolNames;
+  for (auto operand : upperBoundOperands) {
+    llvm::StringRef symName = loom::utils::traceToSymbolicVar(operand);
+    symbolNames.push_back(std::string(symName));
+  }
+
+  // Convert the result expression to symbolic string
+  auto resultExpr = upperBoundMap.getResult(0);
+  return affineExprToSymbolicString(resultExpr, symbolNames);
+}
+
 } // namespace lcs
 } // namespace loom

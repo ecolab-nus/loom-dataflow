@@ -2,6 +2,7 @@
 #define LOOM_LCS_STAGED_ETG_BUILDER_H
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
@@ -61,6 +62,25 @@ struct Scope {
   llvm::json::Value toJSON() const;
 };
 
+/// ConstraintScope: Captures constraint metadata from a computation variant.
+/// Contains symbolic block sizes, loop iteration counts, and assembly formulas.
+struct ConstraintScope {
+  // metadata.symbols: maps symbol name (e.g., "BB", "BM") to type ("int" or "bool")
+  std::map<std::string, std::string> symbols;
+  // metadata.L1_footprint: symbolic size of each @L1 allocation (e.g., "BB * BM * 128")
+  std::vector<std::string> l1_footprint;
+  // metadata.datatype: element type shared by all @L1 allocations (e.g., "f32")
+  std::string datatype;
+  // metadata.iter_num.seq_iter: symbolic trip count of the sequential loop
+  std::string seq_iter;
+  // metadata.iter_num.temp_iter: symbolic trip counts of temporal loops
+  std::vector<std::string> temp_iter;
+  // hard_constraints: reserved for future use, initially empty
+  std::vector<std::string> hard_constraints;
+
+  llvm::json::Value toJSON() const;
+};
+
 /// VariantETG: Execution Task Graph builder for a computation variant.
 /// Analyzes affine.for loops to extract compute and memory workloads,
 /// organizing them into compute and memory scopes with stage-based scheduling.
@@ -69,11 +89,16 @@ public:
   std::string variant_name;
   Scope compute_scope;
   Scope memory_scope;
+  ConstraintScope constraint_scope;
 
   VariantETG(llvm::StringRef name);
 
   /// Build ETG from an affine.for loop body.
   void buildFromAffineFor(mlir::affine::AffineForOp for_op);
+
+  /// Build constraint scope from a func operation.
+  /// Extracts symbolic block sizes and loop iteration counts.
+  void buildConstraintScope(mlir::func::FuncOp func_op);
 
   void dump(llvm::raw_ostream &os) const;
   llvm::json::Value toJSON() const;
