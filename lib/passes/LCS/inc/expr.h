@@ -49,6 +49,11 @@ public:
   bool isNone() const { return !node_; }
   Kind kind() const { return node_ ? node_->kind : Kind::None; }
 
+  /// For binary ops: returns the left / right sub-expression.
+  /// Returns Expr::none() if this node is not a binary op.
+  Expr lhs() const { return node_ ? Expr{node_->lhs} : Expr{}; }
+  Expr rhs() const { return node_ ? Expr{node_->rhs} : Expr{}; }
+
   // ── Operators ─────────────────────────────────────────────────────────────
 
   friend Expr operator+(Expr lhs, Expr rhs);

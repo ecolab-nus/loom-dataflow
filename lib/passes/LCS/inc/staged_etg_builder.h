@@ -1,6 +1,7 @@
 #ifndef LOOM_LCS_STAGED_ETG_BUILDER_H
 #define LOOM_LCS_STAGED_ETG_BUILDER_H
 
+#include "constraint_expr.h"
 #include "expr.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -75,8 +76,8 @@ struct ConstraintScope {
   Expr seq_iter;
   // metadata.iter_num.temp_iter: symbolic trip counts of temporal loops
   std::vector<Expr> temp_iter;
-  // hard_constraints: reserved for future use, initially empty
-  std::vector<std::string> hard_constraints;
+  // hard_constraints: constraints that every valid block-size assignment must satisfy
+  std::vector<ConstraintExpr> hard_constraints;
 
   llvm::json::Value toJSON() const;
 };
