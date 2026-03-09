@@ -11,20 +11,7 @@ module {
   %9 = df.spatial_dim "d", 4
   %10 = df.memory "DRAM" {scaleout=(%9) , size = 34359738368, bandwidth = 288}
   %11 = df.interconnects "NoC" %5 : !df.memory, %10 : !df.memory  {map = affine_map<(d0, d1) -> (d0 ceildiv 4 + (d1 ceildiv 4) * 2)>} : !df.interconnect
-  module attributes {loom.pass_name = "EnumerateHWMapping"} {
-    loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "BM" : index
-      %13 = loom.symbolic_var "BN" : index
-      %14 = loom.symbolic_var "BK" : index
-      loom.range %12[32, 1024]
-      loom.range %13[32, 1024]
-      loom.range %14[32, 1024]
-      loom.align %12 by 32
-      loom.align %13 by 32
-      loom.align %14 by 32
-      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
-      loom.polynomial_constraint(%12) {monomials = [{coeff = 64 : i64, vars = [0]}], upper_bound = 1024 : i64}
-    }
+  module {
     func.func @matmul__d0i0_d1i0__f01(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
@@ -32,7 +19,7 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BK : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
-          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (((4096 ceildiv s0) ceildiv 8) ceildiv 8)>()[%12, %13] {
+          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 64))>()[%12, %13] {
             affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %16 = loom.alloc [%14, %13] on @L1 : memref<?x?xf16>
@@ -68,20 +55,7 @@ module {
       return
     }
   }
-  module attributes {loom.pass_name = "EnumerateHWMapping"} {
-    loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "BM" : index
-      %13 = loom.symbolic_var "BN" : index
-      %14 = loom.symbolic_var "BK" : index
-      loom.range %12[32, 1024]
-      loom.range %13[32, 1024]
-      loom.range %14[32, 1024]
-      loom.align %12 by 32
-      loom.align %13 by 32
-      loom.align %14 by 32
-      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
-      loom.polynomial_constraint(%12) {monomials = [{coeff = 64 : i64, vars = [0]}], upper_bound = 1024 : i64}
-    }
+  module {
     func.func @matmul__d0i0_d1i0__f10(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
@@ -90,7 +64,7 @@ module {
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%12, %13] {
-            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (((4096 ceildiv s0) ceildiv 8) ceildiv 8)>()[%12, %13] {
+            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 64))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %16 = loom.alloc [%14, %13] on @L1 : memref<?x?xf16>
               %17 = loom.semaphore_take %16 : memref<?x?xf16> -> memref<?x?xf16>
@@ -125,20 +99,7 @@ module {
       return
     }
   }
-  module attributes {loom.pass_name = "EnumerateHWMapping"} {
-    loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "BM" : index
-      %13 = loom.symbolic_var "BN" : index
-      %14 = loom.symbolic_var "BK" : index
-      loom.range %12[32, 1024]
-      loom.range %13[32, 1024]
-      loom.range %14[32, 1024]
-      loom.align %12 by 32
-      loom.align %13 by 32
-      loom.align %14 by 32
-      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
-      loom.polynomial_constraint(%12) {monomials = [{coeff = 64 : i64, vars = [0]}], upper_bound = 1024 : i64}
-    }
+  module {
     func.func @matmul__d1i0_d0i0__f01(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
@@ -146,7 +107,7 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BK : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
-          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (((4096 ceildiv s0) ceildiv 8) ceildiv 8)>()[%12, %13] {
+          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 64))>()[%12, %13] {
             affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %16 = loom.alloc [%14, %13] on @L1 : memref<?x?xf16>
@@ -182,20 +143,7 @@ module {
       return
     }
   }
-  module attributes {loom.pass_name = "EnumerateHWMapping"} {
-    loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "BM" : index
-      %13 = loom.symbolic_var "BN" : index
-      %14 = loom.symbolic_var "BK" : index
-      loom.range %12[32, 1024]
-      loom.range %13[32, 1024]
-      loom.range %14[32, 1024]
-      loom.align %12 by 32
-      loom.align %13 by 32
-      loom.align %14 by 32
-      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
-      loom.polynomial_constraint(%12) {monomials = [{coeff = 64 : i64, vars = [0]}], upper_bound = 1024 : i64}
-    }
+  module {
     func.func @matmul__d1i0_d0i0__f10(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
@@ -204,7 +152,7 @@ module {
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%12, %13] {
-            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (((4096 ceildiv s0) ceildiv 8) ceildiv 8)>()[%12, %13] {
+            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 64))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %16 = loom.alloc [%14, %13] on @L1 : memref<?x?xf16>
               %17 = loom.semaphore_take %16 : memref<?x?xf16> -> memref<?x?xf16>
@@ -239,21 +187,7 @@ module {
       return
     }
   }
-  module attributes {loom.pass_name = "EnumerateHWMapping"} {
-    loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "BM" : index
-      %13 = loom.symbolic_var "BN" : index
-      %14 = loom.symbolic_var "BK" : index
-      loom.range %12[32, 1024]
-      loom.range %13[32, 1024]
-      loom.range %14[32, 1024]
-      loom.align %12 by 32
-      loom.align %13 by 32
-      loom.align %14 by 32
-      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
-      loom.polynomial_constraint(%12) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
-      loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
-    }
+  module {
     func.func @matmul__d0i0_d1i1__f01(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
@@ -261,8 +195,8 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BK : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
-          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> ((4096 ceildiv s0) ceildiv 8)>()[%12, %13] {
-            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((4096 ceildiv s1) ceildiv 8)>()[%12, %13] {
+          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 8))>()[%12, %13] {
+            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %16 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %17 = loom.alloc [%14, %13] on @L1 : memref<?x?xf16>
@@ -298,21 +232,7 @@ module {
       return
     }
   }
-  module attributes {loom.pass_name = "EnumerateHWMapping"} {
-    loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "BM" : index
-      %13 = loom.symbolic_var "BN" : index
-      %14 = loom.symbolic_var "BK" : index
-      loom.range %12[32, 1024]
-      loom.range %13[32, 1024]
-      loom.range %14[32, 1024]
-      loom.align %12 by 32
-      loom.align %13 by 32
-      loom.align %14 by 32
-      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
-      loom.polynomial_constraint(%12) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
-      loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
-    }
+  module {
     func.func @matmul__d0i0_d1i1__f10(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
@@ -320,8 +240,8 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BK : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
-          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> ((4096 ceildiv s1) ceildiv 8)>()[%12, %13] {
-            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((4096 ceildiv s0) ceildiv 8)>()[%12, %13] {
+          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%12, %13] {
+            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 8))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %16 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %17 = loom.alloc [%14, %13] on @L1 : memref<?x?xf16>
@@ -357,21 +277,7 @@ module {
       return
     }
   }
-  module attributes {loom.pass_name = "EnumerateHWMapping"} {
-    loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "BM" : index
-      %13 = loom.symbolic_var "BN" : index
-      %14 = loom.symbolic_var "BK" : index
-      loom.range %12[32, 1024]
-      loom.range %13[32, 1024]
-      loom.range %14[32, 1024]
-      loom.align %12 by 32
-      loom.align %13 by 32
-      loom.align %14 by 32
-      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
-      loom.polynomial_constraint(%12) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
-      loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
-    }
+  module {
     func.func @matmul__d1i0_d0i1__f01(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
@@ -379,8 +285,8 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BK : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
-          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> ((4096 ceildiv s0) ceildiv 8)>()[%12, %13] {
-            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((4096 ceildiv s1) ceildiv 8)>()[%12, %13] {
+          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 8))>()[%12, %13] {
+            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %16 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %17 = loom.alloc [%14, %13] on @L1 : memref<?x?xf16>
@@ -416,21 +322,7 @@ module {
       return
     }
   }
-  module attributes {loom.pass_name = "EnumerateHWMapping"} {
-    loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "BM" : index
-      %13 = loom.symbolic_var "BN" : index
-      %14 = loom.symbolic_var "BK" : index
-      loom.range %12[32, 1024]
-      loom.range %13[32, 1024]
-      loom.range %14[32, 1024]
-      loom.align %12 by 32
-      loom.align %13 by 32
-      loom.align %14 by 32
-      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
-      loom.polynomial_constraint(%12) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
-      loom.polynomial_constraint(%13) {monomials = [{coeff = 8 : i64, vars = [0]}], upper_bound = 1024 : i64}
-    }
+  module {
     func.func @matmul__d1i0_d0i1__f10(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
@@ -438,8 +330,8 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BK : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
-          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> ((4096 ceildiv s1) ceildiv 8)>()[%12, %13] {
-            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> ((4096 ceildiv s0) ceildiv 8)>()[%12, %13] {
+          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%12, %13] {
+            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 8))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %16 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %17 = loom.alloc [%14, %13] on @L1 : memref<?x?xf16>
@@ -475,20 +367,7 @@ module {
       return
     }
   }
-  module attributes {loom.pass_name = "EnumerateHWMapping"} {
-    loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "BM" : index
-      %13 = loom.symbolic_var "BN" : index
-      %14 = loom.symbolic_var "BK" : index
-      loom.range %12[32, 1024]
-      loom.range %13[32, 1024]
-      loom.range %14[32, 1024]
-      loom.align %12 by 32
-      loom.align %13 by 32
-      loom.align %14 by 32
-      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
-      loom.polynomial_constraint(%13) {monomials = [{coeff = 64 : i64, vars = [0]}], upper_bound = 1024 : i64}
-    }
+  module {
     func.func @matmul__d0i1_d1i1__f01(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
@@ -497,7 +376,7 @@ module {
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s0)>()[%12, %13] {
-            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (((4096 ceildiv s1) ceildiv 8) ceildiv 8)>()[%12, %13] {
+            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %16 = loom.alloc [%14, %13] on @L1 : memref<?x?xf16>
               %17 = loom.semaphore_take %16 : memref<?x?xf16> -> memref<?x?xf16>
@@ -532,20 +411,7 @@ module {
       return
     }
   }
-  module attributes {loom.pass_name = "EnumerateHWMapping"} {
-    loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "BM" : index
-      %13 = loom.symbolic_var "BN" : index
-      %14 = loom.symbolic_var "BK" : index
-      loom.range %12[32, 1024]
-      loom.range %13[32, 1024]
-      loom.range %14[32, 1024]
-      loom.align %12 by 32
-      loom.align %13 by 32
-      loom.align %14 by 32
-      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
-      loom.polynomial_constraint(%13) {monomials = [{coeff = 64 : i64, vars = [0]}], upper_bound = 1024 : i64}
-    }
+  module {
     func.func @matmul__d0i1_d1i1__f10(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
@@ -553,7 +419,7 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BK : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
-          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (((4096 ceildiv s1) ceildiv 8) ceildiv 8)>()[%12, %13] {
+          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%12, %13] {
             affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s0)>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %16 = loom.alloc [%14, %13] on @L1 : memref<?x?xf16>
@@ -589,20 +455,7 @@ module {
       return
     }
   }
-  module attributes {loom.pass_name = "EnumerateHWMapping"} {
-    loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "BM" : index
-      %13 = loom.symbolic_var "BN" : index
-      %14 = loom.symbolic_var "BK" : index
-      loom.range %12[32, 1024]
-      loom.range %13[32, 1024]
-      loom.range %14[32, 1024]
-      loom.align %12 by 32
-      loom.align %13 by 32
-      loom.align %14 by 32
-      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
-      loom.polynomial_constraint(%13) {monomials = [{coeff = 64 : i64, vars = [0]}], upper_bound = 1024 : i64}
-    }
+  module {
     func.func @matmul__d1i1_d0i1__f01(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
@@ -611,7 +464,7 @@ module {
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s0)>()[%12, %13] {
-            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (((4096 ceildiv s1) ceildiv 8) ceildiv 8)>()[%12, %13] {
+            affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %16 = loom.alloc [%14, %13] on @L1 : memref<?x?xf16>
               %17 = loom.semaphore_take %16 : memref<?x?xf16> -> memref<?x?xf16>
@@ -646,20 +499,7 @@ module {
       return
     }
   }
-  module attributes {loom.pass_name = "EnumerateHWMapping"} {
-    loom.constraint_space @constraints {
-      %12 = loom.symbolic_var "BM" : index
-      %13 = loom.symbolic_var "BN" : index
-      %14 = loom.symbolic_var "BK" : index
-      loom.range %12[32, 1024]
-      loom.range %13[32, 1024]
-      loom.range %14[32, 1024]
-      loom.align %12 by 32
-      loom.align %13 by 32
-      loom.align %14 by 32
-      loom.polynomial_constraint(%12, %13, %14) {monomials = [{coeff = -1 : i64, vars = [0, 1, 2]}], upper_bound = -262144 : i64}
-      loom.polynomial_constraint(%13) {monomials = [{coeff = 64 : i64, vars = [0]}], upper_bound = 1024 : i64}
-    }
+  module {
     func.func @matmul__d1i1_d0i1__f10(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %12 = loom.get_symbolic_block_size @constraints::@BM : index
@@ -667,7 +507,7 @@ module {
       %14 = loom.get_symbolic_block_size @constraints::@BK : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
-          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (((4096 ceildiv s1) ceildiv 8) ceildiv 8)>()[%12, %13] {
+          affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%12, %13] {
             affine.for %arg6 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s0)>()[%12, %13] {
               %15 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %16 = loom.alloc [%14, %13] on @L1 : memref<?x?xf16>

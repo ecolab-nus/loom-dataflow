@@ -4,16 +4,6 @@
 
 module {
   module {
-    // Manually added constraint space
-    loom.constraint_space @constraints {
-      %bm = loom.symbolic_var "BM" : index
-      %bn = loom.symbolic_var "BN" : index
-      %bk = loom.symbolic_var "BK" : index
-
-      loom.range %bm [0, 1024]
-      loom.range %bn [0, 1024]
-      loom.range %bk [0, 1024]
-    }
     func.func @matmul(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       // Manually added constraint space access
