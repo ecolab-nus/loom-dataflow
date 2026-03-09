@@ -78,7 +78,6 @@ llvm::json::Value Stage::toJSON() const {
     queues_json[name] = queue.toJSON();
   }
   return llvm::json::Object{{"stage_id", stage_id},
-                            {"stage_time", stage_time},
                             {"queues", std::move(queues_json)}};
 }
 
@@ -107,7 +106,6 @@ llvm::json::Value Scope::toJSON() const {
     stages_json.push_back(pair.second.toJSON());
   }
   return llvm::json::Object{{"scope_name", scope_name},
-                            {"scope_time", scope_time},
                             {"stages", std::move(stages_json)}};
 }
 
@@ -148,21 +146,9 @@ llvm::json::Value ConstraintScope::toJSON() const {
   // Build hard_constraints JSON array (empty)
   llvm::json::Array hard_constraints_json;
 
-  // Build assembly JSON object with fixed formulas
-  llvm::json::Object assembly_json;
-  assembly_json["T_comp"] = "SUM($.comp_scope.stages[*].stage_time)";
-  assembly_json["T_mem"] = "SUM($.mem_scope.stages[*].stage_time)";
-  assembly_json["T_seq"] =
-      "IF(is_double_buffer, MAX(.T_comp, .T_mem), .T_comp + .T_mem)";
-  assembly_json["T_temp"] =
-      "$.constraint_scope.metadata.iter_num.seq_iter * .T_seq";
-  assembly_json["T_total"] =
-      "MUL($.constraint_scope.metadata.iter_num.temp_iter[*]) * .T_temp";
-
   // Build final ConstraintScope JSON object
   return llvm::json::Object{{"metadata", std::move(metadata_json)},
-                            {"hard_constraints", std::move(hard_constraints_json)},
-                            {"assembly", std::move(assembly_json)}};
+                            {"hard_constraints", std::move(hard_constraints_json)}};
 }
 
 // ==========================================

@@ -40,7 +40,6 @@ struct HardwareQueue {
 struct Stage {
   int stage_id;
   std::map<std::string, HardwareQueue> queues;
-  std::string stage_time = "MAX(.queues[*].resolved_time)";
 
   Stage(int id);
   void pushWorkload(const std::string &unit_name, const std::string &op,
@@ -54,7 +53,6 @@ struct Stage {
 struct Scope {
   std::string scope_name;
   std::map<int, Stage> stages;
-  std::string scope_time = "SUM(.stages[*].stage_time)";
 
   Scope(std::string name);
   Stage &getOrCreateStage(int id);
