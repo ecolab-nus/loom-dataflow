@@ -105,12 +105,16 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Custom pretty-printer: collapses Expr nodes (single key ∈ Expr::Kind set)
-  // onto one line; all other JSON objects/arrays are pretty-printed normally.
+  // Custom pretty-printer: collapses Expr / ConstraintExpr nodes
+  // (single key ∈ known kind set) onto one line.
   auto isExprKind = [](llvm::StringRef key) -> bool {
-    static const llvm::StringRef kKinds[] = {"Const", "Sym",    "Add",
-                                              "Sub",   "Mul",    "Div",
-                                              "Min",   "Max",    "IfElse"};
+    static const llvm::StringRef kKinds[] = {
+        // Expr variants
+        "Const", "Sym", "Add", "Sub", "Mul", "Div", "Min", "Max", "IfElse",
+        // ConstraintExpr variants (True/False are bare strings, not objects)
+        "And", "Or", "Not", "Eq", "Le", "Lt", "Ge", "Gt",
+        "Divisible", "InRange",
+    };
     for (auto k : kKinds)
       if (k == key)
         return true;

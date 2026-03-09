@@ -152,8 +152,11 @@ llvm::json::Value ConstraintScope::toJSON() const {
   metadata_json["datatype"] = datatype;
   metadata_json["iter_num"] = std::move(iter_num_json);
 
-  // Build hard_constraints JSON array (empty)
+  // Build hard_constraints JSON array
   llvm::json::Array hard_constraints_json;
+  for (const auto &c : hard_constraints) {
+    hard_constraints_json.push_back(c.toJSON());
+  }
 
   // Build final ConstraintScope JSON object
   return llvm::json::Object{
@@ -296,7 +299,6 @@ void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
 
 void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
   // 1. Collect symbols from loom.get_symbolic_block_size ops
-  constraint_scope.symbols["is_double_buffer"] = "bool";
   func_op.walk([&](loom::GetSymbolicBlockSizeOp op) {
     std::string name = op.getSymbolRef().getLeafReference().str();
     constraint_scope.symbols[name] = "int";
@@ -319,6 +321,39 @@ void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
       constraint_scope.temp_iter.push_back(tripCount);
     }
   });
+
+  // Helper: given an iter-count Expr containing exactly one Div(N, D), push:
+  //   ge(iter, 1)        — the loop runs at least once
+  //   divisible(N, D)    — the division is exact (no remainder)
+  auto addIterConstraints = [&](const Expr &iter) {
+    if (iter.isNone())
+      return;
+
+    // Walk the Expr tree to find the unique Div node.
+    std::function<std::pair<Expr, Expr>(const Expr &)> findDiv =
+        [&](const Expr &e) -> std::pair<Expr, Expr> {
+      if (e.isNone())
+        return {Expr::none(), Expr::none()};
+      if (e.kind() == Expr::Kind::Div)
+        return {e.lhs(), e.rhs()};
+      auto fromLhs = findDiv(e.lhs());
+      if (!fromLhs.first.isNone())
+        return fromLhs;
+      return findDiv(e.rhs());
+    };
+
+    constraint_scope.hard_constraints.push_back(
+        ConstraintExpr::ge(iter, Expr::con(1)));
+
+    auto [num, den] = findDiv(iter);
+    if (!num.isNone())
+      constraint_scope.hard_constraints.push_back(
+          ConstraintExpr::divisible(num, den));
+  };
+
+  addIterConstraints(constraint_scope.seq_iter);
+  for (const Expr &t : constraint_scope.temp_iter)
+    addIterConstraints(t);
 
   // 3. Collect L1 allocations for footprint and datatype
   mlir::Type expectedElemType;
