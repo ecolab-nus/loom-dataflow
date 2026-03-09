@@ -110,7 +110,7 @@ static void eraseHostLoweringArtifacts(ModuleOp module) {
   for (func::FuncOp func : module.getOps<func::FuncOp>()) {
     StringRef name = func.getName();
     if (!name.ends_with("__host") && !name.ends_with("__writer") &&
-        !name.ends_with("__reader"))
+        !name.ends_with("__reader") && !name.ends_with("__compute"))
       continue;
 
     bool changed = true;
@@ -441,6 +441,7 @@ public:
     PassManager postPm(context);
     postPm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
     postPm.addNestedPass<func::FuncOp>(createCSEPass());
+    postPm.addPass(createSymbolDCEPass());
     if (failed(postPm.run(module))) {
       signalPassFailure();
       return;

@@ -39,9 +39,10 @@ def insert_compute_trace_markers(lines):
         if marker_pattern.search(line):
             if not (instrumented and dprint_pattern.search(instrumented[-1])):
                 indent = line[: len(line) - len(line.lstrip())]
-                instrumented.append(
-                    f'{indent}DPRINT << "compute {counter}" << ENDL();\n'
-                )
+                if counter > 5:
+                    instrumented.append(
+                        f'{indent}DPRINT << "compute {counter}" << ENDL();\n'
+                    )
                 counter += 1
         instrumented.append(line)
     return instrumented
