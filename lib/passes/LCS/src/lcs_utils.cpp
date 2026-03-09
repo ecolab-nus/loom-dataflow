@@ -19,8 +19,8 @@ namespace lcs {
 namespace {
 
 /// Helper to trace BlockArgument to its init value.
-/// Returns empty string if tracing fails.
-std::string traceBlockArgumentToInit(mlir::BlockArgument blockArg) {
+/// Returns Expr::none() if tracing fails.
+Expr traceBlockArgumentToInit(mlir::BlockArgument blockArg) {
   using namespace mlir;
   Block *block = blockArg.getOwner();
   Operation *parentOp = block->getParentOp();
@@ -35,7 +35,8 @@ std::string traceBlockArgumentToInit(mlir::BlockArgument blockArg) {
     }
   }
   // Handle affine.parallel: all block args are iter_args (no induction var)
-  else if (auto parOp = mlir::dyn_cast<mlir::affine::AffineParallelOp>(parentOp)) {
+  else if (auto parOp =
+               mlir::dyn_cast<mlir::affine::AffineParallelOp>(parentOp)) {
     unsigned argIdx = blockArg.getArgNumber();
     auto inits = parOp.getInits();
     if (argIdx < inits.size()) {
@@ -43,7 +44,7 @@ std::string traceBlockArgumentToInit(mlir::BlockArgument blockArg) {
     }
   }
 
-  return "";
+  return Expr::none();
 }
 
 } // namespace
@@ -73,49 +74,42 @@ loom::AllocOp traceToAlloc(mlir::Value memrefVal) {
   return nullptr;
 }
 
-std::string formatAllocDims(loom::AllocOp allocOp) {
+Expr formatAllocDims(loom::AllocOp allocOp) {
   if (!allocOp)
-    return "";
+    return Expr::none();
 
-  llvm::SmallVector<std::string> dimStrs;
-
-  // Iterate through mixed sizes (static + dynamic)
+  // Iterate through mixed sizes (static + dynamic), accumulate product.
   auto staticSizes = allocOp.getStaticSizes();
   auto dynamicSizes = allocOp.getSizes();
 
+  Expr result = Expr::none();
   unsigned dynamicIdx = 0;
+
+  auto accumulate = [&](Expr dim) {
+    result = result.isNone() ? dim : result * dim;
+  };
+
   for (int64_t staticDim : staticSizes) {
     if (mlir::ShapedType::isDynamic(staticDim)) {
       if (dynamicIdx < dynamicSizes.size()) {
         llvm::StringRef symVar =
             loom::utils::traceToSymbolicVar(dynamicSizes[dynamicIdx]);
-        if (!symVar.empty()) {
-          dimStrs.push_back(std::string(symVar));
-        } else {
-          dimStrs.push_back("?");
-        }
+        accumulate(symVar.empty() ? Expr::sym("?") : Expr::sym(symVar.str()));
         dynamicIdx++;
       }
     } else {
-      dimStrs.push_back(std::to_string(staticDim));
+      accumulate(Expr::con(staticDim));
     }
   }
 
-  // Join with " * "
-  std::string result;
-  for (size_t i = 0; i < dimStrs.size(); ++i) {
-    if (i > 0)
-      result += " * ";
-    result += dimStrs[i];
-  }
   return result;
 }
 
-std::string traceAllocDimsFromTensor(mlir::Value tensorVal) {
+Expr traceAllocDimsFromTensor(mlir::Value tensorVal) {
   using namespace mlir;
 
   if (!tensorVal)
-    return "";
+    return Expr::none();
 
   // Handle BlockArgument first (before getDefiningOp which returns nullptr)
   if (auto blockArg = dyn_cast<BlockArgument>(tensorVal)) {
@@ -125,14 +119,14 @@ std::string traceAllocDimsFromTensor(mlir::Value tensorVal) {
   // Now handle OpResults (from operations)
   Operation *op = tensorVal.getDefiningOp();
   if (!op)
-    return "";
+    return Expr::none();
 
   // Case 1: loom.copy_to_tensor
   if (auto copyOp = dyn_cast<loom::CopyToTensorOp>(op)) {
     if (auto allocOp = traceToAlloc(copyOp.getBuffer())) {
       return formatAllocDims(allocOp);
     }
-    return "";
+    return Expr::none();
   }
 
   // Case 2: loom.init_tensor
@@ -140,7 +134,7 @@ std::string traceAllocDimsFromTensor(mlir::Value tensorVal) {
     if (auto allocOp = traceToAlloc(initTensor.getBuffer())) {
       return formatAllocDims(allocOp);
     }
-    return "";
+    return Expr::none();
   }
 
   // Case 3: linalg operation (fill, copy, generic, matmul, etc.)
@@ -154,7 +148,7 @@ std::string traceAllocDimsFromTensor(mlir::Value tensorVal) {
       // If resultIdx >= size, try tracing the first init as fallback
       return traceAllocDimsFromTensor(inits[0]);
     }
-    return "";
+    return Expr::none();
   }
 
   // Case 4: affine.for result
@@ -163,10 +157,10 @@ std::string traceAllocDimsFromTensor(mlir::Value tensorVal) {
     if (resultIdx < forOp.getInits().size()) {
       return traceAllocDimsFromTensor(forOp.getInits()[resultIdx]);
     }
-    return "";
+    return Expr::none();
   }
 
-  return "";
+  return Expr::none();
 }
 
 std::string formatElementType(mlir::Type elemType) {
@@ -177,68 +171,52 @@ std::string formatElementType(mlir::Type elemType) {
   return typeStr;
 }
 
-std::string affineExprToSymbolicString(
-    mlir::AffineExpr expr,
-    const llvm::SmallVector<std::string> &symbolNames) {
+Expr affineExprToExpr(mlir::AffineExpr expr,
+                      const llvm::SmallVector<std::string> &symbolNames) {
   using namespace mlir;
 
   if (!expr)
-    return "";
+    return Expr::none();
 
   switch (expr.getKind()) {
   case AffineExprKind::Constant: {
     auto constExpr = mlir::cast<mlir::AffineConstantExpr>(expr);
-    return std::to_string(constExpr.getValue());
+    return Expr::con(constExpr.getValue());
   }
   case AffineExprKind::SymbolId: {
     auto symExpr = mlir::cast<mlir::AffineSymbolExpr>(expr);
     unsigned symId = symExpr.getPosition();
-    if (symId < symbolNames.size()) {
-      return symbolNames[symId];
+    if (symId < symbolNames.size() && !symbolNames[symId].empty()) {
+      return Expr::sym(symbolNames[symId]);
     }
-    return "s" + std::to_string(symId);
+    return Expr::sym("s" + std::to_string(symId));
   }
   case AffineExprKind::DimId: {
     auto dimExpr = mlir::cast<mlir::AffineDimExpr>(expr);
     unsigned dimId = dimExpr.getPosition();
-    return "d" + std::to_string(dimId);
+    return Expr::sym("d" + std::to_string(dimId));
   }
   case AffineExprKind::Add: {
     auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
-    auto lhs = affineExprToSymbolicString(binExpr.getLHS(), symbolNames);
-    auto rhs = affineExprToSymbolicString(binExpr.getRHS(), symbolNames);
-    return lhs + " + " + rhs;
+    return affineExprToExpr(binExpr.getLHS(), symbolNames) +
+           affineExprToExpr(binExpr.getRHS(), symbolNames);
   }
   case AffineExprKind::Mul: {
     auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
-    auto lhs = affineExprToSymbolicString(binExpr.getLHS(), symbolNames);
-    auto rhs = affineExprToSymbolicString(binExpr.getRHS(), symbolNames);
-    return lhs + " * " + rhs;
+    return affineExprToExpr(binExpr.getLHS(), symbolNames) *
+           affineExprToExpr(binExpr.getRHS(), symbolNames);
   }
-  case AffineExprKind::FloorDiv: {
-    auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
-    auto lhs = affineExprToSymbolicString(binExpr.getLHS(), symbolNames);
-    auto rhs = affineExprToSymbolicString(binExpr.getRHS(), symbolNames);
-    return lhs + " / " + rhs;
-  }
+  case AffineExprKind::FloorDiv:
   case AffineExprKind::CeilDiv: {
     auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
-    auto lhs = affineExprToSymbolicString(binExpr.getLHS(), symbolNames);
-    auto rhs = affineExprToSymbolicString(binExpr.getRHS(), symbolNames);
-    // Wrap the denominator in parentheses when it is a product so that
-    // e.g.  "32 ceildiv (s0 * 64)"  is unambiguous.
-    if (binExpr.getRHS().getKind() == AffineExprKind::Mul)
-      return lhs + " / (" + rhs + ")";
-    return lhs + " / " + rhs;
+    return affineExprToExpr(binExpr.getLHS(), symbolNames) /
+           affineExprToExpr(binExpr.getRHS(), symbolNames);
   }
-  case AffineExprKind::Mod: {
-    auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
-    auto lhs = affineExprToSymbolicString(binExpr.getLHS(), symbolNames);
-    auto rhs = affineExprToSymbolicString(binExpr.getRHS(), symbolNames);
-    return lhs + " % " + rhs;
+  case AffineExprKind::Mod:
+    // AffineExprKind::Mod has no direct Expr equivalent; return none.
+    return Expr::none();
   }
-  }
-  return "";
+  return Expr::none();
 }
 
 /// Count the number of CeilDiv nodes anywhere in an AffineExpr tree.
@@ -254,16 +232,16 @@ static unsigned countCeilDivs(mlir::AffineExpr expr) {
   return 0;
 }
 
-std::string extractLoopTripCount(mlir::affine::AffineForOp forOp) {
+Expr extractLoopTripCount(mlir::affine::AffineForOp forOp) {
   using namespace mlir;
 
   if (!forOp)
-    return "";
+    return Expr::none();
 
   // Get the upper bound map
   auto upperBoundMap = forOp.getUpperBoundMap();
   if (upperBoundMap.getNumResults() != 1)
-    return "";
+    return Expr::none();
 
   // Get upper bound operands
   auto upperBoundOperands = forOp.getUpperBoundOperands();
@@ -281,8 +259,7 @@ std::string extractLoopTripCount(mlir::affine::AffineForOp forOp) {
          "UB affine expression must contain at most one ceildiv; "
          "run flattenCeilDivInForBounds first");
 
-  // Convert the result expression to symbolic string
-  return affineExprToSymbolicString(resultExpr, symbolNames);
+  return affineExprToExpr(resultExpr, symbolNames);
 }
 
 } // namespace lcs

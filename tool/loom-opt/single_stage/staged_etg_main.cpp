@@ -105,8 +105,80 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  output << llvm::formatv("{0:2}", llvm::json::Value(std::move(json_etgs)))
-         << "\n";
+  // Custom pretty-printer: collapses Expr nodes (single key ∈ Expr::Kind set)
+  // onto one line; all other JSON objects/arrays are pretty-printed normally.
+  auto isExprKind = [](llvm::StringRef key) -> bool {
+    static const llvm::StringRef kKinds[] = {"Const", "Sym",    "Add",
+                                              "Sub",   "Mul",    "Div",
+                                              "Min",   "Max",    "IfElse"};
+    for (auto k : kKinds)
+      if (k == key)
+        return true;
+    return false;
+  };
+
+  auto isExprNode = [&](const llvm::json::Value &val) -> bool {
+    if (const auto *obj = val.getAsObject())
+      if (obj->size() == 1)
+        return isExprKind(obj->begin()->first);
+    return false;
+  };
+
+  // Recursive pretty-printer; indent is the current indentation level.
+  std::function<void(llvm::raw_ostream &, const llvm::json::Value &, int)>
+      writeJSON =
+          [&](llvm::raw_ostream &os, const llvm::json::Value &val,
+              int indent) {
+            // Expr nodes: compact one-liner using llvm's built-in formatter.
+            if (isExprNode(val)) {
+              os << llvm::formatv("{0}", val);
+              return;
+            }
+
+            if (const auto *arr = val.getAsArray()) {
+              if (arr->empty()) {
+                os << "[]";
+                return;
+              }
+              os << "[\n";
+              for (size_t i = 0; i < arr->size(); ++i) {
+                os.indent(indent + 2);
+                writeJSON(os, (*arr)[i], indent + 2);
+                if (i + 1 < arr->size())
+                  os << ",";
+                os << "\n";
+              }
+              os.indent(indent) << "]";
+              return;
+            }
+
+            if (const auto *obj = val.getAsObject()) {
+              if (obj->empty()) {
+                os << "{}";
+                return;
+              }
+              os << "{\n";
+              size_t i = 0, size = obj->size();
+              for (const auto &kv : *obj) {
+                os.indent(indent + 2);
+                llvm::StringRef key = kv.first;
+                os << "\"" << key << "\": ";
+                writeJSON(os, kv.second, indent + 2);
+                if (++i < size)
+                  os << ",";
+                os << "\n";
+              }
+              os.indent(indent) << "}";
+              return;
+            }
+
+            // Scalars (null, bool, number, string): use llvm's formatter.
+            os << llvm::formatv("{0}", val);
+          };
+
+  llvm::json::Value root(std::move(json_etgs));
+  writeJSON(output, root, 0);
+  output << "\n";
 
   return 0;
 }
