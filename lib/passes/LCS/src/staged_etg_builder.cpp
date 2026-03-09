@@ -23,7 +23,11 @@ namespace lcs {
 // Workload
 // ==========================================
 llvm::json::Value Workload::toJSON() const {
-  return llvm::json::Object{{"op", op}, {"dims", dims}};
+  llvm::json::Array dims_json;
+  for (const auto &d : dims) {
+    dims_json.push_back(d.toJSON());
+  }
+  return llvm::json::Object{{"op", op}, {"dims", std::move(dims_json)}};
 }
 
 // ==========================================
@@ -37,8 +41,13 @@ void HardwareQueue::dump(llvm::raw_ostream &os, int indent) const {
   }
   os << "\n";
   for (const auto &workload : workloads) {
-    os.indent(indent + 2) << "└─ " << workload.op << " [" << workload.dims
-                          << "]\n";
+    os.indent(indent + 2) << "└─ " << workload.op << " [";
+    for (size_t i = 0; i < workload.dims.size(); ++i) {
+      if (i > 0)
+        os << ", ";
+      os << workload.dims[i];
+    }
+    os << "]\n";
   }
 }
 
@@ -58,11 +67,11 @@ llvm::json::Value HardwareQueue::toJSON() const {
 Stage::Stage(int id) : stage_id(id) {}
 
 void Stage::pushWorkload(const std::string &unit_name, const std::string &op,
-                         const std::string &dims) {
+                         std::vector<Expr> dims) {
   if (queues.find(unit_name) == queues.end()) {
     queues[unit_name] = HardwareQueue{unit_name, {}, std::nullopt};
   }
-  queues[unit_name].workloads.push_back(Workload{op, dims});
+  queues[unit_name].workloads.push_back(Workload{op, std::move(dims)});
 }
 
 void Stage::dump(llvm::raw_ostream &os, int indent) const {
@@ -122,18 +131,18 @@ llvm::json::Value ConstraintScope::toJSON() const {
   // Build temp_iter JSON array
   llvm::json::Array temp_iter_json;
   for (const auto &t : temp_iter) {
-    temp_iter_json.push_back(t);
+    temp_iter_json.push_back(t.toJSON());
   }
 
   // Build iter_num JSON object
   llvm::json::Object iter_num_json;
-  iter_num_json["seq_iter"] = seq_iter;
+  iter_num_json["seq_iter"] = seq_iter.toJSON();
   iter_num_json["temp_iter"] = std::move(temp_iter_json);
 
   // Build L1_footprint JSON array
   llvm::json::Array footprint_json;
   for (const auto &term : l1_footprint) {
-    footprint_json.push_back(term);
+    footprint_json.push_back(term.toJSON());
   }
 
   // Build metadata JSON object
@@ -147,8 +156,9 @@ llvm::json::Value ConstraintScope::toJSON() const {
   llvm::json::Array hard_constraints_json;
 
   // Build final ConstraintScope JSON object
-  return llvm::json::Object{{"metadata", std::move(metadata_json)},
-                            {"hard_constraints", std::move(hard_constraints_json)}};
+  return llvm::json::Object{
+      {"metadata", std::move(metadata_json)},
+      {"hard_constraints", std::move(hard_constraints_json)}};
 }
 
 // ==========================================
@@ -183,7 +193,8 @@ void VariantETG::buildFromAffineFor(mlir::affine::AffineForOp for_op) {
     bool is_compute = llvm::isa<mlir::linalg::LinalgOp>(op);
     bool is_memory = op->getName().getStringRef() == "loom.copy_to_tensor";
     bool is_infra =
-        is_compute && llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
+        is_compute &&
+        llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
 
     if (is_compute && !is_infra) {
       Stage &target_stage = compute_scope.getOrCreateStage(required_stage);
@@ -196,8 +207,6 @@ void VariantETG::buildFromAffineFor(mlir::affine::AffineForOp for_op) {
     }
 
     // C. Update output ready times
-    // If it's infra or memory, assume it doesn't block compute timing for logic
-    // dependencies (or is handled zero-latency in this simple model).
     int ready_time =
         (is_infra || is_memory) ? required_stage : required_stage + 1;
     for (mlir::Value result : op->getResults()) {
@@ -211,21 +220,21 @@ void VariantETG::dispatchToComputeQueues(mlir::Operation *op,
   // FPU: Matmul, BatchMatmul
   if (llvm::isa<mlir::linalg::BatchMatmulOp, mlir::linalg::MatmulOp>(op)) {
     auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
-    llvm::SmallVector<std::string> inputDims;
+    std::vector<Expr> inputDims;
     for (mlir::Value input : linalgOp.getDpsInputs()) {
       inputDims.push_back(traceAllocDimsFromTensor(input));
     }
-    std::string dims = llvm::join(inputDims, ", ");
-    target_stage.pushWorkload("FPU", op->getName().getStringRef().str(), dims);
+    target_stage.pushWorkload("FPU", op->getName().getStringRef().str(),
+                              std::move(inputDims));
     return;
   }
 
   // SFPU: generic body's arith/math ops
   if (auto generic_op = llvm::dyn_cast<mlir::linalg::GenericOp>(op)) {
-    std::string dims = "";
+    std::vector<Expr> dims;
     auto inits = generic_op.getDpsInits();
     if (!inits.empty()) {
-      dims = traceAllocDimsFromTensor(inits[0]);
+      dims.push_back(traceAllocDimsFromTensor(inits[0]));
     }
     generic_op.getBody()->walk([&](mlir::Operation *inner_op) {
       auto *dialect = inner_op->getDialect();
@@ -269,10 +278,10 @@ std::string VariantETG::classifyCopyTransfer(mlir::Operation *op) {
 void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
                                         Stage &target_stage) {
   std::string label = classifyCopyTransfer(op);
-  std::string dims = "";
+  std::vector<Expr> dims;
   if (auto copyOp = llvm::dyn_cast<loom::CopyToTensorOp>(op)) {
     if (auto allocOp = traceToAlloc(copyOp.getBuffer())) {
-      dims = formatAllocDims(allocOp);
+      dims.push_back(formatAllocDims(allocOp));
     }
   }
   if (label == "d" || label == "a") {
@@ -300,8 +309,8 @@ void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
     if (!iterAttr)
       return;
 
-    std::string tripCount = extractLoopTripCount(forOp);
-    if (tripCount.empty())
+    Expr tripCount = extractLoopTripCount(forOp);
+    if (tripCount.isNone())
       return;
 
     if (iterAttr.getValue() == loom::IterType::Sequential) {
@@ -333,8 +342,8 @@ void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
     }
 
     // Collect symbolic footprint for this alloc
-    std::string dims = formatAllocDims(allocOp);
-    if (!dims.empty()) {
+    Expr dims = formatAllocDims(allocOp);
+    if (!dims.isNone()) {
       constraint_scope.l1_footprint.push_back(dims);
     }
   });

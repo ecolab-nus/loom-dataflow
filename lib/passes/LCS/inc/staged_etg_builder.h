@@ -1,6 +1,7 @@
 #ifndef LOOM_LCS_STAGED_ETG_BUILDER_H
 #define LOOM_LCS_STAGED_ETG_BUILDER_H
 
+#include "expr.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
@@ -16,10 +17,11 @@
 namespace loom {
 namespace lcs {
 
-/// Simple workload record: operation and its symbolic dimensions.
+/// Simple workload record: operation name and its symbolic dimensions.
+/// dims holds one Expr per tensor input (e.g., two entries for matmul).
 struct Workload {
   std::string op;
-  std::string dims;
+  std::vector<Expr> dims;
 
   llvm::json::Value toJSON() const;
 };
@@ -43,12 +45,12 @@ struct Stage {
 
   Stage(int id);
   void pushWorkload(const std::string &unit_name, const std::string &op,
-                    const std::string &dims);
+                    std::vector<Expr> dims);
   void dump(llvm::raw_ostream &os, int indent = 0) const;
   llvm::json::Value toJSON() const;
 };
 
-/// A scope is a collection of stages with a symbolic time expression.
+/// A scope is a collection of stages.
 /// Separates compute and memory operations into distinct scopes.
 struct Scope {
   std::string scope_name;
@@ -63,16 +65,16 @@ struct Scope {
 /// ConstraintScope: Captures constraint metadata from a computation variant.
 /// Contains symbolic block sizes, loop iteration counts, and assembly formulas.
 struct ConstraintScope {
-  // metadata.symbols: maps symbol name (e.g., "BB", "BM") to type ("int" or "bool")
+  // metadata.symbols: maps symbol name (e.g., "BB", "BM") to type ("int"/"bool")
   std::map<std::string, std::string> symbols;
-  // metadata.L1_footprint: symbolic size of each @L1 allocation (e.g., "BB * BM * 128")
-  std::vector<std::string> l1_footprint;
+  // metadata.L1_footprint: symbolic size of each @L1 allocation
+  std::vector<Expr> l1_footprint;
   // metadata.datatype: element type shared by all @L1 allocations (e.g., "f32")
   std::string datatype;
   // metadata.iter_num.seq_iter: symbolic trip count of the sequential loop
-  std::string seq_iter;
+  Expr seq_iter;
   // metadata.iter_num.temp_iter: symbolic trip counts of temporal loops
-  std::vector<std::string> temp_iter;
+  std::vector<Expr> temp_iter;
   // hard_constraints: reserved for future use, initially empty
   std::vector<std::string> hard_constraints;
 

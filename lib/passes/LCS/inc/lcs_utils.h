@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "expr.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/IR/AffineExpr.h"
@@ -33,29 +34,30 @@ namespace lcs {
 ::loom::AllocOp traceToAlloc(mlir::Value memrefVal);
 
 /**
- * @brief Convert AllocOp mixed sizes (static + dynamic) to symbolic dims string.
- * Static dimensions become integers (e.g., "128").
- * Dynamic dimensions are traced to symbolic variables (e.g., "BB", "BM").
- * Result is joined with " * " (e.g., "BB * BM * 128").
+ * @brief Convert AllocOp mixed sizes (static + dynamic) to a symbolic Expr.
+ * Static dimensions become Expr::con(). Dynamic dimensions are traced to
+ * Expr::sym(). All dimensions are folded into a single product expression.
+ * Returns Expr::none() if no valid dims are found.
  *
  * @param allocOp The allocation operation
- * @return Symbolic dims string, or empty string if no valid dims found
+ * @return Product Expr (e.g., Sym("BB") * Sym("BM") * Con(128)), or none()
  */
-std::string formatAllocDims(::loom::AllocOp allocOp);
+Expr formatAllocDims(::loom::AllocOp allocOp);
 
 /**
- * @brief Recursively trace a tensor-typed Value to its underlying AllocOp dims.
+ * @brief Recursively trace a tensor-typed Value to its underlying AllocOp Expr.
  * Handles complex IR patterns: loom ops (copy_to_tensor, init_tensor),
  * linalg operations (fill, copy, generic, matmul), affine loops with iter_args,
  * and block arguments from affine.for / affine.parallel.
  *
  * @param tensorVal The tensor SSA value to trace
- * @return Symbolic dims string, or empty string if tracing fails
+ * @return Symbolic Expr, or Expr::none() if tracing fails
  */
-std::string traceAllocDimsFromTensor(mlir::Value tensorVal);
+Expr traceAllocDimsFromTensor(mlir::Value tensorVal);
 
 /**
  * @brief Convert an MLIR element type to a readable string (e.g., "f32", "i32").
+ * This is not an algebraic expression, so it remains a std::string.
  *
  * @param elemType The MLIR element type to format
  * @return String representation of the type
@@ -63,27 +65,26 @@ std::string traceAllocDimsFromTensor(mlir::Value tensorVal);
 std::string formatElementType(mlir::Type elemType);
 
 /**
- * @brief Convert an AffineExpr to a human-readable symbolic string.
+ * @brief Convert an AffineExpr to a symbolic Expr ADT.
  * Recursively walks the expression tree and substitutes symbol references
- * with their traced names. CeilDiv is rendered as "/".
+ * with Expr::sym() nodes. Returns Expr::none() for unhandled cases.
  *
  * @param expr The affine expression to convert
  * @param symbolNames Vector mapping symbol index (s0, s1, ...) to traced names
- * @return Symbolic string representation (e.g., "4096 / BN")
+ * @return Expr representing the affine expression
  */
-std::string affineExprToSymbolicString(
-    mlir::AffineExpr expr,
-    const llvm::SmallVector<std::string> &symbolNames);
+Expr affineExprToExpr(mlir::AffineExpr expr,
+                      const llvm::SmallVector<std::string> &symbolNames);
 
 /**
  * @brief Extract symbolic trip count from an AffineForOp's upper bound.
  * Assumes lower bound is 0. Extracts the upper bound map, traces its symbol
- * operands to symbolic names, and converts the result expression to a string.
+ * operands to symbolic names, and converts the result expression to an Expr.
  *
  * @param forOp The affine loop to analyze
- * @return Symbolic trip count string (e.g., "4096 / BN"), or empty string if extraction fails
+ * @return Expr for the trip count, or Expr::none() if extraction fails
  */
-std::string extractLoopTripCount(mlir::affine::AffineForOp forOp);
+Expr extractLoopTripCount(mlir::affine::AffineForOp forOp);
 
 } // namespace lcs
 } // namespace loom
