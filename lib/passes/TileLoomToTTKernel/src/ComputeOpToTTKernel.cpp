@@ -752,7 +752,6 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
     emitWaitFrontIfNeeded(rewriter, loc, inputCb, waitTiles, waitState);
   }
 
-  CBReserveBackOp::create(rewriter, loc, outCb, outTilesV);
 
   Value rowsV = i32Const(rewriter, loc, rows);
   Value colsV = i32Const(rewriter, loc, cols);
@@ -786,7 +785,9 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
     PackTileOp::create(rewriter, loc, zeroI32, outCb, rowIdx);
     TileRegsReleaseOp::create(rewriter, loc);
   }
-
+  //TODO: add pop first, since current output also works as input
+  CBPopFrontOp::create(rewriter, loc, outCb, outTilesV);
+  CBReserveBackOp::create(rewriter, loc, outCb, outTilesV);
   CBPushBackOp::create(rewriter, loc, outCb, outTilesV);
   waitState[outCb] = 0;
 
@@ -1095,13 +1096,13 @@ public:
     if (!isa<CBType>(outCb.getType()))
       return failure();
 
-    if (auto nextUse =
+/*     if (auto nextUse =
             findNextNonViewUseInSameBlock(op.getDpsInits()[0], op.getOperation())) {
       if (isUsedAsLinalgOutput(nextUse->user, nextUse->usedValue)) {
         rewriter.eraseOp(op);
         return success();
       }
-    }
+    } */
 
     auto numTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
     if (!numTiles)
@@ -1180,6 +1181,7 @@ public:
     Value zero = i32Const(rewriter, loc, 0);
     Value tileCount = i32Const(rewriter, loc, *inTiles);
 
+    CBPopFrontOp::create(rewriter, loc, outCb, tileCount);
     CBWaitFrontOp::create(rewriter, loc, inCb, tileCount);
     CBReserveBackOp::create(rewriter, loc, outCb, tileCount);
     rewriter.create<CopyTileInitOp>(loc, inCb);
