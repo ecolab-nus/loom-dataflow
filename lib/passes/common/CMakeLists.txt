@@ -38,7 +38,6 @@ target_link_libraries(LoomPassesCommon
     MLIRBufferizationDialect
     MLIRTensorDialect
     MLIRLinalgDialect
-    loomConstraintSystem
     loomDialect
     loomDataflowDialect
 )

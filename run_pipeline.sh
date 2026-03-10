@@ -6,15 +6,6 @@ set -e
 # Default values
 CONSTRAINT_LINEARIZATION=true
 
-# Parse arguments
-while [[ "$#" -gt 0 ]]; do
-    case $1 in
-        --constraint_linearization|-cl) CONSTRAINT_LINEARIZATION="$2"; shift ;;
-        *) echo "Unknown parameter passed: $1"; exit 1 ;;
-    esac
-    shift
-done
-
 echo "Starting build..."
 if ! ./build.sh; then
     echo "Error: ./build.sh failed."
@@ -70,9 +61,16 @@ fi
 echo "5) Enumerate copy interconnect broadcast choices on loom.copy_to_tensor..."
 if ! build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
   --input test/Passes/mm_2Dmesh/IR/04_after_reuse_analyzation.mlir \
-  > test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
-  2> test/Passes/mm_2Dmesh/constraint_space/raw_constraint_space.json; then
+  > test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir; then
     echo "Error: Step 5 failed."
+    exit 1
+fi
+
+echo "Dump ETG..."
+if ! build/tool/loom-opt/single_stage/staged_etg \
+  --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
+  --output test/Passes/mm_2Dmesh/constraint_space/staged_etg_dump.json; then
+    echo "Error: Dump ETG failed."
     exit 1
 fi
 
@@ -90,82 +88,6 @@ if ! build/tool/loom-opt/single_stage/one_shot_bufferize \
   --input test/Passes/mm_2Dmesh/IR/06_after_canonicalize.mlir \
   > test/Passes/mm_2Dmesh/IR/07_after_osb.mlir; then
     echo "Error: Step 7 failed."
-    exit 1
-fi
-
-if [ "$CONSTRAINT_LINEARIZATION" = "false" ]; then
-    echo "Constraint linearization is disabled. Terminating pipeline after Step 5."
-    exit 0
-fi
-
-echo "6) Canonicalize constraints..."
-if ! ./build/tool/loom-constraint/single_stage/constraint_canonicalize \
-  --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
-  > test/Passes/mm_2Dmesh/IR/11_after_canonicalize.mlir; then
-    echo "Error: Step 6 failed."
-    exit 1
-fi
-
-echo "7) Factorize constraints..."
-if ! ./build/tool/loom-constraint/single_stage/constraint_factorize \
-  --input test/Passes/mm_2Dmesh/IR/11_after_canonicalize.mlir \
-  > test/Passes/mm_2Dmesh/IR/12_after_factorize.mlir; then
-    echo "Error: Step 7 failed."
-    exit 1
-fi
-
-echo "8) Decompose non-linear constraints..."
-if ! ./build/tool/loom-constraint/single_stage/constraint_decompose \
-  --input test/Passes/mm_2Dmesh/IR/12_after_factorize.mlir \
-  > test/Passes/mm_2Dmesh/IR/13_after_decompose.mlir; then
-    echo "Error: Step 8 failed."
-    exit 1
-fi
-
-echo "9) Linearize constraints (McCormick relaxation)..."
-if ! ./build/tool/loom-constraint/single_stage/constraint_linearize \
-  --input test/Passes/mm_2Dmesh/IR/13_after_decompose.mlir \
-  > test/Passes/mm_2Dmesh/IR/14_after_linearize.mlir; then
-    echo "Error: Step 9 failed."
-    exit 1
-fi
-
-echo "10) Compress intermediate variables..."
-if ! ./build/tool/loom-constraint/single_stage/compress_intermediate_var \
-  --input test/Passes/mm_2Dmesh/IR/14_after_linearize.mlir \
-  > test/Passes/mm_2Dmesh/IR/15_after_compress_iv.mlir; then
-    echo "Error: Step 10 failed."
-    exit 1
-fi
-
-echo "11) Simplify constraint space..."
-if ! ./build/tool/loom-constraint/single_stage/constraint_simplify \
-  --input test/Passes/mm_2Dmesh/IR/15_after_compress_iv.mlir \
-  > test/Passes/mm_2Dmesh/IR/16_after_simplify.mlir \
-  2> test/Passes/mm_2Dmesh/constraint_space/linearized_constraint_space.json; then
-    echo "Error: Step 11 failed."
-    exit 1
-fi
-
-echo "Lowering Succeed"
-
-echo "1) Visualize Raw Constraint Space..."
-if ! python -m lib.lcs.viz_engine.cli \
-  --func-name matmul_kernel__d0i0_d1i1__f01__d_d \
-  test/Passes/mm_2Dmesh/constraint_space/raw_constraint_space.json \
-  --resolution 40 \
-  --output test/Passes/mm_2Dmesh/viz/raw_constraint_space.html; then
-    echo "Error: Raw visualization failed."
-    exit 1
-fi
-
-echo "2) Visualize Linear Constraint Space..."
-if ! python -m lib.lcs.viz_engine.cli \
-  --func-name matmul_kernel__d0i0_d1i1__f01__d_d \
-  test/Passes/mm_2Dmesh/constraint_space/linearized_constraint_space.json \
-  --resolution 40 \
-  --output test/Passes/mm_2Dmesh/viz/linearized_constraint_space.html; then
-    echo "Error: Linear visualization failed."
     exit 1
 fi
 

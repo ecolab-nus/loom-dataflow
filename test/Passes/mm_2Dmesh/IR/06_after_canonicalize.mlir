@@ -21,28 +21,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg6, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg6, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg6, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg6, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -60,28 +66,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg6, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg6, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg6, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg6, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -99,28 +111,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg6, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg6, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg6, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg6, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -138,28 +156,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg6, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg6, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg6, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg6, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -177,28 +201,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg5, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg5, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg5, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg5, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -216,28 +246,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg5, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg5, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg5, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg5, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -255,28 +291,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg5, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg5, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg5, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg5, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -294,28 +336,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg5, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg5, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg5, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg5, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -333,28 +381,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg6, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg6, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg6, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg6, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -372,28 +426,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg6, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg6, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg6, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg6, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -411,28 +471,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg6, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg6, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg6, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg6, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -450,28 +516,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg6, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg6, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg6, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg6, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -489,28 +561,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg5, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg5, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg5, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg5, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -528,28 +606,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg5, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg5, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg5, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg5, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -567,28 +651,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg5, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg5, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg5, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg5, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -606,28 +696,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %12, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %arg5, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %12, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %arg5, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %12, %c64 : index
-              %20 = arith.muli %arg5, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %12, %c64 : index
+              %23 = arith.muli %arg5, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -646,28 +742,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -686,28 +788,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -726,28 +834,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -766,28 +880,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -806,28 +926,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -846,28 +972,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -886,28 +1018,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -926,28 +1064,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -966,28 +1110,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1006,28 +1156,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1046,28 +1202,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1086,28 +1248,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg5)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg6)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1126,28 +1294,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1166,28 +1340,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1206,28 +1386,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1246,28 +1432,34 @@ module {
               %12 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg3, %arg6)
               %13 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 8)>(%arg4, %arg5)
               %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %15 = loom.semaphore_take %14 : memref<64x64xf16> -> memref<64x64xf16>
               %16 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %17 = loom.init_tensor %16[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %18 = linalg.fill ins(%cst : f16) outs(%17 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %19 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %18) -> (tensor<64x64xf16>) {
-                %23 = arith.muli %12, %c64 : index
-                %24 = arith.muli %arg7, %c64 : index
-                %25 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%23, %24)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%25], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %26 = loom.copy_to_tensor %reinterpret_cast_0, %15 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %27 = arith.muli %13, %c64 : index
-                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%24, %27)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%28], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %29 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %30 = linalg.matmul ins(%26, %29 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %30 : tensor<64x64xf16>
+              %17 = loom.semaphore_take %16 : memref<64x64xf16> -> memref<64x64xf16>
+              %18 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %19 = loom.semaphore_take %18 : memref<64x64xf16> -> memref<64x64xf16>
+              %20 = loom.init_tensor %19[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %21 = linalg.fill ins(%cst : f16) outs(%20 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %22 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %21) -> (tensor<64x64xf16>) {
+                %26 = arith.muli %12, %c64 : index
+                %27 = arith.muli %arg7, %c64 : index
+                %28 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%26, %27)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%28], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %29 = loom.copy_to_tensor %reinterpret_cast_0, %17 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %30 = arith.muli %13, %c64 : index
+                %31 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%27, %30)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %32 = loom.copy_to_tensor %reinterpret_cast_1, %15 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %33 = linalg.matmul ins(%29, %32 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %15 : memref<64x64xf16>
+                loom.semaphore_give %17 : memref<64x64xf16>
+                affine.yield %33 : tensor<64x64xf16>
               }
-              %20 = arith.muli %12, %c64 : index
-              %21 = arith.muli %13, %c64 : index
-              %22 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%20, %21)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%22], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %19, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %23 = arith.muli %12, %c64 : index
+              %24 = arith.muli %13, %c64 : index
+              %25 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %24)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %22, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %19 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1285,28 +1477,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg5, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg5, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg5, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg5, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1324,28 +1522,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg5, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg5, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg5, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg5, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1363,28 +1567,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg5, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg5, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg5, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg5, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1402,28 +1612,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg5, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg5, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg5, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg5, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1441,28 +1657,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg6, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg6, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg6, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg6, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1480,28 +1702,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg6, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg6, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg6, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg6, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1519,28 +1747,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg6, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg6, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg6, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg6, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1558,28 +1792,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg6, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg6, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg6, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg6, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @y}
@@ -1597,28 +1837,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg5, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg5, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg5, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg5, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1636,28 +1882,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg5, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg5, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg5, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg5, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1675,28 +1927,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg5, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg5, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg5, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg5, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1714,28 +1972,34 @@ module {
             affine.for %arg6 = 0 to 1 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg6)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg5, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg5, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg5, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg5, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1753,28 +2017,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg6, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg6, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg6, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg6, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1792,28 +2062,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg6, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg6, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [@horizontal_links, @vertical_links], broadcast : [8, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg6, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg6, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1831,28 +2107,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg6, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg6, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [@horizontal_links], broadcast : [1, 8] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg6, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg6, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}
@@ -1870,28 +2152,34 @@ module {
             affine.for %arg6 = 0 to 64 {
               %12 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 64)>(%arg3, %arg4, %arg5)
               %13 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %14 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %14 = loom.semaphore_take %13 : memref<64x64xf16> -> memref<64x64xf16>
               %15 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-              %16 = loom.init_tensor %15[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
-              %17 = linalg.fill ins(%cst : f16) outs(%16 : tensor<64x64xf16>) -> tensor<64x64xf16>
-              %18 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %17) -> (tensor<64x64xf16>) {
-                %22 = arith.muli %arg6, %c64 : index
-                %23 = arith.muli %arg7, %c64 : index
-                %24 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%22, %23)
-                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
-                %25 = loom.copy_to_tensor %reinterpret_cast_0, %14 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %26 = arith.muli %12, %c64 : index
-                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%23, %26)
-                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%27], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-                %28 = loom.copy_to_tensor %reinterpret_cast_1, %13 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
-                %29 = linalg.matmul ins(%25, %28 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
-                affine.yield %29 : tensor<64x64xf16>
+              %16 = loom.semaphore_take %15 : memref<64x64xf16> -> memref<64x64xf16>
+              %17 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+              %18 = loom.semaphore_take %17 : memref<64x64xf16> -> memref<64x64xf16>
+              %19 = loom.init_tensor %18[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
+              %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<64x64xf16>) -> tensor<64x64xf16>
+              %21 = affine.for %arg7 = 0 to 8 iter_args(%arg8 = %20) -> (tensor<64x64xf16>) {
+                %25 = arith.muli %arg6, %c64 : index
+                %26 = arith.muli %arg7, %c64 : index
+                %27 = affine.apply affine_map<(d0, d1) -> (d0 * 512 + d1)>(%25, %26)
+                %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%27], sizes: [64, 64], strides: [512, 1] : memref<4096x512xf16> to memref<64x64xf16, strided<[512, 1], offset: ?>>
+                %28 = loom.copy_to_tensor %reinterpret_cast_0, %16 on @L1, interconnect : [@vertical_links], broadcast : [8, 1] : memref<64x64xf16, strided<[512, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %29 = arith.muli %12, %c64 : index
+                %30 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%26, %29)
+                %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%30], sizes: [64, 64], strides: [4096, 1] : memref<512x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+                %31 = loom.copy_to_tensor %reinterpret_cast_1, %14 on @L1, interconnect : [], broadcast : [1, 1] : memref<64x64xf16, strided<[4096, 1], offset: ?>>, memref<64x64xf16> -> tensor<64x64xf16>
+                %32 = linalg.matmul ins(%28, %31 : tensor<64x64xf16>, tensor<64x64xf16>) outs(%arg8 : tensor<64x64xf16>) -> tensor<64x64xf16>
+                loom.semaphore_give %14 : memref<64x64xf16>
+                loom.semaphore_give %16 : memref<64x64xf16>
+                affine.yield %32 : tensor<64x64xf16>
               }
-              %19 = arith.muli %arg6, %c64 : index
-              %20 = arith.muli %12, %c64 : index
-              %21 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%19, %20)
-              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%21], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
-              loom.copy_from_tensor %18, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              %22 = arith.muli %arg6, %c64 : index
+              %23 = arith.muli %12, %c64 : index
+              %24 = affine.apply affine_map<(d0, d1) -> (d0 * 4096 + d1)>(%22, %23)
+              %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [%24], sizes: [64, 64], strides: [4096, 1] : memref<4096x4096xf16> to memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.copy_from_tensor %21, %reinterpret_cast on @DRAM : tensor<64x64xf16>, memref<64x64xf16, strided<[4096, 1], offset: ?>>
+              loom.semaphore_give %18 : memref<64x64xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
         } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @x}

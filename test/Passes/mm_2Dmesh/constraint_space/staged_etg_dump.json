@@ -1,0 +1,4706 @@
+[
+  {
+    "variant_name": "matmul__d0i0_d1i0__f01__d_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BN"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i0__f01__d_a",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BN"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i0__f01__d_h",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BN"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i0__f01__d_v",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BN"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i0__f10__d_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BN"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i0__f10__d_a",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BN"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i0__f10__d_h",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BN"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i0__f10__d_v",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BN"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i0__f01__d_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BN"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i0__f01__d_a",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BN"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i0__f01__d_h",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BN"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i0__f01__d_v",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BN"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i0__f10__d_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BN"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i0__f10__d_a",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BN"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i0__f10__d_h",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BN"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i0__f10__d_v",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BN"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BN"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BN"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i1__f01__d_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i1__f01__d_h",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i1__f01__v_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i1__f01__v_h",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i1__f10__d_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i1__f10__d_h",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i1__f10__v_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i0_d1i1__f10__v_h",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i1__f01__d_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i1__f01__d_v",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i1__f01__h_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i1__f01__h_v",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i1__f10__d_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i1__f10__d_v",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i1__f10__h_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i0_d0i1__f10__h_v",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BM"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BM"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i1_d1i1__f01__d_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BM"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i1_d1i1__f01__a_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BM"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i1_d1i1__f01__h_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BM"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i1_d1i1__f01__v_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BM"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i1_d1i1__f10__d_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BM"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i1_d1i1__f10__a_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BM"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i1_d1i1__f10__h_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BM"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d0i1_d1i1__f10__v_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BM"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i1_d0i1__f01__d_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BM"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i1_d0i1__f01__a_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BM"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i1_d0i1__f01__h_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BM"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i1_d0i1__f01__v_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"BM"}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i1_d0i1__f10__d_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BM"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i1_d0i1__f10__a_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BM"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i1_d0i1__f10__h_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BM"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  },
+  {
+    "variant_name": "matmul__d1i1_d0i1__f10__v_d",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"BK"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"BM"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+          {"Mul":[{"Sym":"BM"},{"Sym":"BN"}]}
+        ],
+        "symbols": {
+          "BM": "int",
+          "BN": "int",
+          "BK": "int"
+        },
+        "datatype": "f16"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"BK"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BK"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"BM"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"BM"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"BN"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"BN"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "FPU": {
+              "workloads": [
+                {
+                  "op": "linalg.matmul",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]},
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "FPU"
+            }
+          }
+        }
+      ],
+      "scope_name": "ComputeScope"
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 2,
+          "queues": {
+            "NoC_H": {
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_H"
+            },
+            "NoC_V": {
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": [
+                    {"Mul":[{"Sym":"BM"},{"Sym":"BK"}]}
+                  ]
+                },
+                {
+                  "op": "d",
+                  "dims": [
+                    {"Mul":[{"Sym":"BK"},{"Sym":"BN"}]}
+                  ]
+                }
+              ],
+              "resolved_time": null,
+              "unit_name": "NoC_V"
+            }
+          }
+        }
+      ],
+      "scope_name": "MemoryScope"
+    }
+  }
+]
