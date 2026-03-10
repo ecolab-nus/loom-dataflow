@@ -1,13 +1,5 @@
 module {
   module {
-    loom.constraint_space @constraints {
-      %0 = loom.symbolic_var "BM" : index
-      %1 = loom.symbolic_var "BN" : index
-      %2 = loom.symbolic_var "BK" : index
-      loom.range %0[0, 1024]
-      loom.range %1[0, 1024]
-      loom.range %2[0, 1024]
-    }
     func.func @matmul(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %0 = loom.get_symbolic_block_size @constraints::@BM : index

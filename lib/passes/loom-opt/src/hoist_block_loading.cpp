@@ -1,6 +1,5 @@
 #include "Passes.h"
 #include "block_loading_pattern.h"
-#include "constraint_space_utils.h"
 #include "hardware_info.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -137,8 +136,7 @@ public:
         mlir::func::FuncOp clonedFunc = loom::utils::cloneFuncWithConstraints(
             moduleBuilder, originalFunc, newName, moduleAttrs,
             "HoistBlockLoading",
-            [&](mlir::func::FuncOp func,
-                loom::ConstraintSpaceOp csOp) -> mlir::LogicalResult {
+            [&](mlir::func::FuncOp func) -> mlir::LogicalResult {
               // We need to find the EQUIVALENT loop in the cloned function.
               // We can use the index of the loop in the original list.
               // Wait, indices might change if we modify the function.
@@ -169,40 +167,6 @@ public:
               if (failed(loom::affine::HoistSingleBlock(targetLoop,
                                                         instance.index))) {
                 return mlir::failure();
-              }
-
-              // Add L1 cache constraints if applicable
-              if (csOp && hardwareInfo.l1Size > 0) {
-                auto allocInfos = loom::utils::collectL1AllocInfos(func);
-                if (!allocInfos.empty()) {
-                  llvm::SmallVector<llvm::StringRef> symVarNames;
-                  llvm::StringMap<unsigned> symVarToIndex;
-
-                  // Build unique variable list
-                  for (const auto &info : allocInfos) {
-                    for (llvm::StringRef dimName : info.dims) {
-                      if (symVarToIndex.find(dimName) == symVarToIndex.end()) {
-                        symVarToIndex[dimName] = symVarNames.size();
-                        symVarNames.push_back(dimName);
-                      }
-                    }
-                  }
-
-                  // Build monomials
-                  llvm::SmallVector<loom::lcs::Monomial> monomials;
-                  for (const auto &info : allocInfos) {
-                    loom::lcs::Monomial m;
-                    for (llvm::StringRef dimName : info.dims) {
-                      m.varIndices.push_back(symVarToIndex[dimName]);
-                    }
-                    m.coeff = info.elemSize;
-                    monomials.push_back(m);
-                  }
-
-                  // Add the polynomial constraint to csOp
-                  loom::lcs::addPolynomialConstraint(
-                      csOp, symVarNames, monomials, hardwareInfo.l1Size);
-                }
               }
 
               return mlir::success();

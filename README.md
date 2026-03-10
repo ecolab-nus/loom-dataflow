@@ -158,8 +158,7 @@ build/tool/loom-opt/single_stage/analyze_reuse \
 ```bash
 build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
   --input test/Passes/flashattn_2Dmesh/IR/04_after_reuse_analyzation.mlir \
-  > test/Passes/flashattn_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
-  2> test/Passes/flashattn_2Dmesh/constraint_sapce/raw_constraint_space.json
+  > test/Passes/flashattn_2Dmesh/IR/05_after_enumerate_broadcast.mlir
 ```
 
 6) Materialize symbolic block sizes

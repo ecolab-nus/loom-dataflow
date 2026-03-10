@@ -304,4 +304,51 @@ LogicalResult ConvertParallelToNested(affine::AffineParallelOp par,
   return success();
 }
 
+// --- Flatten nested ceildiv ---
+
+AffineExpr flattenNestedCeilDiv(AffineExpr expr) {
+  if (!expr)
+    return expr;
+  if (expr.getKind() != AffineExprKind::CeilDiv)
+    return expr;
+
+  auto bin = llvm::cast<AffineBinaryOpExpr>(expr);
+  // Recursively flatten the numerator side first.
+  AffineExpr lhs = flattenNestedCeilDiv(bin.getLHS());
+  AffineExpr rhs = bin.getRHS();
+
+  // If the (possibly-flattened) numerator is itself a CeilDiv, merge:
+  //   (N ceildiv A) ceildiv B  -->  N ceildiv (A * B)
+  // MLIR's AffineExpr multiplication folds constants automatically,
+  // so  (s0 * 8) * 8  becomes  s0 * 64.
+  if (lhs.getKind() == AffineExprKind::CeilDiv) {
+    auto innerBin = llvm::cast<AffineBinaryOpExpr>(lhs);
+    AffineExpr combinedDenom = innerBin.getRHS() * rhs;
+    return innerBin.getLHS().ceilDiv(combinedDenom);
+  }
+
+  return lhs.ceilDiv(rhs);
+}
+
+void flattenCeilDivInForBounds(func::FuncOp func) {
+  func.walk([](affine::AffineForOp forOp) {
+    AffineMap ubMap = forOp.getUpperBoundMap();
+    bool changed = false;
+    SmallVector<AffineExpr> newExprs;
+    newExprs.reserve(ubMap.getNumResults());
+    for (AffineExpr expr : ubMap.getResults()) {
+      AffineExpr flattened = flattenNestedCeilDiv(expr);
+      newExprs.push_back(flattened);
+      if (flattened != expr)
+        changed = true;
+    }
+    if (changed) {
+      AffineMap newMap =
+          AffineMap::get(ubMap.getNumDims(), ubMap.getNumSymbols(), newExprs,
+                         ubMap.getContext());
+      forOp.setUpperBoundMap(newMap);
+    }
+  });
+}
+
 } // namespace loom_affine

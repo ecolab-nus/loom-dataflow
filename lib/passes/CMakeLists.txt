@@ -3,4 +3,4 @@
 
 add_subdirectory(common)
 add_subdirectory(loom-opt)
-add_subdirectory(constraint-opt)
+add_subdirectory(LCS)

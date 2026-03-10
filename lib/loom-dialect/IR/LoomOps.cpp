@@ -59,51 +59,11 @@ void LoomDialect::initialize() {
 #define GET_OP_CLASSES
 #include "LoomOps.cpp.inc"
 
-LogicalResult loom::ConstraintSpaceOp::verify() {
-  llvm::DenseMap<StringAttr, Location> variableNames;
-  for (Operation &op : getBodyBlock()->getOperations()) {
-    if (auto symbolicVar = dyn_cast<loom::SymbolicVarOp>(&op)) {
-      StringAttr varName = symbolicVar.getNameAttr();
-      auto [it, inserted] =
-          variableNames.try_emplace(varName, symbolicVar.getLoc());
-      if (!inserted) {
-        return symbolicVar.emitOpError("duplicate symbolic variable name '")
-               << varName.getValue() << "' in constraint space; "
-               << "previously defined at " << it->second;
-      }
-    }
-  }
-  return success();
-}
-
 LogicalResult loom::GetSymbolicBlockSizeOp::verify() {
   SymbolRefAttr symbolRef = getSymbolRef();
   if (symbolRef.getNestedReferences().size() != 1) {
     return emitOpError("symbol reference must have format @space::@var, got ")
            << symbolRef;
-  }
-  return success();
-}
-
-LogicalResult loom::ExpressionOp::verify() {
-  auto operands = getOperands();
-  auto coeffs = getCoeffs();
-  auto logic = getLogic();
-  if (logic == "add") {
-    if (operands.size() != coeffs.size()) {
-      return emitOpError("number of operands must match number of coefficients "
-                         "for 'add' logic");
-    }
-  } else if (logic == "mul") {
-    if (operands.size() != 2) {
-      return emitOpError("multiplication must have exactly two operands");
-    }
-    if (coeffs.size() != 2) {
-      return emitOpError(
-          "multiplication must have two coefficients (typically {1, 1})");
-    }
-  } else {
-    return emitOpError("unsupported logic type: ") << logic;
   }
   return success();
 }
@@ -493,8 +453,8 @@ struct StaticizeAffineFor : public OpRewritePattern<affine::AffineForOp> {
         }
         if (!castFound) {
           // If no cast found, insert one to the expected static type
-          auto castOp = mlir::tensor::CastOp::create(
-              rewriter, yieldOp.getLoc(), newIterTypes[idx], yieldVal);
+          auto castOp = rewriter.create<tensor::CastOp>(
+              yieldOp.getLoc(), newIterTypes[idx], yieldVal);
           newYieldOperands.push_back(castOp.getResult());
         }
       } else {
@@ -508,9 +468,10 @@ struct StaticizeAffineFor : public OpRewritePattern<affine::AffineForOp> {
     rewriter.setInsertionPointAfter(newForOp);
     SmallVector<Value> replacedResults;
     for (auto [idx, result] : llvm::enumerate(newForOp.getResults())) {
-      if (result.getType() != op.getResult(idx).getType()) {
-        auto castOp = mlir::tensor::CastOp::create(
-            rewriter, op.getLoc(), op.getResult(idx).getType(), result);
+      Type targetType = op.getResults()[idx].getType();
+      if (result.getType() != targetType) {
+        auto castOp =
+            rewriter.create<tensor::CastOp>(op.getLoc(), targetType, result);
         replacedResults.push_back(castOp.getResult());
       } else {
         replacedResults.push_back(result);
