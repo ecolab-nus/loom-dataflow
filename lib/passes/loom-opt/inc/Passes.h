@@ -2,6 +2,7 @@
 #define LOOM_PASSES_TRITON_SHARED_H
 
 #include "mlir/Pass/Pass.h"
+#include "llvm/ADT/StringMap.h"
 #include <memory>
 
 namespace mlir {
@@ -10,6 +11,10 @@ class ModuleOp;
 
 namespace loom {
 namespace passes {
+
+// Map: func_name → {symbol_name → concrete_value}
+// Used to pass SMT solver results directly to the materialize pass.
+using BlockSizeMap = llvm::StringMap<llvm::StringMap<int64_t>>;
 
 #define GEN_PASS_DECL
 #include "Passes.h.inc"
@@ -25,6 +30,7 @@ std::unique_ptr<mlir::Pass>
 createEnumerateCopyBroadcastPass(bool analysisOnly = false);
 std::unique_ptr<mlir::Pass> createTileScfForToL1Pass();
 std::unique_ptr<mlir::Pass> createMaterializePass();
+std::unique_ptr<mlir::Pass> createMaterializePass(const BlockSizeMap &blockSizes);
 std::unique_ptr<mlir::Pass> createBridgeToOSBPass();
 std::unique_ptr<mlir::Pass> createStaticizeTypesPass();
 std::unique_ptr<mlir::Pass> createConstDedupCleanupPass();

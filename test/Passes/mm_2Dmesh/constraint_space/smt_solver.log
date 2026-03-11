@@ -1161,11 +1161,11 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
 ------------------------------------------------------------------------
 Variant [43/47]: matmul__d1i1_d0i1__f01__v_d
 Optimal T_total: 187,904 cycles
-  BK = 64
-  BM = 4096
+  BK = 128
+  BM = 2048
   BN = 64
 
-Iteration factors:  seq_iter=8,  temp_iter=[1 × 1]  (product=1)
+Iteration factors:  seq_iter=4,  temp_iter=[1 × 2]  (product=2)
 
   [ComputeScope]
     Stage 2:
@@ -1175,15 +1175,15 @@ Iteration factors:  seq_iter=8,  temp_iter=[1 × 1]  (product=1)
 
   [MemoryScope]
     Stage 2:
-      NoC_H              1,000 cycles
-      NoC_V             20,149 cycles ← bottleneck
-      (stage max)       20,149 cycles
-  → scope total         20,149 cycles
+      NoC_H              1,546 cycles
+      NoC_V             20,695 cycles ← bottleneck
+      (stage max)       20,695 cycles
+  → scope total         20,695 cycles
 
   T_comp  =     23,488 cycles
-  T_mem   =     20,149 cycles
+  T_mem   =     20,695 cycles
   T_stage = max(T_comp, T_mem) = 23,488 cycles
-  T_total = 23,488 × 8 × 1 = 187,904 cycles
+  T_total = 23,488 × 4 × 2 = 187,904 cycles
 
 ------------------------------------------------------------------------
 Variant [44/47]: matmul__d1i1_d0i1__f10__d_d
@@ -1242,11 +1242,11 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
 ------------------------------------------------------------------------
 Variant [46/47]: matmul__d1i1_d0i1__f10__h_d
 Optimal T_total: 187,904 cycles
-  BK = 128
-  BM = 1024
+  BK = 64
+  BM = 2048
   BN = 64
 
-Iteration factors:  seq_iter=4,  temp_iter=[4 × 1]  (product=4)
+Iteration factors:  seq_iter=8,  temp_iter=[2 × 1]  (product=2)
 
   [ComputeScope]
     Stage 2:
@@ -1256,41 +1256,41 @@ Iteration factors:  seq_iter=4,  temp_iter=[4 × 1]  (product=4)
 
   [MemoryScope]
     Stage 2:
-      NoC_H             11,292 cycles ← bottleneck
-      NoC_V              1,546 cycles
-      (stage max)       11,292 cycles
-  → scope total         11,292 cycles
+      NoC_H             10,746 cycles ← bottleneck
+      NoC_V              1,000 cycles
+      (stage max)       10,746 cycles
+  → scope total         10,746 cycles
 
   T_comp  =     11,744 cycles
-  T_mem   =     11,292 cycles
+  T_mem   =     10,746 cycles
   T_stage = max(T_comp, T_mem) = 11,744 cycles
-  T_total = 11,744 × 4 × 4 = 187,904 cycles
+  T_total = 11,744 × 8 × 2 = 187,904 cycles
 
 ------------------------------------------------------------------------
 Variant [47/47]: matmul__d1i1_d0i1__f10__v_d
 Optimal T_total: 187,904 cycles
-  BK = 512
-  BM = 1024
+  BK = 32
+  BM = 2048
   BN = 64
 
-Iteration factors:  seq_iter=1,  temp_iter=[4 × 1]  (product=4)
+Iteration factors:  seq_iter=16,  temp_iter=[2 × 1]  (product=2)
 
   [ComputeScope]
     Stage 2:
-      FPU               46,976 cycles ← bottleneck
-      (stage max)       46,976 cycles
-  → scope total         46,976 cycles
+      FPU                5,872 cycles ← bottleneck
+      (stage max)        5,872 cycles
+  → scope total          5,872 cycles
 
   [MemoryScope]
     Stage 2:
-      NoC_H              4,823 cycles
-      NoC_V             42,777 cycles ← bottleneck
-      (stage max)       42,777 cycles
-  → scope total         42,777 cycles
+      NoC_H                727 cycles
+      NoC_V              5,772 cycles ← bottleneck
+      (stage max)        5,772 cycles
+  → scope total          5,772 cycles
 
-  T_comp  =     46,976 cycles
-  T_mem   =     42,777 cycles
-  T_stage = max(T_comp, T_mem) = 46,976 cycles
-  T_total = 46,976 × 1 × 4 = 187,904 cycles
+  T_comp  =      5,872 cycles
+  T_mem   =      5,772 cycles
+  T_stage = max(T_comp, T_mem) = 5,872 cycles
+  T_total = 5,872 × 16 × 2 = 187,904 cycles
 
 ------------------------------------------------------------------------

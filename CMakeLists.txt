@@ -42,6 +42,10 @@ endif()
 
 message(STATUS "MLIR support enabled")
 
+# Enable position-independent code globally so all static libraries can be
+# linked into libloom_pipeline.so without relocation errors.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

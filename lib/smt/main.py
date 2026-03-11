@@ -135,7 +135,7 @@ def solve_variant(
 # Main pipeline
 # ---------------------------------------------------------------------------
 
-def run(args: argparse.Namespace) -> None:
+def run(args: argparse.Namespace) -> dict[str, dict[str, int]]:
     variants = load_variants(args.input)
     total = len(variants)
     domains = default_symbol_domains()
@@ -197,6 +197,14 @@ def run(args: argparse.Namespace) -> None:
         best["variant"], best["assignments"],
         best["min_val"], best["index"], total,
     )
+
+    # Build and return the consolidated block size map for programmatic use.
+    block_sizes: dict[str, dict[str, int]] = {}
+    for r in results:
+        if r["min_val"] is not None:
+            vname = r["variant"].get("variant_name", f"variant_{r['index']}")
+            block_sizes[vname] = dict(r["assignments"])
+    return block_sizes
 
 
 def main() -> None:
