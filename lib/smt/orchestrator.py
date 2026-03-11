@@ -10,7 +10,7 @@ Usage:
         --input-mlir path/to/05_after_enumerate_broadcast.mlir \\
         --output-mlir path/to/final.mlir \\
         [--njobs N] \\
-        [--enumerate] \\
+        \\
         [--solver-log path/to/smt_solver.log] \\
         [--lib path/to/libloom_pipeline.so]
 
@@ -147,11 +147,6 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Number of parallel SMT solver worker processes (default: 1).",
     )
     parser.add_argument(
-        "--enumerate",
-        action="store_true",
-        help="Force brute-force enumeration instead of Z3 Optimize.",
-    )
-    parser.add_argument(
         "--solver-log",
         metavar="PATH",
         help="Optional path for per-variant SMT solver log.",
@@ -183,7 +178,6 @@ def main() -> None:
         input=args.etg_json,
         njobs=args.njobs,
         output=args.solver_log,   # None → no log file
-        enumerate=args.enumerate,
     )
 
     block_sizes = smt_run(smt_args)
