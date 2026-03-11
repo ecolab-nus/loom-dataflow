@@ -358,9 +358,9 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
   Value numTileColsVal = rewriter.create<arith::ConstantIntOp>(
       loc, rewriter.getI32Type(), numTileCols);
   Value stride0Val = rewriter.create<arith::ConstantIntOp>(
-      loc, rewriter.getI32Type(), (strides.size() > 0) ? strides[0] : 1);
+      loc, rewriter.getI32Type(), (strides.size() > 0) ? strides[strides.size() - 2] : 1);
   Value stride1Val = rewriter.create<arith::ConstantIntOp>(
-      loc, rewriter.getI32Type(), (strides.size() > 1) ? strides[1] : 1);
+      loc, rewriter.getI32Type(), (strides.size() > 1) ? strides[strides.size() - 1] : 1);
 
   // Create nested loops to iterate over all tiles.
   // Outer loop: iterate over tile rows (0 to numTileRows).
@@ -1169,9 +1169,9 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
     Value numTileColsVal = rewriter.create<arith::ConstantIntOp>(
         loc, rewriter.getI32Type(), numTileCols);
     Value stride0Val = rewriter.create<arith::ConstantIntOp>(
-        loc, rewriter.getI32Type(), (strides.size() > 0) ? strides[0] : 1);
+        loc, rewriter.getI32Type(), (strides.size() > 0) ? strides[strides.size() - 2] : 1);
     Value stride1Val = rewriter.create<arith::ConstantIntOp>(
-        loc, rewriter.getI32Type(), (strides.size() > 1) ? strides[1] : 1);
+        loc, rewriter.getI32Type(), (strides.size() > 1) ? strides[strides.size() - 1] : 1);
 
     scf::ForOp rowLoop =
         scf::ForOp::create(rewriter, loc, loopConst0, numTileRowsVal,

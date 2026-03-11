@@ -54,7 +54,7 @@ struct ElementwiseAnalysis {
   bool needsAddBinary = false;
   bool needsMulBinary = false;
   bool needsBinaryMax = false;
-  bool needsExp = false;
+  bool needsPowBinary = false;
   bool needsRecip = false;
 };
 
@@ -495,7 +495,7 @@ static LogicalResult analyzeElementwiseExpr(Value exprValue, linalg::GenericOp o
   if (auto powOp = dyn_cast<math::PowFOp>(defOp)) {
     if (!getConstFloatValue(powOp.getLhs()).has_value())
       return failure();
-    analysis.needsExp = true;
+    analysis.needsPowBinary = true;
     return analyzeElementwiseExpr(powOp.getRhs(), op, analysis);
   }
 
@@ -702,16 +702,22 @@ static LogicalResult emitElementwiseExprToReg(
   }
 
   if (auto powOp = dyn_cast<math::PowFOp>(defOp)) {
-    if (!getConstFloatValue(powOp.getLhs()).has_value())
+    auto lhsConst = getConstFloatValue(powOp.getLhs());
+    if (!lhsConst)
       return failure();
     if (failed(emitElementwiseExprToReg(powOp.getRhs(), dstReg, tmpRegA, tmpRegB,
                                         op, adaptor, rewriter, loc, tileIdx, rowIdx,
                                         rowBcastInput, emitInlineInitOps,
                                         rowBcastRefInput)))
       return failure();
+    Value lhsConstVal = rewriter.create<arith::ConstantFloatOp>(
+        loc, rewriter.getF32Type(), llvm::APFloat(*lhsConst));
     if (emitInlineInitOps)
-      rewriter.create<ExpTileInitOp>(loc);
-    rewriter.create<ExpTileOp>(loc, dstRegVal);
+      rewriter.create<FillTileInitOp>(loc);
+    rewriter.create<FillTileOp>(loc, tmpRegAVal, lhsConstVal);
+    if (emitInlineInitOps)
+      rewriter.create<PowBinaryTilesInitOp>(loc);
+    rewriter.create<PowBinaryTilesOp>(loc, tmpRegAVal, dstRegVal, dstRegVal);
     return success();
   }
 
@@ -914,8 +920,10 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
       rewriter.create<MulBinaryTilesInitOp>(loc);
     if (analysis.needsBinaryMax)
       rewriter.create<BinaryMaxTileInitOp>(loc);
-    if (analysis.needsExp)
-      rewriter.create<ExpTileInitOp>(loc);
+    if (analysis.needsPowBinary) {
+      rewriter.create<FillTileInitOp>(loc);
+      rewriter.create<PowBinaryTilesInitOp>(loc);
+    }
     if (analysis.needsRecip)
       rewriter.create<RecipTileInitOp>(loc);
   }
