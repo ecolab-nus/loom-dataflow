@@ -572,7 +572,8 @@ static LogicalResult emitElementwiseExprToReg(
     Value exprValue, int dstReg, int tmpRegA, int tmpRegB, linalg::GenericOp op,
     linalg::GenericOp::Adaptor adaptor, ConversionPatternRewriter &rewriter,
     Location loc, Value tileIdx, std::optional<Value> rowIdx,
-    std::optional<unsigned> rowBcastInput) {
+    std::optional<unsigned> rowBcastInput, bool emitInlineInitOps,
+    std::optional<unsigned> rowBcastRefInput) {
   Value dstRegVal = i32Const(rewriter, loc, dstReg);
   Value tmpRegAVal = i32Const(rewriter, loc, tmpRegA);
 
@@ -580,9 +581,18 @@ static LogicalResult emitElementwiseExprToReg(
     if (rowBcastInput && *inputIdx == *rowBcastInput) {
       if (!rowIdx)
         return failure();
+      if (emitInlineInitOps) {
+        if (!rowBcastRefInput)
+          return failure();
+        rewriter.create<UnaryBcastInitOp>(
+            loc, adaptor.getInputs()[*rowBcastInput],
+            adaptor.getInputs()[*rowBcastRefInput], BcastType::Col);
+      }
       rewriter.create<UnaryBcastTileOp>(loc, adaptor.getInputs()[*inputIdx],
                                         *rowIdx, dstRegVal, BcastType::Col);
     } else {
+      if (emitInlineInitOps)
+        rewriter.create<CopyTileInitOp>(loc, adaptor.getInputs()[*inputIdx]);
       rewriter.create<CopyTileOp>(loc, adaptor.getInputs()[*inputIdx], tileIdx,
                                   dstRegVal);
     }
@@ -599,8 +609,11 @@ static LogicalResult emitElementwiseExprToReg(
     if (lhsConst && !rhsConst) {
       if (failed(emitElementwiseExprToReg(
               mulOp.getRhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput)))
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
         return failure();
+      if (emitInlineInitOps)
+        rewriter.create<BinopWithScalarTileInitOp>(loc);
       rewriter.create<MulUnaryTileOp>(loc, dstRegVal,
                                       getScalarBitsFromFloat(rewriter, loc, *lhsConst));
       return success();
@@ -608,8 +621,11 @@ static LogicalResult emitElementwiseExprToReg(
     if (rhsConst && !lhsConst) {
       if (failed(emitElementwiseExprToReg(
               mulOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput)))
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
         return failure();
+      if (emitInlineInitOps)
+        rewriter.create<BinopWithScalarTileInitOp>(loc);
       rewriter.create<MulUnaryTileOp>(loc, dstRegVal,
                                       getScalarBitsFromFloat(rewriter, loc, *rhsConst));
       return success();
@@ -617,12 +633,16 @@ static LogicalResult emitElementwiseExprToReg(
 
     if (failed(emitElementwiseExprToReg(mulOp.getLhs(), dstReg, tmpRegA, tmpRegB,
                                         op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput)))
+                                        rowBcastInput, emitInlineInitOps,
+                                        rowBcastRefInput)))
       return failure();
     if (failed(emitElementwiseExprToReg(mulOp.getRhs(), tmpRegA, tmpRegB, dstReg,
                                         op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput)))
+                                        rowBcastInput, emitInlineInitOps,
+                                        rowBcastRefInput)))
       return failure();
+    if (emitInlineInitOps)
+      rewriter.create<MulBinaryTilesInitOp>(loc);
     rewriter.create<MulBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
     return success();
   }
@@ -630,12 +650,16 @@ static LogicalResult emitElementwiseExprToReg(
   if (auto addOp = dyn_cast<arith::AddFOp>(defOp)) {
     if (failed(emitElementwiseExprToReg(addOp.getLhs(), dstReg, tmpRegA, tmpRegB,
                                         op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput)))
+                                        rowBcastInput, emitInlineInitOps,
+                                        rowBcastRefInput)))
       return failure();
     if (failed(emitElementwiseExprToReg(addOp.getRhs(), tmpRegA, tmpRegB, dstReg,
                                         op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput)))
+                                        rowBcastInput, emitInlineInitOps,
+                                        rowBcastRefInput)))
       return failure();
+    if (emitInlineInitOps)
+      rewriter.create<AddBinaryTilesInitOp>(loc);
     rewriter.create<AddBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
     return success();
   }
@@ -643,12 +667,16 @@ static LogicalResult emitElementwiseExprToReg(
   if (auto subOp = dyn_cast<arith::SubFOp>(defOp)) {
     if (failed(emitElementwiseExprToReg(subOp.getLhs(), dstReg, tmpRegA, tmpRegB,
                                         op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput)))
+                                        rowBcastInput, emitInlineInitOps,
+                                        rowBcastRefInput)))
       return failure();
     if (failed(emitElementwiseExprToReg(subOp.getRhs(), tmpRegA, tmpRegB, dstReg,
                                         op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput)))
+                                        rowBcastInput, emitInlineInitOps,
+                                        rowBcastRefInput)))
       return failure();
+    if (emitInlineInitOps)
+      rewriter.create<SubBinaryTilesInitOp>(loc);
     rewriter.create<SubBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
     return success();
   }
@@ -656,13 +684,19 @@ static LogicalResult emitElementwiseExprToReg(
   if (auto divOp = dyn_cast<arith::DivFOp>(defOp)) {
     if (failed(emitElementwiseExprToReg(divOp.getLhs(), dstReg, tmpRegA, tmpRegB,
                                         op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput)))
+                                        rowBcastInput, emitInlineInitOps,
+                                        rowBcastRefInput)))
       return failure();
     if (failed(emitElementwiseExprToReg(divOp.getRhs(), tmpRegA, tmpRegB, dstReg,
                                         op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput)))
+                                        rowBcastInput, emitInlineInitOps,
+                                        rowBcastRefInput)))
       return failure();
+    if (emitInlineInitOps)
+      rewriter.create<RecipTileInitOp>(loc);
     rewriter.create<RecipTileOp>(loc, tmpRegAVal);
+    if (emitInlineInitOps)
+      rewriter.create<MulBinaryTilesInitOp>(loc);
     rewriter.create<MulBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
     return success();
   }
@@ -672,8 +706,11 @@ static LogicalResult emitElementwiseExprToReg(
       return failure();
     if (failed(emitElementwiseExprToReg(powOp.getRhs(), dstReg, tmpRegA, tmpRegB,
                                         op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput)))
+                                        rowBcastInput, emitInlineInitOps,
+                                        rowBcastRefInput)))
       return failure();
+    if (emitInlineInitOps)
+      rewriter.create<ExpTileInitOp>(loc);
     rewriter.create<ExpTileOp>(loc, dstRegVal);
     return success();
   }
@@ -685,12 +722,16 @@ static LogicalResult emitElementwiseExprToReg(
       return failure();
     if (failed(emitElementwiseExprToReg(lhs, dstReg, tmpRegA, tmpRegB, op, adaptor,
                                         rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput)))
+                                        rowBcastInput, emitInlineInitOps,
+                                        rowBcastRefInput)))
       return failure();
     if (failed(emitElementwiseExprToReg(rhs, tmpRegA, tmpRegB, dstReg, op, adaptor,
                                         rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput)))
+                                        rowBcastInput, emitInlineInitOps,
+                                        rowBcastRefInput)))
       return failure();
+    if (emitInlineInitOps)
+      rewriter.create<BinaryMaxTileInitOp>(loc);
     rewriter.create<BinaryMaxTileOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
     return success();
   }
@@ -841,16 +882,9 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
     }
   }
   rewriter.create<InitSFPUOp>(loc, inCbForInit, outCb);
-  for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
-    if (!analysis.usedInputs.test(idx))
-      continue;
-    if (analysis.rowBcastInput && idx == *analysis.rowBcastInput)
-      continue;
-    rewriter.create<CopyTileInitOp>(loc, inputCb);
-  }
-  if (analysis.needsBinopWithScalar)
-    rewriter.create<BinopWithScalarTileInitOp>(loc);
-  if (analysis.needsUnaryBcast) {
+  bool emitInlineInitOps = analysis.needsUnaryBcast;
+  std::optional<unsigned> rowBcastRefInput;
+  if (analysis.rowBcastInput) {
     unsigned rowInput = *analysis.rowBcastInput;
     unsigned refInput = rowInput;
     for (unsigned i = 0; i < adaptor.getInputs().size(); ++i) {
@@ -859,22 +893,32 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
         break;
       }
     }
-    rewriter.create<UnaryBcastInitOp>(loc, adaptor.getInputs()[rowInput],
-                                      adaptor.getInputs()[refInput],
-                                      BcastType::Col);
+    rowBcastRefInput = refInput;
   }
-  if (analysis.needsSubBinary)
-    rewriter.create<SubBinaryTilesInitOp>(loc);
-  if (analysis.needsAddBinary)
-    rewriter.create<AddBinaryTilesInitOp>(loc);
-  if (analysis.needsMulBinary)
-    rewriter.create<MulBinaryTilesInitOp>(loc);
-  if (analysis.needsBinaryMax)
-    rewriter.create<BinaryMaxTileInitOp>(loc);
-  if (analysis.needsExp)
-    rewriter.create<ExpTileInitOp>(loc);
-  if (analysis.needsRecip)
-    rewriter.create<RecipTileInitOp>(loc);
+
+  if (!emitInlineInitOps) {
+    for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
+      if (!analysis.usedInputs.test(idx))
+        continue;
+      if (analysis.rowBcastInput && idx == *analysis.rowBcastInput)
+        continue;
+      rewriter.create<CopyTileInitOp>(loc, inputCb);
+    }
+    if (analysis.needsBinopWithScalar)
+      rewriter.create<BinopWithScalarTileInitOp>(loc);
+    if (analysis.needsSubBinary)
+      rewriter.create<SubBinaryTilesInitOp>(loc);
+    if (analysis.needsAddBinary)
+      rewriter.create<AddBinaryTilesInitOp>(loc);
+    if (analysis.needsMulBinary)
+      rewriter.create<MulBinaryTilesInitOp>(loc);
+    if (analysis.needsBinaryMax)
+      rewriter.create<BinaryMaxTileInitOp>(loc);
+    if (analysis.needsExp)
+      rewriter.create<ExpTileInitOp>(loc);
+    if (analysis.needsRecip)
+      rewriter.create<RecipTileInitOp>(loc);
+  }
 
   LogicalResult result = emitElementwiseTiles(
       rewriter, loc, outCb, analysis.outTiles, [&](Value tileIdx) -> LogicalResult {
@@ -887,7 +931,8 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
         }
         return emitElementwiseExprToReg(
             analysis.yieldValue, /*dstReg=*/0, /*tmpRegA=*/1, /*tmpRegB=*/2, op,
-            adaptor, rewriter, loc, tileIdx, rowIdx, analysis.rowBcastInput);
+            adaptor, rewriter, loc, tileIdx, rowIdx, analysis.rowBcastInput,
+            emitInlineInitOps, rowBcastRefInput);
       });
   if (failed(result))
     return failure();
@@ -1185,11 +1230,14 @@ public:
     CBWaitFrontOp::create(rewriter, loc, inCb, tileCount);
     CBReserveBackOp::create(rewriter, loc, outCb, tileCount);
     rewriter.create<CopyTileInitOp>(loc, inCb);
-
+    
+    //TODO: maybe need to redesign the tileIdx of input/output cb and DST here
     for (int64_t i = 0; i < *inTiles; ++i) {
       Value tileIdx = i32Const(rewriter, loc, i);
       TileRegsAcquireOp::create(rewriter, loc);
       rewriter.create<CopyTileOp>(loc, inCb, tileIdx, zero);
+      TileRegsCommitOp::create(rewriter, loc);
+      TileRegsWaitOp::create(rewriter, loc);
       PackTileOp::create(rewriter, loc, zero, outCb, tileIdx);
       TileRegsReleaseOp::create(rewriter, loc);
     }

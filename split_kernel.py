@@ -39,7 +39,7 @@ def insert_compute_trace_markers(lines):
         if marker_pattern.search(line):
             if not (instrumented and dprint_pattern.search(instrumented[-1])):
                 indent = line[: len(line) - len(line.lstrip())]
-                if counter > 0:
+                if counter > 5:
                     instrumented.append(
                         f'{indent}DPRINT << "compute {counter}" << ENDL();\n'
                     )
@@ -71,7 +71,8 @@ def process_source_content(lines, section_name=None):
     if section_name and section_name.startswith("compute"):
         processed = insert_include_if_missing(processed, '#include "math.h"\n')
         processed = insert_include_if_missing(processed, '#include "debug/dprint.h"\n')
-        processed = insert_compute_trace_markers(processed)
+        #Don't need it now
+        #processed = insert_compute_trace_markers(processed)
 
     return processed
 
