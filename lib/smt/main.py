@@ -24,6 +24,7 @@ import z3
 
 from utils.json_loader import load_variants
 from utils.utils import default_symbol_domains
+from utils.reporter import print_breakdown
 from core.solver_context import SolverContext
 from models.pipeline_agg import compute_total_time
 
@@ -137,6 +138,9 @@ def run(args: argparse.Namespace) -> None:
     print(f"Optimal T_total: {min_val:,} cycles")
     for sym, val in sorted(assignments.items()):
         print(f"  {sym} = {val}")
+
+    print()
+    print_breakdown(variant, assignments)
 
 
 def main() -> None:
