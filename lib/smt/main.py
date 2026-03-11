@@ -1,23 +1,25 @@
 """SMT-based block-size optimizer for the Loom dataflow pipeline.
 
-Reads a staged ETG JSON file, builds Z3 constraints and a symbolic timing
-model, and finds the block-size combination (BM, BN, BK) that minimizes the
-total pipeline execution time T_total.
+Solves all variants in the staged ETG JSON in parallel, writes per-variant
+detailed results to a log file, and prints the global best variant to the
+console.
+
+NOTE: Z3's global AST context is not thread-safe. Workers run in separate
+processes (ProcessPoolExecutor) so each gets its own Z3 context.
 
 Usage:
-    python main.py --input PATH [--variant-index N] [--enumerate]
+    python main.py --input PATH [--njobs N] [--output PATH] [--enumerate]
 
 Arguments:
-    --input           Path to staged_etg_dump.json (required).
-    --variant-index   Which variant to optimize (default: 0).
-    --enumerate       Use brute-force enumeration instead of Z3 Optimize.
-                      Enumeration is always fast for the default 3-symbol
-                      domain (~256 combinations) and is guaranteed to find
-                      the global optimum.
+    --input      Path to staged_etg_dump.json (required).
+    --njobs      Number of parallel worker processes (default: 1).
+    --output     Path for the per-variant log file (optional).
+    --enumerate  Use brute-force enumeration instead of Z3 Optimize.
 """
 
 import argparse
 import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import product as iter_product
 
 import z3
@@ -33,32 +35,26 @@ from models.pipeline_agg import compute_total_time
 # Optimization strategies
 # ---------------------------------------------------------------------------
 
-def optimize_z3(ctx: SolverContext, t_total: z3.ArithRef):
+def _optimize_z3(ctx: SolverContext, t_total: z3.ArithRef):
     """Run Z3 Optimize to minimize t_total.
 
-    Returns (min_val, assignments) on success, or None if z3 returns
-    unsat/unknown (in which case the caller should fall back to enumeration).
+    Returns (min_val, assignments) on success, or None on unsat/unknown.
     """
-    result = ctx.minimize(t_total)
-    return result
+    return ctx.minimize(t_total)
 
 
-def optimize_enumerate(
+def _optimize_enumerate(
     ctx: SolverContext,
     t_total: z3.ArithRef,
     domains: dict[str, list[int]],
 ) -> tuple[int, dict[str, int]] | None:
     """Enumerate all domain combinations and find the minimum feasible T_total.
 
-    For each candidate (BM, BN, BK), a fresh Z3 Solver checks feasibility
-    (hard constraints + concrete assignments), then evaluates T_total.
-
     Returns (min_val, assignments) or None if no feasible point exists.
     """
     base_constraints = ctx.get_constraints()
     sym_names = list(ctx.symbol_map.keys())
 
-    # Only iterate over symbols that are in both the domain dict and symbol_map.
     active = [(name, domains[name]) for name in sym_names if name in domains]
     if not active:
         return None
@@ -85,67 +81,127 @@ def optimize_enumerate(
 
 
 # ---------------------------------------------------------------------------
+# Single-variant solver (runs in a worker process)
+# ---------------------------------------------------------------------------
+
+def solve_variant(
+    variant: dict,
+    index: int,
+    total: int,
+    use_enumerate: bool,
+    domains: dict[str, list[int]],
+) -> dict:
+    """Solve one variant and return a result dict.
+
+    Runs in its own process, so Z3 state is fully isolated.
+
+    Returns:
+        {
+            "variant":     variant dict,
+            "index":       int,
+            "total":       int,
+            "min_val":     int | None,   # None means UNSAT
+            "assignments": dict | None,
+        }
+    """
+    ctx = SolverContext()
+    ctx.load_symbols(variant["constraint_scope"]["metadata"]["symbols"])
+    ctx.add_hard_constraints(variant["constraint_scope"]["hard_constraints"])
+    ctx.add_domain_constraints(domains)
+
+    t_total = compute_total_time(variant, ctx.symbol_map)
+
+    result = None
+    if not use_enumerate:
+        result = _optimize_z3(ctx, t_total)
+        if result is None:
+            use_enumerate = True
+
+    if use_enumerate:
+        result = _optimize_enumerate(ctx, t_total, domains)
+
+    min_val, assignments = result if result is not None else (None, None)
+
+    return {
+        "variant":     variant,
+        "index":       index,
+        "total":       total,
+        "min_val":     min_val,
+        "assignments": assignments,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
 
 def run(args: argparse.Namespace) -> None:
-    # 1. Load and validate the JSON.
     variants = load_variants(args.input)
-    if args.variant_index >= len(variants):
-        print(
-            f"Error: --variant-index {args.variant_index} out of range "
-            f"(file has {len(variants)} variants).",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    variant = variants[args.variant_index]
-    print(f"Variant: {variant['variant_name']}")
-    print(f"Index:   {args.variant_index} / {len(variants) - 1}")
-
-    # 2. Build symbol table and add constraints.
-    ctx = SolverContext()
-    ctx.load_symbols(variant["constraint_scope"]["metadata"]["symbols"])
-    ctx.add_hard_constraints(variant["constraint_scope"]["hard_constraints"])
-
+    total = len(variants)
     domains = default_symbol_domains()
-    ctx.add_domain_constraints(domains)
 
-    # 3. Build the symbolic timing objective.
-    t_total = compute_total_time(variant, ctx.symbol_map)
-
-    # 4. Optimize.
-    result = None
-
-    if not args.enumerate:
-        print("Strategy: Z3 Optimize")
-        result = optimize_z3(ctx, t_total)
-        if result is None:
-            print("  Z3 Optimize returned unsat/unknown — falling back to enumeration.")
-            args.enumerate = True
-
-    if args.enumerate:
-        print("Strategy: Brute-force enumeration")
-        result = optimize_enumerate(ctx, t_total, domains)
-
-    # 5. Output.
+    print(f"Solving {total} variants with {args.njobs} process(es)...")
     print()
-    if result is None:
-        print("Result: UNSAT — no feasible block-size combination found.")
+
+    # Dispatch all variants to a process pool.
+    # Progress is printed by the main process as each future completes.
+    results: list[dict] = [None] * total
+    with ProcessPoolExecutor(max_workers=args.njobs) as pool:
+        futures = {
+            pool.submit(solve_variant, v, i, total, args.enumerate, domains): i
+            for i, v in enumerate(variants)
+        }
+        completed = 0
+        for future in as_completed(futures):
+            r = future.result()
+            results[r["index"]] = r
+            completed += 1
+            variant_name = r["variant"].get("variant_name", f"variant_{r['index']}")
+            if r["min_val"] is None:
+                print(f"[{completed:3d}/{total}] {variant_name}  UNSAT")
+            else:
+                print(f"[{completed:3d}/{total}] {variant_name}  T={r['min_val']:,} cycles")
+
+    # Write per-variant details to log file, ordered by original index.
+    if args.output:
+        with open(args.output, "w", encoding="utf-8") as log:
+            for r in results:
+                if r["min_val"] is None:
+                    print(
+                        f"Variant [{r['index']}/{total - 1}]: "
+                        f"{r['variant'].get('variant_name', '?')}  UNSAT\n",
+                        file=log,
+                    )
+                else:
+                    print_breakdown(
+                        r["variant"], r["assignments"],
+                        r["min_val"], r["index"], total,
+                        file=log,
+                    )
+                    print("-" * 72, file=log)
+        print(f"\nPer-variant log written to: {args.output}")
+
+    # Find the global best (minimum T_total across all feasible variants).
+    feasible = [r for r in results if r["min_val"] is not None]
+    if not feasible:
+        print("\nResult: UNSAT — no variant has a feasible solution.")
         sys.exit(2)
 
-    min_val, assignments = result
-    print(f"Optimal T_total: {min_val:,} cycles")
-    for sym, val in sorted(assignments.items()):
-        print(f"  {sym} = {val}")
+    best = min(feasible, key=lambda r: r["min_val"])
 
     print()
-    print_breakdown(variant, assignments)
+    print("=" * 72)
+    print("GLOBAL BEST")
+    print("=" * 72)
+    print_breakdown(
+        best["variant"], best["assignments"],
+        best["min_val"], best["index"], total,
+    )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Find the optimal block sizes (BM, BN, BK) for a Loom ETG variant."
+        description="Find optimal block sizes across all Loom ETG variants."
     )
     parser.add_argument(
         "--input",
@@ -154,11 +210,16 @@ def main() -> None:
         help="Path to staged_etg_dump.json",
     )
     parser.add_argument(
-        "--variant-index",
+        "--njobs",
         type=int,
-        default=0,
+        default=1,
         metavar="N",
-        help="Which variant to optimize (default: 0)",
+        help="Number of parallel worker processes (default: 1)",
+    )
+    parser.add_argument(
+        "--output",
+        metavar="PATH",
+        help="Log file for per-variant results (optional)",
     )
     parser.add_argument(
         "--enumerate",
