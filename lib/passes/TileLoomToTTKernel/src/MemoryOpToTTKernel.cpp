@@ -342,9 +342,9 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
   // Calculate number of tiles in each dimension: numTiles = shape / 32.
   // For 2D memref [H, W], we have (H/32) x (W/32) tiles.
   int64_t numTileRows =
-      (shape.size() > 0) ? (shape[0] + kTileDim - 1) / kTileDim : 1;
+      (shape.size() > 0) ? (shape[shape.size() - 2] + kTileDim - 1) / kTileDim : 1;
   int64_t numTileCols =
-      (shape.size() > 1) ? (shape[1] + kTileDim - 1) / kTileDim : 1;
+      (shape.size() > 1) ? (shape[shape.size() - 1] + kTileDim - 1) / kTileDim : 1;
 
   // Create constants for loop bounds and calculations.
   Value loopConst0 =
@@ -1154,9 +1154,9 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
 
     constexpr int64_t kTileDim = 32;
     int64_t numTileRows =
-        (shape.size() > 0) ? (shape[0] + kTileDim - 1) / kTileDim : 1;
+        (shape.size() > 0) ? (shape[shape.size() - 2] + kTileDim - 1) / kTileDim : 1;
     int64_t numTileCols =
-        (shape.size() > 1) ? (shape[1] + kTileDim - 1) / kTileDim : 1;
+        (shape.size() > 1) ? (shape[shape.size() - 1] + kTileDim - 1) / kTileDim : 1;
 
     Value loopConst0 =
         rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);

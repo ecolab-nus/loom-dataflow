@@ -191,6 +191,82 @@ static LogicalResult rewriteBatch1MatmulToMatmul(ModuleOp module) {
   return success();
 }
 
+static bool isComputeKernelFunc(func::FuncOp func) {
+  if (auto threadAttr =
+          func->getAttrOfType<ThreadTypeAttr>(ThreadTypeAttr::name)) {
+    return threadAttr.getValue() == ThreadType::Compute;
+  }
+  return func.getName().ends_with("__compute");
+}
+
+class InsertMMInitPass
+    : public PassWrapper<InsertMMInitPass, OperationPass<ModuleOp>> {
+public:
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(InsertMMInitPass)
+
+  StringRef getArgument() const override {
+    return "loom-insert-mm-init";
+  }
+
+  StringRef getDescription() const override {
+    return "Insert a single ttkernel.mm_init after parameter GetArgValOps in compute kernels";
+  }
+
+  void getDependentDialects(DialectRegistry &registry) const override {
+    registry.insert<func::FuncDialect, linalg::LinalgDialect,
+                    arith::ArithDialect, mlir::tt::ttkernel::TTKernelDialect>();
+  }
+
+  void runOnOperation() override {
+    ModuleOp module = getOperation();
+
+    for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+      if (!isComputeKernelFunc(func))
+        continue;
+
+      bool hasMatmul = false;
+      func.walk([&](linalg::MatmulOp) { hasMatmul = true; });
+      if (!hasMatmul)
+        continue;
+
+      bool hasMMInit = false;
+      func.walk([&](MatmulInitOp) { hasMMInit = true; });
+      if (hasMMInit)
+        continue;
+
+      Block &entry = func.front();
+      SmallVector<Value, 4> memrefCBs;
+      Operation *lastGetArgVal = nullptr;
+      for (Operation &op : entry) {
+        auto getArgVal = dyn_cast<GetArgValOp>(op);
+        if (!getArgVal)
+          continue;
+        lastGetArgVal = &op;
+        if (isa<CBType>(getArgVal.getType()))
+          memrefCBs.push_back(getArgVal.getResult());
+      }
+
+      if (memrefCBs.size() < 3) {
+        func.emitError()
+            << "expected at least 3 memref-backed CB compile args for mm_init "
+               "(first two inputs and last output)";
+        signalPassFailure();
+        return;
+      }
+
+      OpBuilder builder(func.getContext());
+      if (lastGetArgVal)
+        builder.setInsertionPointAfter(lastGetArgVal);
+      else
+        builder.setInsertionPointToStart(&entry);
+
+      Value transpose = builder.create<arith::ConstantIntOp>(func.getLoc(), 0, 32);
+      builder.create<MatmulInitOp>(func.getLoc(), memrefCBs[0], memrefCBs[1],
+                                   memrefCBs.back(), transpose);
+    }
+  }
+};
+
 /**
  * @brief Pass that converts TileLoom IR to TTKernel dialect.
  * 
@@ -302,6 +378,15 @@ public:
     // Note: We don't remove arguments here. Memref args are still used by
     // reinterpret_cast ops. They will be removed after conversion when all
     // uses are eliminated.
+
+    // Insert a single ttkernel.mm_init for compute kernels after all compile
+    // parameters are materialized and before linalg.matmul lowering.
+    PassManager mmInitPm(context);
+    mmInitPm.addPass(createInsertMMInitPass());
+    if (failed(mmInitPm.run(module))) {
+      signalPassFailure();
+      return;
+    }
 
 
     // Set up conversion target
@@ -551,7 +636,12 @@ std::unique_ptr<Pass> mlir::loom::createTileLoomToTTKernelPass() {
   return std::make_unique<TileLoomToTTKernelPass>();
 }
 
+std::unique_ptr<Pass> mlir::loom::createInsertMMInitPass() {
+  return std::make_unique<InsertMMInitPass>();
+}
+
 void mlir::loom::registerTileLoomToTTKernelPass() {
+  PassRegistration<InsertMMInitPass>();
   PassRegistration<TileLoomToTTKernelPass>();
   PassRegistration<PostEmitCHostSignaturePass>();
 }

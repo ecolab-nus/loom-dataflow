@@ -18,6 +18,12 @@ namespace loom {
 std::unique_ptr<Pass> createTileLoomToTTKernelPass();
 
 /**
+ * @brief Create a pass that inserts ttkernel.mm_init for compute kernels.
+ * @return A unique pointer to the pass.
+ */
+std::unique_ptr<Pass> createInsertMMInitPass();
+
+/**
  * @brief Register the TileLoom to TTKernel conversion pass.
  * 
  * @details This function registers the pass so it can be used with mlir-opt
@@ -29,4 +35,3 @@ void registerTileLoomToTTKernelPass();
 } // namespace mlir
 
 #endif // LOOM_PASSES_TILELOOMTOTTKERNEL_TILELOOMTOTTKERNEL_H
-

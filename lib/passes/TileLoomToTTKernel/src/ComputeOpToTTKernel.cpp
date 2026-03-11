@@ -990,8 +990,8 @@ public:
         lhsShapedType.getRank() != 2)
       return failure();
     ArrayRef<int64_t> lhsShape = lhsShapedType.getShape();
-    int32_t rtVal = static_cast<int32_t>(lhsShape[0] / 32);
-    int32_t ktVal = static_cast<int32_t>(lhsShape[1] / 32);
+    int32_t rtVal = static_cast<int32_t>(lhsShape[lhsShape.size() - 2] / 32);
+    int32_t ktVal = static_cast<int32_t>(lhsShape[lhsShape.size() - 1] / 32);
 
     auto rhsShapedType = dyn_cast<ShapedType>(op.getInputs()[1].getType());
     if (!rhsShapedType || !rhsShapedType.hasStaticShape() ||
@@ -1016,6 +1016,22 @@ public:
     Value rtDim;
     Value ntDim;
     Value ktDim;
+    //TODO: move matmul_block_init just before the code, only use for flashattn
+    zeroI32 = rewriter.create<arith::ConstantIntOp>(
+      loc, 0, 32);
+    in0TileIdx = zeroI32;
+    in1TileIdx = zeroI32;
+    dstTileIdx = zeroI32;
+    transpose = zeroI32;
+    ctDim = rewriter.create<arith::ConstantIntOp>(loc, ctVal, 32);
+    rtDim = rewriter.create<arith::ConstantIntOp>(loc, rtVal, 32);
+    ntDim = rewriter.create<arith::ConstantIntOp>(loc, ntVal, 32);
+    ktDim = rewriter.create<arith::ConstantIntOp>(loc, ktVal, 32);
+
+    rewriter.create<MatmulBlockInitOp>(
+        loc, TypeRange{},
+        ValueRange{in0Cb, in1Cb, outCb, transpose, ctDim, rtDim, ktDim});
+
 
     Value in0TileCount = i32Const(rewriter, loc, *in0Tiles);
     Value in1TileCount = i32Const(rewriter, loc, *in1Tiles);
@@ -1028,7 +1044,7 @@ public:
       CBWaitFrontOp::create(rewriter, loc, in1Cb, in1TileCount);
     }
 
-    {
+/*     {
       OpBuilder::InsertionGuard guard(rewriter);
       bool placeInitAtKernelStart = false;
 
@@ -1067,7 +1083,7 @@ public:
       }
 
       zeroI32 = rewriter.create<arith::ConstantIntOp>(
-          loc, /*value=*/0, /*width=*/32);
+          loc, 0, 32);
       in0TileIdx = zeroI32;
       in1TileIdx = zeroI32;
       dstTileIdx = zeroI32;
@@ -1080,7 +1096,7 @@ public:
       rewriter.create<MatmulBlockInitOp>(
           loc, TypeRange{},
           ValueRange{in0Cb, in1Cb, outCb, transpose, ctDim, rtDim, ktDim});
-    }
+    } */
 
     Operation *materializationScopeOp =
         findMatmulOutputMaterializationScope(outBuffer, op.getOperation());
