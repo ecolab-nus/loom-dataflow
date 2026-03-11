@@ -93,17 +93,21 @@ class SolverContext:
     ) -> tuple[int, dict[str, int]] | None:
         """Find the minimum value of *objective* via binary search.
 
+        Phase 0 – simplify constraints and objective via Z3 tactics.
         Phase 1 – obtain an initial feasible upper bound by calling
         ``solver.check()`` with no objective constraint.
-        Phase 2 – binary-search: add ``objective <= mid``, check SAT/UNSAT.
+        Phase 2 – binary-search: add ``obj_var <= mid``, check SAT/UNSAT.
         Fallback – if Z3 ever returns UNKNOWN, fall back to full enumeration.
 
         Returns:
             ``(min_value, {sym: value, …})`` on success, or ``None`` when the
             constraint system is infeasible (UNSAT).
         """
+        # Phase 0: canonicalize constraints + objective
+        obj_var = self._simplify(objective)
+
         # Phase 1: any feasible point → upper bound
-        bound = self._find_initial_bound(objective)
+        bound = self._find_initial_bound(obj_var)
         if bound is None:
             return None
         upper, best_assignments = bound
@@ -113,12 +117,12 @@ class SolverContext:
         while lower < upper:
             mid = (lower + upper) // 2
             self.solver.push()
-            self.solver.add(objective <= mid)
+            self.solver.add(obj_var <= mid)
             result = self.solver.check()
 
             if result == z3.sat:
                 model = self.solver.model()
-                val = model.eval(objective, model_completion=True).as_long()
+                val = model.eval(obj_var, model_completion=True).as_long()
                 upper = val
                 best_assignments = {
                     name: model.eval(var, model_completion=True).as_long()
@@ -137,6 +141,41 @@ class SolverContext:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _simplify(self, objective: z3.ArithRef) -> z3.ArithRef:
+        """Run Z3 tactic pipeline to canonicalize constraints and objective.
+
+        Introduces an auxiliary variable ``__obj == objective``, runs the
+        tactic chain, and rebuilds the solver with simplified constraints.
+
+        Returns:
+            The ``__obj`` auxiliary variable (bound to the simplified
+            objective inside the solver).
+        """
+        tactic = z3.Then(
+            'simplify',           # constant folding, flatten, basic arith
+            'propagate-values',   # substitute known equalities
+            'ctx-simplify',       # context-dependent simplification
+            'elim-term-ite',      # lift if-then-else out of terms
+        )
+
+        obj_var = z3.Int('__obj')
+
+        goal = z3.Goal()
+        for c in self.solver.assertions():
+            goal.add(c)
+        goal.add(obj_var == objective)
+
+        simplified = tactic(goal)
+
+        self.solver.reset()
+        self._constraints = []
+        for subgoal in simplified:
+            for c in subgoal:
+                self.solver.add(c)
+                self._constraints.append(c)
+
+        return obj_var
 
     def _find_initial_bound(
         self, objective: z3.ArithRef,
