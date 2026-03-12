@@ -135,3 +135,89 @@ def print_unsat_core(
     for name, expr in unsat_core_info:
         p(f"  {name}: {expr}")
     p()
+
+
+def print_active_constraints(
+    variant_name: str,
+    active: list[tuple[int, dict, str]],
+    file: TextIO = None,
+) -> None:
+    """Print active (tight) constraints at the optimum.
+
+    Args:
+        variant_name: Name of the variant.
+        active: List of (index, constraint_json, description_str) tuples
+                as produced by ``SolverContext.find_active_constraints()``.
+        file: Output stream. Defaults to sys.stdout.
+    """
+    if file is None:
+        file = sys.stdout
+
+    def p(*args, **kwargs):
+        print(*args, **kwargs, file=file)
+
+    p(f"[Active Constraints] {variant_name}")
+    if not active:
+        p("  (no tight inequality constraints)")
+    for idx, c_json, desc in active:
+        p(f"  hard[{idx}]: {desc}")
+        p(f"    JSON: {c_json}")
+    p()
+
+
+def print_mus(
+    variant_name: str,
+    mus: list[tuple[int, str, str]],
+    file: TextIO = None,
+) -> None:
+    """Print Minimum Unsatisfiable Subset for an UNSAT variant.
+
+    Args:
+        variant_name: Name of the variant.
+        mus: List of (index, label, z3_expr_str) tuples as produced by
+             ``SolverContext.find_mus()``.
+        file: Output stream. Defaults to sys.stdout.
+    """
+    if file is None:
+        file = sys.stdout
+
+    def p(*args, **kwargs):
+        print(*args, **kwargs, file=file)
+
+    p(f"[MUS] {variant_name}  ({len(mus)} constraints)")
+    for idx, label, expr_str in mus:
+        p(f"  [{idx}] {label}: {expr_str}")
+    p()
+
+
+def print_result_summary(
+    variant_name: str,
+    assignments: dict[str, int],
+    min_val: int,
+    index: int,
+    total: int,
+    file: TextIO = None,
+) -> None:
+    """Print compact result: optimal value and block size assignments.
+
+    Used in non-debug mode as a lightweight alternative to ``print_breakdown()``.
+
+    Args:
+        variant_name: Name of the variant.
+        assignments: Mapping of symbol name → concrete integer value.
+        min_val:     The optimal T_total value.
+        index:       0-based index of this variant in the full list.
+        total:       Total number of variants.
+        file:        Output stream. Defaults to sys.stdout.
+    """
+    if file is None:
+        file = sys.stdout
+
+    def p(*args, **kwargs):
+        print(*args, **kwargs, file=file)
+
+    p(f"Variant [{index}/{total - 1}]: {variant_name}")
+    p(f"  T_total: {min_val:,} cycles")
+    for sym, val in sorted(assignments.items()):
+        p(f"  {sym} = {val}")
+    p()

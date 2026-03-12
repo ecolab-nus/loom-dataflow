@@ -16,7 +16,7 @@ from itertools import product as iter_product
 
 import z3
 
-from .expr_resolver import resolve_constraint
+from .expr_resolver import resolve_constraint, resolve_expr
 
 
 class SolverContext:
@@ -30,12 +30,13 @@ class SolverContext:
         result = ctx.find_optimum(t_total_expr, domains)
     """
 
-    def __init__(self) -> None:
+    def __init__(self, debug: bool = False) -> None:
         self.solver = z3.Solver()
         self.symbol_map: dict[str, z3.ArithRef] = {}
         self._constraints: list[z3.BoolRef] = []
         self._tracking_vars: dict[str, tuple[z3.BoolRef, z3.BoolRef]] = {}
         self.last_unsat_core_info: list[tuple[str, str]] | None = None
+        self.debug = debug
 
     def load_symbols(self, metadata_symbols: dict[str, str]) -> None:
         """Declare Z3 integer variables for each symbol in the metadata.
@@ -112,7 +113,8 @@ class SolverContext:
         # Phase 1: any feasible point → upper bound
         status, upper, best_assignments = self._find_initial_bound(obj_var)
         if status == z3.unsat:
-            self._capture_unsat_core()
+            if self.debug:
+                self._capture_unsat_core()
             return None
         if status == z3.unknown:
             return self._enumerate_all(objective, domains)
@@ -122,9 +124,12 @@ class SolverContext:
         while lower < upper:
             mid = (lower + upper) // 2
             self.solver.push()
-            bound_label = f"__obj_le_{mid}"
-            bound_var = z3.Bool(bound_label)
-            self.solver.assert_and_track(obj_var <= mid, bound_var)
+            if self.debug:
+                bound_label = f"__obj_le_{mid}"
+                bound_var = z3.Bool(bound_label)
+                self.solver.assert_and_track(obj_var <= mid, bound_var)
+            else:
+                self.solver.add(obj_var <= mid)
             result = self.solver.check()
 
             if result == z3.sat:
@@ -137,7 +142,8 @@ class SolverContext:
                 }
                 self.solver.pop()
             elif result == z3.unsat:
-                self._capture_unsat_core()
+                if self.debug:
+                    self._capture_unsat_core()
                 self.solver.pop()
                 lower = mid + 1
             else:
@@ -155,8 +161,8 @@ class SolverContext:
 
         Introduces an auxiliary variable ``__obj == objective``, runs the
         tactic chain, and rebuilds the solver with simplified constraints.
-        Post-simplification constraints are added via ``assert_and_track()``
-        so that UNSAT cores can be extracted later.
+        When ``self.debug`` is True, constraints are added via
+        ``assert_and_track()`` so that UNSAT cores can be extracted later.
 
         Returns:
             The ``__obj`` auxiliary variable (bound to the simplified
@@ -183,11 +189,14 @@ class SolverContext:
         self._tracking_vars = {}
         for i, subgoal in enumerate(simplified):
             for j, c in enumerate(subgoal):
-                track_name = f"sc_{i}_{j}"
-                track_var = z3.Bool(track_name)
-                self.solver.assert_and_track(c, track_var)
+                if self.debug:
+                    track_name = f"sc_{i}_{j}"
+                    track_var = z3.Bool(track_name)
+                    self.solver.assert_and_track(c, track_var)
+                    self._tracking_vars[track_name] = (track_var, c)
+                else:
+                    self.solver.add(c)
                 self._constraints.append(c)
-                self._tracking_vars[track_name] = (track_var, c)
 
         return obj_var
 
@@ -260,3 +269,84 @@ class SolverContext:
             ]
 
         return best
+
+    # ------------------------------------------------------------------
+    # Debug analysis
+    # ------------------------------------------------------------------
+
+    def find_active_constraints(
+        self,
+        hard_constraints: list[dict],
+        assignments: dict[str, int],
+    ) -> list[tuple[int, dict, str]]:
+        """Identify hard constraints that are tight at the given assignments.
+
+        A Ge constraint ``lhs >= rhs`` is "active" when ``lhs_val == rhs_val``.
+        Eq constraints are always active at any feasible point.
+
+        Returns:
+            List of ``(index, constraint_json, description_str)`` for tight
+            constraints.
+        """
+        concrete_map = {name: z3.IntVal(val) for name, val in assignments.items()}
+        active: list[tuple[int, dict, str]] = []
+        for i, c in enumerate(hard_constraints):
+            tag, payload = next(iter(c.items()))
+            if tag == "Ge":
+                lhs_val = z3.simplify(resolve_expr(payload[0], concrete_map)).as_long()
+                rhs_val = z3.simplify(resolve_expr(payload[1], concrete_map)).as_long()
+                if lhs_val == rhs_val:
+                    desc = f"Ge: {lhs_val} >= {rhs_val} (tight, slack=0)"
+                    active.append((i, c, desc))
+            elif tag == "Eq":
+                lhs_val = z3.simplify(resolve_expr(payload[0], concrete_map)).as_long()
+                rhs_val = z3.simplify(resolve_expr(payload[1], concrete_map)).as_long()
+                desc = f"Eq: {lhs_val} == {rhs_val}"
+                active.append((i, c, desc))
+        return active
+
+    def find_mus(
+        self,
+        hard_constraints: list[dict],
+        domains: dict[str, list[int]],
+    ) -> list[tuple[int, str, str]]:
+        """Find a Minimum Unsatisfiable Subset via deletion-based algorithm.
+
+        Builds a fresh solver for each removal attempt so the main solver
+        state is not disturbed.  Operates on original (pre-simplification)
+        constraints for interpretability.
+
+        Returns:
+            List of ``(index, label, z3_expr_str)`` for each MUS member.
+        """
+        labeled: list[tuple[str, z3.BoolRef]] = []
+
+        # Positivity guards
+        for name, var in self.symbol_map.items():
+            labeled.append((f"positivity({name})", var > 0))
+
+        # Domain constraints
+        for name, values in domains.items():
+            if name not in self.symbol_map:
+                continue
+            sym = self.symbol_map[name]
+            labeled.append((f"domain({name})", z3.Or([sym == v for v in values])))
+
+        # Hard constraints
+        for i, c in enumerate(hard_constraints):
+            tag = next(iter(c.keys()))
+            z3_c = resolve_constraint(c, self.symbol_map)
+            labeled.append((f"hard[{i}]({tag})", z3_c))
+
+        # Deletion-based MUS
+        remaining = list(range(len(labeled)))
+        for idx in list(remaining):
+            candidate = [i for i in remaining if i != idx]
+            s = z3.Solver()
+            for i in candidate:
+                s.add(labeled[i][1])
+            if s.check() != z3.sat:
+                # Still UNSAT without this constraint → not needed
+                remaining.remove(idx)
+
+        return [(i, labeled[i][0], str(labeled[i][1])) for i in remaining]
