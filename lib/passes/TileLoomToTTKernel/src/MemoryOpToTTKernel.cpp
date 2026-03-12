@@ -117,9 +117,7 @@ static void emitReductionScaleCbInit(ConversionPatternRewriter &rewriter,
   Value zero = rewriter.create<arith::ConstantIntOp>(loc, 0, 32);
   Value one = rewriter.create<arith::ConstantIntOp>(loc, 1, 32);
   Value four = rewriter.create<arith::ConstantIntOp>(loc, 4, 32);
-  Value packedFp16One =
-      rewriter.create<arith::ConstantIntOp>(loc, 0x3c003c00, 32);
-
+  
   CBReserveBackOp::create(rewriter, loc, cb, one);
   Value writePtr = GetWritePtrOp::create(rewriter, loc, cb);
   Value l1Ptr = CastToL1PtrOp::create(rewriter, loc, writePtr);
@@ -131,7 +129,7 @@ static void emitReductionScaleCbInit(ConversionPatternRewriter &rewriter,
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(fillLoop.getBody());
     Value wordOffset = fillLoop.getInductionVar();
-    StoreToL1Op::create(rewriter, loc, packedFp16One, l1Ptr, wordOffset);
+    StoreToL1Op::create(rewriter, loc, one, l1Ptr, wordOffset);
   }
 
   CBPushBackOp::create(rewriter, loc, cb, one);
@@ -358,9 +356,9 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
   Value numTileColsVal = rewriter.create<arith::ConstantIntOp>(
       loc, rewriter.getI32Type(), numTileCols);
   Value stride0Val = rewriter.create<arith::ConstantIntOp>(
-      loc, rewriter.getI32Type(), (strides.size() > 0) ? strides[strides.size() - 2] : 1);
+    loc, rewriter.getI32Type(), (strides.size() > 0) ? strides[strides.size() - 2] : 1);
   Value stride1Val = rewriter.create<arith::ConstantIntOp>(
-      loc, rewriter.getI32Type(), (strides.size() > 1) ? strides[strides.size() - 1] : 1);
+    loc, rewriter.getI32Type(), (strides.size() > 1) ? strides[strides.size() - 1] : 1);
 
   // Create nested loops to iterate over all tiles.
   // Outer loop: iterate over tile rows (0 to numTileRows).
@@ -1169,9 +1167,9 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
     Value numTileColsVal = rewriter.create<arith::ConstantIntOp>(
         loc, rewriter.getI32Type(), numTileCols);
     Value stride0Val = rewriter.create<arith::ConstantIntOp>(
-        loc, rewriter.getI32Type(), (strides.size() > 0) ? strides[strides.size() - 2] : 1);
+      loc, rewriter.getI32Type(), (strides.size() > 0) ? strides[strides.size() - 2] : 1);
     Value stride1Val = rewriter.create<arith::ConstantIntOp>(
-        loc, rewriter.getI32Type(), (strides.size() > 1) ? strides[strides.size() - 1] : 1);
+      loc, rewriter.getI32Type(), (strides.size() > 1) ? strides[strides.size() - 1] : 1);
 
     scf::ForOp rowLoop =
         scf::ForOp::create(rewriter, loc, loopConst0, numTileRowsVal,

@@ -810,7 +810,7 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
 
     Value rowIdx = rowLoop.getInductionVar();
     TileRegsAcquireOp::create(rewriter, loc);
-    rewriter.create<ReduceInitOp>(loc, inCb, scaleCb, outCb, reduceType,
+    rewriter.create<√>(loc, inCb, scaleCb, outCb, reduceType,
                                   ReduceDim::Row);
 
     Value rowOffset = rewriter.create<arith::MulIOp>(loc, rowIdx, colsV);
