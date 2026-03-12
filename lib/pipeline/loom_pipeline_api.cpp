@@ -76,6 +76,12 @@ bool parseBlockSizesJson(const char *json_str,
   }
 
   for (auto &[funcKey, symVals] : *root) {
+    // UNSAT variant: null block sizes → skip (not added to outMap)
+    if (symVals.kind() == llvm::json::Value::Null) {
+      llvm::errs() << "info: variant '" << funcKey
+                   << "' is UNSAT, will be omitted from output IR\n";
+      continue;
+    }
     auto *symObj = symVals.getAsObject();
     if (!symObj) {
       errMsg = "Value for key '" + funcKey.str() + "' must be a JSON object";

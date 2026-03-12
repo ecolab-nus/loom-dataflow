@@ -182,11 +182,12 @@ def main() -> None:
 
     block_sizes = smt_run(smt_args)
 
-    if not block_sizes:
-        print("\nERROR: SMT solver produced no feasible variants. Aborting.")
+    feasible_count = sum(1 for v in block_sizes.values() if v is not None)
+    if feasible_count == 0:
+        print("\nERROR: All variants UNSAT. No feasible block sizes. Aborting.")
         sys.exit(1)
 
-    print(f"\nSolver found feasible block sizes for {len(block_sizes)} variant(s).")
+    print(f"\nSolver found feasible block sizes for {feasible_count} variant(s).")
 
     # ---- Step 2: Run MLIR pipeline ----
     print()

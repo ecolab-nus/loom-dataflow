@@ -108,3 +108,30 @@ def print_breakdown(
     p(f"  T_stage = max(T_comp, T_mem) = {t_stage:,} cycles")
     p(f"  T_total = {t_stage:,} × {seq_val} × {temp_product} = {t_stage * seq_val * temp_product:,} cycles")
     p()
+
+
+def print_unsat_core(
+    variant_name: str,
+    unsat_core_info: list[tuple[str, str]],
+    context: str = "",
+    file: TextIO = None,
+) -> None:
+    """Write UNSAT core details for a variant.
+
+    Args:
+        variant_name: Name of the variant.
+        unsat_core_info: List of (constraint_name, constraint_expr_str) tuples
+                         as produced by ``SolverContext.last_unsat_core_info``.
+        context: Additional context string (e.g., "Optimum bound", "Infeasible").
+        file: Output stream. Defaults to sys.stdout.
+    """
+    if file is None:
+        file = sys.stdout
+
+    def p(*args, **kwargs):
+        print(*args, **kwargs, file=file)
+
+    p(f"[UNSAT Core] {variant_name}" + (f" ({context})" if context else ""))
+    for name, expr in unsat_core_info:
+        p(f"  {name}: {expr}")
+    p()
