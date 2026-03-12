@@ -193,8 +193,13 @@ public:
         bindings = buildBindings(varNames, candidates);
       }
 
-      if (bindings.empty())
+      if (bindings.empty()) {
+        if (externalBlockSizes) {
+          // Variant is UNSAT or has no solver results — remove from output IR
+          nestedModule.erase();
+        }
         continue;
+      }
 
       // Create a single nested module in the output to contain all variants
       builder.setInsertionPoint(nestedModule);

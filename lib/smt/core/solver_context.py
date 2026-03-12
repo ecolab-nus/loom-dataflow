@@ -34,6 +34,8 @@ class SolverContext:
         self.solver = z3.Solver()
         self.symbol_map: dict[str, z3.ArithRef] = {}
         self._constraints: list[z3.BoolRef] = []
+        self._tracking_vars: dict[str, tuple[z3.BoolRef, z3.BoolRef]] = {}
+        self.last_unsat_core_info: list[tuple[str, str]] | None = None
 
     def load_symbols(self, metadata_symbols: dict[str, str]) -> None:
         """Declare Z3 integer variables for each symbol in the metadata.
@@ -97,7 +99,8 @@ class SolverContext:
         Phase 1 – obtain an initial feasible upper bound by calling
         ``solver.check()`` with no objective constraint.
         Phase 2 – binary-search: add ``obj_var <= mid``, check SAT/UNSAT.
-        Fallback – if Z3 ever returns UNKNOWN, fall back to full enumeration.
+        Fallback – if Z3 ever returns UNKNOWN in Phase 1 or Phase 2,
+        fall back to full enumeration.
 
         Returns:
             ``(min_value, {sym: value, …})`` on success, or ``None`` when the
@@ -107,17 +110,21 @@ class SolverContext:
         obj_var = self._simplify(objective)
 
         # Phase 1: any feasible point → upper bound
-        bound = self._find_initial_bound(obj_var)
-        if bound is None:
+        status, upper, best_assignments = self._find_initial_bound(obj_var)
+        if status == z3.unsat:
+            self._capture_unsat_core()
             return None
-        upper, best_assignments = bound
+        if status == z3.unknown:
+            return self._enumerate_all(objective, domains)
 
         # Phase 2: binary search
         lower = 0
         while lower < upper:
             mid = (lower + upper) // 2
             self.solver.push()
-            self.solver.add(obj_var <= mid)
+            bound_label = f"__obj_le_{mid}"
+            bound_var = z3.Bool(bound_label)
+            self.solver.assert_and_track(obj_var <= mid, bound_var)
             result = self.solver.check()
 
             if result == z3.sat:
@@ -130,6 +137,7 @@ class SolverContext:
                 }
                 self.solver.pop()
             elif result == z3.unsat:
+                self._capture_unsat_core()
                 self.solver.pop()
                 lower = mid + 1
             else:
@@ -147,6 +155,8 @@ class SolverContext:
 
         Introduces an auxiliary variable ``__obj == objective``, runs the
         tactic chain, and rebuilds the solver with simplified constraints.
+        Post-simplification constraints are added via ``assert_and_track()``
+        so that UNSAT cores can be extracted later.
 
         Returns:
             The ``__obj`` auxiliary variable (bound to the simplified
@@ -170,17 +180,27 @@ class SolverContext:
 
         self.solver.reset()
         self._constraints = []
-        for subgoal in simplified:
-            for c in subgoal:
-                self.solver.add(c)
+        self._tracking_vars = {}
+        for i, subgoal in enumerate(simplified):
+            for j, c in enumerate(subgoal):
+                track_name = f"sc_{i}_{j}"
+                track_var = z3.Bool(track_name)
+                self.solver.assert_and_track(c, track_var)
                 self._constraints.append(c)
+                self._tracking_vars[track_name] = (track_var, c)
 
         return obj_var
 
     def _find_initial_bound(
         self, objective: z3.ArithRef,
-    ) -> tuple[int, dict[str, int]] | None:
-        """Return *(upper_bound, assignments)* from any feasible point, or None."""
+    ) -> tuple[z3.CheckSatResult, int | None, dict[str, int] | None]:
+        """Check feasibility and return an initial upper bound if SAT.
+
+        Returns:
+            ``(z3.sat, upper_bound, assignments)`` on success,
+            ``(z3.unsat, None, None)`` when infeasible, or
+            ``(z3.unknown, None, None)`` when the solver cannot decide.
+        """
         result = self.solver.check()
         if result == z3.sat:
             model = self.solver.model()
@@ -189,9 +209,22 @@ class SolverContext:
                 name: model.eval(var, model_completion=True).as_long()
                 for name, var in self.symbol_map.items()
             }
-            return val, assignments
-        # unsat or unknown — caller treats both as "no bound found"
-        return None
+            return z3.sat, val, assignments
+        if result == z3.unsat:
+            return z3.unsat, None, None
+        return z3.unknown, None, None
+
+    def _capture_unsat_core(self) -> None:
+        """Store formatted UNSAT core from the most recent UNSAT check."""
+        core = self.solver.unsat_core()
+        info = []
+        for v in core:
+            name = str(v)
+            if name in self._tracking_vars:
+                info.append((name, str(self._tracking_vars[name][1])))
+            else:
+                info.append((name, "(bound constraint)"))
+        self.last_unsat_core_info = info
 
     def _enumerate_all(
         self,
@@ -220,5 +253,10 @@ class SolverContext:
             val = model.eval(objective, model_completion=True).as_long()
             if best is None or val < best[0]:
                 best = (val, dict(zip(names, combo)))
+
+        if best is None:
+            self.last_unsat_core_info = [
+                ("enumerate_fallback", "no feasible combination found in domain")
+            ]
 
         return best

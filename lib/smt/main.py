@@ -22,7 +22,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from utils.json_loader import load_variants
 from utils.utils import default_symbol_domains
-from utils.reporter import print_breakdown
+from utils.reporter import print_breakdown, print_unsat_core
 from core.solver_context import SolverContext
 from models.pipeline_agg import compute_total_time
 
@@ -66,6 +66,7 @@ def solve_variant(
         "total":       total,
         "min_val":     min_val,
         "assignments": assignments,
+        "unsat_core":  ctx.last_unsat_core_info,
     }
 
 
@@ -73,7 +74,7 @@ def solve_variant(
 # Main pipeline
 # ---------------------------------------------------------------------------
 
-def run(args: argparse.Namespace) -> dict[str, dict[str, int]]:
+def run(args: argparse.Namespace) -> dict[str, dict[str, int] | None]:
     variants = load_variants(args.input)
     total = len(variants)
     domains = default_symbol_domains()
@@ -104,26 +105,46 @@ def run(args: argparse.Namespace) -> dict[str, dict[str, int]]:
     if args.output:
         with open(args.output, "w", encoding="utf-8") as log:
             for r in results:
+                vname = r["variant"].get("variant_name", "?")
                 if r["min_val"] is None:
                     print(
-                        f"Variant [{r['index']}/{total - 1}]: "
-                        f"{r['variant'].get('variant_name', '?')}  UNSAT\n",
+                        f"Variant [{r['index']}/{total - 1}]: {vname}  UNSAT\n",
                         file=log,
                     )
+                    if r.get("unsat_core"):
+                        print_unsat_core(
+                            vname, r["unsat_core"],
+                            context="Infeasible", file=log,
+                        )
                 else:
                     print_breakdown(
                         r["variant"], r["assignments"],
                         r["min_val"], r["index"], total,
                         file=log,
                     )
+                    if r.get("unsat_core"):
+                        print_unsat_core(
+                            vname, r["unsat_core"],
+                            context=f"Optimum bound T>={r['min_val']}",
+                            file=log,
+                        )
                     print("-" * 72, file=log)
         print(f"\nPer-variant log written to: {args.output}")
+
+    # Build the consolidated block size map (None for UNSAT variants).
+    block_sizes: dict[str, dict[str, int] | None] = {}
+    for r in results:
+        vname = r["variant"].get("variant_name", f"variant_{r['index']}")
+        if r["min_val"] is not None:
+            block_sizes[vname] = dict(r["assignments"])
+        else:
+            block_sizes[vname] = None
 
     # Find the global best (minimum T_total across all feasible variants).
     feasible = [r for r in results if r["min_val"] is not None]
     if not feasible:
         print("\nResult: UNSAT — no variant has a feasible solution.")
-        sys.exit(2)
+        return block_sizes
 
     best = min(feasible, key=lambda r: r["min_val"])
 
@@ -136,12 +157,6 @@ def run(args: argparse.Namespace) -> dict[str, dict[str, int]]:
         best["min_val"], best["index"], total,
     )
 
-    # Build and return the consolidated block size map for programmatic use.
-    block_sizes: dict[str, dict[str, int]] = {}
-    for r in results:
-        if r["min_val"] is not None:
-            vname = r["variant"].get("variant_name", f"variant_{r['index']}")
-            block_sizes[vname] = dict(r["assignments"])
     return block_sizes
 
 
@@ -168,7 +183,9 @@ def main() -> None:
         help="Log file for per-variant results (optional)",
     )
     args = parser.parse_args()
-    run(args)
+    block_sizes = run(args)
+    if not any(v is not None for v in block_sizes.values()):
+        sys.exit(2)
 
 
 if __name__ == "__main__":
