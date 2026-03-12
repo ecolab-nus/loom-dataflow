@@ -1,9 +1,13 @@
-/// Implementation of the Loom MLIR pipeline C API.
+/// Implementation of the Loom MLIR materialization pipeline.
 ///
 /// Combines the Materialize pipeline (canonicalize_main.cpp) and the
 /// One-Shot Bufferization pipeline (one_shot_bufferize_main.cpp) into a
 /// single in-memory pass manager run.
+///
+/// Provides both a C++ API (runMaterializationPipeline) and a legacy
+/// C API (loom_run_full_pipeline) for backward compatibility.
 
+#include "loom_materialization_pipeline.h"
 #include "loom_pipeline_api.h"
 #include "Passes.h"
 #include "Transforms/BufferizableOpInterfaceImpl.h"
@@ -46,7 +50,6 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
 #include <string>
 
 using namespace mlir;
@@ -102,34 +105,19 @@ bool parseBlockSizesJson(const char *json_str,
   return true;
 }
 
-} // namespace
-
-// ---------------------------------------------------------------------------
-// Exported C API
-// ---------------------------------------------------------------------------
-
-extern "C" {
-
-__attribute__((visibility("default")))
-int loom_run_full_pipeline(const char *input_mlir_path,
-                           const char *block_sizes_json,
-                           const char *output_mlir_path,
-                           char **error_msg) {
-  if (error_msg)
-    *error_msg = nullptr;
-
-  // --- Parse block sizes JSON (before setting up MLIR context) ---
+/// Core materialization pipeline logic shared by C++ and C APIs.
+std::string runMaterializationCore(const char *input_mlir_path,
+                                   const char *block_sizes_json,
+                                   const char *output_mlir_path) {
+  // --- Parse block sizes JSON ---
   loom::passes::BlockSizeMap blockSizeMap;
   std::string errMsg;
   bool hasExternalSizes =
       block_sizes_json && block_sizes_json[0] != '\0';
 
   if (hasExternalSizes) {
-    if (!parseBlockSizesJson(block_sizes_json, blockSizeMap, errMsg)) {
-      if (error_msg)
-        *error_msg = strdup(errMsg.c_str());
-      return 1;
-    }
+    if (!parseBlockSizesJson(block_sizes_json, blockSizeMap, errMsg))
+      return errMsg;
   }
 
   // --- Set up MLIRContext with all required dialects ---
@@ -162,23 +150,15 @@ int loom_run_full_pipeline(const char *input_mlir_path,
 
   // --- Parse input MLIR ---
   auto fileOrErr = llvm::MemoryBuffer::getFile(input_mlir_path);
-  if (std::error_code ec = fileOrErr.getError()) {
-    errMsg = std::string("Could not open input file '") + input_mlir_path +
-             "': " + ec.message();
-    if (error_msg)
-      *error_msg = strdup(errMsg.c_str());
-    return 2;
-  }
+  if (std::error_code ec = fileOrErr.getError())
+    return std::string("Could not open input file '") + input_mlir_path +
+           "': " + ec.message();
 
   llvm::SourceMgr sourceMgr;
   sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
   auto module = parseSourceFile<ModuleOp>(sourceMgr, &context);
-  if (!module) {
-    errMsg = std::string("Failed to parse MLIR file: ") + input_mlir_path;
-    if (error_msg)
-      *error_msg = strdup(errMsg.c_str());
-    return 3;
-  }
+  if (!module)
+    return std::string("Failed to parse MLIR file: ") + input_mlir_path;
 
   // --- Build pass pipeline ---
   PassManager pm(&context);
@@ -214,29 +194,65 @@ int loom_run_full_pipeline(const char *input_mlir_path,
   pm.addPass(mlir::createCSEPass());
 
   // --- Run pipeline ---
-  if (failed(pm.run(*module))) {
-    errMsg = "Pipeline execution failed";
-    if (error_msg)
-      *error_msg = strdup(errMsg.c_str());
-    return 4;
-  }
+  if (failed(pm.run(*module)))
+    return "Pipeline execution failed";
 
   // --- Write output MLIR ---
   std::error_code ec;
   llvm::raw_fd_ostream outStream(output_mlir_path, ec);
-  if (ec) {
-    errMsg = std::string("Could not open output file '") + output_mlir_path +
-             "': " + ec.message();
-    if (error_msg)
-      *error_msg = strdup(errMsg.c_str());
-    return 5;
-  }
+  if (ec)
+    return std::string("Could not open output file '") + output_mlir_path +
+           "': " + ec.message();
 
   mlir::OpPrintingFlags flags;
   flags.useLocalScope();
   module->print(outStream, flags);
   outStream << "\n";
 
+  return "";
+}
+
+} // namespace
+
+// ---------------------------------------------------------------------------
+// C++ API
+// ---------------------------------------------------------------------------
+
+namespace loom {
+namespace pipeline {
+
+std::string runMaterializationPipeline(const std::string &input_mlir_path,
+                                       const std::string &block_sizes_json,
+                                       const std::string &output_mlir_path) {
+  return runMaterializationCore(input_mlir_path.c_str(),
+                                block_sizes_json.c_str(),
+                                output_mlir_path.c_str());
+}
+
+} // namespace pipeline
+} // namespace loom
+
+// ---------------------------------------------------------------------------
+// Legacy C API (backward compatibility with ctypes-based orchestrator)
+// ---------------------------------------------------------------------------
+
+extern "C" {
+
+__attribute__((visibility("default")))
+int loom_run_full_pipeline(const char *input_mlir_path,
+                           const char *block_sizes_json,
+                           const char *output_mlir_path,
+                           char **error_msg) {
+  if (error_msg)
+    *error_msg = nullptr;
+
+  std::string err = runMaterializationCore(input_mlir_path, block_sizes_json,
+                                           output_mlir_path);
+  if (!err.empty()) {
+    if (error_msg)
+      *error_msg = strdup(err.c_str());
+    return 1;
+  }
   return 0;
 }
 
