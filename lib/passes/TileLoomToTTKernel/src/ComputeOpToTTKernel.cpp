@@ -799,7 +799,7 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
     emitWaitFrontIfNeeded(rewriter, loc, inputCb, waitTiles, waitState);
   }
 
-
+  CBReserveBackOp::create(rewriter, loc, outCb, outTilesV);
   Value rowsV = i32Const(rewriter, loc, rows);
   Value colsV = i32Const(rewriter, loc, cols);
   scf::ForOp rowLoop =
@@ -833,8 +833,8 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
     TileRegsReleaseOp::create(rewriter, loc);
   }
   //TODO: add pop first, since current output also works as input
-  CBPopFrontOp::create(rewriter, loc, outCb, outTilesV);
-  CBReserveBackOp::create(rewriter, loc, outCb, outTilesV);
+  //CBPopFrontOp::create(rewriter, loc, outCb, outTilesV);
+  //CBReserveBackOp::create(rewriter, loc, outCb, outTilesV);
   CBPushBackOp::create(rewriter, loc, outCb, outTilesV);
   waitState[outCb] = 0;
 

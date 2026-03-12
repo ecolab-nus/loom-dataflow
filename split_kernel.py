@@ -71,8 +71,10 @@ def process_source_content(lines, section_name=None):
     if section_name and section_name.startswith("compute"):
         processed = insert_include_if_missing(processed, '#include "math.h"\n')
         processed = insert_include_if_missing(processed, '#include "debug/dprint.h"\n')
+        processed = insert_include_if_missing(processed, '#include "debug/dprint_pages.h"\n')
+        processed = insert_include_if_missing(processed, '#include "debug/dprint_tensix.h"\n')
         #Don't need it now
-        processed = insert_compute_trace_markers(processed)
+        #processed = insert_compute_trace_markers(processed)
 
     return processed
 

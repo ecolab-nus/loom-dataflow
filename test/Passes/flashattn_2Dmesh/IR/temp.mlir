@@ -63,7 +63,7 @@ module {
           //linalg.fill ins(%cst_1 : f16) outs(%17 : memref<1x64x128xf16>)
           linalg.batch_matmul ins(%32, %19 : memref<1x64x128xf16>, memref<1x128x128xf16>) outs(%17 : memref<1x64x128xf16>)
           loom.semaphore_give %19 : memref<1x128x128xf16>
-          linalg.fill ins(%cst_3 : f16) outs(%25 : memref<1x64xf16>)
+          //linalg.fill ins(%cst_3 : f16) outs(%25 : memref<1x64xf16>)
           linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<1x64x128xf16>) outs(%25 : memref<1x64xf16>) {
           ^bb0(%in: f16, %out: f16):
             %40 = arith.maximumf %in, %out : f16
@@ -85,7 +85,7 @@ module {
             %43 = math.powf %cst, %42 : f16
             linalg.yield %43 : f16
           }
-          linalg.fill ins(%cst_1 : f16) outs(%27 : memref<1x64xf16>)
+          //linalg.fill ins(%cst_1 : f16) outs(%27 : memref<1x64xf16>)
           linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%17 : memref<1x64x128xf16>) outs(%27 : memref<1x64xf16>) {
           ^bb0(%in: f16, %out: f16):
             %40 = arith.addf %in, %out : f16
