@@ -22,7 +22,10 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from utils.json_loader import load_variants
 from utils.utils import default_symbol_domains
-from utils.reporter import print_breakdown, print_unsat_core
+from utils.reporter import (
+    print_breakdown, print_unsat_core,
+    print_active_constraints, print_mus, print_result_summary,
+)
 from core.solver_context import SolverContext
 from models.pipeline_agg import compute_total_time
 
@@ -36,6 +39,7 @@ def solve_variant(
     index: int,
     total: int,
     domains: dict[str, list[int]],
+    debug: bool = False,
 ) -> dict:
     """Solve one variant and return a result dict.
 
@@ -50,7 +54,7 @@ def solve_variant(
             "assignments": dict | None,
         }
     """
-    ctx = SolverContext()
+    ctx = SolverContext(debug=debug)
     ctx.load_symbols(variant["constraint_scope"]["metadata"]["symbols"])
     ctx.add_hard_constraints(variant["constraint_scope"]["hard_constraints"])
     ctx.add_domain_constraints(domains)
@@ -60,13 +64,27 @@ def solve_variant(
 
     min_val, assignments = result if result is not None else (None, None)
 
+    # Debug analysis
+    active_constraints = None
+    mus = None
+    if debug:
+        hard_constraints = variant["constraint_scope"]["hard_constraints"]
+        if min_val is not None:
+            active_constraints = ctx.find_active_constraints(
+                hard_constraints, assignments,
+            )
+        else:
+            mus = ctx.find_mus(hard_constraints, domains)
+
     return {
         "variant":     variant,
         "index":       index,
         "total":       total,
         "min_val":     min_val,
         "assignments": assignments,
-        "unsat_core":  ctx.last_unsat_core_info,
+        "unsat_core":  ctx.last_unsat_core_info if debug else None,
+        "active_constraints": active_constraints,
+        "mus":         mus,
     }
 
 
@@ -82,12 +100,14 @@ def run(args: argparse.Namespace) -> dict[str, dict[str, int] | None]:
     print(f"Solving {total} variants with {args.njobs} process(es)...")
     print()
 
+    debug = getattr(args, "debug", False)
+
     # Dispatch all variants to a process pool.
     # Progress is printed by the main process as each future completes.
     results: list[dict] = [None] * total
     with ProcessPoolExecutor(max_workers=args.njobs) as pool:
         futures = {
-            pool.submit(solve_variant, v, i, total, domains): i
+            pool.submit(solve_variant, v, i, total, domains, debug): i
             for i, v in enumerate(variants)
         }
         completed = 0
@@ -111,21 +131,34 @@ def run(args: argparse.Namespace) -> dict[str, dict[str, int] | None]:
                         f"Variant [{r['index']}/{total - 1}]: {vname}  UNSAT\n",
                         file=log,
                     )
-                    if r.get("unsat_core"):
+                    if debug and r.get("mus"):
+                        print_mus(vname, r["mus"], file=log)
+                    elif debug and r.get("unsat_core"):
                         print_unsat_core(
                             vname, r["unsat_core"],
                             context="Infeasible", file=log,
                         )
                 else:
-                    print_breakdown(
-                        r["variant"], r["assignments"],
-                        r["min_val"], r["index"], total,
-                        file=log,
-                    )
-                    if r.get("unsat_core"):
-                        print_unsat_core(
-                            vname, r["unsat_core"],
-                            context=f"Optimum bound T>={r['min_val']}",
+                    if debug:
+                        print_breakdown(
+                            r["variant"], r["assignments"],
+                            r["min_val"], r["index"], total,
+                            file=log,
+                        )
+                        if r.get("active_constraints"):
+                            print_active_constraints(
+                                vname, r["active_constraints"], file=log,
+                            )
+                        if r.get("unsat_core"):
+                            print_unsat_core(
+                                vname, r["unsat_core"],
+                                context=f"Optimum bound T>={r['min_val']}",
+                                file=log,
+                            )
+                    else:
+                        print_result_summary(
+                            vname, r["assignments"],
+                            r["min_val"], r["index"], total,
                             file=log,
                         )
                     print("-" * 72, file=log)
@@ -181,6 +214,12 @@ def main() -> None:
         "--output",
         metavar="PATH",
         help="Log file for per-variant results (optional)",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        default=False,
+        help="Enable detailed analysis: active constraints at optimum, MUS for UNSAT.",
     )
     args = parser.parse_args()
     block_sizes = run(args)

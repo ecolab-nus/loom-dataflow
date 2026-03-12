@@ -24,6 +24,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_stage = max(T_comp, T_mem) = 284,897 cycles
   T_total = 284,897 × 1 × 1 = 284,897 cycles
 
+[Active Constraints] matmul__d0i0_d1i0__f01__d_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i0_d1i0__f01__d_d (Optimum bound T>=284897)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -89,6 +97,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_stage = max(T_comp, T_mem) = 235,422 cycles
   T_total = 235,422 × 1 × 1 = 235,422 cycles
 
+[Active Constraints] matmul__d0i0_d1i0__f01__d_a
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i0_d1i0__f01__d_a (Optimum bound T>=235422)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -152,6 +168,12 @@ Iteration factors:  seq_iter=8,  temp_iter=[1 × 1]  (product=1)
   T_mem   =     20,149 cycles
   T_stage = max(T_comp, T_mem) = 23,488 cycles
   T_total = 23,488 × 8 × 1 = 187,904 cycles
+
+[Active Constraints] matmul__d0i0_d1i0__f01__d_h
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d0i0_d1i0__f01__d_h (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
@@ -219,6 +241,10 @@ Iteration factors:  seq_iter=2,  temp_iter=[4 × 1]  (product=4)
   T_stage = max(T_comp, T_mem) = 23,488 cycles
   T_total = 23,488 × 2 × 4 = 187,904 cycles
 
+[Active Constraints] matmul__d0i0_d1i0__f01__d_v
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i0_d1i0__f01__d_v (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -283,6 +309,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_mem   =    284,897 cycles
   T_stage = max(T_comp, T_mem) = 284,897 cycles
   T_total = 284,897 × 1 × 1 = 284,897 cycles
+
+[Active Constraints] matmul__d0i0_d1i0__f10__d_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d0i0_d1i0__f10__d_d (Optimum bound T>=284897)
   sc_0_0: Not(BM <= 0)
@@ -349,6 +383,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_stage = max(T_comp, T_mem) = 235,422 cycles
   T_total = 235,422 × 1 × 1 = 235,422 cycles
 
+[Active Constraints] matmul__d0i0_d1i0__f10__d_a
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i0_d1i0__f10__d_a (Optimum bound T>=235422)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -412,6 +454,12 @@ Iteration factors:  seq_iter=16,  temp_iter=[1 × 1]  (product=1)
   T_mem   =     10,473 cycles
   T_stage = max(T_comp, T_mem) = 11,744 cycles
   T_total = 11,744 × 16 × 1 = 187,904 cycles
+
+[Active Constraints] matmul__d0i0_d1i0__f10__d_h
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d0i0_d1i0__f10__d_h (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
@@ -479,6 +527,12 @@ Iteration factors:  seq_iter=4,  temp_iter=[1 × 1]  (product=1)
   T_stage = max(T_comp, T_mem) = 46,976 cycles
   T_total = 46,976 × 4 × 1 = 187,904 cycles
 
+[Active Constraints] matmul__d0i0_d1i0__f10__d_v
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i0_d1i0__f10__d_v (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -542,6 +596,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_mem   =    284,897 cycles
   T_stage = max(T_comp, T_mem) = 284,897 cycles
   T_total = 284,897 × 1 × 1 = 284,897 cycles
+
+[Active Constraints] matmul__d1i0_d0i0__f01__d_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d1i0_d0i0__f01__d_d (Optimum bound T>=284897)
   sc_0_0: Not(BM <= 0)
@@ -608,6 +670,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_stage = max(T_comp, T_mem) = 235,422 cycles
   T_total = 235,422 × 1 × 1 = 235,422 cycles
 
+[Active Constraints] matmul__d1i0_d0i0__f01__d_a
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d1i0_d0i0__f01__d_a (Optimum bound T>=235422)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -671,6 +741,12 @@ Iteration factors:  seq_iter=8,  temp_iter=[1 × 1]  (product=1)
   T_mem   =     20,149 cycles
   T_stage = max(T_comp, T_mem) = 23,488 cycles
   T_total = 23,488 × 8 × 1 = 187,904 cycles
+
+[Active Constraints] matmul__d1i0_d0i0__f01__d_h
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d1i0_d0i0__f01__d_h (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
@@ -738,6 +814,10 @@ Iteration factors:  seq_iter=2,  temp_iter=[4 × 1]  (product=4)
   T_stage = max(T_comp, T_mem) = 23,488 cycles
   T_total = 23,488 × 2 × 4 = 187,904 cycles
 
+[Active Constraints] matmul__d1i0_d0i0__f01__d_v
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d1i0_d0i0__f01__d_v (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -802,6 +882,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_mem   =    284,897 cycles
   T_stage = max(T_comp, T_mem) = 284,897 cycles
   T_total = 284,897 × 1 × 1 = 284,897 cycles
+
+[Active Constraints] matmul__d1i0_d0i0__f10__d_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d1i0_d0i0__f10__d_d (Optimum bound T>=284897)
   sc_0_0: Not(BM <= 0)
@@ -868,6 +956,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_stage = max(T_comp, T_mem) = 235,422 cycles
   T_total = 235,422 × 1 × 1 = 235,422 cycles
 
+[Active Constraints] matmul__d1i0_d0i0__f10__d_a
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d1i0_d0i0__f10__d_a (Optimum bound T>=235422)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -931,6 +1027,12 @@ Iteration factors:  seq_iter=16,  temp_iter=[1 × 1]  (product=1)
   T_mem   =     10,473 cycles
   T_stage = max(T_comp, T_mem) = 11,744 cycles
   T_total = 11,744 × 16 × 1 = 187,904 cycles
+
+[Active Constraints] matmul__d1i0_d0i0__f10__d_h
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d1i0_d0i0__f10__d_h (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
@@ -998,6 +1100,12 @@ Iteration factors:  seq_iter=4,  temp_iter=[1 × 1]  (product=1)
   T_stage = max(T_comp, T_mem) = 46,976 cycles
   T_total = 46,976 × 4 × 1 = 187,904 cycles
 
+[Active Constraints] matmul__d1i0_d0i0__f10__d_v
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 64}]}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BN'}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d1i0_d0i0__f10__d_v (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -1061,6 +1169,10 @@ Iteration factors:  seq_iter=16,  temp_iter=[2 × 1]  (product=2)
   T_mem   =      4,184 cycles
   T_stage = max(T_comp, T_mem) = 5,872 cycles
   T_total = 5,872 × 16 × 2 = 187,904 cycles
+
+[Active Constraints] matmul__d0i0_d1i1__f01__d_d
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 8}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d0i0_d1i1__f01__d_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
@@ -1130,6 +1242,10 @@ Iteration factors:  seq_iter=8,  temp_iter=[4 × 1]  (product=4)
   T_stage = max(T_comp, T_mem) = 5,872 cycles
   T_total = 5,872 × 8 × 4 = 187,904 cycles
 
+[Active Constraints] matmul__d0i0_d1i1__f01__d_h
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 8}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i0_d1i1__f01__d_h (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_2: Not(BK <= 0)
@@ -1198,6 +1314,12 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 2]  (product=2)
   T_stage = max(T_comp, T_mem) = 93,952 cycles
   T_total = 93,952 × 1 × 2 = 187,904 cycles
 
+[Active Constraints] matmul__d0i0_d1i1__f01__v_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 8}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i0_d1i1__f01__v_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_2: Not(BK <= 0)
@@ -1265,6 +1387,10 @@ Iteration factors:  seq_iter=2,  temp_iter=[1 × 4]  (product=4)
   T_mem   =      9,746 cycles
   T_stage = max(T_comp, T_mem) = 23,488 cycles
   T_total = 23,488 × 2 × 4 = 187,904 cycles
+
+[Active Constraints] matmul__d0i0_d1i1__f01__v_h
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 8}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d0i0_d1i1__f01__v_h (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
@@ -1336,6 +1462,10 @@ Iteration factors:  seq_iter=16,  temp_iter=[1 × 2]  (product=2)
   T_stage = max(T_comp, T_mem) = 5,872 cycles
   T_total = 5,872 × 16 × 2 = 187,904 cycles
 
+[Active Constraints] matmul__d0i0_d1i1__f10__d_d
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 8}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i0_d1i1__f10__d_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_2: Not(BK <= 0)
@@ -1404,6 +1534,10 @@ Iteration factors:  seq_iter=8,  temp_iter=[4 × 1]  (product=4)
   T_stage = max(T_comp, T_mem) = 5,872 cycles
   T_total = 5,872 × 8 × 4 = 187,904 cycles
 
+[Active Constraints] matmul__d0i0_d1i1__f10__d_h
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 8}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i0_d1i1__f10__d_h (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_2: Not(BK <= 0)
@@ -1471,6 +1605,12 @@ Iteration factors:  seq_iter=1,  temp_iter=[2 × 1]  (product=2)
   T_mem   =     45,152 cycles
   T_stage = max(T_comp, T_mem) = 93,952 cycles
   T_total = 93,952 × 1 × 2 = 187,904 cycles
+
+[Active Constraints] matmul__d0i0_d1i1__f10__v_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 8}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d0i0_d1i1__f10__v_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
@@ -1610,6 +1750,10 @@ Iteration factors:  seq_iter=16,  temp_iter=[2 × 1]  (product=2)
   T_stage = max(T_comp, T_mem) = 5,872 cycles
   T_total = 5,872 × 16 × 2 = 187,904 cycles
 
+[Active Constraints] matmul__d1i0_d0i1__f01__d_d
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 8}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d1i0_d0i1__f01__d_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_2: Not(BK <= 0)
@@ -1677,6 +1821,10 @@ Iteration factors:  seq_iter=2,  temp_iter=[1 × 2]  (product=2)
   T_mem   =     18,938 cycles
   T_stage = max(T_comp, T_mem) = 46,976 cycles
   T_total = 46,976 × 2 × 2 = 187,904 cycles
+
+[Active Constraints] matmul__d1i0_d0i1__f01__d_v
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 8}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d1i0_d0i1__f01__d_v (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
@@ -1746,6 +1894,10 @@ Iteration factors:  seq_iter=4,  temp_iter=[1 × 4]  (product=4)
   T_stage = max(T_comp, T_mem) = 11,744 cycles
   T_total = 11,744 × 4 × 4 = 187,904 cycles
 
+[Active Constraints] matmul__d1i0_d0i1__f01__h_d
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 8}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d1i0_d0i1__f01__h_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_2: Not(BK <= 0)
@@ -1813,6 +1965,10 @@ Iteration factors:  seq_iter=8,  temp_iter=[1 × 8]  (product=8)
   T_mem   =      2,694 cycles
   T_stage = max(T_comp, T_mem) = 2,936 cycles
   T_total = 2,936 × 8 × 8 = 187,904 cycles
+
+[Active Constraints] matmul__d1i0_d0i1__f01__h_v
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 8}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d1i0_d0i1__f01__h_v (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
@@ -1884,6 +2040,10 @@ Iteration factors:  seq_iter=16,  temp_iter=[1 × 2]  (product=2)
   T_stage = max(T_comp, T_mem) = 5,872 cycles
   T_total = 5,872 × 16 × 2 = 187,904 cycles
 
+[Active Constraints] matmul__d1i0_d0i1__f10__d_d
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 8}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d1i0_d0i1__f10__d_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_2: Not(BK <= 0)
@@ -1951,6 +2111,10 @@ Iteration factors:  seq_iter=2,  temp_iter=[1 × 4]  (product=4)
   T_mem   =     20,624 cycles
   T_stage = max(T_comp, T_mem) = 23,488 cycles
   T_total = 23,488 × 2 × 4 = 187,904 cycles
+
+[Active Constraints] matmul__d1i0_d0i1__f10__d_v
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BM'}, {'Const': 8}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d1i0_d0i1__f10__d_v (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
@@ -2089,6 +2253,10 @@ Iteration factors:  seq_iter=8,  temp_iter=[4 × 1]  (product=4)
   T_stage = max(T_comp, T_mem) = 5,872 cycles
   T_total = 5,872 × 8 × 4 = 187,904 cycles
 
+[Active Constraints] matmul__d1i0_d0i1__f10__h_v
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 8}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d1i0_d0i1__f10__h_v (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_2: Not(BK <= 0)
@@ -2159,6 +2327,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_stage = max(T_comp, T_mem) = 284,897 cycles
   T_total = 284,897 × 1 × 1 = 284,897 cycles
 
+[Active Constraints] matmul__d0i1_d1i1__f01__d_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BM'}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i1_d1i1__f01__d_d (Optimum bound T>=284897)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -2222,6 +2398,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_mem   =    235,422 cycles
   T_stage = max(T_comp, T_mem) = 235,422 cycles
   T_total = 235,422 × 1 × 1 = 235,422 cycles
+
+[Active Constraints] matmul__d0i1_d1i1__f01__a_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BM'}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d0i1_d1i1__f01__a_d (Optimum bound T>=235422)
   sc_0_0: Not(BM <= 0)
@@ -2289,6 +2473,10 @@ Iteration factors:  seq_iter=4,  temp_iter=[1 × 4]  (product=4)
   T_stage = max(T_comp, T_mem) = 11,744 cycles
   T_total = 11,744 × 4 × 4 = 187,904 cycles
 
+[Active Constraints] matmul__d0i1_d1i1__f01__h_d
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i1_d1i1__f01__h_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -2355,6 +2543,10 @@ Iteration factors:  seq_iter=8,  temp_iter=[1 × 2]  (product=2)
   T_stage = max(T_comp, T_mem) = 11,744 cycles
   T_total = 11,744 × 8 × 2 = 187,904 cycles
 
+[Active Constraints] matmul__d0i1_d1i1__f01__v_d
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i1_d1i1__f01__v_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -2418,6 +2610,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_mem   =    284,897 cycles
   T_stage = max(T_comp, T_mem) = 284,897 cycles
   T_total = 284,897 × 1 × 1 = 284,897 cycles
+
+[Active Constraints] matmul__d0i1_d1i1__f10__d_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BM'}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d0i1_d1i1__f10__d_d (Optimum bound T>=284897)
   sc_0_0: Not(BM <= 0)
@@ -2486,6 +2686,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_stage = max(T_comp, T_mem) = 235,422 cycles
   T_total = 235,422 × 1 × 1 = 235,422 cycles
 
+[Active Constraints] matmul__d0i1_d1i1__f10__a_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BM'}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i1_d1i1__f10__a_d (Optimum bound T>=235422)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -2549,6 +2757,12 @@ Iteration factors:  seq_iter=16,  temp_iter=[1 × 1]  (product=1)
   T_mem   =     10,473 cycles
   T_stage = max(T_comp, T_mem) = 11,744 cycles
   T_total = 11,744 × 16 × 1 = 187,904 cycles
+
+[Active Constraints] matmul__d0i1_d1i1__f10__h_d
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BM'}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d0i1_d1i1__f10__h_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
@@ -2615,6 +2829,10 @@ Iteration factors:  seq_iter=4,  temp_iter=[4 × 1]  (product=4)
   T_stage = max(T_comp, T_mem) = 11,744 cycles
   T_total = 11,744 × 4 × 4 = 187,904 cycles
 
+[Active Constraints] matmul__d0i1_d1i1__f10__v_d
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d0i1_d1i1__f10__v_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -2679,6 +2897,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_stage = max(T_comp, T_mem) = 284,897 cycles
   T_total = 284,897 × 1 × 1 = 284,897 cycles
 
+[Active Constraints] matmul__d1i1_d0i1__f01__d_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BM'}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d1i1_d0i1__f01__d_d (Optimum bound T>=284897)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -2742,6 +2968,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_mem   =    235,422 cycles
   T_stage = max(T_comp, T_mem) = 235,422 cycles
   T_total = 235,422 × 1 × 1 = 235,422 cycles
+
+[Active Constraints] matmul__d1i1_d0i1__f01__a_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BM'}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d1i1_d0i1__f01__a_d (Optimum bound T>=235422)
   sc_0_0: Not(BM <= 0)
@@ -2809,6 +3043,10 @@ Iteration factors:  seq_iter=4,  temp_iter=[1 × 4]  (product=4)
   T_stage = max(T_comp, T_mem) = 11,744 cycles
   T_total = 11,744 × 4 × 4 = 187,904 cycles
 
+[Active Constraints] matmul__d1i1_d0i1__f01__h_d
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d1i1_d0i1__f01__h_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -2875,6 +3113,10 @@ Iteration factors:  seq_iter=8,  temp_iter=[1 × 2]  (product=2)
   T_stage = max(T_comp, T_mem) = 11,744 cycles
   T_total = 11,744 × 8 × 2 = 187,904 cycles
 
+[Active Constraints] matmul__d1i1_d0i1__f01__v_d
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d1i1_d0i1__f01__v_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -2938,6 +3180,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_mem   =    284,897 cycles
   T_stage = max(T_comp, T_mem) = 284,897 cycles
   T_total = 284,897 × 1 × 1 = 284,897 cycles
+
+[Active Constraints] matmul__d1i1_d0i1__f10__d_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BM'}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d1i1_d0i1__f10__d_d (Optimum bound T>=284897)
   sc_0_0: Not(BM <= 0)
@@ -3006,6 +3256,14 @@ Iteration factors:  seq_iter=1,  temp_iter=[1 × 1]  (product=1)
   T_stage = max(T_comp, T_mem) = 235,422 cycles
   T_total = 235,422 × 1 × 1 = 235,422 cycles
 
+[Active Constraints] matmul__d1i1_d0i1__f10__a_d
+  hard[0]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 512}, {'Sym': 'BK'}]}, {'Const': 1}]}
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BM'}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
+
 [UNSAT Core] matmul__d1i1_d0i1__f10__a_d (Optimum bound T>=235422)
   sc_0_0: Not(BM <= 0)
   sc_0_1: Not(BN <= 0)
@@ -3069,6 +3327,12 @@ Iteration factors:  seq_iter=16,  temp_iter=[1 × 1]  (product=1)
   T_mem   =     10,473 cycles
   T_stage = max(T_comp, T_mem) = 11,744 cycles
   T_total = 11,744 × 16 × 1 = 187,904 cycles
+
+[Active Constraints] matmul__d1i1_d0i1__f10__h_d
+  hard[2]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Sym': 'BM'}]}, {'Const': 1}]}
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d1i1_d0i1__f10__h_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)
@@ -3134,6 +3398,10 @@ Iteration factors:  seq_iter=4,  temp_iter=[4 × 1]  (product=4)
   T_mem   =     11,292 cycles
   T_stage = max(T_comp, T_mem) = 11,744 cycles
   T_total = 11,744 × 4 × 4 = 187,904 cycles
+
+[Active Constraints] matmul__d1i1_d0i1__f10__v_d
+  hard[4]: Ge: 1 >= 1 (tight, slack=0)
+    JSON: {'Ge': [{'Div': [{'Const': 4096}, {'Mul': [{'Sym': 'BN'}, {'Const': 64}]}]}, {'Const': 1}]}
 
 [UNSAT Core] matmul__d1i1_d0i1__f10__v_d (Optimum bound T>=187904)
   sc_0_0: Not(BM <= 0)

@@ -157,6 +157,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=str(_DEFAULT_LIB),
         help=f"Path to libloom_pipeline.so (default: {_DEFAULT_LIB}).",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        default=False,
+        help="Enable detailed SMT analysis (active constraints, MUS).",
+    )
     return parser
 
 
@@ -178,6 +184,7 @@ def main() -> None:
         input=args.etg_json,
         njobs=args.njobs,
         output=args.solver_log,   # None → no log file
+        debug=args.debug,
     )
 
     block_sizes = smt_run(smt_args)
