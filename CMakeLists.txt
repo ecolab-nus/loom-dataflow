@@ -42,6 +42,28 @@ endif()
 
 message(STATUS "MLIR support enabled")
 
+# Generate version header from CMake project version
+configure_file(
+    ${CMAKE_SOURCE_DIR}/lib/pipeline/loom_version.h.in
+    ${CMAKE_BINARY_DIR}/lib/pipeline/loom_version.h
+    @ONLY
+)
+
+# pybind11 for Python bindings
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+find_package(pybind11 CONFIG QUIET)
+if(NOT pybind11_FOUND)
+    message(STATUS "pybind11 not found via find_package, fetching from GitHub...")
+    include(FetchContent)
+    FetchContent_Declare(
+        pybind11
+        GIT_REPOSITORY https://github.com/pybind/pybind11.git
+        GIT_TAG        v2.12.0
+    )
+    FetchContent_MakeAvailable(pybind11)
+endif()
+message(STATUS "pybind11 found: ${pybind11_VERSION}")
+
 # Enable position-independent code globally so all static libraries can be
 # linked into libloom_pipeline.so without relocation errors.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
