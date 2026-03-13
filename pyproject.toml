@@ -1,0 +1,25 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "loom-dataflow"
+dynamic = ["version"]
+description = "Loom MLIR dataflow pipeline with pybind11 bindings"
+requires-python = ">=3.10"
+dependencies = ["z3-solver"]
+
+[tool.scikit-build]
+cmake.build-type = "Release"
+# Let cmake install() rules handle all packaging — __init__.py and
+# _loom_pipeline.so are both installed into the loom_pipeline/ directory.
+wheel.packages = []
+
+[tool.scikit-build.cmake.define]
+MLIR_DIR = {env = "MLIR_DIR", default = "/opt/llvm-mlir/lib/cmake/mlir"}
+LLVM_USE_LINKER = "lld"
+
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "VERSION"
+regex = "(?P<value>.+)"

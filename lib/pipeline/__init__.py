@@ -4,10 +4,10 @@ Provides safe, version-checked access to the two Loom C++ pipeline stages:
   - run_exploration():       stages 0-5 (tensor canonicalize → enumerate broadcast)
   - run_materialization():   stages 5-7 (materialize → OSB)
 
-The underlying C++ module (_loom_pipeline) is built via pybind11 and lives in
-``build/lib/``.  At import time we verify that the module's embedded version
-matches the version expected by this Python wrapper so that stale .so files
-are caught immediately rather than causing silent corruption.
+The underlying C++ module (_loom_pipeline) is built via pybind11 and installed
+alongside this file by scikit-build-core.  At import time we verify that the
+module's embedded version matches the installed package version so that stale
+.so files are caught immediately rather than causing silent corruption.
 
 Usage::
 
@@ -27,38 +27,22 @@ Usage::
     )
 """
 
-import sys
+from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# Locate and import the native extension
-# ---------------------------------------------------------------------------
-_HERE = Path(__file__).resolve().parent
-_BUILD_LIB = _HERE / "build" / "lib"
-if str(_BUILD_LIB) not in sys.path:
-    sys.path.insert(0, str(_BUILD_LIB))
-
-try:
-    import _loom_pipeline
-except ImportError as exc:
-    raise ImportError(
-        f"Could not import _loom_pipeline from {_BUILD_LIB}.\n"
-        f"Make sure the pybind11 module is built:\n"
-        f"  cd build && cmake .. && make _loom_pipeline -j$(nproc)\n"
-        f"Original error: {exc}"
-    ) from exc
+from . import _loom_pipeline
 
 # ---------------------------------------------------------------------------
 # Version check
 # ---------------------------------------------------------------------------
-_EXPECTED_VERSION = "1.0.0"
+_EXPECTED_VERSION = _pkg_version("loom-dataflow")
 
 if _loom_pipeline.__version__ != _EXPECTED_VERSION:
     raise RuntimeError(
-        f"Loom pipeline version mismatch: Python wrapper expects "
+        f"Loom pipeline version mismatch: Python package expects "
         f"{_EXPECTED_VERSION}, but the C++ module reports "
         f"{_loom_pipeline.__version__}. Please rebuild the C++ module:\n"
-        f"  cd build && cmake .. && make _loom_pipeline -j$(nproc)"
+        f"  pip install -e . -v --no-build-isolation"
     )
 
 
