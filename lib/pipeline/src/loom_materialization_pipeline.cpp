@@ -1,14 +1,11 @@
 /// Implementation of the Loom MLIR materialization pipeline.
 ///
-/// Combines the Materialize pipeline (canonicalize_main.cpp) and the
-/// One-Shot Bufferization pipeline (one_shot_bufferize_main.cpp) into a
-/// single in-memory pass manager run.
+/// Combines the Materialize pipeline and the One-Shot Bufferization pipeline
+/// into a single in-memory pass manager run.
 ///
-/// Provides both a C++ API (runMaterializationPipeline) and a legacy
-/// C API (loom_run_full_pipeline) for backward compatibility.
+/// Provides a C++ API (runMaterializationPipeline) exposed via pybind11.
 
 #include "loom_materialization_pipeline.h"
-#include "loom_pipeline_api.h"
 #include "Passes.h"
 #include "Transforms/BufferizableOpInterfaceImpl.h"
 
@@ -48,8 +45,6 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include <cstdlib>
-#include <cstring>
 #include <string>
 
 using namespace mlir;
@@ -105,7 +100,7 @@ bool parseBlockSizesJson(const char *json_str,
   return true;
 }
 
-/// Core materialization pipeline logic shared by C++ and C APIs.
+/// Core materialization pipeline logic.
 std::string runMaterializationCore(const char *input_mlir_path,
                                    const char *block_sizes_json,
                                    const char *output_mlir_path) {
@@ -231,34 +226,3 @@ std::string runMaterializationPipeline(const std::string &input_mlir_path,
 
 } // namespace pipeline
 } // namespace loom
-
-// ---------------------------------------------------------------------------
-// Legacy C API (backward compatibility with ctypes-based orchestrator)
-// ---------------------------------------------------------------------------
-
-extern "C" {
-
-__attribute__((visibility("default")))
-int loom_run_full_pipeline(const char *input_mlir_path,
-                           const char *block_sizes_json,
-                           const char *output_mlir_path,
-                           char **error_msg) {
-  if (error_msg)
-    *error_msg = nullptr;
-
-  std::string err = runMaterializationCore(input_mlir_path, block_sizes_json,
-                                           output_mlir_path);
-  if (!err.empty()) {
-    if (error_msg)
-      *error_msg = strdup(err.c_str());
-    return 1;
-  }
-  return 0;
-}
-
-__attribute__((visibility("default")))
-void loom_free_string(char *str) {
-  free(str);
-}
-
-} // extern "C"

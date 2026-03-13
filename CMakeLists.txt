@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.20.0)
 
+# Read version from the single-source-of-truth VERSION file
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" LOOM_VERSION_FROM_FILE)
+string(STRIP "${LOOM_VERSION_FROM_FILE}" LOOM_VERSION_FROM_FILE)
+
 # Project name and version - MLIR requires both CXX and C languages
-project(loom VERSION 1.0.0 LANGUAGES CXX C)
+project(loom VERSION ${LOOM_VERSION_FROM_FILE} LANGUAGES CXX C)
 
 # MLIR Configuration
 # Set MLIR paths - these can be overridden via command line
@@ -44,7 +48,7 @@ message(STATUS "MLIR support enabled")
 
 # Generate version header from CMake project version
 configure_file(
-    ${CMAKE_SOURCE_DIR}/lib/pipeline/loom_version.h.in
+    ${CMAKE_SOURCE_DIR}/lib/pipeline/inc/loom_version.h.in
     ${CMAKE_BINARY_DIR}/lib/pipeline/loom_version.h
     @ONLY
 )
