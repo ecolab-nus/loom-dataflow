@@ -5,6 +5,7 @@ set(LOOM_PASSES_INC
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/inc
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/loom-opt/inc
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/tt-opt/inc
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/LCS/inc
   ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
   ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
@@ -13,6 +14,9 @@ set(LOOM_PASSES_INC
 
 # Triton-shared tools
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/loom-opt/single_stage)
+
+# TT-opt tools
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tt-opt/single_stage)
 
 
 
