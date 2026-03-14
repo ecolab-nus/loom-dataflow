@@ -44,6 +44,8 @@
 
 #include <fstream>
 #include <string>
+#include <tuple>
+#include <utility>
 
 using namespace mlir;
 
@@ -143,9 +145,9 @@ void writeETGJson(llvm::raw_ostream &os, const llvm::json::Value &val,
   os << llvm::formatv("{0}", val);
 }
 
-/// Build staged ETG JSON from a module and write to file.
+/// Build staged ETG JSON from a module and return as a string.
 /// Replicates staged_etg_main.cpp logic.
-std::string buildAndWriteETG(ModuleOp module, const std::string &outputPath) {
+std::pair<std::string, std::string> buildETGString(ModuleOp module) {
   llvm::json::Array json_etgs;
 
   module.walk([&](func::FuncOp func_op) {
@@ -170,17 +172,13 @@ std::string buildAndWriteETG(ModuleOp module, const std::string &outputPath) {
     }
   });
 
-  std::error_code ec;
-  llvm::raw_fd_ostream output(outputPath, ec);
-  if (ec)
-    return "Failed to open ETG output file '" + outputPath +
-           "': " + ec.message();
-
+  std::string result;
+  llvm::raw_string_ostream output(result);
   llvm::json::Value root(std::move(json_etgs));
   writeETGJson(output, root, 0);
   output << "\n";
 
-  return "";
+  return {"", result};
 }
 
 } // namespace
@@ -188,10 +186,10 @@ std::string buildAndWriteETG(ModuleOp module, const std::string &outputPath) {
 namespace loom {
 namespace pipeline {
 
-std::string runExplorationPipeline(const std::string &input_mlir_path,
-                                   const std::string &df_mlir_path,
-                                   const std::string &output_mlir_path,
-                                   const std::string &etg_json_path) {
+std::tuple<std::string, std::string, std::string>
+runExplorationPipeline(const std::string &input_mlir_text,
+                       const std::string &df_mlir_path,
+                       bool produce_etg) {
   // --- Set up MLIRContext with all required dialects ---
   DialectRegistry registry;
   registry.insert<BuiltinDialect, func::FuncDialect, affine::AffineDialect,
@@ -203,28 +201,27 @@ std::string runExplorationPipeline(const std::string &input_mlir_path,
   MLIRContext context(registry);
   context.loadAllAvailableDialects();
 
-  // --- Parse input MLIR ---
-  auto inputBuf = llvm::MemoryBuffer::getFile(input_mlir_path);
-  if (std::error_code ec = inputBuf.getError())
-    return "Could not open input file '" + input_mlir_path +
-           "': " + ec.message();
+  // --- Parse input MLIR from string ---
+  auto inputBuf = llvm::MemoryBuffer::getMemBufferCopy(
+      llvm::StringRef(input_mlir_text), "input_mlir");
 
   llvm::SourceMgr inputSm;
-  inputSm.AddNewSourceBuffer(std::move(*inputBuf), llvm::SMLoc());
+  inputSm.AddNewSourceBuffer(std::move(inputBuf), llvm::SMLoc());
   auto inputModule = parseSourceFile<ModuleOp>(inputSm, &context);
   if (!inputModule)
-    return "Failed to parse input MLIR file: " + input_mlir_path;
+    return {"Failed to parse input MLIR text", "", ""};
 
   // --- Parse DF module (hardware description) ---
   auto dfBuf = llvm::MemoryBuffer::getFile(df_mlir_path);
   if (std::error_code ec = dfBuf.getError())
-    return "Could not open DF file '" + df_mlir_path + "': " + ec.message();
+    return {"Could not open DF file '" + df_mlir_path + "': " + ec.message(),
+            "", ""};
 
   llvm::SourceMgr dfSm;
   dfSm.AddNewSourceBuffer(std::move(*dfBuf), llvm::SMLoc());
   auto dfModule = parseSourceFile<ModuleOp>(dfSm, &context);
   if (!dfModule)
-    return "Failed to parse DF MLIR file: " + df_mlir_path;
+    return {"Failed to parse DF MLIR file: " + df_mlir_path, "", ""};
 
   // ================================================================
   // Phase A: tensor_canonicalize + memory_binding (stages 0→2)
@@ -249,7 +246,7 @@ std::string runExplorationPipeline(const std::string &input_mlir_path,
     pm.addPass(loom::passes::createMemoryBindingPass());
 
     if (failed(pm.run(*inputModule)))
-      return "Phase A (tensor_canonicalize + memory_binding) failed";
+      return {"Phase A (tensor_canonicalize + memory_binding) failed", "", ""};
   }
 
   // ================================================================
@@ -261,7 +258,7 @@ std::string runExplorationPipeline(const std::string &input_mlir_path,
   // Collect hardware info from DF module.
   loom::HardwareInfo hardwareInfo;
   if (failed(loom::GetHardwareInfoForExploration(*dfModule, hardwareInfo)))
-    return "Failed to collect hardware information from DF module";
+    return {"Failed to collect hardware information from DF module", "", ""};
 
   // Enumerate spatial mappings — returns a brand new ModuleOp.
   OwningOpRef<ModuleOp> enumerated =
@@ -299,7 +296,8 @@ std::string runExplorationPipeline(const std::string &input_mlir_path,
     pm.addPass(loom::passes::createEnumerateCopyBroadcastPass());
 
     if (failed(pm.run(*merged)))
-      return "Phase B (analyze_reuse + enumerate_copy_broadcast) failed";
+      return {"Phase B (analyze_reuse + enumerate_copy_broadcast) failed",
+              "", ""};
   }
 
   // Reorder DF ops to front for stable output.
@@ -308,27 +306,26 @@ std::string runExplorationPipeline(const std::string &input_mlir_path,
   // ================================================================
   // Optional: Build staged ETG JSON
   // ================================================================
-  if (!etg_json_path.empty()) {
-    std::string etgErr = buildAndWriteETG(*merged, etg_json_path);
+  std::string etg_json;
+  if (produce_etg) {
+    auto [etgErr, etgText] = buildETGString(*merged);
     if (!etgErr.empty())
-      return etgErr;
+      return {etgErr, "", ""};
+    etg_json = std::move(etgText);
   }
 
   // ================================================================
-  // Write output MLIR
+  // Serialize output MLIR to string
   // ================================================================
-  std::error_code ec;
-  llvm::raw_fd_ostream outStream(output_mlir_path, ec);
-  if (ec)
-    return "Could not open output file '" + output_mlir_path +
-           "': " + ec.message();
+  std::string output_mlir;
+  llvm::raw_string_ostream outStream(output_mlir);
 
   OpPrintingFlags flags;
   flags.useLocalScope();
   merged->print(outStream, flags);
   outStream << "\n";
 
-  return "";
+  return {"", output_mlir, etg_json};
 }
 
 } // namespace pipeline
