@@ -90,3 +90,6 @@ dist/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Some temporal files
+test/Passes/mm_2Dmesh/constraint_space/temp.json
