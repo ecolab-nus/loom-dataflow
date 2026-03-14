@@ -4,6 +4,9 @@ Provides safe, version-checked access to the two Loom C++ pipeline stages:
   - run_exploration():       stages 0-5 (tensor canonicalize → enumerate broadcast)
   - run_materialization():   stages 5-7 (materialize → OSB)
 
+All MLIR data flows as in-memory strings — no intermediate file I/O.  The
+caller decides when to persist strings to disk (e.g. for debugging).
+
 The underlying C++ module (_loom_pipeline) is built via pybind11 and installed
 alongside this file by scikit-build-core.  At import time we verify that the
 module's embedded version matches the installed package version so that stale
@@ -13,17 +16,14 @@ Usage::
 
     from loom_pipeline import run_exploration, run_materialization
 
-    run_exploration(
-        input_mlir="test/Passes/mm_2Dmesh/IR/00_from_helion_frontend.mlir",
+    output_mlir, etg_json = run_exploration(
+        input_mlir=mlir_text,
         df_mlir="test/Dialect/DataflowDialect/2D_mesh.mlir",
-        output_mlir="test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir",
-        etg_json="test/Passes/mm_2Dmesh/constraint_space/staged_etg_dump.json",
     )
 
-    run_materialization(
-        input_mlir="test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir",
+    final_mlir = run_materialization(
+        input_mlir=output_mlir,
         block_sizes_json='{"variant": {"BM": 64, "BN": 64, "BK": 64}}',
-        output_mlir="test/Passes/mm_2Dmesh/IR/07_after_osb.mlir",
     )
 """
 
@@ -77,56 +77,61 @@ if _loom_pipeline.__version__ != _EXPECTED_VERSION:
 # ---------------------------------------------------------------------------
 
 def run_exploration(
-    input_mlir: str | Path,
+    input_mlir: str,
     df_mlir: str | Path,
-    output_mlir: str | Path,
-    etg_json: str | Path = "",
-) -> None:
+    produce_etg: bool = True,
+) -> tuple[str, str]:
     """Run the exploration pipeline (stages 0→5).
 
     Consolidates tensor_canonicalize, memory_binding, enumerate_hw_mapping,
     analyze_reuse, and enumerate_copy_broadcast into a single in-memory run.
-    Optionally produces a staged ETG JSON file for the SMT solver.
+    Optionally produces staged ETG JSON for the SMT solver.
 
     Args:
-        input_mlir:  Path to input MLIR (stage 00, from Helion frontend).
+        input_mlir:  Input MLIR text (stage 00, from Helion frontend).
         df_mlir:     Path to DF hardware description MLIR.
-        output_mlir: Where to write the explored MLIR (stage 05).
-        etg_json:    Where to write staged ETG JSON.  Empty string = skip.
+        produce_etg: Whether to generate ETG JSON (default True).
+
+    Returns:
+        Tuple of (output_mlir, etg_json).  etg_json is empty when
+        produce_etg is False.
 
     Raises:
         RuntimeError: If the C++ pipeline fails.
     """
-    err = _loom_pipeline.run_exploration_pipeline(
-        str(input_mlir), str(df_mlir), str(output_mlir), str(etg_json)
+    err, output_mlir, etg_json = _loom_pipeline.run_exploration_pipeline(
+        input_mlir, str(df_mlir), produce_etg
     )
     if err:
         raise RuntimeError(f"Exploration pipeline failed: {err}")
+    return output_mlir, etg_json
 
 
 def run_materialization(
-    input_mlir: str | Path,
+    input_mlir: str,
     block_sizes_json: str,
-    output_mlir: str | Path,
-) -> None:
+) -> str:
     """Run the materialization pipeline (stages 5→7).
 
     Takes explored MLIR and block sizes from the SMT solver, materializes
     symbolic values, canonicalizes, and runs One-Shot Bufferization.
 
     Args:
-        input_mlir:       Path to input MLIR (stage 05).
+        input_mlir:       Input MLIR text (stage 05).
         block_sizes_json: JSON string mapping variant names to block size
                           assignments, e.g.
                           ``{"func_name": {"BM": 64, "BN": 128}, ...}``.
                           Pass empty string to use placeholder solver.
-        output_mlir:      Destination path for the final bufferized MLIR.
+
+    Returns:
+        Output MLIR text (final bufferized MLIR).
 
     Raises:
         RuntimeError: If the C++ pipeline fails.
     """
-    err = _loom_pipeline.run_materialization_pipeline(
-        str(input_mlir), block_sizes_json, str(output_mlir)
+    err, output_mlir = _loom_pipeline.run_materialization_pipeline(
+        input_mlir, block_sizes_json
     )
     if err:
         raise RuntimeError(f"Materialization pipeline failed: {err}")
+    return output_mlir

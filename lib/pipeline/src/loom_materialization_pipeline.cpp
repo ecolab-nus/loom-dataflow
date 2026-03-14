@@ -46,6 +46,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include <string>
+#include <utility>
 
 using namespace mlir;
 
@@ -101,9 +102,9 @@ bool parseBlockSizesJson(const char *json_str,
 }
 
 /// Core materialization pipeline logic.
-std::string runMaterializationCore(const char *input_mlir_path,
-                                   const char *block_sizes_json,
-                                   const char *output_mlir_path) {
+std::pair<std::string, std::string>
+runMaterializationCore(const char *input_mlir_text,
+                       const char *block_sizes_json) {
   // --- Parse block sizes JSON ---
   loom::passes::BlockSizeMap blockSizeMap;
   std::string errMsg;
@@ -112,7 +113,7 @@ std::string runMaterializationCore(const char *input_mlir_path,
 
   if (hasExternalSizes) {
     if (!parseBlockSizesJson(block_sizes_json, blockSizeMap, errMsg))
-      return errMsg;
+      return {errMsg, ""};
   }
 
   // --- Set up MLIRContext with all required dialects ---
@@ -143,17 +144,15 @@ std::string runMaterializationCore(const char *input_mlir_path,
   // Register Loom's BufferizableOpInterface models
   loom::registerBufferizableOpInterfaceExternalModels(&context);
 
-  // --- Parse input MLIR ---
-  auto fileOrErr = llvm::MemoryBuffer::getFile(input_mlir_path);
-  if (std::error_code ec = fileOrErr.getError())
-    return std::string("Could not open input file '") + input_mlir_path +
-           "': " + ec.message();
+  // --- Parse input MLIR from string ---
+  auto inputBuf = llvm::MemoryBuffer::getMemBufferCopy(
+      llvm::StringRef(input_mlir_text), "input_mlir");
 
   llvm::SourceMgr sourceMgr;
-  sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
+  sourceMgr.AddNewSourceBuffer(std::move(inputBuf), llvm::SMLoc());
   auto module = parseSourceFile<ModuleOp>(sourceMgr, &context);
   if (!module)
-    return std::string("Failed to parse MLIR file: ") + input_mlir_path;
+    return {"Failed to parse input MLIR text", ""};
 
   // --- Build pass pipeline ---
   PassManager pm(&context);
@@ -190,21 +189,18 @@ std::string runMaterializationCore(const char *input_mlir_path,
 
   // --- Run pipeline ---
   if (failed(pm.run(*module)))
-    return "Pipeline execution failed";
+    return {"Pipeline execution failed", ""};
 
-  // --- Write output MLIR ---
-  std::error_code ec;
-  llvm::raw_fd_ostream outStream(output_mlir_path, ec);
-  if (ec)
-    return std::string("Could not open output file '") + output_mlir_path +
-           "': " + ec.message();
+  // --- Serialize output MLIR to string ---
+  std::string output_mlir;
+  llvm::raw_string_ostream outStream(output_mlir);
 
   mlir::OpPrintingFlags flags;
   flags.useLocalScope();
   module->print(outStream, flags);
   outStream << "\n";
 
-  return "";
+  return {"", output_mlir};
 }
 
 } // namespace
@@ -216,12 +212,11 @@ std::string runMaterializationCore(const char *input_mlir_path,
 namespace loom {
 namespace pipeline {
 
-std::string runMaterializationPipeline(const std::string &input_mlir_path,
-                                       const std::string &block_sizes_json,
-                                       const std::string &output_mlir_path) {
-  return runMaterializationCore(input_mlir_path.c_str(),
-                                block_sizes_json.c_str(),
-                                output_mlir_path.c_str());
+std::pair<std::string, std::string>
+runMaterializationPipeline(const std::string &input_mlir_text,
+                           const std::string &block_sizes_json) {
+  return runMaterializationCore(input_mlir_text.c_str(),
+                                block_sizes_json.c_str());
 }
 
 } // namespace pipeline
