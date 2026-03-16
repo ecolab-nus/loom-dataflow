@@ -175,6 +175,13 @@ build/tool/loom-opt/single_stage/one_shot_bufferize \
   > test/Passes/flashattn_2Dmesh/IR/07_after_osb.mlir
 ```
 
+8) Fuse zero-fill matmul
+```bash
+build/tool/loom-opt/single_stage/fuse_fill_matmul \
+  --input test/Passes/flashattn_2Dmesh/IR/07_after_osb.mlir \
+  > test/Passes/flashattn_2Dmesh/IR/08_tt-opt.mlir
+```
+
 6) Canonicalize constraints
 ```bash
 ./build/tool/loom-constraint/single_stage/constraint_canonicalize \

@@ -228,6 +228,13 @@ void loom::MatmulOp::getEffects(
   effects.emplace_back(MemoryEffects::Write::get());
 }
 
+void loom::BatchMatmulOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(MemoryEffects::Read::get());
+  effects.emplace_back(MemoryEffects::Write::get());
+}
+
 //===----------------------------------------------------------------------===//
 // ViewOp Canonicalizers
 //===----------------------------------------------------------------------===//

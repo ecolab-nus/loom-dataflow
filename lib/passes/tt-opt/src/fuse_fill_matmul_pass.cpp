@@ -19,6 +19,75 @@ using namespace loom;
 
 namespace {
 
+/// Checks if an op is effectively "between" two other ops in control flow.
+/// This is a conservative check for ops within the same block.
+bool isInterveningUsage(Operation *start, Operation *end, Value memref) {
+  if (start->getBlock() != end->getBlock())
+    return false;
+
+  // Simple check: for each user of the memref, check its position.
+  for (Operation *user : memref.getUsers()) {
+    if (user == start || user == end)
+      continue;
+
+    // Allowed users that are typically after the sequence or semantically safe.
+    if (isa<loom::SemaphoreGiveOp>(user))
+      continue;
+    if (auto copyOp = dyn_cast<loom::CopyOp>(user)) {
+      if (copyOp.getSource() == memref)
+        continue;
+    }
+
+    // Common pattern in this project: if in the same block, we check order.
+    if (user->getBlock() == start->getBlock()) {
+      if (start->isBeforeInBlock(user) && user->isBeforeInBlock(end)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+template <typename LinalgMatmulOp, typename LoomMatmulOp>
+void processLinalgMatmul(LinalgMatmulOp matmulOp,
+                         SmallPtrSetImpl<Operation *> &fillsToErase) {
+  if (matmulOp.getNumDpsInits() != 1)
+    return;
+
+  Value outs = matmulOp.getDpsInits()[0];
+
+  // Find a preceding linalg.fill(0) for this memref.
+  linalg::FillOp fillOp = nullptr;
+  for (Operation *user : outs.getUsers()) {
+    auto candidate = dyn_cast<linalg::FillOp>(user);
+    if (!candidate || candidate.getOutputs().size() != 1 ||
+        candidate.getOutputs()[0] != outs)
+      continue;
+
+    Value fillVal = candidate.getInputs()[0];
+    if (matchPattern(fillVal, m_AnyZeroFloat()) ||
+        matchPattern(fillVal, m_Zero())) {
+      // Check if this fill immediately precedes this matmul without intervening
+      // usage.
+      if (!isInterveningUsage(candidate, matmulOp, outs)) {
+        fillOp = candidate;
+        break;
+      }
+    }
+  }
+
+  if (!fillOp)
+    return;
+
+  // Pattern matched: linalg.fill(0, outs) exists and matmul uses outs.
+  OpBuilder builder(matmulOp);
+  builder.create<LoomMatmulOp>(matmulOp.getLoc(), matmulOp.getInputs()[0],
+                               matmulOp.getInputs()[1], outs);
+
+  matmulOp.erase();
+  fillsToErase.insert(fillOp);
+}
+
 struct FuseZeroFillMatmulPass
     : public PassWrapper<FuseZeroFillMatmulPass, OperationPass<ModuleOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(FuseZeroFillMatmulPass)
@@ -26,83 +95,33 @@ struct FuseZeroFillMatmulPass
   StringRef getArgument() const override { return "tt-fuse-zero-fill-matmul"; }
 
   StringRef getDescription() const override {
-    return "Fuse linalg.fill(0) and linalg.matmul into loom.matmul";
+    return "Fuse linalg.fill(0) and linalg.matmul/batch_matmul into "
+           "loom.matmul/batch_matmul if no intervening usage exists.";
   }
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
 
     module.walk([&](func::FuncOp funcOp) {
-      SmallVector<linalg::MatmulOp> matmuls;
-      funcOp.walk([&](linalg::MatmulOp op) { matmuls.push_back(op); });
-
       SmallPtrSet<Operation *, 4> fillsToErase;
 
-      for (auto matmulOp : matmuls) {
-        if (matmulOp.getNumDpsInits() != 1)
-          continue;
+      // 1. Process regular matmuls
+      SmallVector<linalg::MatmulOp> matmuls;
+      funcOp.walk([&](linalg::MatmulOp op) { matmuls.push_back(op); });
+      for (auto op : matmuls)
+        processLinalgMatmul<linalg::MatmulOp, loom::MatmulOp>(op, fillsToErase);
 
-        Value outs = matmulOp.getDpsInits()[0];
-
-        // Find if there's a linalg.fill(0) that writes to this memref
-        linalg::FillOp fillOp = nullptr;
-        for (Operation *user : outs.getUsers()) {
-          if (auto candidateFill = dyn_cast<linalg::FillOp>(user)) {
-            if (candidateFill.getOutputs().size() == 1 &&
-                candidateFill.getOutputs()[0] == outs) {
-              // Check if it's a zero fill
-              if (!candidateFill.getInputs().empty()) {
-                Value fillVal = candidateFill.getInputs()[0];
-                if (matchPattern(fillVal, m_AnyZeroFloat()) ||
-                    matchPattern(fillVal, m_Zero())) {
-                  fillOp = candidateFill;
-                  break;
-                }
-              }
-            }
-          }
-        }
-
-        if (!fillOp)
-          continue;
-
-        // Pattern matched: linalg.fill(0, outs) exists and matmul uses outs.
-
-        // Safety check: as requested, check if the memref has other usages
-        // besides matmul, fill, copy, and semaphore_give.
-        for (Operation *user : outs.getUsers()) {
-          if (user == matmulOp || user == fillOp)
-            continue;
-          if (isa<loom::SemaphoreGiveOp>(user) || isa<loom::CopyOp>(user))
-            continue;
-          if (isa<loom::MatmulOp>(user))
-            continue;
-
-          // If we allow other ops, add them here. Otherwise, assert as
-          // requested. For results traced back to semaphore_take, we must be
-          // careful.
-          llvm::errs() << "Found unexpected usage of memref: ";
-          user->print(llvm::errs());
-          llvm::errs() << "\n";
-          assert(false && "Memref has usage other than matmul out");
-        }
-
-        // We convert the matmul to loom.matmul.
-        OpBuilder builder(matmulOp);
-
-        builder.create<loom::MatmulOp>(matmulOp.getLoc(),
-                                       matmulOp.getInputs()[0],
-                                       matmulOp.getInputs()[1], outs);
-
-        // Erase matmul
-        matmulOp.erase();
-
-        // Mark fill for erasure
-        fillsToErase.insert(fillOp);
-      }
+      // 2. Process batch matmuls
+      SmallVector<linalg::BatchMatmulOp> batchMatmuls;
+      funcOp.walk(
+          [&](linalg::BatchMatmulOp op) { batchMatmuls.push_back(op); });
+      for (auto op : batchMatmuls)
+        processLinalgMatmul<linalg::BatchMatmulOp, loom::BatchMatmulOp>(
+            op, fillsToErase);
 
       for (auto *op : fillsToErase) {
-        op->erase();
+        if (op->use_empty())
+          op->erase();
       }
     });
   }

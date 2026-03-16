@@ -512,3 +512,35 @@ def MatmulOp : Loom_Op<"matmul", [
     `outs` `(` $outs `:` type($outs) `)` attr-dict
   }];
 }
+
+def BatchMatmulOp : Loom_Op<"batch_matmul", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = "Loom implementation of batch_matmul";
+  let description = [{
+    The `loom.batch_matmul` operation performs batch matrix multiplication on memrefs.
+    It is equivalent to `linalg.batch_matmul` but specifically used for the TT platform.
+    It currently only supports static shapes.
+
+    TODO: This op should be moved to a specific TT dialect in the future.
+
+    Example:
+    ```mlir
+    loom.batch_matmul ins(%a, %b : memref<2x64x64xf16>, memref<2x64x64xf16>)
+                      outs(%c : memref<2x64x64xf16>)
+    ```
+  }];
+
+  let arguments = (ins
+    AnyMemRef:$lhs,
+    AnyMemRef:$rhs,
+    AnyMemRef:$outs
+  );
+
+  let results = (outs);
+
+  let assemblyFormat = [{
+    `ins` `(` $lhs `,` $rhs `:` type($lhs) `,` type($rhs) `)`
+    `outs` `(` $outs `:` type($outs) `)` attr-dict
+  }];
+}
