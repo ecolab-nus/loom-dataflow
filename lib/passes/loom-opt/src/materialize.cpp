@@ -77,14 +77,9 @@ LogicalResult materializeFunction(func::FuncOp func,
   OpBuilder builder(func->getContext());
   SmallVector<Operation *, 16> opsToErase;
 
-  func->walk([&](loom::GetSymbolicBlockSizeOp op) {
+  func->walk([&](loom::SymOp op) {
     SymbolRefAttr ref = op.getSymbolRef();
-    StringRef varName;
-    if (ref.getNestedReferences().size() > 0) {
-      varName = ref.getNestedReferences().back().getLeafReference();
-    } else {
-      varName = ref.getLeafReference();
-    }
+    StringRef varName = ref.getLeafReference();
 
     auto valueOpt = binding.getValue(varName);
     if (!valueOpt) {
@@ -173,14 +168,9 @@ public:
         SmallVector<StringRef> varNames;
         llvm::SmallPtrSet<StringAttr, 4> seenVars;
 
-        nestedModule->walk([&](loom::GetSymbolicBlockSizeOp op) {
+        nestedModule->walk([&](loom::SymOp op) {
           SymbolRefAttr ref = op.getSymbolRef();
-          StringAttr varNameAttr;
-          if (ref.getNestedReferences().size() > 0) {
-            varNameAttr = ref.getNestedReferences().back().getLeafReference();
-          } else {
-            varNameAttr = ref.getLeafReference();
-          }
+          StringAttr varNameAttr = ref.getLeafReference();
           if (seenVars.insert(varNameAttr).second) {
             varNames.push_back(varNameAttr.getValue());
           }
@@ -246,7 +236,7 @@ std::unique_ptr<mlir::Pass> loom::passes::createMaterializePass() {
   return std::make_unique<MaterializePass>();
 }
 
-std::unique_ptr<mlir::Pass>
-loom::passes::createMaterializePass(const loom::passes::BlockSizeMap &blockSizes) {
+std::unique_ptr<mlir::Pass> loom::passes::createMaterializePass(
+    const loom::passes::BlockSizeMap &blockSizes) {
   return std::make_unique<MaterializePass>(blockSizes);
 }

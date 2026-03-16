@@ -150,8 +150,8 @@ StringRef traceToSymbolicVar(Value val) {
   if (!val)
     return "";
 
-  // Handle direct loom.get_symbolic_block_size
-  if (auto getSym = val.getDefiningOp<loom::GetSymbolicBlockSizeOp>()) {
+  // Handle direct loom.sym
+  if (auto getSym = val.getDefiningOp<loom::SymOp>()) {
     return getSym.getSymbolRef().getLeafReference().getValue();
   }
 

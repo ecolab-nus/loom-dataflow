@@ -59,14 +59,6 @@ void LoomDialect::initialize() {
 #define GET_OP_CLASSES
 #include "LoomOps.cpp.inc"
 
-LogicalResult loom::GetSymbolicBlockSizeOp::verify() {
-  SymbolRefAttr symbolRef = getSymbolRef();
-  if (symbolRef.getNestedReferences().size() != 1) {
-    return emitOpError("symbol reference must have format @space::@var, got ")
-           << symbolRef;
-  }
-  return success();
-}
 
 //===----------------------------------------------------------------------===//
 // SubviewOp Type Inference
