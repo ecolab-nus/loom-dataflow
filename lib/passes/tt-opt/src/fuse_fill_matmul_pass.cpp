@@ -67,6 +67,26 @@ struct FuseZeroFillMatmulPass
           continue;
 
         // Pattern matched: linalg.fill(0, outs) exists and matmul uses outs.
+
+        // Safety check: as requested, check if the memref has other usages
+        // besides matmul, fill, copy, and semaphore_give.
+        for (Operation *user : outs.getUsers()) {
+          if (user == matmulOp || user == fillOp)
+            continue;
+          if (isa<loom::SemaphoreGiveOp>(user) || isa<loom::CopyOp>(user))
+            continue;
+          if (isa<loom::MatmulOp>(user))
+            continue;
+
+          // If we allow other ops, add them here. Otherwise, assert as
+          // requested. For results traced back to semaphore_take, we must be
+          // careful.
+          llvm::errs() << "Found unexpected usage of memref: ";
+          user->print(llvm::errs());
+          llvm::errs() << "\n";
+          assert(false && "Memref has usage other than matmul out");
+        }
+
         // We convert the matmul to loom.matmul.
         OpBuilder builder(matmulOp);
 
