@@ -439,47 +439,68 @@ def CopyOp : Loom_Op<"copy", [
 // Constraint Language Operations
 //===----------------------------------------------------------------------===//
 
-/// Reference to a symbolic variable in a constraint space.
+/// Reference to a symbolic variable.
 ///
-/// The `loom.get_symbolic_block_size` operation retrieves the value of a
-/// symbolic variable defined in a constraint space. It uses a nested symbol
-/// reference to reference the constraint space and the variable name.
+/// The `loom.sym` operation retrieves the value of a named symbolic variable.
+/// It uses a flat SymbolRefAttr to identify the variable.
 ///
 /// Example:
 /// ```mlir
-/// %m_val = loom.get_symbolic_block_size @constraints::@M : index
+/// %m_val = loom.sym @M : index
 /// ```
-def GetSymbolicBlockSizeOp : Loom_Op<"get_symbolic_block_size", [
+def SymOp : Loom_Op<"sym", [
   Pure
 ]> {
-  let summary = "Get the value of a symbolic variable from a constraint space";
+  let summary = "Reference a named symbolic variable";
   let description = [{
-    This operation retrieves the value of a symbolic variable defined within
-    a constraint space. It uses a SymbolRefAttr to reference the constraint
-    space and variable name in the format @space::@var.
-    
-    The operation is pure and returns an index value representing the
-    symbolic variable, which can be used in subsequent computations.
-    
+    This operation retrieves the value of a named symbolic variable.
+    It returns an index value that can be used in subsequent computations.
+
     Example:
-      %m_val = loom.get_symbolic_block_size @constraints::@M : index
-      
-    This retrieves the value of variable "M" from the constraint space
-    named "@constraints".
+      %m_val = loom.sym @M : index
   }];
-  
+
   let arguments = (ins
     SymbolRefAttr:$symbol_ref
   );
-  
+
   let results = (outs Index:$result);
-  
+
   let assemblyFormat = [{
     $symbol_ref `:` type($result) attr-dict
   }];
-  
-  let hasVerifier = 1;
 }
+
+def BindOp : Loom_Op<"bind", []> {
+  let summary = "Bind symbolic shape dimensions to a tensor";
+  let description = [{
+    The `loom.bind` operation annotates a tensor with its symbolic shape
+    by accepting the tensor and a variadic list of index SSA values
+    (typically from `loom.sym`).
+
+    This is a metadata-only operation: it does not return any SSA value
+    and produces no runtime code.
+
+    Example:
+    ```mlir
+    %m = loom.sym @M : index
+    %n = loom.sym @N : index
+    loom.bind %tensor, [%m, %n] : tensor<?x?xf16>
+    ```
+  }];
+
+  let arguments = (ins
+    AnyRankedTensor:$tensor,
+    Variadic<Index>:$symbols
+  );
+
+  let results = (outs);
+
+  let assemblyFormat = [{
+    $tensor `,` `[` $symbols `]` attr-dict `:` type($tensor)
+  }];
+}
+
 
 def MatmulOp : Loom_Op<"matmul", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>

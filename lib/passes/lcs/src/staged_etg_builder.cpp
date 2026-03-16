@@ -11,8 +11,8 @@
 #include "llvm/Support/JSON.h"
 #include <cassert>
 #define GET_OP_CLASSES
-#include "LoomOps.h.inc"
 #include "LoomEnums.h.inc"
+#include "LoomOps.h.inc"
 #define GET_ATTRDEF_CLASSES
 #include "LoomAttributes.h.inc"
 
@@ -196,8 +196,7 @@ void VariantETG::buildFromAffineFor(mlir::affine::AffineForOp for_op) {
     bool is_compute = llvm::isa<mlir::linalg::LinalgOp>(op);
     bool is_memory = op->getName().getStringRef() == "loom.copy_to_tensor";
     bool is_infra =
-        is_compute &&
-        llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
+        is_compute && llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
 
     if (is_compute && !is_infra) {
       Stage &target_stage = compute_scope.getOrCreateStage(required_stage);
@@ -243,9 +242,8 @@ void VariantETG::dispatchToComputeQueues(mlir::Operation *op,
       auto *dialect = inner_op->getDialect();
       if (dialect && (llvm::isa<mlir::arith::ArithDialect>(dialect) ||
                       llvm::isa<mlir::math::MathDialect>(dialect))) {
-        target_stage.pushWorkload("SFPU",
-                                  inner_op->getName().getStringRef().str(),
-                                  dims);
+        target_stage.pushWorkload(
+            "SFPU", inner_op->getName().getStringRef().str(), dims);
       }
     });
     return;
@@ -298,16 +296,15 @@ void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
 }
 
 void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
-  // 1. Collect symbols from loom.get_symbolic_block_size ops
-  func_op.walk([&](loom::GetSymbolicBlockSizeOp op) {
+  // 1. Collect symbols from loom.sym ops
+  func_op.walk([&](loom::SymOp op) {
     std::string name = op.getSymbolRef().getLeafReference().str();
     constraint_scope.symbols[name] = "int";
   });
 
   // 2. Walk affine.for loops in the func, check iter_type attribute
   func_op.walk([&](mlir::affine::AffineForOp forOp) {
-    auto iterAttr =
-        forOp->getAttrOfType<loom::IterTypeAttr>("loom.iter_type");
+    auto iterAttr = forOp->getAttrOfType<loom::IterTypeAttr>("loom.iter_type");
     if (!iterAttr)
       return;
 
