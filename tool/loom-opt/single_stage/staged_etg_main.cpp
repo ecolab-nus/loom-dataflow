@@ -1,4 +1,5 @@
 #include "staged_etg_builder.h"
+#include "compute_op_registry.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -34,6 +35,11 @@ static llvm::cl::opt<std::string>
              llvm::cl::value_desc("filename"),
              llvm::cl::init("staged_etg_dump.json"));
 
+static llvm::cl::opt<std::string>
+    clHWComputeDir("hw-compute-dir",
+                   llvm::cl::desc("Hardware compute IR directory"),
+                   llvm::cl::value_desc("directory"), llvm::cl::Required);
+
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
                                     "LOOM Staged-ETG Analysis Tool\n");
@@ -45,6 +51,13 @@ int main(int argc, char **argv) {
                       mlir::memref::MemRefDialect, mlir::scf::SCFDialect,
                       mlir::math::MathDialect, loom::LoomDialect,
                       loom::df::DataflowDialect>();
+
+  loom::lcs::ComputeOpRegistry registry;
+  if (mlir::failed(registry.loadFromDirectory(clHWComputeDir, context))) {
+    llvm::WithColor::error(llvm::errs())
+        << "Failed to load hw compute IR from: " << clHWComputeDir << "\n";
+    return 1;
+  }
 
   llvm::SourceMgr sm;
   auto file = mlir::openInputFile(clInput);
@@ -90,7 +103,7 @@ int main(int argc, char **argv) {
     });
 
     if (target_loop) {
-      VariantETG etg(func_op.getName());
+      VariantETG etg(func_op.getName(), &registry);
       etg.buildFromAffineFor(target_loop);
       etg.buildConstraintScope(func_op);
       json_etgs.push_back(etg.toJSON());

@@ -1,4 +1,5 @@
 #include "staged_etg_builder.h"
+#include "compute_op_registry.h"
 #include "lcs_utils.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -23,9 +24,9 @@ namespace lcs {
 // Workload
 // ==========================================
 llvm::json::Value Workload::toJSON() const {
-  llvm::json::Array dims_json;
-  for (const auto &d : dims) {
-    dims_json.push_back(d.toJSON());
+  llvm::json::Object dims_json;
+  for (const auto &[key, expr] : dims) {
+    dims_json[key] = expr.toJSON();
   }
   return llvm::json::Object{{"op", op}, {"dims", std::move(dims_json)}};
 }
@@ -41,13 +42,15 @@ void HardwareQueue::dump(llvm::raw_ostream &os, int indent) const {
   }
   os << "\n";
   for (const auto &workload : workloads) {
-    os.indent(indent + 2) << "└─ " << workload.op << " [";
-    for (size_t i = 0; i < workload.dims.size(); ++i) {
-      if (i > 0)
+    os.indent(indent + 2) << "└─ " << workload.op << " {";
+    bool first = true;
+    for (const auto &[key, expr] : workload.dims) {
+      if (!first)
         os << ", ";
-      os << workload.dims[i];
+      os << key << ": " << expr;
+      first = false;
     }
-    os << "]\n";
+    os << "}\n";
   }
 }
 
@@ -67,7 +70,7 @@ llvm::json::Value HardwareQueue::toJSON() const {
 Stage::Stage(int id) : stage_id(id) {}
 
 void Stage::pushWorkload(const std::string &unit_name, const std::string &op,
-                         std::vector<Expr> dims) {
+                         std::map<std::string, Expr> dims) {
   if (queues.find(unit_name) == queues.end()) {
     queues[unit_name] = HardwareQueue{unit_name, {}, std::nullopt};
   }
@@ -167,9 +170,9 @@ llvm::json::Value ConstraintScope::toJSON() const {
 // ==========================================
 // VariantETG Builder
 // ==========================================
-VariantETG::VariantETG(llvm::StringRef name)
+VariantETG::VariantETG(llvm::StringRef name, const ComputeOpRegistry *registry)
     : variant_name(name.str()), compute_scope("ComputeScope"),
-      memory_scope("MemoryScope") {}
+      memory_scope("MemoryScope"), hw_registry_(registry) {}
 
 void VariantETG::buildFromAffineFor(mlir::affine::AffineForOp for_op) {
   llvm::DenseMap<mlir::Value, int> value_ready_stage;
@@ -219,35 +222,39 @@ void VariantETG::buildFromAffineFor(mlir::affine::AffineForOp for_op) {
 
 void VariantETG::dispatchToComputeQueues(mlir::Operation *op,
                                          Stage &target_stage) {
-  // FPU: Matmul, BatchMatmul
-  if (llvm::isa<mlir::linalg::BatchMatmulOp, mlir::linalg::MatmulOp>(op)) {
-    auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
-    std::vector<Expr> inputDims;
-    for (mlir::Value input : linalgOp.getDpsInputs()) {
-      inputDims.push_back(traceAllocDimsFromTensor(input));
-    }
-    target_stage.pushWorkload("FPU", op->getName().getStringRef().str(),
-                              std::move(inputDims));
+  std::string linalg_op_name = op->getName().getStringRef().str();
+
+  assert(hw_registry_ && "ComputeOpRegistry must be provided");
+  const HWComputeFunc *hwFunc = hw_registry_->lookup(linalg_op_name);
+  assert(hwFunc && "No hardware function found for linalg op");
+
+  // TODO: implement vector_lane op matching
+  if (hwFunc->hw_component == "vector_lane") {
+    assert(false && "vector_lane ops not yet supported in ETG builder");
     return;
   }
 
-  // SFPU: generic body's arith/math ops
-  if (auto generic_op = llvm::dyn_cast<mlir::linalg::GenericOp>(op)) {
-    std::vector<Expr> dims;
-    auto inits = generic_op.getDpsInits();
-    if (!inits.empty()) {
-      dims.push_back(traceAllocDimsFromTensor(inits[0]));
-    }
-    generic_op.getBody()->walk([&](mlir::Operation *inner_op) {
-      auto *dialect = inner_op->getDialect();
-      if (dialect && (llvm::isa<mlir::arith::ArithDialect>(dialect) ||
-                      llvm::isa<mlir::math::MathDialect>(dialect))) {
-        target_stage.pushWorkload(
-            "SFPU", inner_op->getName().getStringRef().str(), dims);
+  // Build dims map by matching operator IR dims to hw symbol bindings
+  auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
+  std::map<std::string, Expr> dimMap;
+
+  auto inputs = linalgOp.getDpsInputs();
+  for (size_t i = 0; i < inputs.size() && i < hwFunc->input_bindings.size();
+       ++i) {
+    std::vector<Expr> opDims = traceAllocDimsFromTensor(inputs[i]);
+    const auto &hwBinding = hwFunc->input_bindings[i];
+    for (size_t d = 0; d < hwBinding.dim_symbols.size() && d < opDims.size();
+         ++d) {
+      const std::string &hwSym = hwBinding.dim_symbols[d];
+      if (dimMap.count(hwSym) == 0) {
+        dimMap[hwSym] = opDims[d];
       }
-    });
-    return;
+    }
   }
+
+  // Queue name comes from hw_component
+  target_stage.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
+                            std::move(dimMap));
 }
 
 std::string VariantETG::classifyCopyTransfer(mlir::Operation *op) {
@@ -279,10 +286,10 @@ std::string VariantETG::classifyCopyTransfer(mlir::Operation *op) {
 void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
                                         Stage &target_stage) {
   std::string label = classifyCopyTransfer(op);
-  std::vector<Expr> dims;
+  std::map<std::string, Expr> dims;
   if (auto copyOp = llvm::dyn_cast<loom::CopyToTensorOp>(op)) {
     if (auto allocOp = traceToAlloc(copyOp.getBuffer())) {
-      dims.push_back(formatAllocDims(allocOp));
+      dims["size"] = productOfDims(formatAllocDims(allocOp));
     }
   }
   if (label == "d" || label == "a") {
@@ -374,7 +381,7 @@ void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
     }
 
     // Collect symbolic footprint for this alloc
-    Expr dims = formatAllocDims(allocOp);
+    Expr dims = productOfDims(formatAllocDims(allocOp));
     if (!dims.isNone()) {
       constraint_scope.l1_footprint.push_back(dims);
     }

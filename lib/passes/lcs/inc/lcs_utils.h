@@ -15,6 +15,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include <string>
+#include <vector>
 
 // Forward declaration - AllocOp is defined in generated LoomOps.h.inc
 namespace loom {
@@ -34,26 +35,34 @@ namespace lcs {
 ::loom::AllocOp traceToAlloc(mlir::Value memrefVal);
 
 /**
- * @brief Convert AllocOp mixed sizes (static + dynamic) to a symbolic Expr.
+ * @brief Convert AllocOp mixed sizes to individual symbolic Expr per dimension.
  * Static dimensions become Expr::con(). Dynamic dimensions are traced to
- * Expr::sym(). All dimensions are folded into a single product expression.
- * Returns Expr::none() if no valid dims are found.
+ * Expr::sym(). Returns one Expr per dimension. Empty vector if no valid dims.
  *
  * @param allocOp The allocation operation
- * @return Product Expr (e.g., Sym("BB") * Sym("BM") * Con(128)), or none()
+ * @return Vector of per-dimension Exprs (e.g., [Sym("BM"), Sym("BK")])
  */
-Expr formatAllocDims(::loom::AllocOp allocOp);
+std::vector<Expr> formatAllocDims(::loom::AllocOp allocOp);
 
 /**
- * @brief Recursively trace a tensor-typed Value to its underlying AllocOp Expr.
+ * @brief Recursively trace a tensor-typed Value to its underlying AllocOp dims.
  * Handles complex IR patterns: loom ops (copy_to_tensor, init_tensor),
  * linalg operations (fill, copy, generic, matmul), affine loops with iter_args,
  * and block arguments from affine.for / affine.parallel.
  *
  * @param tensorVal The tensor SSA value to trace
- * @return Symbolic Expr, or Expr::none() if tracing fails
+ * @return Vector of per-dimension Exprs, or empty vector if tracing fails
  */
-Expr traceAllocDimsFromTensor(mlir::Value tensorVal);
+std::vector<Expr> traceAllocDimsFromTensor(mlir::Value tensorVal);
+
+/**
+ * @brief Fold a vector of dimension Exprs into a single product Expr.
+ * Returns Expr::none() if dims is empty.
+ *
+ * @param dims Vector of per-dimension Exprs
+ * @return Product expression, or Expr::none()
+ */
+Expr productOfDims(const std::vector<Expr> &dims);
 
 /**
  * @brief Convert an MLIR element type to a readable string (e.g., "f32", "i32").

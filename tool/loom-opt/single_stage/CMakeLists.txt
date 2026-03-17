@@ -393,34 +393,3 @@ set_target_properties(staged_etg PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-# parse_compute_ops: Parse and dump compute MLIR files from a directory
-add_executable(parse_compute_ops
-  ${CMAKE_CURRENT_LIST_DIR}/parse_compute_ops_main.cpp
-)
-
-target_include_directories(parse_compute_ops PRIVATE
-  ${MLIR_INCLUDE_DIRS}
-  ${LOOM_PASSES_INC}
-)
-
-target_link_libraries(parse_compute_ops PRIVATE
-  MLIRIR
-  MLIRParser
-  MLIRSupport
-  LLVMSupport
-  MLIRFuncDialect
-  MLIRArithDialect
-  MLIRTensorDialect
-  MLIRLinalgDialect
-  MLIRMathDialect
-  MLIRAsmParser
-  MLIRBytecodeReader
-  loomDialect
-)
-mlir_check_all_link_libraries(parse_compute_ops)
-
-target_compile_options(parse_compute_ops PRIVATE -fno-rtti)
-
-set_target_properties(parse_compute_ops PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
