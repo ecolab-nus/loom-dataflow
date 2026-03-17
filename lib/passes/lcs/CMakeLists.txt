@@ -5,6 +5,7 @@ add_library(loomLCS STATIC
     src/expr.cpp
     src/staged_etg_builder.cpp
     src/lcs_utils.cpp
+    src/compute_op_registry.cpp
 )
 
 target_include_directories(loomLCS PUBLIC
@@ -22,6 +23,8 @@ target_link_libraries(loomLCS PUBLIC
     MLIRArithDialect
     MLIRMathDialect
     MLIRLinalgDialect
+    MLIRParser
+    MLIRFuncDialect
     loomDialect
 )
 

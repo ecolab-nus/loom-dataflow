@@ -18,11 +18,14 @@
 namespace loom {
 namespace lcs {
 
-/// Simple workload record: operation name and its symbolic dimensions.
-/// dims holds one Expr per tensor input (e.g., two entries for matmul).
+// Forward declaration
+class ComputeOpRegistry;
+
+/// Workload record: operation name and its symbolic dimensions.
+/// dims maps hardware symbol names to operator IR symbolic expressions.
 struct Workload {
   std::string op;
-  std::vector<Expr> dims;
+  std::map<std::string, Expr> dims;
 
   llvm::json::Value toJSON() const;
 };
@@ -46,7 +49,7 @@ struct Stage {
 
   Stage(int id);
   void pushWorkload(const std::string &unit_name, const std::string &op,
-                    std::vector<Expr> dims);
+                    std::map<std::string, Expr> dims);
   void dump(llvm::raw_ostream &os, int indent = 0) const;
   llvm::json::Value toJSON() const;
 };
@@ -92,7 +95,7 @@ public:
   Scope memory_scope;
   ConstraintScope constraint_scope;
 
-  VariantETG(llvm::StringRef name);
+  VariantETG(llvm::StringRef name, const ComputeOpRegistry *registry);
 
   /// Build ETG from an affine.for loop body.
   void buildFromAffineFor(mlir::affine::AffineForOp for_op);
@@ -105,6 +108,7 @@ public:
   llvm::json::Value toJSON() const;
 
 private:
+  const ComputeOpRegistry *hw_registry_;
   void dispatchToComputeQueues(mlir::Operation *op, Stage &target_stage);
   void dispatchToMemoryQueues(mlir::Operation *op, Stage &target_stage);
   static std::string classifyCopyTransfer(mlir::Operation *op);

@@ -1,0 +1,4754 @@
+[
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i0__f01__d_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i0__f01__d_a",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i0__f01__d_h",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i0__f01__d_v",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i0__f10__d_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i0__f10__d_a",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i0__f10__d_h",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i0__f10__d_v",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i0__f01__d_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i0__f01__d_a",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i0__f01__d_h",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i0__f01__d_v",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i0__f10__d_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i0__f10__d_a",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i0__f10__d_h",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_1"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_1"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_1"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i0__f10__d_v",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i1__f01__d_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i1__f01__d_h",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i1__f01__v_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i1__f01__v_h",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i1__f10__d_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i1__f10__d_h",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i1__f10__v_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i0_d1i1__f10__v_h",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i1__f01__d_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i1__f01__d_v",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i1__f01__h_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i1__f01__h_v",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i1__f10__d_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i1__f10__d_v",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i1__f10__h_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_0"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_0"},{"Const":8}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":8}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":8}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i0_d0i1__f10__h_v",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i1_d1i1__f01__d_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i1_d1i1__f01__a_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i1_d1i1__f01__h_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i1_d1i1__f01__v_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i1_d1i1__f10__d_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i1_d1i1__f10__a_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i1_d1i1__f10__h_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d0i1_d1i1__f10__v_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i1_d0i1__f01__d_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i1_d0i1__f01__a_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i1_d0i1__f01__h_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i1_d0i1__f01__v_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i1_d0i1__f10__d_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "a",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i1_d0i1__f10__a_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "h",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i1_d0i1__f10__h_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  },
+  {
+    "constraint_scope": {
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]},
+          {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_1"}]}
+        ],
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Sym":"block_size_0"}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]}
+          ],
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"block_size_2"}]}
+        },
+        "symbols": {
+          "block_size_0": "int",
+          "block_size_2": "int",
+          "block_size_1": "int"
+        },
+        "datatype": "f32"
+      },
+      "hard_constraints": [
+        {"Ge":[{"Div":[{"Const":512},{"Sym":"block_size_2"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_2"},"x":{"Const":512}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Sym":"block_size_0"}]},{"Const":1}]},
+        {"Divisible":{"by":{"Sym":"block_size_0"},"x":{"Const":4096}}},
+        {"Ge":[{"Div":[{"Const":4096},{"Mul":[{"Sym":"block_size_1"},{"Const":64}]}]},{"Const":1}]},
+        {"Divisible":{"by":{"Mul":[{"Sym":"block_size_1"},{"Const":64}]},"x":{"Const":4096}}}
+      ]
+    },
+    "memory_scope": {
+      "stages": [
+        {
+          "queues": {
+            "NoC_V": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "v",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_0"},{"Sym":"block_size_2"}]}
+                  }
+                },
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_V"
+            },
+            "NoC_H": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "d",
+                  "dims": {
+                    "size": {"Mul":[{"Sym":"block_size_2"},{"Sym":"block_size_1"}]}
+                  }
+                }
+              ],
+              "unit_name": "NoC_H"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "variant_name": "matmul__d1i1_d0i1__f10__v_d",
+    "compute_scope": {
+      "stages": [
+        {
+          "queues": {
+            "matrix_lane": {
+              "resolved_time": null,
+              "workloads": [
+                {
+                  "op": "matmul_f16",
+                  "dims": {
+                    "M": {"Sym":"block_size_0"},
+                    "K": {"Sym":"block_size_2"},
+                    "N": {"Sym":"block_size_1"}
+                  }
+                }
+              ],
+              "unit_name": "matrix_lane"
+            }
+          },
+          "stage_id": 2
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  }
+]

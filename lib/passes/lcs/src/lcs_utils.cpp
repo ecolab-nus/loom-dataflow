@@ -19,8 +19,8 @@ namespace lcs {
 namespace {
 
 /// Helper to trace BlockArgument to its init value.
-/// Returns Expr::none() if tracing fails.
-Expr traceBlockArgumentToInit(mlir::BlockArgument blockArg) {
+/// Returns empty vector if tracing fails.
+std::vector<Expr> traceBlockArgumentToInit(mlir::BlockArgument blockArg) {
   using namespace mlir;
   Block *block = blockArg.getOwner();
   Operation *parentOp = block->getParentOp();
@@ -44,7 +44,7 @@ Expr traceBlockArgumentToInit(mlir::BlockArgument blockArg) {
     }
   }
 
-  return Expr::none();
+  return {};
 }
 
 } // namespace
@@ -74,42 +74,38 @@ loom::AllocOp traceToAlloc(mlir::Value memrefVal) {
   return nullptr;
 }
 
-Expr formatAllocDims(loom::AllocOp allocOp) {
+std::vector<Expr> formatAllocDims(loom::AllocOp allocOp) {
+  std::vector<Expr> dims;
   if (!allocOp)
-    return Expr::none();
+    return dims;
 
-  // Iterate through mixed sizes (static + dynamic), accumulate product.
+  // Iterate through mixed sizes (static + dynamic), one Expr per dimension.
   auto staticSizes = allocOp.getStaticSizes();
   auto dynamicSizes = allocOp.getSizes();
-
-  Expr result = Expr::none();
   unsigned dynamicIdx = 0;
-
-  auto accumulate = [&](Expr dim) {
-    result = result.isNone() ? dim : result * dim;
-  };
 
   for (int64_t staticDim : staticSizes) {
     if (mlir::ShapedType::isDynamic(staticDim)) {
       if (dynamicIdx < dynamicSizes.size()) {
         llvm::StringRef symVar =
             loom::utils::traceToSymbolicVar(dynamicSizes[dynamicIdx]);
-        accumulate(symVar.empty() ? Expr::sym("?") : Expr::sym(symVar.str()));
+        dims.push_back(symVar.empty() ? Expr::sym("?")
+                                      : Expr::sym(symVar.str()));
         dynamicIdx++;
       }
     } else {
-      accumulate(Expr::con(staticDim));
+      dims.push_back(Expr::con(staticDim));
     }
   }
 
-  return result;
+  return dims;
 }
 
-Expr traceAllocDimsFromTensor(mlir::Value tensorVal) {
+std::vector<Expr> traceAllocDimsFromTensor(mlir::Value tensorVal) {
   using namespace mlir;
 
   if (!tensorVal)
-    return Expr::none();
+    return {};
 
   // Handle BlockArgument first (before getDefiningOp which returns nullptr)
   if (auto blockArg = dyn_cast<BlockArgument>(tensorVal)) {
@@ -119,14 +115,14 @@ Expr traceAllocDimsFromTensor(mlir::Value tensorVal) {
   // Now handle OpResults (from operations)
   Operation *op = tensorVal.getDefiningOp();
   if (!op)
-    return Expr::none();
+    return {};
 
   // Case 1: loom.copy_to_tensor
   if (auto copyOp = dyn_cast<loom::CopyToTensorOp>(op)) {
     if (auto allocOp = traceToAlloc(copyOp.getBuffer())) {
       return formatAllocDims(allocOp);
     }
-    return Expr::none();
+    return {};
   }
 
   // Case 2: loom.init_tensor
@@ -134,7 +130,7 @@ Expr traceAllocDimsFromTensor(mlir::Value tensorVal) {
     if (auto allocOp = traceToAlloc(initTensor.getBuffer())) {
       return formatAllocDims(allocOp);
     }
-    return Expr::none();
+    return {};
   }
 
   // Case 3: linalg operation (fill, copy, generic, matmul, etc.)
@@ -148,7 +144,7 @@ Expr traceAllocDimsFromTensor(mlir::Value tensorVal) {
       // If resultIdx >= size, try tracing the first init as fallback
       return traceAllocDimsFromTensor(inits[0]);
     }
-    return Expr::none();
+    return {};
   }
 
   // Case 4: affine.for result
@@ -157,10 +153,18 @@ Expr traceAllocDimsFromTensor(mlir::Value tensorVal) {
     if (resultIdx < forOp.getInits().size()) {
       return traceAllocDimsFromTensor(forOp.getInits()[resultIdx]);
     }
-    return Expr::none();
+    return {};
   }
 
-  return Expr::none();
+  return {};
+}
+
+Expr productOfDims(const std::vector<Expr> &dims) {
+  Expr result = Expr::none();
+  for (const auto &d : dims) {
+    result = result.isNone() ? d : result * d;
+  }
+  return result;
 }
 
 std::string formatElementType(mlir::Type elemType) {
