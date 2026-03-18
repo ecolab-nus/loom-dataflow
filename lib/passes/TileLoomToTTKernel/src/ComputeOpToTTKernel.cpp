@@ -568,6 +568,60 @@ static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
   return success();
 }
 
+static bool exprContainsBodyInput(Value exprValue, linalg::GenericOp op,
+                                  unsigned inputIdx) {
+  if (auto idx = getBodyInputIndex(op, exprValue))
+    return *idx == inputIdx;
+
+  if (getConstFloatValue(exprValue).has_value())
+    return false;
+
+  Operation *defOp = exprValue.getDefiningOp();
+  if (!defOp || defOp->getBlock() != &op.getRegion().front())
+    return false;
+
+  if (auto mulOp = dyn_cast<arith::MulFOp>(defOp))
+    return exprContainsBodyInput(mulOp.getLhs(), op, inputIdx) ||
+           exprContainsBodyInput(mulOp.getRhs(), op, inputIdx);
+
+  if (auto addOp = dyn_cast<arith::AddFOp>(defOp))
+    return exprContainsBodyInput(addOp.getLhs(), op, inputIdx) ||
+           exprContainsBodyInput(addOp.getRhs(), op, inputIdx);
+
+  if (auto subOp = dyn_cast<arith::SubFOp>(defOp))
+    return exprContainsBodyInput(subOp.getLhs(), op, inputIdx) ||
+           exprContainsBodyInput(subOp.getRhs(), op, inputIdx);
+
+  if (auto divOp = dyn_cast<arith::DivFOp>(defOp))
+    return exprContainsBodyInput(divOp.getLhs(), op, inputIdx) ||
+           exprContainsBodyInput(divOp.getRhs(), op, inputIdx);
+
+  if (auto powOp = dyn_cast<math::PowFOp>(defOp))
+    return exprContainsBodyInput(powOp.getLhs(), op, inputIdx) ||
+           exprContainsBodyInput(powOp.getRhs(), op, inputIdx);
+
+  if (auto selectOp = dyn_cast<arith::SelectOp>(defOp)) {
+    Value lhs;
+    Value rhs;
+    if (!matchMaxSelect(selectOp, lhs, rhs))
+      return false;
+    return exprContainsBodyInput(lhs, op, inputIdx) ||
+           exprContainsBodyInput(rhs, op, inputIdx);
+  }
+
+  return false;
+}
+
+static bool shouldEmitRhsFirstForRowBcast(
+    Value lhs, Value rhs, linalg::GenericOp op,
+    std::optional<unsigned> rowBcastInput, bool emitInlineInitOps) {
+  if (!emitInlineInitOps || !rowBcastInput)
+    return false;
+  bool lhsUsesRowBcast = exprContainsBodyInput(lhs, op, *rowBcastInput);
+  bool rhsUsesRowBcast = exprContainsBodyInput(rhs, op, *rowBcastInput);
+  return rhsUsesRowBcast && !lhsUsesRowBcast;
+}
+
 static LogicalResult emitElementwiseExprToReg(
     Value exprValue, int dstReg, int tmpRegA, int tmpRegB, linalg::GenericOp op,
     linalg::GenericOp::Adaptor adaptor, ConversionPatternRewriter &rewriter,
@@ -631,16 +685,31 @@ static LogicalResult emitElementwiseExprToReg(
       return success();
     }
 
-    if (failed(emitElementwiseExprToReg(mulOp.getLhs(), dstReg, tmpRegA, tmpRegB,
-                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput, emitInlineInitOps,
-                                        rowBcastRefInput)))
-      return failure();
-    if (failed(emitElementwiseExprToReg(mulOp.getRhs(), tmpRegA, tmpRegB, dstReg,
-                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput, emitInlineInitOps,
-                                        rowBcastRefInput)))
-      return failure();
+    bool emitRhsFirst = shouldEmitRhsFirstForRowBcast(
+        mulOp.getLhs(), mulOp.getRhs(), op, rowBcastInput, emitInlineInitOps);
+    if (emitRhsFirst) {
+      if (failed(emitElementwiseExprToReg(
+              mulOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+      if (failed(emitElementwiseExprToReg(
+              mulOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+    } else {
+      if (failed(emitElementwiseExprToReg(
+              mulOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+      if (failed(emitElementwiseExprToReg(
+              mulOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+    }
     if (emitInlineInitOps)
       rewriter.create<MulBinaryTilesInitOp>(loc);
     rewriter.create<MulBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
@@ -648,16 +717,31 @@ static LogicalResult emitElementwiseExprToReg(
   }
 
   if (auto addOp = dyn_cast<arith::AddFOp>(defOp)) {
-    if (failed(emitElementwiseExprToReg(addOp.getLhs(), dstReg, tmpRegA, tmpRegB,
-                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput, emitInlineInitOps,
-                                        rowBcastRefInput)))
-      return failure();
-    if (failed(emitElementwiseExprToReg(addOp.getRhs(), tmpRegA, tmpRegB, dstReg,
-                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput, emitInlineInitOps,
-                                        rowBcastRefInput)))
-      return failure();
+    bool emitRhsFirst = shouldEmitRhsFirstForRowBcast(
+        addOp.getLhs(), addOp.getRhs(), op, rowBcastInput, emitInlineInitOps);
+    if (emitRhsFirst) {
+      if (failed(emitElementwiseExprToReg(
+              addOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+      if (failed(emitElementwiseExprToReg(
+              addOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+    } else {
+      if (failed(emitElementwiseExprToReg(
+              addOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+      if (failed(emitElementwiseExprToReg(
+              addOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+    }
     if (emitInlineInitOps)
       rewriter.create<AddBinaryTilesInitOp>(loc);
     rewriter.create<AddBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
@@ -665,16 +749,31 @@ static LogicalResult emitElementwiseExprToReg(
   }
 
   if (auto subOp = dyn_cast<arith::SubFOp>(defOp)) {
-    if (failed(emitElementwiseExprToReg(subOp.getLhs(), dstReg, tmpRegA, tmpRegB,
-                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput, emitInlineInitOps,
-                                        rowBcastRefInput)))
-      return failure();
-    if (failed(emitElementwiseExprToReg(subOp.getRhs(), tmpRegA, tmpRegB, dstReg,
-                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput, emitInlineInitOps,
-                                        rowBcastRefInput)))
-      return failure();
+    bool emitRhsFirst = shouldEmitRhsFirstForRowBcast(
+        subOp.getLhs(), subOp.getRhs(), op, rowBcastInput, emitInlineInitOps);
+    if (emitRhsFirst) {
+      if (failed(emitElementwiseExprToReg(
+              subOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+      if (failed(emitElementwiseExprToReg(
+              subOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+    } else {
+      if (failed(emitElementwiseExprToReg(
+              subOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+      if (failed(emitElementwiseExprToReg(
+              subOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+    }
     if (emitInlineInitOps)
       rewriter.create<SubBinaryTilesInitOp>(loc);
     rewriter.create<SubBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
@@ -682,16 +781,31 @@ static LogicalResult emitElementwiseExprToReg(
   }
 
   if (auto divOp = dyn_cast<arith::DivFOp>(defOp)) {
-    if (failed(emitElementwiseExprToReg(divOp.getLhs(), dstReg, tmpRegA, tmpRegB,
-                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput, emitInlineInitOps,
-                                        rowBcastRefInput)))
-      return failure();
-    if (failed(emitElementwiseExprToReg(divOp.getRhs(), tmpRegA, tmpRegB, dstReg,
-                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput, emitInlineInitOps,
-                                        rowBcastRefInput)))
-      return failure();
+    bool emitRhsFirst = shouldEmitRhsFirstForRowBcast(
+        divOp.getLhs(), divOp.getRhs(), op, rowBcastInput, emitInlineInitOps);
+    if (emitRhsFirst) {
+      if (failed(emitElementwiseExprToReg(
+              divOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+      if (failed(emitElementwiseExprToReg(
+              divOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+    } else {
+      if (failed(emitElementwiseExprToReg(
+              divOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+      if (failed(emitElementwiseExprToReg(
+              divOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
+              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
+              rowBcastRefInput)))
+        return failure();
+    }
     if (emitInlineInitOps)
       rewriter.create<RecipTileInitOp>(loc);
     rewriter.create<RecipTileOp>(loc, tmpRegAVal);
@@ -726,16 +840,27 @@ static LogicalResult emitElementwiseExprToReg(
     Value rhs;
     if (!matchMaxSelect(selectOp, lhs, rhs))
       return failure();
-    if (failed(emitElementwiseExprToReg(lhs, dstReg, tmpRegA, tmpRegB, op, adaptor,
-                                        rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput, emitInlineInitOps,
-                                        rowBcastRefInput)))
-      return failure();
-    if (failed(emitElementwiseExprToReg(rhs, tmpRegA, tmpRegB, dstReg, op, adaptor,
-                                        rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput, emitInlineInitOps,
-                                        rowBcastRefInput)))
-      return failure();
+    bool emitRhsFirst = shouldEmitRhsFirstForRowBcast(
+        lhs, rhs, op, rowBcastInput, emitInlineInitOps);
+    if (emitRhsFirst) {
+      if (failed(emitElementwiseExprToReg(
+              rhs, tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter, loc, tileIdx,
+              rowIdx, rowBcastInput, emitInlineInitOps, rowBcastRefInput)))
+        return failure();
+      if (failed(emitElementwiseExprToReg(
+              lhs, dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter, loc, tileIdx,
+              rowIdx, rowBcastInput, emitInlineInitOps, rowBcastRefInput)))
+        return failure();
+    } else {
+      if (failed(emitElementwiseExprToReg(
+              lhs, dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter, loc, tileIdx,
+              rowIdx, rowBcastInput, emitInlineInitOps, rowBcastRefInput)))
+        return failure();
+      if (failed(emitElementwiseExprToReg(
+              rhs, tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter, loc, tileIdx,
+              rowIdx, rowBcastInput, emitInlineInitOps, rowBcastRefInput)))
+        return failure();
+    }
     if (emitInlineInitOps)
       rewriter.create<BinaryMaxTileInitOp>(loc);
     rewriter.create<BinaryMaxTileOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
@@ -810,7 +935,7 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
 
     Value rowIdx = rowLoop.getInductionVar();
     TileRegsAcquireOp::create(rewriter, loc);
-    rewriter.create<√>(loc, inCb, scaleCb, outCb, reduceType,
+    rewriter.create<ReduceInitOp>(loc, inCb, scaleCb, outCb, reduceType,
                                   ReduceDim::Row);
 
     Value rowOffset = rewriter.create<arith::MulIOp>(loc, rowIdx, colsV);
@@ -1036,9 +1161,9 @@ public:
     ntDim = rewriter.create<arith::ConstantIntOp>(loc, ntVal, 32);
     ktDim = rewriter.create<arith::ConstantIntOp>(loc, ktVal, 32);
 
-    rewriter.create<MatmulBlockInitOp>(
+    rewriter.create<MatmulBlockInitShortOp>(
         loc, TypeRange{},
-        ValueRange{in0Cb, in1Cb, outCb, transpose, ctDim, rtDim, ktDim});
+        ValueRange{in0Cb, in1Cb, transpose, ctDim, rtDim, ktDim});
 
 
     Value in0TileCount = i32Const(rewriter, loc, *in0Tiles);
