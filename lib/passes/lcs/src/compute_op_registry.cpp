@@ -30,8 +30,6 @@ ComputeOpRegistry::loadFromDirectory(llvm::StringRef dir_path,
     if (!path.ends_with(".mlir"))
       continue;
 
-    // Derive hw_component from filename stem (e.g., "matrix_lane.mlir" ->
-    // "matrix_lane")
     llvm::StringRef stem = llvm::sys::path::stem(path);
 
     llvm::SourceMgr sm;
@@ -63,9 +61,19 @@ ComputeOpRegistry::loadFromDirectory(llvm::StringRef dir_path,
 }
 
 const HWComputeFunc *
-ComputeOpRegistry::lookup(llvm::StringRef linalg_op_name) const {
-  auto it = registry_.find(linalg_op_name.str());
-  if (it != registry_.end())
+ComputeOpRegistry::lookupMatrixOp(llvm::StringRef linalg_op_name) const {
+  auto it = matrix_registry_.find(linalg_op_name.str());
+  if (it != matrix_registry_.end())
+    return &it->second;
+  return nullptr;
+}
+
+const HWComputeFunc *
+ComputeOpRegistry::lookupVectorOp(llvm::StringRef body_op_name,
+                                   GenericClass cls) const {
+  auto key = std::make_pair(body_op_name.str(), cls);
+  auto it = vector_registry_.find(key);
+  if (it != vector_registry_.end())
     return &it->second;
   return nullptr;
 }
@@ -74,7 +82,13 @@ void ComputeOpRegistry::indexModule(mlir::ModuleOp module,
                                     llvm::StringRef hw_component) {
   module.walk([&](mlir::func::FuncOp func) {
     if (auto hwFunc = extractFromFunc(func, hw_component)) {
-      registry_[hwFunc->linalg_op_name] = std::move(*hwFunc);
+      if (!hwFunc->body_op_name.empty()) {
+        auto key =
+            std::make_pair(hwFunc->body_op_name, hwFunc->generic_class);
+        vector_registry_[key] = std::move(*hwFunc);
+      } else {
+        matrix_registry_[hwFunc->linalg_op_name] = std::move(*hwFunc);
+      }
     }
   });
 }
@@ -82,15 +96,7 @@ void ComputeOpRegistry::indexModule(mlir::ModuleOp module,
 std::optional<HWComputeFunc>
 ComputeOpRegistry::extractFromFunc(mlir::func::FuncOp func,
                                    llvm::StringRef hw_component) {
-  // TODO: implement vector_lane op matching — skip for now since multiple
-  // generic ops map to the same linalg.generic key and need disambiguation
-  // by inner body ops.
-  if (hw_component == "vector_lane") {
-    return std::nullopt;
-  }
-
   // 1. Collect loom.bind operations to build tensor -> symbol binding map.
-  //    Key: the tensor SSA value, Value: HWTensorBinding with dim symbol names.
   llvm::DenseMap<mlir::Value, HWTensorBinding> bindingMap;
 
   func.walk([&](loom::BindOp bindOp) {
@@ -117,7 +123,6 @@ ComputeOpRegistry::extractFromFunc(mlir::func::FuncOp func,
   if (!computeOp)
     return std::nullopt;
 
-  // 3. Build HWComputeFunc from the linalg op and binding map.
   auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(computeOp);
   HWComputeFunc result;
   result.linalg_op_name = computeOp->getName().getStringRef().str();
@@ -130,7 +135,6 @@ ComputeOpRegistry::extractFromFunc(mlir::func::FuncOp func,
     if (it != bindingMap.end()) {
       result.input_bindings.push_back(it->second);
     } else {
-      // No binding found — push empty binding
       result.input_bindings.push_back(HWTensorBinding{});
     }
   }
@@ -142,6 +146,90 @@ ComputeOpRegistry::extractFromFunc(mlir::func::FuncOp func,
       result.output_bindings.push_back(it->second);
     } else {
       result.output_bindings.push_back(HWTensorBinding{});
+    }
+  }
+
+  // 3. For linalg.generic: extract body op, classify, derive symbols.
+  if (llvm::isa<mlir::linalg::GenericOp>(computeOp)) {
+    // Walk the body block, count arith/math ops (skip linalg.yield)
+    mlir::Operation *singleBodyOp = nullptr;
+    unsigned bodyOpCount = 0;
+    for (mlir::Operation &bodyOp : computeOp->getRegion(0).front()) {
+      if (llvm::isa<mlir::linalg::YieldOp>(&bodyOp))
+        continue;
+      mlir::Dialect *dialect = bodyOp.getDialect();
+      if (!dialect)
+        continue;
+      llvm::StringRef ns = dialect->getNamespace();
+      if (ns != "arith" && ns != "math")
+        continue;
+      singleBodyOp = &bodyOp;
+      bodyOpCount++;
+    }
+
+    // Compound hw funcs (e.g., vec_max1_f16 with cmpf+select): skip
+    if (bodyOpCount != 1)
+      return std::nullopt;
+
+    result.body_op_name = singleBodyOp->getName().getStringRef().str();
+
+    // Classify via iterator_types
+    auto iteratorTypes = linalgOp.getIteratorTypesArray();
+    bool hasPar = false, hasRed = false;
+    for (auto it : iteratorTypes) {
+      if (it == mlir::utils::IteratorType::parallel)
+        hasPar = true;
+      else if (it == mlir::utils::IteratorType::reduction)
+        hasRed = true;
+    }
+    if (hasPar && hasRed)
+      result.generic_class = GenericClass::Mixed;
+    else if (hasRed)
+      result.generic_class = GenericClass::Reduction;
+    else
+      result.generic_class = GenericClass::Parallel;
+
+    // Derive parallel_symbol and reduction_symbol from indexing maps + bindings
+    auto indexingMaps = linalgOp.getIndexingMapsArray();
+    // Collect all operands in ins→outs order
+    llvm::SmallVector<mlir::Value> allOperands;
+    for (auto v : linalgOp.getDpsInputs())
+      allOperands.push_back(v);
+    for (auto v : linalgOp.getDpsInits())
+      allOperands.push_back(v);
+
+    for (unsigned di = 0; di < iteratorTypes.size(); ++di) {
+      bool found = false;
+      for (unsigned opIdx = 0; opIdx < indexingMaps.size(); ++opIdx) {
+        mlir::AffineMap map = indexingMaps[opIdx];
+        // Look up binding for this operand
+        auto bindIt = bindingMap.find(allOperands[opIdx]);
+        if (bindIt == bindingMap.end())
+          continue;
+        const auto &binding = bindIt->second;
+
+        for (unsigned r = 0; r < map.getNumResults(); ++r) {
+          auto affineDim =
+              mlir::dyn_cast<mlir::AffineDimExpr>(map.getResult(r));
+          if (affineDim && affineDim.getPosition() == di) {
+            if (r < binding.dim_symbols.size()) {
+              const std::string &sym = binding.dim_symbols[r];
+              if (iteratorTypes[di] == mlir::utils::IteratorType::parallel &&
+                  result.parallel_symbol.empty()) {
+                result.parallel_symbol = sym;
+              } else if (iteratorTypes[di] ==
+                             mlir::utils::IteratorType::reduction &&
+                         result.reduction_symbol.empty()) {
+                result.reduction_symbol = sym;
+              }
+              found = true;
+              break;
+            }
+          }
+        }
+        if (found)
+          break;
+      }
     }
   }
 

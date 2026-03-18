@@ -95,5 +95,40 @@ Expr affineExprToExpr(mlir::AffineExpr expr,
  */
 Expr extractLoopTripCount(mlir::affine::AffineForOp forOp);
 
+// ==========================================
+// Generic Op Classification & Shape Analysis
+// ==========================================
+
+/// Classification of linalg.generic by iterator_types.
+enum class GenericClass {
+  Parallel,  // all iterator_types are "parallel"
+  Reduction, // all iterator_types are "reduction"
+  Mixed      // both parallel and reduction
+};
+
+/// Result of analyzeGenericDims: folded symbolic products per iterator class.
+struct GenericDimAnalysis {
+  GenericClass generic_class;
+  Expr parallel_product;  // Expr::none() if no parallel dims
+  Expr reduction_product; // Expr::none() if no reduction dims
+};
+
+/**
+ * @brief Analyze a linalg.generic's indexing_maps and iterator_types to
+ * produce folded symbolic dimension products for parallel and reduction dims.
+ *
+ * For each loop dimension d_i:
+ *   1. Classify as parallel or reduction from iterator_types.
+ *   2. Scan all operands' indexing maps for a simple AffineDimExpr at d_i.
+ *   3. Use the matched map result position to index into that operand's
+ *      traced tensor dims (via traceAllocDimsFromTensor) → symbolic Expr.
+ *   4. Fold parallel Exprs into parallel_product, reduction into
+ *      reduction_product.
+ *
+ * @param genericOp The linalg.generic operation to analyze
+ * @return GenericDimAnalysis with class and folded products
+ */
+GenericDimAnalysis analyzeGenericDims(mlir::linalg::LinalgOp genericOp);
+
 } // namespace lcs
 } // namespace loom
