@@ -110,6 +110,8 @@ public:
 private:
   const ComputeOpRegistry *hw_registry_;
   void dispatchToComputeQueues(mlir::Operation *op, Stage &target_stage);
+  void dispatchNamedOp(mlir::Operation *op, Stage &target_stage);
+  void dispatchGenericOp(mlir::Operation *op, Stage &target_stage);
   void dispatchToMemoryQueues(mlir::Operation *op, Stage &target_stage);
   static std::string classifyCopyTransfer(mlir::Operation *op);
 };

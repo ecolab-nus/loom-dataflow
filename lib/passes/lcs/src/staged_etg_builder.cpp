@@ -222,22 +222,24 @@ void VariantETG::buildFromAffineFor(mlir::affine::AffineForOp for_op) {
 
 void VariantETG::dispatchToComputeQueues(mlir::Operation *op,
                                          Stage &target_stage) {
-  std::string linalg_op_name = op->getName().getStringRef().str();
-
   assert(hw_registry_ && "ComputeOpRegistry must be provided");
-  const HWComputeFunc *hwFunc = hw_registry_->lookup(linalg_op_name);
-  assert(hwFunc && "No hardware function found for linalg op");
 
-  // TODO: implement vector_lane op matching
-  if (hwFunc->hw_component == "vector_lane") {
-    assert(false && "vector_lane ops not yet supported in ETG builder");
-    return;
+  if (llvm::isa<mlir::linalg::GenericOp>(op)) {
+    dispatchGenericOp(op, target_stage);
+  } else {
+    dispatchNamedOp(op, target_stage);
   }
+}
 
-  // Build dims map by matching operator IR dims to hw symbol bindings
+void VariantETG::dispatchNamedOp(mlir::Operation *op, Stage &target_stage) {
+  std::string linalg_op_name = op->getName().getStringRef().str();
+  const HWComputeFunc *hwFunc = hw_registry_->lookupMatrixOp(linalg_op_name);
+  assert(hwFunc && "No hardware function found for named linalg op");
+
   auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
   std::map<std::string, Expr> dimMap;
 
+  // Positional input dim matching
   auto inputs = linalgOp.getDpsInputs();
   for (size_t i = 0; i < inputs.size() && i < hwFunc->input_bindings.size();
        ++i) {
@@ -252,9 +254,47 @@ void VariantETG::dispatchToComputeQueues(mlir::Operation *op,
     }
   }
 
-  // Queue name comes from hw_component
   target_stage.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
                             std::move(dimMap));
+}
+
+void VariantETG::dispatchGenericOp(mlir::Operation *op, Stage &target_stage) {
+  auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
+
+  // 1. Analyze generic dims
+  GenericDimAnalysis analysis = analyzeGenericDims(linalgOp);
+
+  // 2. Walk body for arith/math ops
+  for (mlir::Operation &bodyOp : op->getRegion(0).front()) {
+    if (llvm::isa<mlir::linalg::YieldOp>(&bodyOp))
+      continue;
+    mlir::Dialect *dialect = bodyOp.getDialect();
+    if (!dialect)
+      continue;
+    llvm::StringRef ns = dialect->getNamespace();
+    if (ns != "arith" && ns != "math")
+      continue;
+
+    std::string bodyOpName = bodyOp.getName().getStringRef().str();
+
+    // 3. Lookup hw func
+    const HWComputeFunc *hwFunc =
+        hw_registry_->lookupVectorOp(bodyOpName, analysis.generic_class);
+    assert(hwFunc && "No hw func found for generic body op");
+
+    // 4. Build dimMap from hw symbols
+    std::map<std::string, Expr> dimMap;
+    if (!hwFunc->parallel_symbol.empty() &&
+        !analysis.parallel_product.isNone())
+      dimMap[hwFunc->parallel_symbol] = analysis.parallel_product;
+    if (!hwFunc->reduction_symbol.empty() &&
+        !analysis.reduction_product.isNone())
+      dimMap[hwFunc->reduction_symbol] = analysis.reduction_product;
+
+    // 5. Dispatch by hw_component
+    target_stage.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
+                              std::move(dimMap));
+  }
 }
 
 std::string VariantETG::classifyCopyTransfer(mlir::Operation *op) {

@@ -10,6 +10,7 @@
 
 #include "loom_exploration_pipeline.h"
 #include "Passes.h"
+#include "compute_op_registry.h"
 #include "hardware_info.h"
 #include "staged_etg_builder.h"
 
@@ -147,7 +148,8 @@ void writeETGJson(llvm::raw_ostream &os, const llvm::json::Value &val,
 
 /// Build staged ETG JSON from a module and return as a string.
 /// Replicates staged_etg_main.cpp logic.
-std::pair<std::string, std::string> buildETGString(ModuleOp module) {
+std::pair<std::string, std::string>
+buildETGString(ModuleOp module, const loom::lcs::ComputeOpRegistry &registry) {
   llvm::json::Array json_etgs;
 
   module.walk([&](func::FuncOp func_op) {
@@ -165,7 +167,7 @@ std::pair<std::string, std::string> buildETGString(ModuleOp module) {
     });
 
     if (target_loop) {
-      loom::lcs::VariantETG etg(func_op.getName());
+      loom::lcs::VariantETG etg(func_op.getName(), &registry);
       etg.buildFromAffineFor(target_loop);
       etg.buildConstraintScope(func_op);
       json_etgs.push_back(etg.toJSON());
@@ -189,6 +191,7 @@ namespace pipeline {
 std::tuple<std::string, std::string, std::string>
 runExplorationPipeline(const std::string &input_mlir_text,
                        const std::string &df_mlir_path,
+                       const std::string &hw_compute_dir,
                        bool produce_etg) {
   // --- Set up MLIRContext with all required dialects ---
   DialectRegistry registry;
@@ -200,6 +203,11 @@ runExplorationPipeline(const std::string &input_mlir_text,
                   loom::df::DataflowDialect, loom::LoomDialect>();
   MLIRContext context(registry);
   context.loadAllAvailableDialects();
+
+  // --- Load hardware compute IR registry ---
+  loom::lcs::ComputeOpRegistry computeRegistry;
+  if (mlir::failed(computeRegistry.loadFromDirectory(hw_compute_dir, context)))
+    return {"Failed to load hw compute IR from: " + hw_compute_dir, "", ""};
 
   // --- Parse input MLIR from string ---
   auto inputBuf = llvm::MemoryBuffer::getMemBufferCopy(
@@ -308,7 +316,7 @@ runExplorationPipeline(const std::string &input_mlir_text,
   // ================================================================
   std::string etg_json;
   if (produce_etg) {
-    auto [etgErr, etgText] = buildETGString(*merged);
+    auto [etgErr, etgText] = buildETGString(*merged, computeRegistry);
     if (!etgErr.empty())
       return {etgErr, "", ""};
     etg_json = std::move(etgText);

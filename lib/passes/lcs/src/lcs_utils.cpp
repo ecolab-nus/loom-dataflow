@@ -266,5 +266,93 @@ Expr extractLoopTripCount(mlir::affine::AffineForOp forOp) {
   return affineExprToExpr(resultExpr, symbolNames);
 }
 
+// ==========================================
+// Generic Op Classification & Shape Analysis
+// ==========================================
+
+GenericDimAnalysis analyzeGenericDims(mlir::linalg::LinalgOp genericOp) {
+  using namespace mlir;
+
+  // 1. Read iterator_types → classify
+  auto iteratorTypes = genericOp.getIteratorTypesArray();
+  bool hasPar = false, hasRed = false;
+  for (auto it : iteratorTypes) {
+    if (it == mlir::utils::IteratorType::parallel)
+      hasPar = true;
+    else if (it == mlir::utils::IteratorType::reduction)
+      hasRed = true;
+  }
+  GenericClass cls;
+  if (hasPar && hasRed)
+    cls = GenericClass::Mixed;
+  else if (hasRed)
+    cls = GenericClass::Reduction;
+  else
+    cls = GenericClass::Parallel;
+
+  // 2. Collect indexing maps and trace all operand dims
+  auto indexingMaps = genericOp.getIndexingMapsArray();
+  SmallVector<Value> allOperands;
+  for (auto v : genericOp.getDpsInputs())
+    allOperands.push_back(v);
+  for (auto v : genericOp.getDpsInits())
+    allOperands.push_back(v);
+  assert(indexingMaps.size() == allOperands.size() &&
+         "indexing maps count must match operand count");
+
+  // Pre-trace dims for each operand
+  SmallVector<std::vector<Expr>> operandDims;
+  for (auto val : allOperands)
+    operandDims.push_back(traceAllocDimsFromTensor(val));
+
+  // 3. For each loop dim, find symbolic Expr via indexing maps
+  unsigned numLoopDims = iteratorTypes.size();
+  Expr parallelProduct = Expr::none();
+  Expr reductionProduct = Expr::none();
+
+  for (unsigned di = 0; di < numLoopDims; ++di) {
+    Expr dimExpr = Expr::none();
+    bool found = false;
+
+    // Try each operand's indexing map
+    for (unsigned opIdx = 0; opIdx < indexingMaps.size(); ++opIdx) {
+      AffineMap map = indexingMaps[opIdx];
+      const auto &tracedDims = operandDims[opIdx];
+      if (tracedDims.empty())
+        continue;
+
+      // Scan map results for a simple AffineDimExpr matching d_i
+      for (unsigned r = 0; r < map.getNumResults(); ++r) {
+        AffineExpr resultExpr = map.getResult(r);
+        auto affineDim = dyn_cast<AffineDimExpr>(resultExpr);
+        assert((!resultExpr || affineDim ||
+                isa<AffineConstantExpr>(resultExpr)) &&
+               "indexing map result must be a simple AffineDimExpr or constant");
+        if (affineDim && affineDim.getPosition() == di) {
+          if (r < tracedDims.size() && !tracedDims[r].isNone()) {
+            dimExpr = tracedDims[r];
+            found = true;
+            break;
+          }
+        }
+      }
+      if (found)
+        break;
+    }
+    assert(found && "could not resolve loop dim from any operand's indexing map");
+
+    // 4. Fold into appropriate product
+    if (iteratorTypes[di] == mlir::utils::IteratorType::parallel) {
+      parallelProduct =
+          parallelProduct.isNone() ? dimExpr : parallelProduct * dimExpr;
+    } else {
+      reductionProduct =
+          reductionProduct.isNone() ? dimExpr : reductionProduct * dimExpr;
+    }
+  }
+
+  return GenericDimAnalysis{cls, parallelProduct, reductionProduct};
+}
+
 } // namespace lcs
 } // namespace loom

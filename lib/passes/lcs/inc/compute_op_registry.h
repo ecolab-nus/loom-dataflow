@@ -1,6 +1,7 @@
 #ifndef LOOM_LCS_COMPUTE_OP_REGISTRY_H
 #define LOOM_LCS_COMPUTE_OP_REGISTRY_H
 
+#include "lcs_utils.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OwningOpRef.h"
@@ -21,12 +22,14 @@ struct HWTensorBinding {
 };
 
 /// A hardware compute function entry from a hw IR file.
-/// Records the linalg op type, the hw func name, the hw component (filename
-/// stem), and the per-tensor dimension symbol bindings.
 struct HWComputeFunc {
   std::string linalg_op_name; // e.g., "linalg.matmul"
   std::string hw_func_name;   // e.g., "matmul_f16"
   std::string hw_component;   // e.g., "matrix_lane" (from filename stem)
+  std::string body_op_name;   // inner arith/math op (empty for named ops)
+  GenericClass generic_class = GenericClass::Parallel;
+  std::string parallel_symbol;  // hw symbol for folded parallel product
+  std::string reduction_symbol; // hw symbol for folded reduction product
   std::vector<HWTensorBinding> input_bindings;
   std::vector<HWTensorBinding> output_bindings;
 };
@@ -35,17 +38,22 @@ struct HWComputeFunc {
 class ComputeOpRegistry {
 public:
   /// Load all .mlir files from dir_path, parse them, and build the index.
-  /// The MLIRContext must already have all necessary dialects loaded.
   mlir::LogicalResult loadFromDirectory(llvm::StringRef dir_path,
                                         mlir::MLIRContext &context);
 
-  /// Look up a hardware compute function by linalg op name.
-  /// Returns nullptr if no match found.
-  const HWComputeFunc *lookup(llvm::StringRef linalg_op_name) const;
+  /// Look up a named linalg op (matmul, batch_matmul, etc.).
+  const HWComputeFunc *lookupMatrixOp(llvm::StringRef linalg_op_name) const;
+
+  /// Look up a vector_lane generic op by body op name and generic class.
+  const HWComputeFunc *lookupVectorOp(llvm::StringRef body_op_name,
+                                       GenericClass cls) const;
 
 private:
-  /// Indexed by linalg op name (e.g., "linalg.matmul")
-  std::map<std::string, HWComputeFunc> registry_;
+  /// Named ops keyed by linalg op name (e.g., "linalg.matmul")
+  std::map<std::string, HWComputeFunc> matrix_registry_;
+
+  /// Vector lane ops keyed by (body_op_name, GenericClass)
+  std::map<std::pair<std::string, GenericClass>, HWComputeFunc> vector_registry_;
 
   /// Keep parsed modules alive for the lifetime of the registry.
   std::vector<mlir::OwningOpRef<mlir::ModuleOp>> modules_;
