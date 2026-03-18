@@ -24,11 +24,27 @@ namespace lcs {
 // Workload
 // ==========================================
 llvm::json::Value Workload::toJSON() const {
-  llvm::json::Object dims_json;
+  llvm::json::Array symbols_json;
+  llvm::json::Array entries_json;
   for (const auto &[key, expr] : dims) {
-    dims_json[key] = expr.toJSON();
+    symbols_json.push_back(key);
+    llvm::json::Array entry;
+    entry.push_back(key);
+    entry.push_back(expr.toJSON());
+    entries_json.push_back(std::move(entry));
   }
-  return llvm::json::Object{{"op", op}, {"dims", std::move(dims_json)}};
+
+  llvm::json::Object func_inner;
+  func_inner["name"] = op;
+  func_inner["symbols"] = std::move(symbols_json);
+  func_inner["sym_map"] =
+      llvm::json::Object{{"entries", std::move(entries_json)}};
+
+  llvm::json::Object func_envelope;
+  func_envelope["func"] = std::move(func_inner);
+  func_envelope["scenarios"] = llvm::json::Array{};
+
+  return llvm::json::Object{{"Func", std::move(func_envelope)}};
 }
 
 // ==========================================
@@ -55,13 +71,14 @@ void HardwareQueue::dump(llvm::raw_ostream &os, int indent) const {
 }
 
 llvm::json::Value HardwareQueue::toJSON() const {
-  llvm::json::Array workloads_json;
+  llvm::json::Array schedules_json;
   for (const auto &workload : workloads) {
-    workloads_json.push_back(workload.toJSON());
+    schedules_json.push_back(workload.toJSON());
   }
-  return llvm::json::Object{{"unit_name", unit_name},
-                            {"workloads", std::move(workloads_json)},
-                            {"resolved_time", nullptr}};
+  return llvm::json::Object{
+      {"Sequential",
+       llvm::json::Object{{"schedules", std::move(schedules_json)},
+                           {"scenarios", llvm::json::Array{}}}}};
 }
 
 // ==========================================
@@ -85,12 +102,23 @@ void Stage::dump(llvm::raw_ostream &os, int indent) const {
 }
 
 llvm::json::Value Stage::toJSON() const {
-  llvm::json::Object queues_json;
+  // Merge all workloads from all queues into one Sequential
+  llvm::json::Array schedules_json;
   for (auto const &[name, queue] : queues) {
-    queues_json[name] = queue.toJSON();
+    for (const auto &workload : queue.workloads) {
+      schedules_json.push_back(workload.toJSON());
+    }
   }
+
+  llvm::json::Object sequential;
+  sequential["schedules"] = std::move(schedules_json);
+  sequential["scenarios"] = llvm::json::Array{};
+
+  llvm::json::Object parallel;
+  parallel["Sequential"] = std::move(sequential);
+
   return llvm::json::Object{{"stage_id", stage_id},
-                            {"queues", std::move(queues_json)}};
+                            {"Parallel", std::move(parallel)}};
 }
 
 // ==========================================
