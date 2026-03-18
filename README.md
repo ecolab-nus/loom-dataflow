@@ -160,6 +160,13 @@ build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
   --input test/Passes/flashattn_2Dmesh/IR/04_after_reuse_analyzation.mlir \
   > test/Passes/flashattn_2Dmesh/IR/05_after_enumerate_broadcast.mlir
 ```
+Build staged etg for each variants with HW IR
+```bash
+build/tool/loom-opt/single_stage/staged_etg \
+  --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
+  --hw-compute-dir ../loom-mlar/tests/2d_mesh/compute \
+  --output test/Passes/mm_2Dmesh/constraint_space/new_etg.json
+```
 
 6) Materialize symbolic block sizes
 ```bash

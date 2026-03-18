@@ -141,6 +141,25 @@ int main(int argc, char **argv) {
     return false;
   };
 
+  // True for arrays whose every element is a plain string.
+  auto isStringArray = [](const llvm::json::Value &val) -> bool {
+    const auto *arr = val.getAsArray();
+    if (!arr || arr->empty())
+      return false;
+    for (const auto &elem : *arr)
+      if (!elem.getAsString())
+        return false;
+    return true;
+  };
+
+  // True for a sym_map entry: a 2-element array [string, ExprNode].
+  auto isSymMapEntry = [&](const llvm::json::Value &val) -> bool {
+    const auto *arr = val.getAsArray();
+    if (!arr || arr->size() != 2)
+      return false;
+    return (*arr)[0].getAsString().has_value() && isExprNode((*arr)[1]);
+  };
+
   // Recursive pretty-printer; indent is the current indentation level.
   std::function<void(llvm::raw_ostream &, const llvm::json::Value &, int)>
       writeJSON =
@@ -148,6 +167,18 @@ int main(int argc, char **argv) {
               int indent) {
             // Expr nodes: compact one-liner using llvm's built-in formatter.
             if (isExprNode(val)) {
+              os << llvm::formatv("{0}", val);
+              return;
+            }
+
+            // String arrays (e.g. symbols): compact one-liner.
+            if (isStringArray(val)) {
+              os << llvm::formatv("{0}", val);
+              return;
+            }
+
+            // sym_map entries [string, ExprNode]: compact one-liner.
+            if (isSymMapEntry(val)) {
               os << llvm::formatv("{0}", val);
               return;
             }
