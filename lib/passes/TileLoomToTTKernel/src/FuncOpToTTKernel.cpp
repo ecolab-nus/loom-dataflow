@@ -797,7 +797,19 @@ private:
       return true;
     };
   
-    // Exactly last two dims: rank-2 and rank-1
+    // Dims before the last two: multiply them directly.
+    for (size_t i = 0; i + 2 < rank; ++i) {
+      int64_t dim = shape[i];
+      if (dim == ShapedType::kDynamic)
+        return false;
+      if (!expr.empty())
+        expr += " * ";
+      expr += std::to_string(dim);
+    }
+
+    // Last two dims: keep the existing tiling logic (rank-2 and rank-1).
+    if (!expr.empty())
+      expr += " * ";
     if (!appendOne(shape[rank - 2])) return false;
     expr += " * ";
     if (!appendOne(shape[rank - 1])) return false;

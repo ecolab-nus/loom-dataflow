@@ -11,7 +11,7 @@ module {
   %9 = df.spatial_dim "d", 4
   %10 = df.memory "DRAM" {scaleout=(%9) , size = 34359738368, bandwidth = 288}
   %11 = df.interconnects "NoC" %5 : !df.memory, %10 : !df.memory  {map = affine_map<(d0, d1) -> (d0 ceildiv 4 + (d1 ceildiv 4) * 2)>} : !df.interconnect
-    func.func @attention__d0i0_d1i1__f01__d_v_v__block_size_01__block_size_164__block_size_3128(%arg0: memref<8x128x512xf16>, %arg1: memref<8x512x128xf16>, %arg2: memref<8x512x128xf16>, %arg3: memref<8x512x128xf16>) {
+func.func @attention__d0i0_d1i1__f01__d_v_v__block_size_01__block_size_164__block_size_3128(%arg0: memref<8x128x512xf16>, %arg1: memref<8x512x128xf16>, %arg2: memref<8x512x128xf16>, %arg3: memref<8x512x128xf16>) {
       %c16384 = arith.constant 16384 : index
       %c8192 = arith.constant 8192 : index
       %c4 = arith.constant 4 : index
