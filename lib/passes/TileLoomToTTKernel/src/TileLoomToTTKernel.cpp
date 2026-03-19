@@ -106,10 +106,15 @@ static bool isHostArtifactLoop(scf::ForOp forOp) {
   return true;
 }
 
+static bool isGeneratedHostFuncName(StringRef name) {
+  return name.ends_with("__host") || name.ends_with("__host_cpp") ||
+         name.ends_with("__host_pybind");
+}
+
 static void eraseHostLoweringArtifacts(ModuleOp module) {
   for (func::FuncOp func : module.getOps<func::FuncOp>()) {
     StringRef name = func.getName();
-    if (!name.ends_with("__host") && !name.ends_with("__writer") &&
+    if (!isGeneratedHostFuncName(name) && !name.ends_with("__writer") &&
         !name.ends_with("__reader") && !name.ends_with("__compute"))
       continue;
 
@@ -540,9 +545,13 @@ public:
 /**
  * @brief Post-EmitC host signature rewrite pass.
  *
- * @details Rewrites each `__host` function signature to:
- *          - one `std::vector<bfloat16>&` per original memref argument
- *          - one trailing `IDevice*` as the final argument
+ * @details Rewrites each generated host helper signature to:
+ *          - `__host_cpp`: one `std::vector<bfloat16>&` per original memref
+ *            argument
+ *          - `__host_pybind`: one `const ttnn::Tensor&` per original memref
+ *            argument
+ *          - both variants then receive core-range args
+ *          - only `__host_cpp` receives a trailing `IDevice*`
  *
  * The number of memref-backed host arguments is read from the
  * `loom.host_memref_count` attribute emitted during host construction.
@@ -557,7 +566,7 @@ public:
   }
 
   StringRef getDescription() const override {
-    return "Rewrite __host signature to vector inputs, core range args, plus trailing IDevice*";
+    return "Rewrite host_cpp/host_pybind signatures to typed memref inputs and core range args, with IDevice* only on host_cpp";
   }
 
   void getDependentDialects(DialectRegistry &registry) const override {
@@ -568,14 +577,18 @@ public:
     ModuleOp module = getOperation();
     MLIRContext *ctx = &getContext();
 
-    auto hostVectorType =
+    Type hostVectorType =
         emitc::OpaqueType::get(ctx, "std::vector<bfloat16>&");
-    auto coreCoordType = emitc::OpaqueType::get(ctx, "uint32_t");
-    auto deviceType = emitc::PointerType::get(
-        emitc::OpaqueType::get(ctx, "IDevice"));
+    Type hostTensorType =
+        emitc::OpaqueType::get(ctx, "const ttnn::Tensor&");
+    Type coreCoordType = emitc::OpaqueType::get(ctx, "uint32_t");
 
     for (func::FuncOp func : module.getOps<func::FuncOp>()) {
-      if (!func.getName().ends_with("__host"))
+      bool isHostCpp =
+          func.getName().ends_with("__host_cpp") ||
+          func.getName().ends_with("__host");
+      bool isHostPybind = func.getName().ends_with("__host_pybind");
+      if (!isHostCpp && !isHostPybind)
         continue;
 
       auto countAttr =
@@ -613,12 +626,14 @@ public:
 
       SmallVector<Type> newInputs;
       for (int64_t i = 0; i < hostMemrefCount; ++i)
-        newInputs.push_back(hostVectorType);
+        newInputs.push_back(isHostPybind ? hostTensorType : hostVectorType);
       newInputs.push_back(coreCoordType); // start_core_x
       newInputs.push_back(coreCoordType); // start_core_y
       newInputs.push_back(coreCoordType); // end_core_x
       newInputs.push_back(coreCoordType); // end_core_y
-      newInputs.push_back(deviceType);
+      if (!isHostPybind)
+        newInputs.push_back(
+            emitc::PointerType::get(emitc::OpaqueType::get(ctx, "IDevice")));
 
       for (Type inputType : newInputs)
         entry.addArgument(inputType, func.getLoc());

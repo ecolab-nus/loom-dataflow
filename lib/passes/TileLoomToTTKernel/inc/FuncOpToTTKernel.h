@@ -1,17 +1,19 @@
 /**
  * @file FuncOpToTTKernel.h
  * @brief Header for function specialization pass that splits functions into
- *        compute, reader, writer, and host kernels.
+ *        compute, reader, writer, and host helper kernels.
  *
- * @details This pass clones each func::FuncOp into four specialized versions:
+ * @details This pass clones each func::FuncOp into five specialized versions:
  *          - `__compute`: retains compute ops (e.g., linalg.matmul), erases
  *                        memory stores
  *          - `__reader` : retains memory *load* ops, erases memory stores and
  *                        compute ops
  *          - `__writer` : retains memory *store* ops, erases memory loads and
  *                        compute ops
- *          - `__host`   : erases all compute, load, and store ops, retaining
- *                        only control flow and other operations
+ *          - `__host_cpp`   : erases all compute/load/store ops and emits
+ *                             vector-backed host setup
+ *          - `__host_pybind`: erases all compute/load/store ops and emits
+ *                             buffer-backed host setup
  *          This separation happens before MemoryOp/ComputeOp lowering so each
  *          specialized function can be lowered independently, following the
  *          compute/reader/writer split used in the Triton-Tenstorrent flow.
@@ -296,11 +298,12 @@ private:
 /**
  * @brief Specialize functions into compute, data, and host variants.
  *
- * @details For each func::FuncOp in the module, this creates four clones:
+ * @details For each func::FuncOp in the module, this creates five clones:
  *          - `<name>__compute`: compute-only kernel (stores erased)
  *          - `<name>__reader` : reader kernel (loads only)
  *          - `<name>__writer` : writer kernel (stores only)
- *          - `<name>__host`   : host kernel (all compute/load/store erased)
+ *          - `<name>__host_cpp`    : vector-backed host helper
+ *          - `<name>__host_pybind` : buffer-backed host helper
  *          The original function is erased after cloning.
  *
  * @param module The module containing functions to specialize.

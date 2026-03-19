@@ -2,11 +2,12 @@
  * @file FuncOpToTTKernel.cpp
  * @brief Implementation for function specialization pass.
  *
- * @details This pass clones each func::FuncOp into four specialized versions:
+ * @details This pass clones each func::FuncOp into five specialized versions:
  *          - `__compute`: retains compute ops, erases store operations
  *          - `__reader` : retains memory load ops, erases stores & compute ops
  *          - `__writer` : retains memory store ops, erases loads & compute ops
- *          - `__host`   : erases all compute, load, and store operations
+ *          - `__host_cpp`   : emits a host helper with DRAM allocation/I/O
+ *          - `__host_pybind`: emits a host helper over pre-bound buffers
  *          This loosely mimics the CoreSpecialize pattern from
  *          triton-tenstorrent while remaining TileLoom-specific.
  */
@@ -49,6 +50,8 @@ namespace {
 
 constexpr llvm::StringLiteral kReductionScaleCbAttrName =
     "loom.reduction_scale_cb";
+
+enum class HostProgramKind { Cpp, Pybind };
 
 static Value stripMemrefCasts(Value value) {
   Value current = value;
@@ -688,15 +691,16 @@ static func::FuncOp makeWriterFunc(func::FuncOp func) {
  * @brief Emit host-side TT-Metal DRAM/CB setup and compile args.
  *
  * @details This helper consolidates host emission into one place:
- *          1. DRAM buffers from memref function arguments.
+ *          1. Either creates DRAM buffers or binds pre-existing buffers.
  *          2. Circular buffers from `loom.alloc`, linked back to DRAM memrefs.
  *          3. TensorAccessor compile args for each DRAM buffer.
  */
 class TTMetalHostProgramEmitter {
 public:
-  TTMetalHostProgramEmitter(func::FuncOp originalFunc, func::FuncOp hostFunc)
+  TTMetalHostProgramEmitter(func::FuncOp originalFunc, func::FuncOp hostFunc,
+                            HostProgramKind kind)
       : originalFunc(originalFunc), hostFunc(hostFunc), loc(hostFunc.getLoc()),
-        builder(hostFunc.getContext()) {}
+        builder(hostFunc.getContext()), kind(kind) {}
 
   void run() {
     inferCoreCoordArgOrder();
@@ -708,7 +712,7 @@ public:
 
     builder.setInsertionPointToStart(&hostFunc.getBody().front());
     emitPreamble();
-    emitDramBuffers();
+    emitBufferSetup();
     emitCircularBuffers();
     emitInputSemaphores();
     emitCompileArgs();
@@ -728,6 +732,8 @@ private:
     MemRefType type;
     unsigned argIndex;
     unsigned memrefOrdinal;
+    int inputTensorOrdinal;
+    int outputTensorOrdinal;
     int cbIndex;
     bool isInput;
     bool isOutput;
@@ -753,6 +759,8 @@ private:
     std::string kernelSource;
     std::string configExpr;
   };
+
+  static constexpr unsigned kRuntimeArgsPerMemref = 11;
 
   static Value stripCasts(Value value) {
     Value curr = value;
@@ -990,6 +998,8 @@ private:
     unsigned ioIdx = 0;
     unsigned argIdx = 0;
     unsigned inputIdx = 0;
+    unsigned inputTensorIdx = 0;
+    unsigned outputTensorIdx = 0;
 
     for (auto [index, arg] : llvm::enumerate(originalFunc.getArguments())) {
       auto memrefType = dyn_cast<MemRefType>(arg.getType());
@@ -1020,6 +1030,10 @@ private:
         sizeExpr += " * " + tilesExpr;
       bool isInput = isLoad;
       bool isOutput = isStore;
+      int inputTensorOrdinal =
+          isInput ? static_cast<int>(inputTensorIdx++) : -1;
+      int outputTensorOrdinal =
+          isOutput ? static_cast<int>(outputTensorIdx++) : -1;
       MulticastKind multicastKind = MulticastKind::None;
       if (isInput)
         multicastKind = findInputMulticastKind(hostArg);
@@ -1031,6 +1045,8 @@ private:
           memrefType,
           static_cast<unsigned>(index),
           static_cast<unsigned>(dramInfos.size()),
+          inputTensorOrdinal,
+          outputTensorOrdinal,
           /*cbIndex=*/-1,
           isInput,
           isOutput,
@@ -1196,16 +1212,22 @@ private:
     // Host signature is emitted by MLIR->C++ translation with synthesized
     // parameter names v1..vN.
     // Argument order is:
-    //   [all memrefs] [start_core_x start_core_y end_core_x end_core_y] [device]
+    //   host_cpp:    [all memrefs] [start_core_x start_core_y end_core_x end_core_y] [device]
+    //   host_pybind: [all memrefs] [start_core_x start_core_y end_core_x end_core_y]
     const size_t startCoreXArg = dramInfos.size() + 1;
     const size_t startCoreYArg = dramInfos.size() + 2;
     const size_t endCoreXArg = dramInfos.size() + 3;
     const size_t endCoreYArg = dramInfos.size() + 4;
-    const size_t deviceArg = dramInfos.size() + 5;
 
-    emitLine("IDevice* device = v" + std::to_string(deviceArg) + ";");
-    emitLine("CommandQueue& cq = device->command_queue();");
-    emitLine("Program program{};");
+    if (kind == HostProgramKind::Pybind) {
+      emitLine("IDevice* device = v1.device();");
+      emitLine("Program program = CreateProgram();");
+    } else {
+      const size_t deviceArg = dramInfos.size() + 5;
+      emitLine("IDevice* device = v" + std::to_string(deviceArg) + ";");
+      emitLine("CommandQueue& cq = device->command_queue();");
+      emitLine("Program program{};");
+    }
     emitLine("auto core_grid = device->compute_with_storage_grid_size();");
     emitLine("uint32_t start_core_x = (v" + std::to_string(startCoreXArg) +
              " == UINT32_MAX) ? 0u : v" + std::to_string(startCoreXArg) + ";");
@@ -1224,6 +1246,9 @@ private:
   }
 
   void emitDramBuffers() {
+    if (kind != HostProgramKind::Cpp)
+      return;
+
     for (const DramBufferInfo &info : dramInfos) {
       emitLine("tt_metal::InterleavedBufferConfig " + info.configName +
                "{.device = device, .size = " + info.sizeExpr +
@@ -1232,6 +1257,24 @@ private:
       emitLine("auto " + info.bufferName +
                " = tt_metal::CreateBuffer(" + info.configName + ");");
     }
+  }
+
+  void emitBoundBuffers() {
+    if (kind != HostProgramKind::Pybind)
+      return;
+
+    for (const DramBufferInfo &info : dramInfos) {
+      emitLine("auto* " + info.bufferName + " = v" +
+               std::to_string(info.argIndex + 1) + ".buffer();");
+    }
+  }
+
+  void emitBufferSetup() {
+    if (kind == HostProgramKind::Cpp) {
+      emitDramBuffers();
+      return;
+    }
+    emitBoundBuffers();
   }
 
   bool hasEmittedTilesVar(StringRef name) const {
@@ -1292,15 +1335,90 @@ private:
     }
   }
 
-  void emitRuntimeEnqueueEpilogue() {
+  std::string getPybindCallbackTensorExpr(const DramBufferInfo &info) const {
+    if (info.isOutput && info.outputTensorOrdinal >= 0) {
+      if (info.isInput && info.inputTensorOrdinal >= 0) {
+        return "(output_tensors.empty() ? input_tensors.at(" +
+               std::to_string(info.inputTensorOrdinal) +
+               ") : output_tensors.at(" +
+               std::to_string(info.outputTensorOrdinal) + "))";
+      }
+      return "output_tensors.at(" + std::to_string(info.outputTensorOrdinal) +
+             ")";
+    }
+    if (info.inputTensorOrdinal >= 0)
+      return "input_tensors.at(" + std::to_string(info.inputTensorOrdinal) +
+             ")";
+    return {};
+  }
+
+  void emitPybindOverrideRuntimeCallback() {
+    if (kind != HostProgramKind::Pybind)
+      return;
+
+    emitLine(
+        "auto override_runtime_arguments_callback = [reader_id, writer_id, "
+        "compute_kernel_id, start_core_x, start_core_y, end_core_x, "
+        "end_core_y](const void* operation, Program& program, const "
+        "std::vector<ttnn::Tensor>& input_tensors, const "
+        "std::vector<std::optional<const ttnn::Tensor>>& optional_input_tensors, "
+        "const std::vector<ttnn::Tensor>& output_tensors) {");
+    emitLine("(void)operation;");
+    emitLine("(void)optional_input_tensors;");
+
     for (const DramBufferInfo &info : dramInfos) {
-      if (!info.isInput)
+      std::string tensorExpr = getPybindCallbackTensorExpr(info);
+      if (tensorExpr.empty())
         continue;
-      emitLine("EnqueueWriteBuffer(cq, " + info.bufferName + ", v" +
-               std::to_string(info.argIndex + 1) + ".data(), false);");
+      emitLine("auto* " + info.bufferName + " = " + tensorExpr + ".buffer();");
+    }
+
+    emitLine("auto& reader_args_by_core = GetRuntimeArgs(program, reader_id);");
+    emitLine("auto& writer_args_by_core = GetRuntimeArgs(program, writer_id);");
+    emitLine(
+        "auto& compute_args_by_core = GetRuntimeArgs(program, compute_kernel_id);");
+    emitLine("for (uint32_t core_x = start_core_x; core_x <= end_core_x; ++core_x) {");
+    emitLine("for (uint32_t core_y = start_core_y; core_y <= end_core_y; ++core_y) {");
+    emitLine("auto& reader_args = reader_args_by_core[core_x][core_y];");
+    emitLine("auto& writer_args = writer_args_by_core[core_x][core_y];");
+    emitLine("auto& compute_args = compute_args_by_core[core_x][core_y];");
+
+    for (const DramBufferInfo &info : dramInfos) {
+      const unsigned addressArgIndex =
+          info.memrefOrdinal * kRuntimeArgsPerMemref + 1;
+      std::string offset = std::to_string(addressArgIndex);
+      emitLine("reader_args[" + offset + "] = " + info.bufferName +
+               "->address();");
+      emitLine("writer_args[" + offset + "] = " + info.bufferName +
+               "->address();");
+      emitLine("compute_args[" + offset + "] = " + info.bufferName +
+               "->address();");
+    }
+
+    emitLine("}");
+    emitLine("}");
+    emitLine("};");
+  }
+
+  void emitRuntimeEnqueueEpilogue() {
+    if (kind == HostProgramKind::Pybind) {
+      emitPybindOverrideRuntimeCallback();
+      return;
+    }
+
+    if (kind == HostProgramKind::Cpp) {
+      for (const DramBufferInfo &info : dramInfos) {
+        if (!info.isInput)
+          continue;
+        emitLine("EnqueueWriteBuffer(cq, " + info.bufferName + ", v" +
+                 std::to_string(info.argIndex + 1) + ".data(), false);");
+      }
     }
 
     emitLine("EnqueueProgram(cq, program, false);");
+
+    if (kind != HostProgramKind::Cpp)
+      return;
 
     SmallVector<const DramBufferInfo *, 4> outputInfos;
     for (const DramBufferInfo &info : dramInfos) {
@@ -1475,8 +1593,13 @@ private:
   void emitCompileArgs() {
     emitLine("std::vector<uint32_t> compile_args = {};");
     for (const DramBufferInfo &info : dramInfos) {
-      emitLine("tt::tt_metal::TensorAccessorArgs(*" + info.bufferName +
-               ").append_to(compile_args);");
+      if (kind == HostProgramKind::Pybind) {
+        emitLine("tt::tt_metal::TensorAccessorArgs(" + info.bufferName +
+                 ").append_to(compile_args);");
+      } else {
+        emitLine("tt::tt_metal::TensorAccessorArgs(*" + info.bufferName +
+                 ").append_to(compile_args);");
+      }
     }
   }
 
@@ -1511,6 +1634,7 @@ private:
   func::FuncOp hostFunc;
   Location loc;
   OpBuilder builder;
+  HostProgramKind kind;
   SmallVector<DramBufferInfo, 8> dramInfos;
   SmallVector<CircularBufferInfo, 8> cbInfos;
   SmallVector<unsigned, 8> internalCbRuntimeArgOrder;
@@ -1525,22 +1649,25 @@ private:
 /**
  * @brief Specialize a function for host-only execution (no compute/load/store).
  *
- * @details Clones the function with `__host` suffix and erases all
- *          compute operations (linalg.matmul etc.), load operations
- *          (memref.copy where source is reinterpret_cast), and store
- *          operations (memref.copy where target is reinterpret_cast).
- *          This creates a host function with only control flow and
- *          other non-compute/memory operations.
+ * @details Clones the function with either `__host_cpp` or
+ *          `__host_pybind` suffix and erases all compute operations
+ *          (linalg.matmul etc.), load operations (memref.copy where source is
+ *          reinterpret_cast), and store operations (memref.copy where target
+ *          is reinterpret_cast). This creates a host function with only
+ *          control flow and other non-compute/memory operations.
  *
  * @param func The original function to specialize.
  * @return The specialized host function.
  */
-static func::FuncOp makeHostFunc(func::FuncOp func) {
+static func::FuncOp makeHostFunc(func::FuncOp func, HostProgramKind kind) {
   IRMapping mapping;
   auto hostFunc = cast<func::FuncOp>(func->clone(mapping));
-  hostFunc.setName((func.getName() + "__host").str());
+  hostFunc.setName((func.getName() +
+                    (kind == HostProgramKind::Cpp ? "__host_cpp"
+                                                  : "__host_pybind"))
+                       .str());
 
-  TTMetalHostProgramEmitter emitter(func, hostFunc);
+  TTMetalHostProgramEmitter emitter(func, hostFunc, kind);
   emitter.run();
   return hostFunc;
 }
@@ -1549,9 +1676,9 @@ static func::FuncOp makeHostFunc(func::FuncOp func) {
  * @brief Specializer class that manages function cloning and specialization.
  *
  * @details Follows the CoreSpecialize pattern from triton-tenstorrent.
- *          For each function, creates compute, reader, writer, and host
- *          specialized versions, inserts them into the module, and
- *          erases the original.
+ *          For each function, creates compute, reader, writer, host_cpp,
+ *          and host_pybind specialized versions, inserts them into the
+ *          module, and erases the original.
  */
 class FunctionSpecializer {
 public:
@@ -1561,7 +1688,8 @@ public:
     auto computeFunc = makeComputeFunc(func);
     auto readerFunc = makeReaderFunc(func);
     auto writerFunc = makeWriterFunc(func);
-    auto hostFunc = makeHostFunc(func);
+    auto hostCppFunc = makeHostFunc(func, HostProgramKind::Cpp);
+    auto hostPybindFunc = makeHostFunc(func, HostProgramKind::Pybind);
 
     // Attach TTKernel thread type attributes so downstream TTKernelToCpp
     // translation can recognize these as kernel entry points.
@@ -1574,13 +1702,15 @@ public:
     computeFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, computeAttr);
     readerFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
     writerFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
-    hostFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
+    hostCppFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
+    hostPybindFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
 
     // Insert specialized functions into the module (before the original)
     module.insert(func, computeFunc);
     module.insert(func, readerFunc);
     module.insert(func, writerFunc);
-    module.insert(func, hostFunc);
+    module.insert(func, hostCppFunc);
+    module.insert(func, hostPybindFunc);
   }
 
 private:
@@ -1598,7 +1728,8 @@ void mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
     // Skip functions that are already specialized
     StringRef name = func.getName();
     if (name.ends_with("__compute") || name.ends_with("__reader") ||
-        name.ends_with("__writer") || name.ends_with("__host"))
+        name.ends_with("__writer") || name.ends_with("__host") ||
+        name.ends_with("__host_cpp") || name.ends_with("__host_pybind"))
       continue;
 
     // Skip external/declaration-only functions

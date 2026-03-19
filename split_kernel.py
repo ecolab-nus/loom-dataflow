@@ -23,6 +23,34 @@ def insert_include_if_missing(lines, include_line):
     return lines
 
 
+def insert_line_after_includes_if_missing(lines, new_line):
+    if any(line.strip() == new_line.strip() for line in lines):
+        return lines
+
+    insert_idx = 0
+    for i, line in enumerate(lines):
+        if line.startswith("#include"):
+            insert_idx = i + 1
+    lines.insert(insert_idx, new_line)
+    return lines
+
+
+def insert_block_after_includes_if_missing(lines, block_lines):
+    stripped_block = [line.strip() for line in block_lines]
+    joined_window = "\n".join(line.strip() for line in lines)
+    if "\n".join(stripped_block) in joined_window:
+        return lines
+
+    insert_idx = 0
+    for i, line in enumerate(lines):
+        if line.startswith("#include"):
+            insert_idx = i + 1
+
+    for offset, line in enumerate(block_lines):
+        lines.insert(insert_idx + offset, line)
+    return lines
+
+
 def insert_compute_trace_markers(lines):
     """
     Insert DPRINT markers before cb_wait_front calls.
@@ -65,7 +93,60 @@ def process_source_content(lines, section_name=None):
         for line in lines
     ]
 
+    if section_name and section_name.startswith("host_pybind"):
+        processed = [
+            line
+            for line in processed
+            if line.strip()
+            not in {
+                '#include "tools/profiler/kernel_profiler.hpp"',
+                '#include "firmware_common.h"',
+                '#include "dataflow_api.h"',
+            }
+        ]
+
     if section_name and section_name.startswith("host"):
+        processed = insert_include_if_missing(
+            processed, "#include <tt-metalium/host_api.hpp>\n"
+        )
+        processed = insert_include_if_missing(
+            processed, "#include <tt-metalium/tensor_accessor_args.hpp>\n"
+        )
+        processed = insert_include_if_missing(
+            processed, "#include <tt-metalium/buffer.hpp>\n"
+        )
+        processed = insert_block_after_includes_if_missing(
+            processed,
+            [
+                "#ifndef OVERRIDE_KERNEL_PREFIX\n",
+                '#define OVERRIDE_KERNEL_PREFIX ""\n',
+                "#endif\n",
+            ],
+        )
+
+    if section_name and section_name.startswith("host_pybind"):
+        processed = insert_include_if_missing(
+            processed, "#include <tt-metalium/constants.hpp>\n"
+        )
+        processed = insert_include_if_missing(
+            processed, '#include "ttnn/operation.hpp"\n'
+        )
+        processed = insert_include_if_missing(processed, "#include <optional>\n")
+        processed = insert_include_if_missing(processed, "#include <utility>\n")
+        processed = insert_include_if_missing(processed, "#include <vector>\n")
+        processed = insert_line_after_includes_if_missing(
+            processed, "using namespace tt::constants;\n"
+        )
+        processed = insert_line_after_includes_if_missing(
+            processed, "using namespace tt::tt_metal;\n"
+        )
+        processed = insert_line_after_includes_if_missing(
+            processed, "namespace tt_metal = tt::tt_metal;\n"
+        )
+
+    if section_name and (
+        section_name.startswith("host_cpp") or section_name == "host.cpp"
+    ):
         processed = insert_include_if_missing(processed, "#include <vector>\n")
 
     if section_name and section_name.startswith("compute"):
@@ -77,6 +158,57 @@ def process_source_content(lines, section_name=None):
         #processed = insert_compute_trace_markers(processed)
 
     return processed
+
+
+def extract_marker_symbol(comment_line):
+    name = comment_line.strip()
+    if name.startswith("//"):
+        name = name[2:].strip()
+    return name
+
+
+def make_program_factory_name(comment_line):
+    name = extract_marker_symbol(comment_line)
+    if name.endswith("__host_pybind"):
+        name = name[: -len("__host_pybind")]
+    name = re.sub(r"[^\w]", "_", name)
+    return f"{name}_program_factory"
+
+
+def transform_host_pybind_source(lines):
+    if not lines:
+        return lines
+
+    signature_pattern = re.compile(r"^(\s*)void\s+kernel_main\s*\(")
+    return_pattern = re.compile(r"^(\s*)return;\s*$")
+    factory_name = make_program_factory_name(lines[0])
+
+    transformed = []
+    signature_rewritten = False
+    return_indices = []
+
+    for line in lines:
+        if not signature_rewritten and signature_pattern.search(line):
+            line = signature_pattern.sub(
+                rf"\1tt::tt_metal::operation::ProgramWithCallbacks {factory_name}(",
+                line,
+                count=1,
+            )
+            signature_rewritten = True
+        transformed.append(line)
+        if return_pattern.match(line):
+            return_indices.append(len(transformed) - 1)
+
+    if return_indices:
+        last_return_idx = return_indices[-1]
+        indent = return_pattern.match(transformed[last_return_idx]).group(1)
+        transformed[last_return_idx] = (
+            f"{indent}return {{.program = std::move(program), "
+            f".override_runtime_arguments_callback = "
+            f"override_runtime_arguments_callback}};\n"
+        )
+
+    return transformed
 
 
 def extract_function_name(comment_line):
@@ -146,6 +278,8 @@ def split_kernel_file(input_file, output_dir):
             if current_filename and current_section:
                 output_file = output_path / current_filename
                 processed_section = process_source_content(current_section, current_filename)
+                if current_filename.startswith("host_pybind"):
+                    processed_section = transform_host_pybind_source(processed_section)
                 with open(output_file, 'w', encoding='utf-8') as out_f:
                     out_f.writelines(processed_section)
                 print(f"Created: {output_file}")
@@ -181,9 +315,26 @@ def split_kernel_file(input_file, output_dir):
     if current_filename and current_section:
         output_file = output_path / current_filename
         processed_section = process_source_content(current_section, current_filename)
+        if current_filename.startswith("host_pybind"):
+            processed_section = transform_host_pybind_source(processed_section)
         with open(output_file, 'w', encoding='utf-8') as out_f:
             out_f.writelines(processed_section)
         print(f"Created: {output_file}")
+
+    # The host split now emits host_cpp.cpp and host_pybind.cpp. Remove a stale
+    # legacy host.cpp if it was left behind by an older run so callers don't
+    # accidentally pick up the wrong artifact.
+    legacy_host = output_path / "host.cpp"
+    if (
+        legacy_host.exists()
+        and "host.cpp" not in used_filenames
+        and (
+            "host_cpp.cpp" in used_filenames
+            or "host_pybind.cpp" in used_filenames
+        )
+    ):
+        legacy_host.unlink()
+        print(f"Removed stale: {legacy_host}")
     
     print(f"\nSplit complete: {section_count} function(s) extracted to {output_dir}")
 
