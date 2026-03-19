@@ -1290,13 +1290,23 @@ public:
     if (!isa<CBType>(outCb.getType()))
       return failure();
 
-/*     if (auto nextUse =
-            findNextNonViewUseInSameBlock(op.getDpsInits()[0], op.getOperation())) {
-      if (isUsedAsLinalgOutput(nextUse->user, nextUse->usedValue)) {
-        rewriter.eraseOp(op);
-        return success();
+    // If the fill's output buffer is later used as an output of another
+    // linalg op in the same block (and not also as that op's input),
+    // the fill is redundant and can be erased.
+    if (auto nextUse = findNextNonViewUseInSameBlock(op.getDpsInits()[0],
+                                                     op.getOperation())) {
+      auto linalgUser = dyn_cast<linalg::LinalgOp>(nextUse->user);
+      if (linalgUser) {
+        bool isOutput =
+            llvm::is_contained(linalgUser.getDpsInits(), nextUse->usedValue);
+        bool isInput =
+            llvm::is_contained(linalgUser.getDpsInputs(), nextUse->usedValue);
+        if (isOutput && !isInput) {
+          rewriter.eraseOp(op);
+          return success();
+        }
       }
-    } */
+    }
 
     auto numTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
     if (!numTiles)
