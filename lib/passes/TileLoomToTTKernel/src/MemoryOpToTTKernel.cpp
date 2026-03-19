@@ -112,12 +112,65 @@ static bool isWriterKernel(Operation *op) {
   return name.ends_with("__writer");
 }
 
+static int64_t getPackedWordForScalarOne(Type elementType) {
+  if (auto tileType = dyn_cast_or_null<TileType>(elementType)) {
+    switch (tileType.getDataType()) {
+    case DataType::BFloat16:
+      return 0x3F803F80;
+    case DataType::Float16:
+      return 0x3C003C00;
+    case DataType::Float32:
+      return 0x3F800000;
+    case DataType::UInt16:
+      return 0x00010001;
+    case DataType::UInt8:
+    case DataType::Bool:
+      return 0x01010101;
+    case DataType::UInt32:
+    case DataType::Int32:
+      return 0x00000001;
+    default:
+      return 0x00000001;
+    }
+  }
+
+  if (elementType.isBF16())
+    return 0x3F803F80;
+  // This flow currently materializes scalar f16 CB payloads in Float16_b
+  // runtime buffers, so scalar f16 uses packed bf16 encoding for 1.0.
+  if (elementType.isF16())
+    return 0x3F803F80;
+  if (elementType.isF32())
+    return 0x3F800000;
+
+  if (auto intType = dyn_cast_or_null<IntegerType>(elementType)) {
+    switch (intType.getWidth()) {
+    case 1:
+    case 8:
+      return 0x01010101;
+    case 16:
+      return 0x00010001;
+    case 32:
+      return 0x00000001;
+    default:
+      return 0x00000001;
+    }
+  }
+
+  return 0x00000001;
+}
+
 static void emitReductionScaleCbInit(ConversionPatternRewriter &rewriter,
                                      Location loc, Value cb) {
   Value zero = rewriter.create<arith::ConstantIntOp>(loc, 0, 32);
   Value one = rewriter.create<arith::ConstantIntOp>(loc, 1, 32);
   Value four = rewriter.create<arith::ConstantIntOp>(loc, 4, 32);
-  
+  Type elementType;
+  if (auto cbType = dyn_cast_or_null<CBType>(cb.getType()))
+    elementType = cbType.getElementType();
+  Value encodedOneWord = rewriter.create<arith::ConstantIntOp>(
+      loc, getPackedWordForScalarOne(elementType), 32);
+
   CBReserveBackOp::create(rewriter, loc, cb, one);
   Value writePtr = GetWritePtrOp::create(rewriter, loc, cb);
   Value l1Ptr = CastToL1PtrOp::create(rewriter, loc, writePtr);
@@ -129,7 +182,7 @@ static void emitReductionScaleCbInit(ConversionPatternRewriter &rewriter,
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(fillLoop.getBody());
     Value wordOffset = fillLoop.getInductionVar();
-    StoreToL1Op::create(rewriter, loc, one, l1Ptr, wordOffset);
+    StoreToL1Op::create(rewriter, loc, encodedOneWord, l1Ptr, wordOffset);
   }
 
   CBPushBackOp::create(rewriter, loc, cb, one);
@@ -804,13 +857,12 @@ struct ConvertLoomSemaphoreGiveOp
     }
 
     Value numPages;
-    auto elementType = cbType.getElementType();
-      auto tilesOpt = getNumTilesFromShapedType(op.getSource().getType());
-      int64_t numTiles =
-          tilesOpt ? *tilesOpt : static_cast<int64_t>(cbType.getNumTiles());
+    auto tilesOpt = getNumTilesFromShapedType(op.getSource().getType());
+    int64_t numTiles =
+        tilesOpt ? *tilesOpt : static_cast<int64_t>(cbType.getNumTiles());
 
-      numPages = rewriter.create<arith::ConstantIntOp>(
-          loc, rewriter.getI32Type(), numTiles);
+    numPages = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(), numTiles);
 
 
     CBPopFrontOp::create(rewriter, loc, cb, numPages);
