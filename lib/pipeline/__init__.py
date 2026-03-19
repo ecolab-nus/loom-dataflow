@@ -27,9 +27,6 @@ Usage::
     )
 """
 
-import json as _json
-import sys as _sys
-from importlib.metadata import Distribution as _Distribution
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
@@ -39,29 +36,6 @@ from . import _loom_pipeline
 # Version check
 # ---------------------------------------------------------------------------
 _EXPECTED_VERSION = _pkg_version("loom-dataflow")
-
-# ---------------------------------------------------------------------------
-# SMT solver: locate lib/smt/ via the package's editable-install metadata and
-# expose run() so callers need no sys.path manipulation.
-# ---------------------------------------------------------------------------
-def _find_smt_dir() -> Path | None:
-    try:
-        raw = _Distribution.from_name("loom-dataflow").read_text("direct_url.json")
-        url = _json.loads(raw or "{}").get("url", "")
-        if url.startswith("file://"):
-            return Path(url[len("file://"):]) / "lib" / "smt"
-    except Exception:
-        pass
-    return None
-
-_smt_dir = _find_smt_dir()
-if _smt_dir and _smt_dir.is_dir() and str(_smt_dir) not in _sys.path:
-    _sys.path.insert(0, str(_smt_dir))
-
-try:
-    from main import run as smt_run  # noqa: E402
-except ImportError:
-    smt_run = None  # type: ignore[assignment]
 
 if _loom_pipeline.__version__ != _EXPECTED_VERSION:
     raise RuntimeError(
@@ -85,7 +59,7 @@ def run_exploration(
 
     Consolidates tensor_canonicalize, memory_binding, enumerate_hw_mapping,
     analyze_reuse, and enumerate_copy_broadcast into a single in-memory run.
-    Optionally produces staged ETG JSON for the SMT solver.
+    Optionally produces staged ETG JSON for the external block-size solver.
 
     Args:
         input_mlir:  Input MLIR text (stage 00, from Helion frontend).
@@ -113,7 +87,7 @@ def run_materialization(
 ) -> str:
     """Run the materialization pipeline (stages 5→7).
 
-    Takes explored MLIR and block sizes from the SMT solver, materializes
+    Takes explored MLIR and block sizes from the external solver, materializes
     symbolic values, canonicalizes, and runs One-Shot Bufferization.
 
     Args:

@@ -13,7 +13,7 @@ namespace loom {
 namespace passes {
 
 // Map: func_name → {symbol_name → concrete_value}
-// Used to pass SMT solver results directly to the materialize pass.
+// Used to pass external solver results directly to the materialize pass.
 using BlockSizeMap = llvm::StringMap<llvm::StringMap<int64_t>>;
 
 #define GEN_PASS_DECL
