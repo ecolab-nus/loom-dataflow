@@ -50,7 +50,7 @@ PYBIND11_MODULE(_loom_pipeline, m) {
       py::arg("block_sizes_json"),
       R"doc(Run the materialization pipeline (Materialize -> OSB).
 
-      Takes explored MLIR and block sizes from the SMT solver, materializes
+      Takes explored MLIR and block sizes from the external solver, materializes
       symbolic values, canonicalizes, and runs One-Shot Bufferization.
 
       Args:

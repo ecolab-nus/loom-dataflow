@@ -9,7 +9,7 @@ namespace pipeline {
 
 /// Run the materialization pipeline (Materialize -> OSB) in memory.
 ///
-/// Takes the explored MLIR (stage 05) and block sizes from the SMT solver,
+/// Takes the explored MLIR (stage 05) and block sizes from the external solver,
 /// materializes symbolic block sizes, canonicalizes, and runs One-Shot
 /// Bufferization to produce the final memref-level MLIR.
 ///

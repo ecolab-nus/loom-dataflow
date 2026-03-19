@@ -11,7 +11,7 @@ namespace pipeline {
 ///
 /// Consolidates tensor_canonicalize, memory_binding, enumerate_hw_mapping,
 /// analyze_reuse, and enumerate_copy_broadcast into a single in-memory run.
-/// Optionally produces staged ETG JSON for the SMT solver.
+/// Optionally produces staged ETG JSON for the external block-size solver.
 ///
 /// @param input_mlir_text   Input MLIR text (stage 00) as a string.
 /// @param df_mlir_path      Path to DF hardware description MLIR file.
