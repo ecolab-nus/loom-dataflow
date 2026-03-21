@@ -56,7 +56,7 @@ static loom::HardwareTiming extractHardwareTiming(ModuleOp module) {
   module.walk([&](loom::df::MatOp matOp) {
     if (matOp.getName() == "FPU") {
       if (auto throughput = matOp.getThroughput()) {
-        hw.fpuThroughput = *throughput;
+        hw.fpuThroughput = static_cast<int64_t>(*throughput);
       }
     }
   });
@@ -65,9 +65,9 @@ static loom::HardwareTiming extractHardwareTiming(ModuleOp module) {
   module.walk([&](loom::df::MemoryOp memOp) {
     StringRef name = memOp.getSymName();
     if (name == "L1") {
-      hw.l1Bandwidth = memOp.getBandwidth();
+      hw.l1Bandwidth = static_cast<int64_t>(memOp.getBandwidth());
     } else if (name == "DRAM") {
-      hw.dramBandwidth = memOp.getBandwidth();
+      hw.dramBandwidth = static_cast<int64_t>(memOp.getBandwidth());
     }
   });
 
@@ -76,7 +76,7 @@ static loom::HardwareTiming extractHardwareTiming(ModuleOp module) {
     int64_t cores = 1;
     for (Value dimValue : coreOp.getScaleout()) {
       if (auto dimOp = dimValue.getDefiningOp<loom::df::SpatialDimOp>()) {
-        cores *= dimOp.getSize();
+        cores *= static_cast<int64_t>(dimOp.getSize());
       }
     }
     hw.totalCores = cores;
@@ -124,6 +124,7 @@ struct InterconnectChoice {
       choice.horizontal = nullptr;
       choice.vertical = op;
     } else {
+      // Unknown interconnect name: treat as horizontal by convention.
       choice.horizontal = op;
       choice.vertical = nullptr;
     }

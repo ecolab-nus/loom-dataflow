@@ -47,13 +47,15 @@ private:
   /// The outer for loop containing this loading block
   mlir::affine::AffineForOp outer_for_op_;
 
-  /// The loom.alloc operation that anchors this loading block
+  /// Non-owning observer into the MLIR IR (arena-managed by MLIRContext).
+  /// The pointed-to Operation is valid as long as the enclosing module is live.
   mlir::Operation *alloc_op_;
 
-  /// The loom.copy_to_tensor operation that uses the alloc
+  /// Non-owning observer into the MLIR IR (arena-managed by MLIRContext).
   mlir::Operation *copy_to_tensor_op_;
 
-  /// All operations in the backward slice (dependencies of copy)
+  /// Non-owning observers into the MLIR IR. Elements remain valid as long as
+  /// the enclosing module is live.
   llvm::SetVector<mlir::Operation *> backward_slice_;
 
   /// Operations created for replacement after hoisting
