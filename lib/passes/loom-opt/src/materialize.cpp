@@ -83,6 +83,10 @@ LogicalResult materializeFunction(func::FuncOp func,
 
     auto valueOpt = binding.getValue(varName);
     if (!valueOpt) {
+      // A missing concrete value here means the solver did not assign this
+      // symbolic variable in the current binding (e.g., due to partial or
+      // UNSAT results). Warn to aid debugging but continue — the caller is
+      // responsible for filtering out incomplete variants.
       op.emitWarning() << "No concrete value found for symbolic variable '"
                        << varName << "'";
       return;
@@ -90,7 +94,7 @@ LogicalResult materializeFunction(func::FuncOp func,
 
     builder.setInsertionPoint(op);
     auto constant =
-        builder.create<arith::ConstantIndexOp>(op.getLoc(), *valueOpt);
+        arith::ConstantIndexOp::create(builder, op.getLoc(), *valueOpt);
     op.getResult().replaceAllUsesWith(constant.getResult());
     opsToErase.push_back(op);
   });
@@ -153,6 +157,10 @@ public:
           StringRef funcName = func.getName();
           auto it = externalBlockSizes->find(funcName);
           if (it == externalBlockSizes->end()) {
+            // An empty or absent solver result is a valid outcome — it means no
+            // feasible block-size binding was found for this variant under the
+            // current constraints (UNSAT). Emit a diagnostic to aid debugging
+            // and skip emission of this function variant from the output IR.
             func.emitWarning()
                 << "No SMT solver result for function '" << funcName
                 << "'; skipping materialization for this variant";
@@ -193,7 +201,7 @@ public:
 
       // Create a single nested module in the output to contain all variants
       builder.setInsertionPoint(nestedModule);
-      auto variantsModule = builder.create<ModuleOp>(nestedModule->getLoc());
+      auto variantsModule = ModuleOp::create(builder, nestedModule->getLoc());
 
       // Copy attributes from the original nested module
       if (!nestedModule->getAttrs().empty()) {

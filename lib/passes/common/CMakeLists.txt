@@ -4,7 +4,6 @@
 add_library(LoomPassesCommon
   src/utils.cpp
   src/block_loading_pattern.cpp
-  src/static_memory_analyser.cpp
   src/hardware_discovery.cpp
   src/hardware_mapping.cpp
   src/mapping_enumeration.cpp
@@ -28,6 +27,7 @@ target_include_directories(LoomPassesCommon
 
 target_link_libraries(LoomPassesCommon
   PUBLIC
+    LoomAnalysis
     MLIRIR
     MLIRFuncDialect
     MLIRSupport

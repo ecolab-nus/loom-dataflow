@@ -88,8 +88,8 @@ struct ReadBlockLoadingLowering
       // Fallback: This should ideally not happen with centralized management
       OpBuilder semBuilder(rewriter.getContext());
       semBuilder.setInsertionPoint(op);
-      semaphore = semBuilder.create<loom::SemaphoreTakeOp>(
-          loc, cast<MemRefType>(allocVal.getType()), allocVal);
+      semaphore = loom::SemaphoreTakeOp::create(
+          semBuilder, loc, cast<MemRefType>(allocVal.getType()), allocVal);
     }
 
     auto emptyArray = rewriter.getArrayAttr({});
@@ -308,7 +308,7 @@ private:
         builder.setInsertionPointAfter(allocVal.getDefiningOp());
         auto memrefType = cast<MemRefType>(allocVal.getType());
         Value semaphore =
-            builder.create<loom::SemaphoreTakeOp>(loc, memrefType, allocVal);
+            loom::SemaphoreTakeOp::create(builder, loc, memrefType, allocVal);
         vbIdToSemaphoreMap[vb->id] = semaphore;
       }
     }
@@ -360,7 +360,7 @@ private:
           deathBuilder.setInsertionPoint(insertionPoint);
         }
 
-        deathBuilder.create<loom::SemaphoreGiveOp>(loc, semaphore);
+        loom::SemaphoreGiveOp::create(deathBuilder, loc, semaphore);
       }
     }
   }
@@ -517,8 +517,8 @@ private:
               Value semaphore = vbIdToSemaphoreMap.lookup(vb->id);
               if (semaphore) {
                 Value newOuts = getOrCreateInitTensor(allocVal, semaphore);
-                auto copyOp = builder.create<linalg::CopyOp>(
-                    linalgOp.getLoc(), outsTensor, newOuts);
+                auto copyOp = linalg::CopyOp::create(
+                    builder, linalgOp.getLoc(), outsTensor, newOuts);
                 outsOperand.set(copyOp.getResult(0));
                 // Update result type to match new init_tensor
                 linalgOp->getResult(0).setType(newOuts.getType());
@@ -560,8 +560,8 @@ private:
         OpBuilder builder(context);
         builder.setInsertionPoint(yieldOp);
 
-        auto copyOp = builder.create<linalg::CopyOp>(yieldOp.getLoc(), yieldVal,
-                                                     itArg->first);
+        auto copyOp = linalg::CopyOp::create(builder, yieldOp.getLoc(), yieldVal,
+                                             itArg->first);
 
         // Update the yield operand
         yieldOp.setOperand(split.iterArgIndex, copyOp.getResult(0));

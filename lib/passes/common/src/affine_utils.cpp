@@ -71,9 +71,10 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp original_parop,
   SmallVector<AffineMap> tiled_new_ub_maps = {
       builder.getConstantAffineMap(static_cast<int64_t>(tilingFactor))};
   SmallVector<int64_t> tiled_new_steps = {1};
-  auto tiled_new = builder.create<affine::AffineParallelOp>(
-      loc, TypeRange{}, ArrayRef<arith::AtomicRMWKind>{}, tiled_new_lb_maps,
-      ValueRange{}, tiled_new_ub_maps, ValueRange{}, tiled_new_steps);
+  auto tiled_new = affine::AffineParallelOp::create(
+      builder, loc, TypeRange{}, ArrayRef<arith::AtomicRMWKind>{},
+      tiled_new_lb_maps, ValueRange{}, tiled_new_ub_maps, ValueRange{},
+      tiled_new_steps);
 
   OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToStart(tiled_new.getBody());
@@ -101,9 +102,10 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp original_parop,
   ValueRange org_ub_args = original_parop.getUpperBoundsOperands();
   SmallVector<int64_t> org_steps = steps;
 
-  auto tiled_org = builder.create<affine::AffineParallelOp>(
-      loc, TypeRange{}, ArrayRef<arith::AtomicRMWKind>{}, tiled_org_lb_maps,
-      org_lb_args, tiled_org_ub_maps, org_ub_args, org_steps);
+  auto tiled_org = affine::AffineParallelOp::create(
+      builder, loc, TypeRange{}, ArrayRef<arith::AtomicRMWKind>{},
+      tiled_org_lb_maps, org_lb_args, tiled_org_ub_maps, org_ub_args,
+      org_steps);
 
   Block *org_body = original_parop.getBody();
   Block *tiled_org_body = tiled_org.getBody();
@@ -279,7 +281,7 @@ LogicalResult ConvertParallelToNested(affine::AffineParallelOp par,
     if (forOp.getBody()->empty() ||
         !isa<affine::AffineYieldOp>(forOp.getBody()->back())) {
       OpBuilder termBuilder = OpBuilder::atBlockEnd(forOp.getBody());
-      termBuilder.create<affine::AffineYieldOp>(loc);
+      affine::AffineYieldOp::create(termBuilder, loc);
     }
     newFors.push_back(forOp);
     innermostFor = forOp;

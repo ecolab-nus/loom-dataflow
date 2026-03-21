@@ -45,11 +45,12 @@ void LoadingBlock::SetLoopAttr() { loop_iv_ = outer_for_op_.getInductionVar(); }
  */
 mlir::Value LoadingBlock::getOrReifyLoopUB(mlir::OpBuilder &builder) {
   if (outer_for_op_.hasConstantUpperBound()) {
-    return builder.create<mlir::arith::ConstantIndexOp>(
-        outer_for_op_.getLoc(), outer_for_op_.getConstantUpperBound());
+    return mlir::arith::ConstantIndexOp::create(
+        builder, outer_for_op_.getLoc(),
+        outer_for_op_.getConstantUpperBound());
   }
-  return builder.create<mlir::affine::AffineApplyOp>(
-      outer_for_op_.getLoc(), outer_for_op_.getUpperBoundMap(),
+  return mlir::affine::AffineApplyOp::create(
+      builder, outer_for_op_.getLoc(), outer_for_op_.getUpperBoundMap(),
       outer_for_op_.getUpperBoundOperands());
 }
 
@@ -216,7 +217,7 @@ int LoadingBlock::getMovingDimension() {
     return -1;
 
   auto offsets = view.getOffsets();
-  for (int i = 0; i < offsets.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(offsets.size()); ++i) {
     if (DependsOnLoopIV(offsets[i])) {
       return i;
     }
@@ -251,7 +252,7 @@ LoadingBlock::inferHoistedSubviewShape(mlir::OpBuilder &builder) {
     return loopUB;
   };
 
-  for (int i = 0; i < origSizes.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(origSizes.size()); ++i) {
     if (i == moveDim) {
       // Optimization: If the source memref dimension is static and we are
       // covering it, use the constant size. We assume direct 1:1 mapping for
@@ -265,16 +266,16 @@ LoadingBlock::inferHoistedSubviewShape(mlir::OpBuilder &builder) {
           int64_t dimSize = srcType.getDimSize(i);
           if (dimSize != mlir::ShapedType::kDynamic) {
             // Return constant op
-            newSizes.push_back(builder.create<mlir::arith::ConstantIndexOp>(
-                view.getLoc(), dimSize));
+            newSizes.push_back(mlir::arith::ConstantIndexOp::create(
+                builder, view.getLoc(), dimSize));
             continue;
           }
         }
       }
 
       // Fallback: Expand moving dimension: K = loopUB * blockSize
-      mlir::Value expanded = builder.create<mlir::arith::MulIOp>(
-          view.getLoc(), ensureLoopUB(), blockSize);
+      mlir::Value expanded = mlir::arith::MulIOp::create(
+          builder, view.getLoc(), ensureLoopUB(), blockSize);
       newSizes.push_back(expanded);
     } else {
       newSizes.push_back(origSizes[i]);
@@ -469,18 +470,17 @@ void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
   // 1. Create 2D view with expanded shape
   // Hoist logical view definition
   auto orig_view_offsets = view.getOffsets();
-  auto orig_view_sizes = view.getSizes();
   auto orig_view_strides = view.getStrides();
 
   // New Offsets:
   // If dimension moves (depends on IV), set offset to 0.
   // Otherwise, clone the offset calculation.
   llvm::SmallVector<mlir::Value> new_subview_offsets;
-  for (int i = 0; i < orig_view_offsets.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(orig_view_offsets.size()); ++i) {
     mlir::Value offset = orig_view_offsets[i];
     if (i == moveDim) {
       new_subview_offsets.push_back(
-          builder.create<mlir::arith::ConstantIndexOp>(view.getLoc(), 0));
+          mlir::arith::ConstantIndexOp::create(builder, view.getLoc(), 0));
     } else {
       if (isVisibleIn(offset, targetBlock)) {
         new_subview_offsets.push_back(offset);
@@ -500,7 +500,7 @@ void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
       inferHoistedSubviewShape(builder);
   // Need to map non-moving sizes if they depend on internal computations
   // (usually they don't or they are hoisted)
-  for (int i = 0; i < new_subview_sizes.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(new_subview_sizes.size()); ++i) {
     if (i != moveDim && !isVisibleIn(new_subview_sizes[i], targetBlock)) {
       // If inferHoistedSubviewShape used original values that need cloning...
       // Actually inferHoistedSubviewShape reuses origSizes values.
@@ -540,11 +540,12 @@ void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
                                  mlir::ShapedType::kDynamic),
       view.getStaticStrides());
 
-  auto new_subview = builder.create<loom::SubviewOp>(
-      view.getLoc(), hoistedSubviewType, view.getSource(), new_subview_offsets,
-      new_subview_sizes, new_subview_strides, view.getStaticOffsets(),
-      view.getStaticSizes(), view.getStaticStrides(), view.getSequentialReuse(),
-      view.getSpatialReuse(), view.getTemporalReuse());
+  auto new_subview = loom::SubviewOp::create(
+      builder, view.getLoc(), hoistedSubviewType, view.getSource(),
+      new_subview_offsets, new_subview_sizes, new_subview_strides,
+      view.getStaticOffsets(), view.getStaticSizes(), view.getStaticStrides(),
+      view.getSequentialReuse(), view.getSpatialReuse(),
+      view.getTemporalReuse());
 
   // 2. Hoist AllocOp (2D with expanded size)
   auto tensorType =
@@ -553,8 +554,8 @@ void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
       llvm::SmallVector<int64_t>(new_subview_sizes.size(),
                                  mlir::ShapedType::kDynamic),
       tensorType.getElementType());
-  auto new_alloc = builder.create<loom::AllocOp>(
-      alloc.getLoc(), allocResultType, new_subview_sizes,
+  auto new_alloc = loom::AllocOp::create(
+      builder, alloc.getLoc(), allocResultType, new_subview_sizes,
       builder.getDenseI64ArrayAttr(llvm::SmallVector<int64_t>(
           new_subview_sizes.size(), mlir::ShapedType::kDynamic)),
       alloc.getAlignmentAttr(), alloc.getBufferCountAttr(),
@@ -591,8 +592,8 @@ void LoadingBlock::CreateHoistedOps(mlir::OpBuilder &builder) {
   auto packed_type = mlir::RankedTensorType::get(
       packed_shape, orig_tensor_type.getElementType());
 
-  auto packed = builder.create<loom::PackToTensorOp>(
-      copy_to_tensor.getLoc(), packed_type, new_subview, new_alloc,
+  auto packed = loom::PackToTensorOp::create(
+      builder, copy_to_tensor.getLoc(), packed_type, new_subview, new_alloc,
       inner_tile_sizes_operands, builder.getDenseI64ArrayAttr(perm));
 
   is_valid_ = true;
@@ -673,8 +674,8 @@ void LoadingBlock::SetReplacementBlock() {
   auto slice_type =
       mlir::RankedTensorType::get(slice_shape, hoisted_type.getElementType());
 
-  auto slice = builder.create<mlir::tensor::ExtractSliceOp>(
-      loc, slice_type, hoisted_tensor, offsets, sizes, strides);
+  auto slice = mlir::tensor::ExtractSliceOp::create(
+      builder, loc, slice_type, hoisted_tensor, offsets, sizes, strides);
 
   // Collapse shape: [1, BM, BK] -> [BM, BK]
   // Used reassociation: [[0, 1], [2]] for perm=[1, 0] case?
@@ -700,8 +701,8 @@ void LoadingBlock::SetReplacementBlock() {
   auto orig_type = mlir::cast<mlir::RankedTensorType>(
       copy_to_tensor_op_->getResult(0).getType());
 
-  auto collapsed = builder.create<mlir::tensor::CollapseShapeOp>(
-      loc, orig_type, slice, reassociation);
+  auto collapsed = mlir::tensor::CollapseShapeOp::create(
+      builder, loc, orig_type, slice, reassociation);
 
   copy_to_tensor_op_->getResult(0).replaceAllUsesWith(collapsed.getResult());
 
@@ -740,7 +741,7 @@ LoadingBlock::LoadingBlock(mlir::Operation *alloc_op, mlir::Operation *copy_op,
 /**
  * @brief Recursively hoist the loading block to outer loops.
  */
-void LoadingBlock::HoistRec(mlir::affine::AffineForOp new_outer_for) {
+void LoadingBlock::HoistRec(mlir::affine::AffineForOp /*new_outer_for*/) {
   // Single step hoisting for now
   HoistLoadingBlock();
   if (is_valid_) {

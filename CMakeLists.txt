@@ -55,6 +55,19 @@ configure_file(
 
 # pybind11 for Python bindings
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+
+# Ask the active Python interpreter for pybind11's CMake directory.
+# This works correctly when pybind11 is installed via pip/conda into a venv.
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} -m pybind11 --cmakedir
+    OUTPUT_VARIABLE _pybind11_cmake_dir
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(_pybind11_cmake_dir)
+    set(pybind11_DIR "${_pybind11_cmake_dir}")
+endif()
+
 find_package(pybind11 CONFIG QUIET)
 if(NOT pybind11_FOUND)
     message(STATUS "pybind11 not found via find_package, fetching from GitHub...")

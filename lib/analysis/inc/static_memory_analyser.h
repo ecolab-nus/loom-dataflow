@@ -1,5 +1,5 @@
-#ifndef LOOM_PASSES_COMMON_STATIC_MEMORY_ANALYSER_H
-#define LOOM_PASSES_COMMON_STATIC_MEMORY_ANALYSER_H
+#ifndef LOOM_ANALYSIS_STATIC_MEMORY_ANALYSER_H
+#define LOOM_ANALYSIS_STATIC_MEMORY_ANALYSER_H
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -260,4 +260,4 @@ MemoryAnalysisContext runMemoryAnalysis(mlir::func::FuncOp func);
 
 } // namespace loom
 
-#endif // LOOM_PASSES_COMMON_STATIC_MEMORY_ANALYSER_H
+#endif // LOOM_ANALYSIS_STATIC_MEMORY_ANALYSER_H

@@ -24,25 +24,25 @@ namespace {
 struct InitTensorOpInterface
     : public BufferizableOpInterface::ExternalModel<InitTensorOpInterface,
                                                     loom::InitTensorOp> {
-  bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
-                              const AnalysisState &state) const {
+  bool bufferizesToMemoryRead(Operation * /*op*/, OpOperand & /*opOperand*/,
+                              const AnalysisState & /*state*/) const {
     return false;
   }
 
-  bool bufferizesToMemoryWrite(Operation *op, OpOperand &opOperand,
-                               const AnalysisState &state) const {
+  bool bufferizesToMemoryWrite(Operation * /*op*/, OpOperand & /*opOperand*/,
+                               const AnalysisState & /*state*/) const {
     return false;
   }
 
-  AliasingValueList getAliasingValues(Operation *op, OpOperand &opOperand,
-                                      const AnalysisState &state) const {
+  AliasingValueList getAliasingValues(Operation *op, OpOperand & /*opOperand*/,
+                                      const AnalysisState & /*state*/) const {
     return {AliasingValue(op->getOpResult(0), BufferRelation::Equivalent,
                           /*isDefinite=*/true)};
   }
 
   LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
-                          const BufferizationOptions &options,
-                          BufferizationState &state) const {
+                          const BufferizationOptions & /*options*/,
+                          BufferizationState & /*state*/) const {
     auto initOp = cast<loom::InitTensorOp>(op);
     replaceOpWithBufferizedValues(rewriter, op, initOp.getBuffer());
     return success();
@@ -52,25 +52,25 @@ struct InitTensorOpInterface
 struct CopyToTensorOpInterface
     : public BufferizableOpInterface::ExternalModel<CopyToTensorOpInterface,
                                                     loom::CopyToTensorOp> {
-  bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
-                              const AnalysisState &state) const {
+  bool bufferizesToMemoryRead(Operation * /*op*/, OpOperand & /*opOperand*/,
+                              const AnalysisState & /*state*/) const {
     return false;
   }
 
-  bool bufferizesToMemoryWrite(Operation *op, OpOperand &opOperand,
-                               const AnalysisState &state) const {
+  bool bufferizesToMemoryWrite(Operation * /*op*/, OpOperand & /*opOperand*/,
+                               const AnalysisState & /*state*/) const {
     return false;
   }
 
-  AliasingValueList getAliasingValues(Operation *op, OpOperand &opOperand,
-                                      const AnalysisState &state) const {
+  AliasingValueList getAliasingValues(Operation *op, OpOperand & /*opOperand*/,
+                                      const AnalysisState & /*state*/) const {
     return {AliasingValue(op->getOpResult(0), BufferRelation::Equivalent,
                           /*isDefinite=*/true)};
   }
 
   LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
-                          const BufferizationOptions &options,
-                          BufferizationState &state) const {
+                          const BufferizationOptions & /*options*/,
+                          BufferizationState & /*state*/) const {
     auto copyOp = cast<loom::CopyToTensorOp>(op);
     auto loc = op->getLoc();
 
@@ -89,18 +89,19 @@ struct CopyToTensorOpInterface
 struct CopyFromTensorOpInterface
     : public BufferizableOpInterface::ExternalModel<CopyFromTensorOpInterface,
                                                     loom::CopyFromTensorOp> {
-  bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
-                              const AnalysisState &state) const {
+  bool bufferizesToMemoryRead(Operation * /*op*/, OpOperand & /*opOperand*/,
+                              const AnalysisState & /*state*/) const {
     return true; // reads from source_tensor
   }
 
-  bool bufferizesToMemoryWrite(Operation *op, OpOperand &opOperand,
-                               const AnalysisState &state) const {
+  bool bufferizesToMemoryWrite(Operation * /*op*/, OpOperand & /*opOperand*/,
+                               const AnalysisState & /*state*/) const {
     return false;
   }
 
-  AliasingValueList getAliasingValues(Operation *op, OpOperand &opOperand,
-                                      const AnalysisState &state) const {
+  AliasingValueList getAliasingValues(Operation * /*op*/,
+                                      OpOperand & /*opOperand*/,
+                                      const AnalysisState & /*state*/) const {
     return {};
   }
 

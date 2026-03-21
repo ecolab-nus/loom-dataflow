@@ -139,7 +139,7 @@ llvm::SmallVector<func::FuncOp> collectFunctions(ModuleOp module) {
 func::FuncOp
 cloneFuncWithConstraints(OpBuilder &builder, func::FuncOp originalFunc,
                          llvm::StringRef newName, DictionaryAttr moduleAttrs,
-                         llvm::StringRef passName,
+                         llvm::StringRef /*passName*/,
                          std::function<LogicalResult(func::FuncOp)> modifier,
                          Operation *insertAfter) {
   return cloneFunctionImpl(builder, originalFunc, newName, insertAfter,
@@ -300,7 +300,7 @@ void utils::composeAndCanonicalizeAffineApplies(func::FuncOp func) {
         std::equal(operands.begin(), operands.end(), op.getOperands().begin());
     if (sameMap && sameOperands)
       continue;
-    auto newOp = b.create<affine::AffineApplyOp>(op.getLoc(), map, operands);
+    auto newOp = affine::AffineApplyOp::create(b, op.getLoc(), map, operands);
     op.replaceAllUsesWith(newOp.getResult());
     op.erase();
   }

@@ -69,6 +69,7 @@ fi
 echo "Dump ETG..."
 if ! build/tool/loom-opt/single_stage/staged_etg \
   --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
+  --hw-compute-dir ../loom-mlar/tests/2d_mesh/compute \
   --output test/Passes/mm_2Dmesh/constraint_space/staged_etg_dump.json; then
     echo "Error: Dump ETG failed."
     exit 1
@@ -88,6 +89,14 @@ if ! build/tool/loom-opt/single_stage/one_shot_bufferize \
   --input test/Passes/mm_2Dmesh/IR/06_after_canonicalize.mlir \
   > test/Passes/mm_2Dmesh/IR/07_after_osb.mlir; then
     echo "Error: Step 7 failed."
+    exit 1
+fi
+
+echo "8) tt-opt..."
+if ! build/tool/tt-opt/single_stage/fuse_fill_matmul \
+  --input test/Passes/mm_2Dmesh/IR/07_after_osb.mlir \
+  > test/Passes/mm_2Dmesh/IR/08_tt-opt.mlir; then
+    echo "Error: Step 8 failed."
     exit 1
 fi
 
