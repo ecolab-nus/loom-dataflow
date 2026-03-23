@@ -8,6 +8,12 @@
 #include "loom_materialization_pipeline.h"
 #include "Passes.h"
 #include "Transforms/BufferizableOpInterfaceImpl.h"
+// Forward-declare the tt-opt pass to avoid pulling in its full Passes.h
+// (which re-includes GEN_PASS_REGISTRATION and causes redefinition conflicts).
+// TODO: distinguish per-backend pass sets when multiple backends are supported.
+namespace loom::passes {
+std::unique_ptr<mlir::Pass> createFuseZeroFillMatmulPass();
+} // namespace loom::passes
 
 #include "mlir/Conversion/Passes.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -169,7 +175,12 @@ runMaterializationCore(const char *input_mlir_text,
   pm.addPass(mlir::createSymbolDCEPass());
   pm.addPass(loom::passes::createBridgeToOSBPass());
 
-  // Stage 3: Lower affine with attributes (required before OSB)
+  // Stage 3: Backend-specific tensor-level optimizations.
+  // TODO: gate these passes on a backend enum once multiple backends are
+  //       supported (e.g. TT-Metal vs. others).
+  pm.addPass(loom::passes::createFuseZeroFillMatmulPass());
+
+  // Stage 4: Lower affine with attributes (required before OSB)
   pm.addPass(loom::passes::createLowerAffineWithAttrPass());
 
   // Stage 4: One-Shot Bufferization
