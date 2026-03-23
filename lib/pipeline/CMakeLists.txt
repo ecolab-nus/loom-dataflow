@@ -11,9 +11,11 @@ set(LOOM_PIPELINE_INCLUDES
     ${CMAKE_BINARY_DIR}/lib/pipeline
     # Pass headers (inc/ + generated)
     ${CMAKE_SOURCE_DIR}/lib/passes/loom-opt/inc
+    ${CMAKE_SOURCE_DIR}/lib/passes
     ${CMAKE_SOURCE_DIR}/lib/passes/common/inc
     ${CMAKE_SOURCE_DIR}/lib/passes/lcs/inc
     ${CMAKE_BINARY_DIR}/lib/passes/loom-opt
+    ${CMAKE_BINARY_DIR}/lib/passes/tt-opt
     # Dialect generated headers
     ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
     ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
@@ -26,6 +28,7 @@ set(LOOM_PIPELINE_INCLUDES
 # Union of all MLIR/Loom link libraries needed by both pipelines
 set(LOOM_PIPELINE_LIBS
     loomTritonSharedPasses
+    loomTTOptPasses
     loomDialectTransforms
     loomDataflowDialect
     loomDialect
