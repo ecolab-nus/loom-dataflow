@@ -175,12 +175,7 @@ runMaterializationCore(const char *input_mlir_text,
   pm.addPass(mlir::createSymbolDCEPass());
   pm.addPass(loom::passes::createBridgeToOSBPass());
 
-  // Stage 3: Backend-specific tensor-level optimizations.
-  // TODO: gate these passes on a backend enum once multiple backends are
-  //       supported (e.g. TT-Metal vs. others).
-  pm.addPass(loom::passes::createFuseZeroFillMatmulPass());
-
-  // Stage 4: Lower affine with attributes (required before OSB)
+  // Stage 3: Lower affine with attributes (required before OSB)
   pm.addPass(loom::passes::createLowerAffineWithAttrPass());
 
   // Stage 4: One-Shot Bufferization
@@ -197,6 +192,11 @@ runMaterializationCore(const char *input_mlir_text,
   // Stage 5: Final cleanup
   pm.addPass(mlir::createCanonicalizerPass());
   pm.addPass(mlir::createCSEPass());
+
+  // Stage 6: Backend-specific tensor-level optimizations.
+  // TODO: gate these passes on a backend enum once multiple backends are
+  //       supported (e.g. TT-Metal vs. others).
+  pm.addPass(loom::passes::createFuseZeroFillMatmulPass());
 
   // --- Run pipeline ---
   if (failed(pm.run(*module)))
