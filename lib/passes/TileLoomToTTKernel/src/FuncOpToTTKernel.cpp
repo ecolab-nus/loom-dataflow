@@ -1625,7 +1625,7 @@ private:
     for (const KernelRoleInfo &role : roles) {
       emitLine("auto " + role.idVarName + " = tt_metal::CreateKernel("
                "program, OVERRIDE_KERNEL_PREFIX "
-               "\"mlir_matmul_simple/kernels/" +
+               "\"tt_metal/programming_examples/mlir_matmul_simple/kernels/" +
                role.kernelSource + "\", all_cores, " + role.configExpr + ");");
     }
   }

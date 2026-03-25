@@ -104,6 +104,7 @@ def process_source_content(lines, section_name=None):
                 '#include "dataflow_api.h"',
             }
         ]
+        processed = [line.replace(" tt_metal::", " tt::tt_metal::").replace('CBIndex::', 'tt::CBIndex::') for line in lines]
 
     if section_name and section_name.startswith("host"):
         processed = insert_include_if_missing(
@@ -154,6 +155,7 @@ def process_source_content(lines, section_name=None):
         processed = insert_include_if_missing(processed, '#include "debug/dprint.h"\n')
         processed = insert_include_if_missing(processed, '#include "debug/dprint_pages.h"\n')
         processed = insert_include_if_missing(processed, '#include "debug/dprint_tensix.h"\n')
+        processed = [i.replace("mm_init", "ckernel::mm_init").replace("mm_block_init_short", "ckernel::mm_block_init_short") for i in processed]
         #Don't need it now
         #processed = insert_compute_trace_markers(processed)
 
