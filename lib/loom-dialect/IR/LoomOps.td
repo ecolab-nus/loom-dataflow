@@ -501,6 +501,31 @@ def BindOp : Loom_Op<"bind", []> {
   }];
 }
 
+def BindShapeOp : Loom_Op<"bind_shape", []> {
+  let summary = "Bind symbolic shape dimensions to a tensor (alias for loom.bind)";
+  let description = [{
+    The `loom.bind_shape` operation annotates a tensor with its symbolic shape.
+    This is functionally identical to `loom.bind` and exists as an alias.
+
+    Example:
+    ```mlir
+    %m = loom.sym @M : index
+    %n = loom.sym @N : index
+    loom.bind_shape %tensor, [%m, %n] : tensor<?x?xf16>
+    ```
+  }];
+
+  let arguments = (ins
+    AnyRankedTensor:$tensor,
+    Variadic<Index>:$symbols
+  );
+
+  let results = (outs);
+
+  let assemblyFormat = [{
+    $tensor `,` `[` $symbols `]` attr-dict `:` type($tensor)
+  }];
+}
 
 def MatmulOp : Loom_Op<"matmul", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
