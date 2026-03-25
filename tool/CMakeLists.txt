@@ -24,6 +24,9 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tt-opt/single_stage)
 # Dataflow-dialect tools
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/dataflow-dialect)
 
+# ADL-dialect tools
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/adl-dialect)
+
 # Resource-system demos
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/resource-system)
 
