@@ -96,17 +96,17 @@ void ComputeOpRegistry::indexModule(mlir::ModuleOp module,
 std::optional<HWComputeFunc>
 ComputeOpRegistry::extractFromFunc(mlir::func::FuncOp func,
                                    llvm::StringRef hw_component) {
-  // 1. Collect loom.bind operations to build tensor -> symbol binding map.
+  // 1. Collect loom.bind_shape operations to build tensor -> symbol binding map.
   llvm::DenseMap<mlir::Value, HWTensorBinding> bindingMap;
 
-  func.walk([&](loom::BindOp bindOp) {
+  func.walk([&](loom::BindShapeOp bindshapeOp) {
     HWTensorBinding binding;
-    for (mlir::Value sym : bindOp.getSymbols()) {
+    for (mlir::Value sym : bindshapeOp.getSymbols()) {
       llvm::StringRef symName = loom::utils::traceToSymbolicVar(sym);
       binding.dim_symbols.push_back(
           symName.empty() ? "?" : std::string(symName));
     }
-    bindingMap[bindOp.getTensor()] = std::move(binding);
+    bindingMap[bindshapeOp.getTensor()] = std::move(binding);
   });
 
   // 2. Find the unique compute linalg op (skip FillOp, CopyOp).
