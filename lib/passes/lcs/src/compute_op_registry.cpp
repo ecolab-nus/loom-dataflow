@@ -106,7 +106,7 @@ ComputeOpRegistry::extractFromFunc(mlir::func::FuncOp func,
       binding.dim_symbols.push_back(
           symName.empty() ? "?" : std::string(symName));
     }
-    bindingMap[bindshapeOp.getTensor()] = std::move(binding);
+    bindingMap[bindshapeOp.getMemref()] = std::move(binding);
   });
 
   // 2. Find the unique compute linalg op (skip FillOp, CopyOp).
