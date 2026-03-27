@@ -79,7 +79,7 @@ struct CopyToTensorOpInterface
 
     loom::CopyOp::create(
         rewriter, loc, copyOp.getSourceView(), copyOp.getBuffer(), dramSymbol,
-        l1Symbol, copyOp.getInterconnectAttr(), copyOp.getBroadcastAttr());
+        l1Symbol, copyOp.getBroadcastAttr());
 
     replaceOpWithBufferizedValues(rewriter, op, copyOp.getBuffer());
     return success();
@@ -121,7 +121,6 @@ struct CopyFromTensorOpInterface
 
     loom::CopyOp::create(rewriter, loc, *srcBuffer, copyOp.getTargetView(),
                          l1Symbol, dramSymbol,
-                         /*interconnect=*/rewriter.getArrayAttr({}),
                          /*broadcast=*/rewriter.getI64ArrayAttr({1, 1}));
 
     rewriter.eraseOp(op);

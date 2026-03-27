@@ -95,10 +95,9 @@ struct ReadBlockLoadingLowering
     // 3. loom.copy: physically move data DRAM→L1 into the semaphore buffer.
     auto dramSymbol = SymbolRefAttr::get(rewriter.getContext(), "DRAM");
     auto l1Symbol = SymbolRefAttr::get(rewriter.getContext(), "L1");
-    auto emptyArray = rewriter.getArrayAttr({});
     auto defaultBroadcast = rewriter.getI64ArrayAttr({1, 1});
     loom::CopyOp::create(rewriter, loc, loomSubviewOp.getResult(), semaphore,
-                         dramSymbol, l1Symbol, emptyArray, defaultBroadcast);
+                         dramSymbol, l1Symbol, defaultBroadcast);
 
     // 4. loom.bufferize_to_tensor: pure view of the now-populated L1 buffer.
     SmallVector<int64_t, 4> staticSizes(subviewOp.getStaticSizes().begin(),
@@ -162,7 +161,7 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
     auto dramSymbol = SymbolRefAttr::get(rewriter.getContext(), "DRAM");
     auto loomCopyOp = loom::CopyOp::create(
         rewriter, loc, bufToMemref.getResult(), loomSubviewOp.getResult(),
-        l1Symbol, dramSymbol, rewriter.getArrayAttr({}),
+        l1Symbol, dramSymbol,
         rewriter.getI64ArrayAttr({1, 1}));
 
     // 4. Move semaphore_give to after the copy if it exists.
