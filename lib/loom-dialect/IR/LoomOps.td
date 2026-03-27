@@ -431,7 +431,7 @@ def CopyOp : Loom_Op<"copy", [
     (`dst_mem_space` $dst_mem_space^)?
     `,` `interconnect` `:` $interconnect 
     `,` `broadcast` `:` $broadcast 
-    attr-dict `:` type($source) `,` type($destination)
+    attr-dict `:` type($source) `to` type($destination)
   }];
 }
 
@@ -524,6 +524,33 @@ def BindShapeOp : Loom_Op<"bind_shape", []> {
 
   let assemblyFormat = [{
     $memref `,` `[` $symbols `]` attr-dict `:` type($memref)
+  }];
+}
+
+def BindMemOp : Loom_Op<"bind_mem", []> {
+  let summary = "Label a memref with a memory region symbol";
+  let description = [{
+    `loom.bind_mem` annotates a memref with the memory region it belongs to,
+    identified by a flat symbol reference (e.g., `@L1`, `@DRAM`).
+
+    This is a metadata-only operation: it produces no runtime code.
+
+    Example:
+    ```mlir
+    loom.bind_mem %A, @L1 : memref<?x?xf16>
+    loom.bind_mem %dram_src, @DRAM : memref<?x?xf16>
+    ```
+  }];
+
+  let arguments = (ins
+    AnyMemRef:$memref,
+    FlatSymbolRefAttr:$memory
+  );
+
+  let results = (outs);
+
+  let assemblyFormat = [{
+    $memref `,` $memory attr-dict `:` type($memref)
   }];
 }
 
