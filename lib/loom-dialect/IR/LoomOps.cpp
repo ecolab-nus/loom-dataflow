@@ -627,3 +627,106 @@ void SemaphoreTakeOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                                   MLIRContext *context) {
   results.add<FoldSemaphoreTakeType>(context);
 }
+
+//===----------------------------------------------------------------------===//
+// BufferizeToTensorOp / BufferizeToMemrefOp
+//===----------------------------------------------------------------------===//
+
+::mlir::RankedTensorType
+loom::BufferizeToTensorOp::inferResultType(
+    ::llvm::ArrayRef<int64_t> staticSizes, ::mlir::Type elementType) {
+  return RankedTensorType::get(staticSizes, elementType);
+}
+
+::mlir::MemRefType loom::BufferizeToMemrefOp::inferResultType(
+    ::llvm::ArrayRef<int64_t> staticSizes, ::mlir::Type elementType) {
+  return MemRefType::get(staticSizes, elementType);
+}
+
+namespace {
+
+/// Fold constant size operands of loom.bufferize_to_tensor and update the
+/// result type to a static shape when all sizes become known.
+struct FoldBufferizeToTensorConstants
+    : public OpRewritePattern<BufferizeToTensorOp> {
+  using OpRewritePattern<BufferizeToTensorOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(BufferizeToTensorOp op,
+                                PatternRewriter &rewriter) const override {
+    SmallVector<OpFoldResult, 4> sizes = op.getMixedSizes();
+    bool constantsFolded = foldConstantDimensions(sizes);
+
+    SmallVector<Value, 4> dynamicSizes;
+    SmallVector<int64_t, 4> staticSizes;
+    dispatchIndexOpFoldResults(sizes, dynamicSizes, staticSizes);
+
+    bool allStatic = llvm::all_of(
+        staticSizes, [](int64_t s) { return s != ShapedType::kDynamic; });
+
+    auto resultType = llvm::dyn_cast<RankedTensorType>(op.getType());
+    if (!resultType)
+      return failure();
+
+    bool needsTypeUpdate = allStatic && !resultType.hasStaticShape();
+
+    if (!constantsFolded && !needsTypeUpdate)
+      return failure();
+
+    Type newResultType = resultType;
+    if (needsTypeUpdate) {
+      newResultType = BufferizeToTensorOp::inferResultType(
+          staticSizes, resultType.getElementType());
+    }
+
+    auto newOp = BufferizeToTensorOp::create(
+        rewriter, op.getLoc(), newResultType, op.getSource(), dynamicSizes,
+        rewriter.getDenseI64ArrayAttr(staticSizes));
+
+    if (newResultType != resultType) {
+      rewriter.replaceOpWithNewOp<tensor::CastOp>(op, resultType,
+                                                  newOp.getResult());
+    } else {
+      rewriter.replaceOp(op, newOp.getResult());
+    }
+    return success();
+  }
+};
+
+/// If the source tensor of loom.bufferize_to_memref has a fully static shape
+/// but the result memref is dynamic, update the result type to static.
+struct FoldBufferizeToMemrefType
+    : public OpRewritePattern<BufferizeToMemrefOp> {
+  using OpRewritePattern<BufferizeToMemrefOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(BufferizeToMemrefOp op,
+                                PatternRewriter &rewriter) const override {
+    auto srcType = llvm::dyn_cast<RankedTensorType>(op.getSource().getType());
+    if (!srcType || !srcType.hasStaticShape())
+      return failure();
+
+    auto resultType = llvm::dyn_cast<MemRefType>(op.getType());
+    if (!resultType || resultType.hasStaticShape())
+      return failure();
+
+    auto newResultType = BufferizeToMemrefOp::inferResultType(
+        srcType.getShape(), srcType.getElementType());
+
+    auto newOp = BufferizeToMemrefOp::create(rewriter, op.getLoc(),
+                                             newResultType, op.getSource());
+    rewriter.replaceOpWithNewOp<memref::CastOp>(op, resultType,
+                                                newOp.getResult());
+    return success();
+  }
+};
+
+} // namespace
+
+void BufferizeToTensorOp::getCanonicalizationPatterns(
+    RewritePatternSet &results, MLIRContext *context) {
+  results.add<FoldBufferizeToTensorConstants>(context);
+}
+
+void BufferizeToMemrefOp::getCanonicalizationPatterns(
+    RewritePatternSet &results, MLIRContext *context) {
+  results.add<FoldBufferizeToMemrefType>(context);
+}

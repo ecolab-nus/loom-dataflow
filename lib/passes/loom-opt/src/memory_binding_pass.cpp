@@ -29,7 +29,7 @@ using namespace loom;
 namespace {
 
 /// Pattern 1: Lower memref.subview + bufferization.to_tensor
-/// to loom.subview + loom.alloc + loom.copy_to_tensor
+/// to loom.subview + loom.copy (DRAM→L1) + loom.bufferize_to_tensor
 struct ReadBlockLoadingLowering
     : public OpRewritePattern<bufferization::ToTensorOp> {
   const llvm::DenseMap<std::pair<ShapeSignature, int>, Value> &colorToAlloc;
@@ -92,12 +92,21 @@ struct ReadBlockLoadingLowering
           semBuilder, loc, cast<MemRefType>(allocVal.getType()), allocVal);
     }
 
+    // 3. loom.copy: physically move data DRAM→L1 into the semaphore buffer.
+    auto dramSymbol = SymbolRefAttr::get(rewriter.getContext(), "DRAM");
+    auto l1Symbol = SymbolRefAttr::get(rewriter.getContext(), "L1");
     auto emptyArray = rewriter.getArrayAttr({});
     auto defaultBroadcast = rewriter.getI64ArrayAttr({1, 1});
-    rewriter.replaceOp(op, loom::CopyToTensorOp::create(
-                               rewriter, loc, op.getType(),
-                               loomSubviewOp.getResult(), semaphore, nullptr,
-                               Value(), emptyArray, defaultBroadcast));
+    loom::CopyOp::create(rewriter, loc, loomSubviewOp.getResult(), semaphore,
+                         dramSymbol, l1Symbol, emptyArray, defaultBroadcast);
+
+    // 4. loom.bufferize_to_tensor: pure view of the now-populated L1 buffer.
+    SmallVector<int64_t, 4> staticSizes(subviewOp.getStaticSizes().begin(),
+                                        subviewOp.getStaticSizes().end());
+    rewriter.replaceOp(op, loom::BufferizeToTensorOp::create(
+                               rewriter, loc, op.getType(), semaphore,
+                               subviewOp.getSizes(),
+                               rewriter.getDenseI64ArrayAttr(staticSizes)));
 
     // We can't safely remove subview yet if it has other uses.
     if (subviewOp->use_empty()) {
@@ -110,7 +119,7 @@ struct ReadBlockLoadingLowering
 
 /// Pattern 2: Transform write-back chain
 /// (memref.subview + bufferization.to_buffer + memref.copy)
-/// to loom.subview + loom.copy_from_tensor
+/// to loom.subview + loom.bufferize_to_memref + loom.copy (L1→DRAM)
 struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
   WriteBackLowering(MLIRContext *context,
                     const llvm::DenseMap<Value, int> &tensorToVBIdMap,
@@ -140,21 +149,30 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
         subviewOp.getStaticStrides(), false, false, false);
 
-    // 2. Create loom.copy_from_tensor
-    auto copyFromTensorOp =
-        loom::CopyFromTensorOp::create(rewriter, loc, toBufferOp.getTensor(),
-                                       loomSubviewOp.getResult(), nullptr);
-
-    // 3. Move semaphore_give if it exists
+    // 2. loom.bufferize_to_memref: pure view of the L1 tensor as a memref.
     Value srcTensor = toBufferOp.getTensor();
+    auto srcTensorType = llvm::cast<RankedTensorType>(srcTensor.getType());
+    auto l1MemrefType =
+        MemRefType::get(srcTensorType.getShape(), srcTensorType.getElementType());
+    auto bufToMemref = loom::BufferizeToMemrefOp::create(
+        rewriter, loc, l1MemrefType, srcTensor);
+
+    // 3. loom.copy: physically move data L1→DRAM.
+    auto l1Symbol = SymbolRefAttr::get(rewriter.getContext(), "L1");
+    auto dramSymbol = SymbolRefAttr::get(rewriter.getContext(), "DRAM");
+    auto loomCopyOp = loom::CopyOp::create(
+        rewriter, loc, bufToMemref.getResult(), loomSubviewOp.getResult(),
+        l1Symbol, dramSymbol, rewriter.getArrayAttr({}),
+        rewriter.getI64ArrayAttr({1, 1}));
+
+    // 4. Move semaphore_give to after the copy if it exists.
     auto vbIt = tensorToVBIdMap.find(srcTensor);
     if (vbIt != tensorToVBIdMap.end()) {
       Value semaphore = vbIdToSemaphoreMap.lookup(vbIt->second);
       if (semaphore) {
-        // Look for the give op of this semaphore
         for (Operation *user : semaphore.getUsers()) {
           if (isa<loom::SemaphoreGiveOp>(user)) {
-            user->moveAfter(copyFromTensorOp);
+            user->moveAfter(loomCopyOp);
           }
         }
       }
