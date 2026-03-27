@@ -129,10 +129,78 @@ struct CopyFromTensorOpInterface
   }
 };
 
+/// loom.bufferize_to_tensor is a pure alias from a memref to a tensor.
+/// OSB can eliminate it by substituting the source buffer for the result.
+struct BufferizeToTensorOpInterface
+    : public BufferizableOpInterface::ExternalModel<
+          BufferizeToTensorOpInterface, loom::BufferizeToTensorOp> {
+  bool bufferizesToMemoryRead(Operation * /*op*/, OpOperand & /*opOperand*/,
+                              const AnalysisState & /*state*/) const {
+    return false;
+  }
+
+  bool bufferizesToMemoryWrite(Operation * /*op*/, OpOperand & /*opOperand*/,
+                               const AnalysisState & /*state*/) const {
+    return false;
+  }
+
+  AliasingValueList getAliasingValues(Operation *op, OpOperand & /*opOperand*/,
+                                      const AnalysisState & /*state*/) const {
+    return {AliasingValue(op->getOpResult(0), BufferRelation::Equivalent,
+                          /*isDefinite=*/true)};
+  }
+
+  LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
+                          const BufferizationOptions & /*options*/,
+                          BufferizationState & /*state*/) const {
+    auto bufferizeOp = cast<loom::BufferizeToTensorOp>(op);
+    replaceOpWithBufferizedValues(rewriter, op, bufferizeOp.getSource());
+    return success();
+  }
+};
+
+/// loom.bufferize_to_memref is a pure alias from a tensor to a memref.
+/// OSB can eliminate it by substituting the underlying buffer for the result.
+struct BufferizeToMemrefOpInterface
+    : public BufferizableOpInterface::ExternalModel<
+          BufferizeToMemrefOpInterface, loom::BufferizeToMemrefOp> {
+  bool bufferizesToMemoryRead(Operation * /*op*/, OpOperand & /*opOperand*/,
+                              const AnalysisState & /*state*/) const {
+    return false;
+  }
+
+  bool bufferizesToMemoryWrite(Operation * /*op*/, OpOperand & /*opOperand*/,
+                               const AnalysisState & /*state*/) const {
+    return false;
+  }
+
+  AliasingValueList getAliasingValues(Operation * /*op*/,
+                                      OpOperand & /*opOperand*/,
+                                      const AnalysisState & /*state*/) const {
+    return {};
+  }
+
+  LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
+                          const BufferizationOptions &options,
+                          BufferizationState &state) const {
+    auto bufferizeOp = cast<loom::BufferizeToMemrefOp>(op);
+    FailureOr<Value> srcBuffer =
+        getBuffer(rewriter, bufferizeOp.getSource(), options, state);
+    if (failed(srcBuffer))
+      return failure();
+    replaceOpWithBufferizedValues(rewriter, op, *srcBuffer);
+    return success();
+  }
+};
+
 } // namespace
 
 void loom::registerBufferizableOpInterfaceExternalModels(MLIRContext *ctx) {
   loom::InitTensorOp::attachInterface<InitTensorOpInterface>(*ctx);
   loom::CopyToTensorOp::attachInterface<CopyToTensorOpInterface>(*ctx);
   loom::CopyFromTensorOp::attachInterface<CopyFromTensorOpInterface>(*ctx);
+  loom::BufferizeToTensorOp::attachInterface<BufferizeToTensorOpInterface>(
+      *ctx);
+  loom::BufferizeToMemrefOp::attachInterface<BufferizeToMemrefOpInterface>(
+      *ctx);
 }

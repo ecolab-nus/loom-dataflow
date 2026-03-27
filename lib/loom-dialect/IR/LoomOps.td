@@ -309,6 +309,97 @@ def CopyFromTensorOp : Loom_Op<"copy_from_tensor", [
   let hasCanonicalizer = 1;
 }
 
+def BufferizeToTensorOp : Loom_Op<"bufferize_to_tensor", [Pure]> {
+  let summary = "Reinterpret a memref as a tensor (pure view, no copy)";
+  let description = [{
+    The `loom.bufferize_to_tensor` operation reinterprets a memref as a
+    ranked tensor with the same element type and shape. It carries no
+    memory effects: it is a pure metadata operation that lets downstream
+    tensor-level IR consume an already-allocated L1 buffer.
+
+    This op is emitted by the memory binding pass after `loom.copy` has
+    physically moved data into the buffer. OSB can alias through it (the
+    tensor result is Equivalent to the source buffer) and erase it during
+    bufferization.
+
+    Example:
+    ```mlir
+    loom.copy %view, %buf src_mem_space @DRAM dst_mem_space @L1,
+              interconnect : [], broadcast : [1, 1]
+              : memref<?x?xf16, strided<...>>, memref<?x?xf16>
+    %t = loom.bufferize_to_tensor %buf[%m, %n]
+         : memref<?x?xf16> -> tensor<?x?xf16>
+    ```
+  }];
+
+  let arguments = (ins
+    AnyMemRef:$source,
+    Variadic<Index>:$sizes,
+    DenseI64ArrayAttr:$static_sizes
+  );
+
+  let results = (outs AnyRankedTensor:$result);
+
+  let assemblyFormat = [{
+    $source ``
+    custom<DynamicIndexList>($sizes, $static_sizes) attr-dict `:`
+    type($source) `->` type($result)
+  }];
+
+  let hasCanonicalizer = 1;
+
+  let extraClassDeclaration = [{
+    ::mlir::SmallVector<::mlir::OpFoldResult, 4> getMixedSizes() {
+      ::mlir::Builder builder(getContext());
+      return ::mlir::getMixedValues(getStaticSizes(), getSizes(), builder);
+    }
+
+    static ::mlir::RankedTensorType inferResultType(
+        ::llvm::ArrayRef<int64_t> staticSizes,
+        ::mlir::Type elementType);
+  }];
+}
+
+def BufferizeToMemrefOp : Loom_Op<"bufferize_to_memref", [Pure]> {
+  let summary = "Reinterpret a tensor as a memref (pure view, no copy)";
+  let description = [{
+    The `loom.bufferize_to_memref` operation reinterprets a ranked tensor
+    as a memref with the same element type and shape. It carries no memory
+    effects: it is a pure metadata operation.
+
+    This op is emitted by the memory binding pass before `loom.copy` writes
+    data from an L1 buffer back to DRAM. OSB erases it during bufferization
+    by replacing the memref result with the underlying buffer.
+
+    Example:
+    ```mlir
+    %buf = loom.bufferize_to_memref %tensor
+           : tensor<?x?xf16> -> memref<?x?xf16>
+    loom.copy %buf, %view src_mem_space @L1 dst_mem_space @DRAM,
+              interconnect : [], broadcast : [1, 1]
+              : memref<?x?xf16>, memref<?x?xf16, strided<...>>
+    ```
+  }];
+
+  let arguments = (ins AnyRankedTensor:$source);
+
+  let results = (outs AnyMemRef:$result);
+
+  let assemblyFormat = [{
+    $source attr-dict `:` type($source) `->` type($result)
+  }];
+
+  let hasCanonicalizer = 1;
+
+  let extraClassDeclaration = [{
+    /// Infer a plain (identity-layout) MemRefType from static sizes and
+    /// element type.  Used by the static-shape canonicalizer.
+    static ::mlir::MemRefType inferResultType(
+        ::llvm::ArrayRef<int64_t> staticSizes,
+        ::mlir::Type elementType);
+  }];
+}
+
 def InitTensorOp : Loom_Op<"init_tensor", [Pure]> {
   let summary = "Create a tensor bound to a buffer";
   let description = [{
