@@ -510,7 +510,6 @@ def CopyOp : Loom_Op<"copy", [
     AnyMemRef:$destination,
     OptionalAttr<SymbolRefAttr>:$src_mem_space,
     OptionalAttr<SymbolRefAttr>:$dst_mem_space,
-    DefaultValuedAttr<ArrayAttr, "{}">:$interconnect,
     DefaultValuedAttr<I64ArrayAttr, "{1, 1}">:$broadcast
   );
 
@@ -520,7 +519,6 @@ def CopyOp : Loom_Op<"copy", [
     $source `,` $destination
     (`src_mem_space` $src_mem_space^)?
     (`dst_mem_space` $dst_mem_space^)?
-    `,` `interconnect` `:` $interconnect 
     `,` `broadcast` `:` $broadcast 
     attr-dict `:` type($source) `to` type($destination)
   }];
