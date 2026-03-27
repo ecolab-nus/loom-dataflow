@@ -472,10 +472,10 @@ def SymOp : Loom_Op<"sym", [
 }
 
 def BindOp : Loom_Op<"bind", []> {
-  let summary = "Bind symbolic shape dimensions to a tensor";
+  let summary = "Bind symbolic shape dimensions to a memref";
   let description = [{
-    The `loom.bind` operation annotates a tensor with its symbolic shape
-    by accepting the tensor and a variadic list of index SSA values
+    The `loom.bind` operation annotates a memref with its symbolic shape
+    by accepting the memref and a variadic list of index SSA values
     (typically from `loom.sym`).
 
     This is a metadata-only operation: it does not return any SSA value
@@ -485,45 +485,45 @@ def BindOp : Loom_Op<"bind", []> {
     ```mlir
     %m = loom.sym @M : index
     %n = loom.sym @N : index
-    loom.bind %tensor, [%m, %n] : tensor<?x?xf16>
+    loom.bind %memref, [%m, %n] : memref<?x?xf16>
     ```
   }];
 
   let arguments = (ins
-    AnyRankedTensor:$tensor,
+    AnyMemRef:$memref,
     Variadic<Index>:$symbols
   );
 
   let results = (outs);
 
   let assemblyFormat = [{
-    $tensor `,` `[` $symbols `]` attr-dict `:` type($tensor)
+    $memref `,` `[` $symbols `]` attr-dict `:` type($memref)
   }];
 }
 
 def BindShapeOp : Loom_Op<"bind_shape", []> {
-  let summary = "Bind symbolic shape dimensions to a tensor (alias for loom.bind)";
+  let summary = "Bind symbolic shape dimensions to a memref (alias for loom.bind)";
   let description = [{
-    The `loom.bind_shape` operation annotates a tensor with its symbolic shape.
+    The `loom.bind_shape` operation annotates a memref with its symbolic shape.
     This is functionally identical to `loom.bind` and exists as an alias.
 
     Example:
     ```mlir
     %m = loom.sym @M : index
     %n = loom.sym @N : index
-    loom.bind_shape %tensor, [%m, %n] : tensor<?x?xf16>
+    loom.bind_shape %memref, [%m, %n] : memref<?x?xf16>
     ```
   }];
 
   let arguments = (ins
-    AnyRankedTensor:$tensor,
+    AnyMemRef:$memref,
     Variadic<Index>:$symbols
   );
 
   let results = (outs);
 
   let assemblyFormat = [{
-    $tensor `,` `[` $symbols `]` attr-dict `:` type($tensor)
+    $memref `,` `[` $symbols `]` attr-dict `:` type($memref)
   }];
 }
 
