@@ -53,7 +53,7 @@ def MemoryBankOp : ADL_Op<"memory.bank"> {
   let results = (outs MemHandleType:$handle);
 
   // $name is printed explicitly; bsize and nblk fall into attr-dict.
-  let assemblyFormat = "$name attr-dict";
+  let assemblyFormat = "$name `,` attr-dict";
 }
 
 //===----------------------------------------------------------------------===//
@@ -82,24 +82,54 @@ def MemoryArrayOp : ADL_Op<"memory.array", [Symbol]> {
 }
 
 //===----------------------------------------------------------------------===//
-// adl.processor
-//   %3 = adl.processor "matrix_lane_arch"
+// adl.processor.compute
+//   %6 = adl.processor.compute "matrix_lane", [(%5, %5)]
 //===----------------------------------------------------------------------===//
 
-def ProcessorOp : ADL_Op<"processor", [Symbol]> {
-  let summary = "Declare a processor";
+def ProcessorComputeOp : ADL_Op<"processor.compute",
+    [AttrSizedOperandSegments]> {
+  let summary = "Declare a compute processor with memory region pairs";
   let description = [{
-    `adl.processor` declares a named processor. The result is an opaque
-    `!adl.arch` handle. The operation is a Symbol.
+    `adl.processor.compute` declares a named compute processor. Memory region
+    pairs specify which memory regions the processor can access. Round brackets
+    delimit each (src, dst) pair; square brackets delimit the list of pairs.
 
     Example:
-      `%3 = adl.processor "matrix_lane_arch"`
+      `%6 = adl.processor.compute "matrix_lane", [(%5, %5)]`
   }];
 
-  let arguments = (ins StrAttr:$sym_name);
+  let arguments = (ins FlatSymbolRefAttr:$sym_name,
+                       Variadic<MemHandleType>:$src_mems,
+                       Variadic<MemHandleType>:$dst_mems);
   let results = (outs ArchHandleType:$handle);
 
-  let assemblyFormat = "$sym_name attr-dict";
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// adl.processor.dmover
+//   %12 = adl.processor.dmover "dram_l1_mover", [(%2, %5), (%5, %2)]
+//===----------------------------------------------------------------------===//
+
+def ProcessorDMoverOp : ADL_Op<"processor.dmover",
+    [Symbol, AttrSizedOperandSegments]> {
+  let summary = "Declare a data mover processor with memory region pairs";
+  let description = [{
+    `adl.processor.dmover` declares a named data-mover processor. Memory region
+    pairs specify valid data transfer routes between memory regions.
+
+    Example:
+      `%12 = adl.processor.dmover "dram_l1_mover", [(%2, %5), (%5, %2)]`
+  }];
+
+  let arguments = (ins StrAttr:$sym_name,
+                       Variadic<MemHandleType>:$src_mems,
+                       Variadic<MemHandleType>:$dst_mems);
+  let results = (outs ArchHandleType:$handle);
+
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -115,10 +145,10 @@ def ArchComposeOp : ADL_Op<"arch.compose", [AttrSizedOperandSegments]> {
     be empty.
 
     Example:
-      `%5 = adl.arch.compose "core" arch(%3, %4) mem(%2)`
+      `%5 = adl.arch.compose "core", arch[%3, %4], mem[%2]`
   }];
 
-  let arguments = (ins StrAttr:$name,
+  let arguments = (ins FlatSymbolRefAttr:$sym_name,
                        Variadic<ArchHandleType>:$arch_components,
                        Variadic<MemHandleType>:$mem_components);
   let results = (outs ArchHandleType:$handle);
@@ -126,7 +156,7 @@ def ArchComposeOp : ADL_Op<"arch.compose", [AttrSizedOperandSegments]> {
   // AttrSizedOperandSegments auto-manages operandSegmentSizes and excludes
   // it from attr-dict. Both ArchHandleType and MemHandleType have builderCall
   // set, so no explicit type annotation is needed in the IR.
-  let assemblyFormat = "$name `arch` `[` $arch_components `]` `mem` `[` $mem_components `]` attr-dict";
+  let assemblyFormat = "$sym_name `,` `arch` `[` $arch_components `]` `,` `mem` `[` $mem_components `]` attr-dict";
 }
 
 //===----------------------------------------------------------------------===//
