@@ -15,7 +15,6 @@ target_include_directories(LoomAnalysis
     ${CMAKE_SOURCE_DIR}/lib/passes/common/inc
     ${MLIR_INCLUDE_DIRS}
     ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
-    ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
 )
 
 target_link_libraries(LoomAnalysis
@@ -31,7 +30,6 @@ target_link_libraries(LoomAnalysis
     MLIRTensorDialect
     MLIRLinalgDialect
     loomDialect
-    loomDataflowDialect
 )
 
 add_dependencies(LoomAnalysis

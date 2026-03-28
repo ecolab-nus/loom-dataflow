@@ -18,7 +18,6 @@ set(LOOM_PIPELINE_INCLUDES
     ${CMAKE_BINARY_DIR}/lib/passes/tt-opt
     # Dialect generated headers
     ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
-    ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
     # Dialect source headers (for Transforms/BufferizableOpInterfaceImpl.h)
     ${CMAKE_SOURCE_DIR}/lib/loom-dialect/Transforms
     # MLIR system includes
@@ -30,7 +29,6 @@ set(LOOM_PIPELINE_LIBS
     loomTritonSharedPasses
     loomTTOptPasses
     loomDialectTransforms
-    loomDataflowDialect
     loomDialect
     LoomPassesCommon
     loomLCS

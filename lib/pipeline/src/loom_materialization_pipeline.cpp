@@ -40,7 +40,11 @@ std::unique_ptr<mlir::Pass> createFuseZeroFillMatmulPass();
 #include "mlir/Support/FileUtilities.h"
 #include "mlir/Transforms/Passes.h"
 
-#include "DataflowDialect.h.inc"
+#include "ADLDialect.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "ADLTypes.h.inc"
+#define GET_OP_CLASSES
+#include "ADLOps.h.inc"
 #include "LoomDialect.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
@@ -137,7 +141,7 @@ runMaterializationCore(const char *input_mlir_text,
   context.appendDialectRegistry(registry);
 
   context.loadDialect<loom::LoomDialect,
-                      loom::df::DataflowDialect,
+                      adl::ADLDialect,
                       func::FuncDialect,
                       arith::ArithDialect,
                       affine::AffineDialect,

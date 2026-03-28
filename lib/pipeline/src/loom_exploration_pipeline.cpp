@@ -34,8 +34,11 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/Passes.h"
 
-#include "DataflowDialect.h.inc"
-#include "DataflowOps.h.inc"
+#include "ADLDialect.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "ADLTypes.h.inc"
+#define GET_OP_CLASSES
+#include "ADLOps.h.inc"
 #include "LoomDialect.h.inc"
 
 #include "llvm/Support/JSON.h"
@@ -51,31 +54,6 @@
 using namespace mlir;
 
 namespace {
-
-/// Reorder DF ops to the front of the module body (for stable printing).
-/// Replicates the logic from enumerate_copy_broadcast_main.cpp lines 82-101.
-void reorderDfOpsToFront(ModuleOp module) {
-  Block &body = *module.getBody();
-  if (body.empty())
-    return;
-
-  llvm::SmallVector<Operation *, 16> dfOps;
-  for (Operation &op : body) {
-    Dialect *dialect = op.getDialect();
-    if (dialect && dialect->getNamespace() == StringRef("df"))
-      dfOps.push_back(&op);
-  }
-  if (dfOps.empty())
-    return;
-
-  Operation *front = &body.front();
-  for (auto it = dfOps.rbegin(); it != dfOps.rend(); ++it) {
-    Operation *op = *it;
-    if (op != front)
-      op->moveBefore(front);
-    front = &body.front();
-  }
-}
 
 /// Custom pretty-printer for ETG JSON.
 /// Replicates the formatting from staged_etg_main.cpp.
@@ -200,7 +178,7 @@ runExplorationPipeline(const std::string &input_mlir_text,
                   tensor::TensorDialect, linalg::LinalgDialect,
                   scf::SCFDialect, bufferization::BufferizationDialect,
                   cf::ControlFlowDialect, math::MathDialect,
-                  loom::df::DataflowDialect, loom::LoomDialect>();
+                  adl::ADLDialect, loom::LoomDialect>();
   MLIRContext context(registry);
   context.loadAllAvailableDialects();
 
@@ -307,9 +285,6 @@ runExplorationPipeline(const std::string &input_mlir_text,
       return {"Phase B (analyze_reuse + enumerate_copy_broadcast) failed",
               "", ""};
   }
-
-  // Reorder DF ops to front for stable output.
-  reorderDfOpsToFront(*merged);
 
   // ================================================================
   // Optional: Build staged ETG JSON
