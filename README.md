@@ -123,7 +123,7 @@ build/tool/loom-opt/single_stage/memory_binding \
 # Step 3
 build/tool/loom-opt/single_stage/enumerate_hw_mapping \
   --input test/Passes/mm_2Dmesh/IR/02_explicit_memory_access.mlir \
-  --df test/Dialect/DataflowDialect/2D_mesh.mlir \
+  --hw_spec /root/loom-monorepo/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus_ref.mlir \
   > test/Passes/mm_2Dmesh/IR/03_after_hardware_mapping.mlir
 
 # Step 4
