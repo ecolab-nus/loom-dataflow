@@ -8,17 +8,12 @@
 namespace loom {
 
 /**
- * \brief Hardware spatial dimension description parsed from the DF module.
+ * \brief Hardware spatial dimension description parsed from the ADL module.
  */
 struct SpatialDimInfo {
   std::string name;
   std::optional<int64_t> size;
   std::string symbolName; // Symbol name for SymbolRefAttr references
-};
-
-struct MatUnitInfo {
-  llvm::SmallVector<int64_t, 3> shape; // [BM, BN, BK] alignment granularity
-  std::string name;
 };
 
 /**
@@ -33,18 +28,17 @@ struct ParallelToHWMapping {
 
 struct HardwareInfo {
   llvm::SmallVector<SpatialDimInfo> spatialDimInfoVec;
-  bool hasBidirInterconnect = false;
-  int64_t l1Size = 0;
-  llvm::SmallVector<MatUnitInfo> matUnits; // Matrix unit info for alignment
-  int64_t matUnitCount = 0; // Number of mat_units per core for pipeline
 };
 
 typedef llvm::SmallVector<llvm::SmallVector<unsigned>> DimBuckets;
 
 /**
- * \brief Collect hardware info from a DF module.
+ * \brief Collect hardware info from an ADL module.
+ *
+ * Finds the adl.arch.scale op and extracts its spatial dimension operands.
+ * Asserts exactly one ArchScaleOp exists in the module.
  */
-mlir::LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp dfModule,
+mlir::LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp hwModule,
                                                   HardwareInfo &hardwareInfo);
 
 /**

@@ -22,7 +22,11 @@
 #include "mlir/Support/FileUtilities.h"
 #include "mlir/Transforms/Passes.h"
 
-#include "DataflowDialect.h.inc"
+#include "ADLDialect.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "ADLTypes.h.inc"
+#define GET_OP_CLASSES
+#include "ADLOps.h.inc"
 #include "LoomDialect.h.inc"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
@@ -48,7 +52,7 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::memref::MemRefDialect>();
   context.loadDialect<mlir::scf::SCFDialect>();
   context.loadDialect<mlir::bufferization::BufferizationDialect>();
-  context.loadDialect<loom::df::DataflowDialect>();
+  context.loadDialect<adl::ADLDialect>();
   context.loadDialect<loom::LoomDialect>();
 
   llvm::SourceMgr sm;

@@ -19,8 +19,11 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
 
-// Assuming LoomDialect and DataflowDialect are available
-#include "DataflowDialect.h.inc"
+#include "ADLDialect.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "ADLTypes.h.inc"
+#define GET_OP_CLASSES
+#include "ADLOps.h.inc"
 #include "LoomDialect.h.inc"
 
 using namespace mlir;
@@ -50,7 +53,7 @@ int main(int argc, char **argv) {
                       mlir::tensor::TensorDialect, mlir::linalg::LinalgDialect,
                       mlir::memref::MemRefDialect, mlir::scf::SCFDialect,
                       mlir::math::MathDialect, loom::LoomDialect,
-                      loom::df::DataflowDialect>();
+                      adl::ADLDialect>();
 
   loom::lcs::ComputeOpRegistry registry;
   if (mlir::failed(registry.loadFromDirectory(clHWComputeDir, context))) {

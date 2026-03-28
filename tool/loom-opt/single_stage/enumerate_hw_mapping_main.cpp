@@ -2,16 +2,14 @@
 // combined module.
 //
 // Usage:
-//   loom_triton_shared_explore --ttshared <ttshared.mlir> --df <df.mlir>
+//   enumerate_hw_mapping --input <input.mlir> --hw_spec <adl.mlir>
 //   [--grid-dims N]
 //
-// The driver loads both modules, collects spatial dimensions from the DF
-// module, enumerates all unique assignments of grid dimensions {x,y,z} to the
-// hardware spatial dimensions, and prints a new module containing one clone of
-// each function per mapping with attributes encoding the binding. When the
-// hardware mesh cannot cover the full grid in one shot, the explorer also
-// inserts outer `affine.for` loops to model sequential "waves" while leaving
-// the inner `scf.for` loops to represent per-core tile sequencing.
+// The driver loads both modules, collects spatial dimensions from the ADL
+// module (via adl.arch.scale), enumerates all unique assignments of grid
+// dimensions to the hardware spatial dimensions, and prints a new module
+// containing the ADL hardware description at the top followed by one clone of
+// each function per mapping with attributes encoding the binding.
 
 #include "Passes.h"
 #include "hardware_info.h"
@@ -38,8 +36,11 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
 
-#include "DataflowDialect.h.inc"
-#include "DataflowOps.h.inc"
+#include "ADLDialect.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "ADLTypes.h.inc"
+#define GET_OP_CLASSES
+#include "ADLOps.h.inc"
 #include "LoomDialect.h.inc"
 
 using namespace mlir;
@@ -49,9 +50,9 @@ static llvm::cl::opt<std::string>
                     llvm::cl::value_desc("filename"), llvm::cl::Required);
 
 static llvm::cl::opt<std::string>
-    clDfInput("df",
-              llvm::cl::desc("Path to DF MLIR file (spatial description)"),
-              llvm::cl::value_desc("filename"), llvm::cl::Required);
+    clHwSpecInput("hw_spec",
+                  llvm::cl::desc("Path to ADL MLIR file (hardware specification)"),
+                  llvm::cl::value_desc("filename"), llvm::cl::Required);
 
 static llvm::cl::opt<unsigned> clNumGridDims(
     "grid-dims", llvm::cl::desc("Number of grid dimensions to consider (1..3)"),
@@ -70,59 +71,59 @@ int main(int argc, char **argv) {
                   mlir::arith::ArithDialect, mlir::tensor::TensorDialect,
                   mlir::linalg::LinalgDialect, mlir::scf::SCFDialect,
                   mlir::bufferization::BufferizationDialect,
-                  loom::df::DataflowDialect, loom::LoomDialect>();
+                  adl::ADLDialect, loom::LoomDialect>();
   MLIRContext context(registry);
   context.loadAllAvailableDialects();
 
-  // Parse DF module containing spatial dimensions.
-  llvm::SourceMgr dfSm;
-  auto dfFile = mlir::openInputFile(clDfInput);
-  if (!dfFile) {
+  // Parse ADL module containing hardware specification.
+  llvm::SourceMgr hwSm;
+  auto hwFile = mlir::openInputFile(clHwSpecInput);
+  if (!hwFile) {
     llvm::WithColor::error(llvm::errs())
-        << "Failed to open DF input file: " << clDfInput << "\n";
+        << "Failed to open hw_spec input file: " << clHwSpecInput << "\n";
     return 1;
   }
-  dfSm.AddNewSourceBuffer(std::move(dfFile), llvm::SMLoc());
-  OwningOpRef<ModuleOp> dfModule = parseSourceFile<ModuleOp>(dfSm, &context);
-  if (!dfModule) {
-    llvm::WithColor::error(llvm::errs()) << "Failed to parse DF MLIR module\n";
+  hwSm.AddNewSourceBuffer(std::move(hwFile), llvm::SMLoc());
+  OwningOpRef<ModuleOp> hwModule = parseSourceFile<ModuleOp>(hwSm, &context);
+  if (!hwModule) {
+    llvm::WithColor::error(llvm::errs())
+        << "Failed to parse ADL MLIR module\n";
     return 1;
   }
 
-  // Collect spatial dimensions.
+  // Collect spatial dimensions from ADL ops.
   loom::HardwareInfo hardwareInfo;
-  if (failed(loom::GetHardwareInfoForExploration(*dfModule, hardwareInfo))) {
+  if (failed(loom::GetHardwareInfoForExploration(*hwModule, hardwareInfo))) {
     llvm::WithColor::error(llvm::errs())
-        << "Failed to collect hardware information from DF module\n";
+        << "Failed to collect hardware information from ADL module\n";
     return 1;
   }
 
-  // Parse the ttshared module to explore.
+  // Parse the input module to explore.
   llvm::SourceMgr tsSm;
   auto tsFile = mlir::openInputFile(clTTSharedInput);
   if (!tsFile) {
     llvm::WithColor::error(llvm::errs())
-        << "Failed to open ttshared input file: " << clTTSharedInput << "\n";
+        << "Failed to open input file: " << clTTSharedInput << "\n";
     return 1;
   }
   tsSm.AddNewSourceBuffer(std::move(tsFile), llvm::SMLoc());
   OwningOpRef<ModuleOp> tsModule = parseSourceFile<ModuleOp>(tsSm, &context);
   if (!tsModule) {
     llvm::WithColor::error(llvm::errs())
-        << "Failed to parse ttshared MLIR module\n";
+        << "Failed to parse input MLIR module\n";
     return 1;
   }
 
-  // Enumerate all grid-to-spatial assignments for the ttshared module.
-  // New format: enumerate mappings directly over the outermost affine.parallel
-  // in the Triton-shared-after-grid-to-parallel module. We ignore numGridDims
-  // and rely purely on the number of iterators in the parallel op.
-  // Enumerate mappings and also explore outer-for loop orderings.
+  // Enumerate all grid-to-spatial assignments for the input module.
+  // Enumerate mappings directly over the outermost affine.parallel.
+  // We ignore numGridDims and rely purely on the number of iterators in the
+  // parallel op. Also explore outer-for loop orderings.
   OwningOpRef<ModuleOp> out =
       loom::EnumerateSpatialMappings(*tsModule, hardwareInfo);
 
-  // Merge DF declarations and generated clones into a single module.
-  // Structure: outer module -> DF ops at top -> nested modules (each containing
+  // Merge ADL hardware declarations and generated clones into a single module.
+  // Structure: outer module -> ADL ops at top -> nested modules (each containing
   // a func variant)
   OwningOpRef<ModuleOp> merged = ModuleOp::create(UnknownLoc::get(&context));
   if (!(*out)->getAttrs().empty()) {
@@ -131,9 +132,40 @@ int main(int argc, char **argv) {
   OpBuilder builder(merged->getBodyRegion());
   IRMapping mapping;
 
-  // First, insert DF hardware declarations at the top of the outer module
-  for (Operation &op : *dfModule->getBody())
+  // First, insert ADL hardware declarations at the top of the outer module.
+  // The ADL ops live directly inside `module @system` (not inside child modules
+  // like @matrix_lane, @vector_lane, @data_movers). We clone only non-module
+  // ops from the @system module body.
+  //
+  // The parsed hw_spec file may be `module @system { ... }` at the top level,
+  // or it may contain `module @system` as a nested child. Handle both cases.
+  ModuleOp systemModule = nullptr;
+  if (hwModule->getSymName() && *hwModule->getSymName() == "system") {
+    systemModule = *hwModule;
+  } else {
+    for (Operation &op : *hwModule->getBody()) {
+      if (auto mod = dyn_cast<ModuleOp>(&op)) {
+        if (mod.getSymName() && *mod.getSymName() == "system") {
+          systemModule = mod;
+          break;
+        }
+      }
+    }
+  }
+  if (!systemModule) {
+    llvm::WithColor::error(llvm::errs())
+        << "Could not find module @system in hw_spec file\n";
+    return 1;
+  }
+  for (Operation &op : *systemModule.getBody()) {
+    // Skip child modules (e.g., @matrix_lane, @vector_lane, @data_movers)
+    if (isa<ModuleOp>(&op))
+      continue;
+    // Skip the module terminator
+    if (op.hasTrait<OpTrait::IsTerminator>())
+      continue;
     builder.clone(op, mapping);
+  }
 
   // Then, insert all the nested modules containing function variants
   for (Operation &op : *out->getBody())
