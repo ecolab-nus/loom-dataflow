@@ -51,7 +51,6 @@ target_link_libraries(loomTritonSharedPasses PUBLIC
     MLIRBufferizationTransforms
     MLIRAsmParser
     MLIRBytecodeReader
-    loomDataflowDialect
     loomADLDialect
     loomDialect
 )

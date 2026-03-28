@@ -16,13 +16,6 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 
-// Include the generated Dataflow dialect headers
-#include "DataflowDialect.h.inc"
-#define GET_TYPEDEF_CLASSES
-#include "DataflowTypes.h.inc"
-#define GET_OP_CLASSES
-#include "DataflowOps.h.inc"
-
 // Include the generated Loom dialect headers
 #include "LoomDialect.h.inc"
 #include "mlir/Interfaces/ViewLikeInterface.h"

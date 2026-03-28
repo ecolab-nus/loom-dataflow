@@ -55,7 +55,7 @@ add_loom_single_stage_tool(enumerate_hw_mapping
 # Step 4 (optional): Hoist block loading operations from innermost loops
 add_loom_single_stage_tool(hoist_block_loading
   ${CMAKE_CURRENT_LIST_DIR}/hoist_block_loading_main.cpp
-  loomDataflowDialect
+  loomADLDialect
 )
 
 # Step 5: Annotate loom.subview with reuse patterns
