@@ -168,8 +168,7 @@ namespace pipeline {
 
 std::tuple<std::string, std::string, std::string>
 runExplorationPipeline(const std::string &input_mlir_text,
-                       const std::string &df_mlir_path,
-                       const std::string &hw_platform_file,
+                       const std::string &hw_spec_file,
                        bool produce_etg) {
   // --- Set up MLIRContext with all required dialects ---
   DialectRegistry registry;
@@ -184,8 +183,8 @@ runExplorationPipeline(const std::string &input_mlir_text,
 
   // --- Load hardware compute IR registry ---
   loom::lcs::HWOpRegistry computeRegistry;
-  if (mlir::failed(computeRegistry.loadFromPlatformFile(hw_platform_file, context)))
-    return {"Failed to load platform IR from: " + hw_platform_file, "", ""};
+  if (mlir::failed(computeRegistry.loadFromPlatformFile(hw_spec_file, context)))
+    return {"Failed to load platform IR from: " + hw_spec_file, "", ""};
 
   // --- Parse input MLIR from string ---
   auto inputBuf = llvm::MemoryBuffer::getMemBufferCopy(
@@ -198,16 +197,16 @@ runExplorationPipeline(const std::string &input_mlir_text,
     return {"Failed to parse input MLIR text", "", ""};
 
   // --- Parse DF module (hardware description) ---
-  auto dfBuf = llvm::MemoryBuffer::getFile(df_mlir_path);
+  auto dfBuf = llvm::MemoryBuffer::getFile(hw_spec_file);
   if (std::error_code ec = dfBuf.getError())
-    return {"Could not open DF file '" + df_mlir_path + "': " + ec.message(),
+    return {"Could not open DF file '" + hw_spec_file + "': " + ec.message(),
             "", ""};
 
   llvm::SourceMgr dfSm;
   dfSm.AddNewSourceBuffer(std::move(*dfBuf), llvm::SMLoc());
   auto dfModule = parseSourceFile<ModuleOp>(dfSm, &context);
   if (!dfModule)
-    return {"Failed to parse DF MLIR file: " + df_mlir_path, "", ""};
+    return {"Failed to parse DF MLIR file: " + hw_spec_file, "", ""};
 
   // ================================================================
   // Phase A: tensor_canonicalize + memory_binding (stages 0→2)
@@ -260,9 +259,15 @@ runExplorationPipeline(const std::string &input_mlir_text,
     OpBuilder builder(merged->getBodyRegion());
     IRMapping mapping;
 
-    // Insert DF hardware declarations at the top of the outer module.
-    for (Operation &op : *dfModule->getBody())
+    // Insert DF hardware declarations from the hardware specification at the
+    // top of the outer module.
+    // We skip cloning ModuleOp to avoid nesting the hardware specification
+    // (e.g. `module @system`) inside our output module.
+    for (Operation &op : *dfModule->getBody()) {
+      if (isa<ModuleOp>(&op))
+          continue;
       builder.clone(op, mapping);
+    }
 
     // Insert all the nested modules containing function variants.
     for (Operation &op : *enumerated->getBody())
