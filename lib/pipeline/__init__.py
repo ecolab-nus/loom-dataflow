@@ -18,8 +18,7 @@ Usage::
 
     output_mlir, etg_json = run_exploration(
         input_mlir=mlir_text,
-        df_mlir="test/Dialect/DataflowDialect/2D_mesh.mlir",
-        hw_platform_file="../loom-mlar/tests/2d_mesh/2d_mesh_torus_ref.mlir",
+        hw_spec_file="../loom-mlar/tests/2d_mesh/2d_mesh_torus_ref.mlir",
     )
 
     final_mlir = run_materialization(
@@ -53,8 +52,7 @@ if _loom_pipeline.__version__ != _EXPECTED_VERSION:
 
 def run_exploration(
     input_mlir: str,
-    df_mlir: str | Path,
-    hw_platform_file: str | Path,
+    hw_spec_file: str | Path,
     produce_etg: bool = True,
 ) -> tuple[str, str]:
     """Run the exploration pipeline (stages 0→5).
@@ -65,9 +63,8 @@ def run_exploration(
 
     Args:
         input_mlir:        Input MLIR text (stage 00, from Helion frontend).
-        df_mlir:           Path to DF hardware description MLIR.
-        hw_platform_file:  Path to hardware platform MLIR file containing
-                           sub-modules for compute and data mover components.
+        hw_spec_file:      Path to hardware specification MLIR file containing
+                           hardware description and compute/data mover components.
         produce_etg:       Whether to generate ETG JSON (default True).
 
     Returns:
@@ -78,7 +75,7 @@ def run_exploration(
         RuntimeError: If the C++ pipeline fails.
     """
     err, output_mlir, etg_json = _loom_pipeline.run_exploration_pipeline(
-        input_mlir, str(df_mlir), str(hw_platform_file), produce_etg
+        input_mlir, str(hw_spec_file), produce_etg
     )
     if err:
         raise RuntimeError(f"Exploration pipeline failed: {err}")

@@ -14,17 +14,15 @@ namespace pipeline {
 /// Optionally produces staged ETG JSON for the external block-size solver.
 ///
 /// @param input_mlir_text   Input MLIR text (stage 00) as a string.
-/// @param df_mlir_path      Path to DF hardware description MLIR file.
-/// @param hw_platform_file  Path to hardware platform MLIR file containing
-///                          sub-modules for compute and data mover components.
+/// @param hw_spec_file      Path to hardware specification MLIR file containing
+///                          hardware description and compute/data mover components.
 /// @param produce_etg       Whether to generate ETG JSON output.
 /// @return tuple of (error, output_mlir, etg_json).
 ///         error is empty on success; etg_json is empty when produce_etg
 ///         is false.
 std::tuple<std::string, std::string, std::string>
 runExplorationPipeline(const std::string &input_mlir_text,
-                       const std::string &df_mlir_path,
-                       const std::string &hw_platform_file,
+                       const std::string &hw_spec_file,
                        bool produce_etg);
 
 } // namespace pipeline

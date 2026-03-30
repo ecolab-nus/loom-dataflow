@@ -39,7 +39,7 @@ static llvm::cl::opt<std::string>
              llvm::cl::init("staged_etg_dump.json"));
 
 static llvm::cl::opt<std::string>
-    clHWPlatformFile("hw-platform-file",
+    clHWPlatformFile("hw_spec",
                      llvm::cl::desc("Hardware platform MLIR file"),
                      llvm::cl::value_desc("filename"), llvm::cl::Required);
 

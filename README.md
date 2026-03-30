@@ -123,7 +123,7 @@ build/tool/loom-opt/single_stage/memory_binding \
 # Step 3
 build/tool/loom-opt/single_stage/enumerate_hw_mapping \
   --input test/Passes/mm_2Dmesh/IR/02_explicit_memory_access.mlir \
-  --hw_spec /root/loom-monorepo/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus_ref.mlir \
+  --hw_spec /root/loom-monorepo/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
   > test/Passes/mm_2Dmesh/IR/03_after_hardware_mapping.mlir
 
 # Step 4
@@ -139,7 +139,7 @@ build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
 # Step 6 — emits JSON constraint model
 build/tool/loom-opt/single_stage/staged_etg \
   --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
-  --hw-platform-file /root/loom-monorepo/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus_ref.mlir \
+  --hw_spec /root/loom-monorepo/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
   --output test/Passes/mm_2Dmesh/constraint_space/staged_etg_dump.json
 
 # Step 7
