@@ -23,7 +23,7 @@ PYBIND11_MODULE(_loom_pipeline, m) {
       &loom::pipeline::runExplorationPipeline,
       py::arg("input_mlir_text"),
       py::arg("df_mlir_path"),
-      py::arg("hw_compute_dir"),
+      py::arg("hw_platform_file"),
       py::arg("produce_etg") = true,
       R"doc(Run the exploration pipeline (stages 0-5).
 
@@ -33,8 +33,8 @@ PYBIND11_MODULE(_loom_pipeline, m) {
       Args:
           input_mlir_text: Input MLIR as a string (stage 00).
           df_mlir_path: Path to DF hardware description MLIR.
-          hw_compute_dir: Path to directory containing hardware compute IR
-              (.mlir) files for workload dispatch (e.g., matrix_lane.mlir).
+          hw_platform_file: Path to hardware platform MLIR file containing
+              sub-modules for compute and data mover components.
           produce_etg: Whether to produce ETG JSON (default True).
 
       Returns:

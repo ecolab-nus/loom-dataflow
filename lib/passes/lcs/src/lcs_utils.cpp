@@ -125,6 +125,13 @@ std::vector<Expr> traceAllocDimsFromTensor(mlir::Value tensorVal) {
     return {};
   }
 
+  // Case 1b: loom.bufferize_to_tensor — reinterprets an L1 memref as a tensor
+  if (auto bufOp = dyn_cast<loom::BufferizeToTensorOp>(op)) {
+    if (auto allocOp = traceToAlloc(bufOp.getSource()))
+      return formatAllocDims(allocOp);
+    return {};
+  }
+
   // Case 2: loom.init_tensor
   if (auto initTensor = dyn_cast<loom::InitTensorOp>(op)) {
     if (auto allocOp = traceToAlloc(initTensor.getBuffer())) {

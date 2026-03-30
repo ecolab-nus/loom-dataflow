@@ -127,7 +127,7 @@ void writeETGJson(llvm::raw_ostream &os, const llvm::json::Value &val,
 /// Build staged ETG JSON from a module and return as a string.
 /// Replicates staged_etg_main.cpp logic.
 std::pair<std::string, std::string>
-buildETGString(ModuleOp module, const loom::lcs::ComputeOpRegistry &registry) {
+buildETGString(ModuleOp module, const loom::lcs::HWOpRegistry &registry) {
   llvm::json::Array json_etgs;
 
   module.walk([&](func::FuncOp func_op) {
@@ -169,7 +169,7 @@ namespace pipeline {
 std::tuple<std::string, std::string, std::string>
 runExplorationPipeline(const std::string &input_mlir_text,
                        const std::string &df_mlir_path,
-                       const std::string &hw_compute_dir,
+                       const std::string &hw_platform_file,
                        bool produce_etg) {
   // --- Set up MLIRContext with all required dialects ---
   DialectRegistry registry;
@@ -183,9 +183,9 @@ runExplorationPipeline(const std::string &input_mlir_text,
   context.loadAllAvailableDialects();
 
   // --- Load hardware compute IR registry ---
-  loom::lcs::ComputeOpRegistry computeRegistry;
-  if (mlir::failed(computeRegistry.loadFromDirectory(hw_compute_dir, context)))
-    return {"Failed to load hw compute IR from: " + hw_compute_dir, "", ""};
+  loom::lcs::HWOpRegistry computeRegistry;
+  if (mlir::failed(computeRegistry.loadFromPlatformFile(hw_platform_file, context)))
+    return {"Failed to load platform IR from: " + hw_platform_file, "", ""};
 
   // --- Parse input MLIR from string ---
   auto inputBuf = llvm::MemoryBuffer::getMemBufferCopy(

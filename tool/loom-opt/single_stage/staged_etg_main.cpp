@@ -39,9 +39,9 @@ static llvm::cl::opt<std::string>
              llvm::cl::init("staged_etg_dump.json"));
 
 static llvm::cl::opt<std::string>
-    clHWComputeDir("hw-compute-dir",
-                   llvm::cl::desc("Hardware compute IR directory"),
-                   llvm::cl::value_desc("directory"), llvm::cl::Required);
+    clHWPlatformFile("hw-platform-file",
+                     llvm::cl::desc("Hardware platform MLIR file"),
+                     llvm::cl::value_desc("filename"), llvm::cl::Required);
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
@@ -55,10 +55,10 @@ int main(int argc, char **argv) {
                       mlir::math::MathDialect, loom::LoomDialect,
                       adl::ADLDialect>();
 
-  loom::lcs::ComputeOpRegistry registry;
-  if (mlir::failed(registry.loadFromDirectory(clHWComputeDir, context))) {
+  loom::lcs::HWOpRegistry registry;
+  if (mlir::failed(registry.loadFromPlatformFile(clHWPlatformFile, context))) {
     llvm::WithColor::error(llvm::errs())
-        << "Failed to load hw compute IR from: " << clHWComputeDir << "\n";
+        << "Failed to load platform IR from: " << clHWPlatformFile << "\n";
     return 1;
   }
 

@@ -198,7 +198,7 @@ llvm::json::Value ConstraintScope::toJSON() const {
 // ==========================================
 // VariantETG Builder
 // ==========================================
-VariantETG::VariantETG(llvm::StringRef name, const ComputeOpRegistry *registry)
+VariantETG::VariantETG(llvm::StringRef name, const HWOpRegistry *registry)
     : variant_name(name.str()), compute_scope("ComputeScope"),
       memory_scope("MemoryScope"), hw_registry_(registry) {}
 
@@ -225,7 +225,7 @@ void VariantETG::buildFromAffineFor(mlir::affine::AffineForOp for_op) {
 
     // B. Classification and assignment
     bool is_compute = llvm::isa<mlir::linalg::LinalgOp>(op);
-    bool is_memory = op->getName().getStringRef() == "loom.copy_to_tensor";
+    bool is_memory = op->getName().getStringRef() == "loom.copy";
     bool is_infra =
         is_compute && llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
 
@@ -262,7 +262,12 @@ void VariantETG::dispatchToComputeQueues(mlir::Operation *op,
 void VariantETG::dispatchNamedOp(mlir::Operation *op, Stage &target_stage) {
   std::string linalg_op_name = op->getName().getStringRef().str();
   const HWComputeFunc *hwFunc = hw_registry_->lookupMatrixOp(linalg_op_name);
-  assert(hwFunc && "No hardware function found for named linalg op");
+  if (!hwFunc) {
+    auto placeholder = HWOpRegistry::makePlaceholder(linalg_op_name);
+    target_stage.pushWorkload(placeholder.hw_component,
+                              placeholder.hw_func_name, {});
+    return;
+  }
 
   auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
   std::map<std::string, Expr> dimMap;
@@ -308,7 +313,12 @@ void VariantETG::dispatchGenericOp(mlir::Operation *op, Stage &target_stage) {
     // 3. Lookup hw func
     const HWComputeFunc *hwFunc =
         hw_registry_->lookupVectorOp(bodyOpName, analysis.generic_class);
-    assert(hwFunc && "No hw func found for generic body op");
+    if (!hwFunc) {
+      auto placeholder = HWOpRegistry::makePlaceholder(bodyOpName);
+      target_stage.pushWorkload(placeholder.hw_component,
+                                placeholder.hw_func_name, {});
+      continue;
+    }
 
     // 4. Build dimMap from hw symbols
     std::map<std::string, Expr> dimMap;
@@ -325,49 +335,57 @@ void VariantETG::dispatchGenericOp(mlir::Operation *op, Stage &target_stage) {
   }
 }
 
-std::string VariantETG::classifyCopyTransfer(mlir::Operation *op) {
-  auto interconnect_attr = op->getAttrOfType<mlir::ArrayAttr>("interconnect");
-  if (!interconnect_attr)
-    return "d";
-
-  bool has_h = false;
-  bool has_v = false;
-  for (mlir::Attribute attr : interconnect_attr) {
-    if (auto symbol = llvm::dyn_cast<mlir::SymbolRefAttr>(attr)) {
-      std::string name = symbol.getLeafReference().str();
-      if (name.find("horizontal") != std::string::npos)
-        has_h = true;
-      if (name.find("vertical") != std::string::npos)
-        has_v = true;
-    }
-  }
-
-  if (has_h && has_v)
-    return "a";
-  if (has_h)
-    return "h";
-  if (has_v)
-    return "v";
-  return "d";
-}
-
 void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
                                         Stage &target_stage) {
-  std::string label = classifyCopyTransfer(op);
-  std::map<std::string, Expr> dims;
-  if (auto copyOp = llvm::dyn_cast<loom::CopyToTensorOp>(op)) {
-    if (auto allocOp = traceToAlloc(copyOp.getBuffer())) {
-      dims["size"] = productOfDims(formatAllocDims(allocOp));
+  auto copyOp = llvm::dyn_cast<loom::CopyOp>(op);
+  if (!copyOp)
+    return;
+
+  // Extract key attributes from the copy op.
+  std::string srcMem, dstMem;
+  if (auto attr = copyOp.getSrcMemSpaceAttr())
+    srcMem = attr.getLeafReference().str();
+  if (auto attr = copyOp.getDstMemSpaceAttr())
+    dstMem = attr.getLeafReference().str();
+
+  llvm::SmallVector<int64_t> broadcast;
+  if (auto broadcastAttr = copyOp.getBroadcastAttr()) {
+    for (auto val : broadcastAttr)
+      broadcast.push_back(mlir::cast<mlir::IntegerAttr>(val).getInt());
+  }
+
+  // Registry lookup.
+  const HWComputeFunc *hwFunc =
+      hw_registry_->lookupDataMoverOp(srcMem, dstMem, broadcast);
+
+  if (!hwFunc) {
+    // Fallback placeholder.
+    auto placeholder = HWOpRegistry::makePlaceholder(
+        "loom.copy[" + srcMem + "->" + dstMem + "]", "data_movers");
+    target_stage.pushWorkload(placeholder.hw_component,
+                              placeholder.hw_func_name, {});
+    return;
+  }
+
+  // Build dimMap from L1 memref bindings.
+  // Try source first (handles L1→DRAM), then destination (handles DRAM→L1);
+  // one side is always an L1 alloc traceable via loom.semaphore_take.
+  std::map<std::string, Expr> dimMap;
+  loom::AllocOp allocOp = traceToAlloc(copyOp.getSource());
+  if (!allocOp)
+    allocOp = traceToAlloc(copyOp.getDestination());
+  if (allocOp && !hwFunc->input_bindings.empty()) {
+    std::vector<Expr> opDims = formatAllocDims(allocOp);
+    const auto &binding = hwFunc->input_bindings[0];
+    for (size_t d = 0; d < binding.dim_symbols.size() && d < opDims.size();
+         ++d) {
+      if (dimMap.count(binding.dim_symbols[d]) == 0)
+        dimMap[binding.dim_symbols[d]] = opDims[d];
     }
   }
-  if (label == "d" || label == "a") {
-    target_stage.pushWorkload("NoC_H", label, dims);
-    target_stage.pushWorkload("NoC_V", label, dims);
-  } else if (label == "h") {
-    target_stage.pushWorkload("NoC_H", label, dims);
-  } else if (label == "v") {
-    target_stage.pushWorkload("NoC_V", label, dims);
-  }
+
+  target_stage.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
+                            std::move(dimMap));
 }
 
 void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
