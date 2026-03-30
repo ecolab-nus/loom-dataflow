@@ -109,21 +109,21 @@ def ProcessorComputeOp : ADL_Op<"processor.compute",
 
 //===----------------------------------------------------------------------===//
 // adl.processor.dmover
-//   %12 = adl.processor.dmover "dram_l1_mover", [(%2, %5), (%5, %2)]
+//   %12 = adl.processor.dmover @dram_l1_mover, [(%2, %5), (%5, %2)]
 //===----------------------------------------------------------------------===//
 
 def ProcessorDMoverOp : ADL_Op<"processor.dmover",
-    [Symbol, AttrSizedOperandSegments]> {
+    [AttrSizedOperandSegments]> {
   let summary = "Declare a data mover processor with memory region pairs";
   let description = [{
     `adl.processor.dmover` declares a named data-mover processor. Memory region
     pairs specify valid data transfer routes between memory regions.
 
     Example:
-      `%12 = adl.processor.dmover "dram_l1_mover", [(%2, %5), (%5, %2)]`
+      `%12 = adl.processor.dmover @dram_l1_mover, [(%2, %5), (%5, %2)]`
   }];
 
-  let arguments = (ins StrAttr:$sym_name,
+  let arguments = (ins FlatSymbolRefAttr:$sym_name,
                        Variadic<MemHandleType>:$src_mems,
                        Variadic<MemHandleType>:$dst_mems);
   let results = (outs ArchHandleType:$handle);
@@ -137,7 +137,7 @@ def ProcessorDMoverOp : ADL_Op<"processor.dmover",
 //   %5 = adl.arch.compose "core" arch(%3, %4) mem(%2)
 //===----------------------------------------------------------------------===//
 
-def ArchComposeOp : ADL_Op<"arch.compose", [AttrSizedOperandSegments]> {
+def ArchComposeOp : ADL_Op<"arch.compose", [Symbol, AttrSizedOperandSegments]> {
   let summary = "Compose architectural and memory components";
   let description = [{
     `adl.arch.compose` combines architecture handles (`arch(...)`) and memory
@@ -148,7 +148,7 @@ def ArchComposeOp : ADL_Op<"arch.compose", [AttrSizedOperandSegments]> {
       `%5 = adl.arch.compose "core", arch[%3, %4], mem[%2]`
   }];
 
-  let arguments = (ins FlatSymbolRefAttr:$sym_name,
+  let arguments = (ins StrAttr:$sym_name,
                        Variadic<ArchHandleType>:$arch_components,
                        Variadic<MemHandleType>:$mem_components);
   let results = (outs ArchHandleType:$handle);

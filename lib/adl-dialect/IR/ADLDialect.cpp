@@ -124,11 +124,11 @@ LogicalResult ProcessorComputeOp::verify() {
 }
 
 //--- ProcessorDMoverOp ----------------------------------------------------
-// Name is a StrAttr + Symbol trait (prints/parses as "name").
+// Name is a FlatSymbolRefAttr (prints/parses as @symbol).
 
 ParseResult ProcessorDMoverOp::parse(OpAsmParser &parser,
                                       OperationState &result) {
-  StringAttr symNameAttr;
+  FlatSymbolRefAttr symNameAttr;
   SmallVector<OpAsmParser::UnresolvedOperand> srcMems, dstMems;
   if (parser.parseAttribute(symNameAttr) || parser.parseComma() ||
       parseMemPairs(parser, srcMems, dstMems))
@@ -139,7 +139,7 @@ ParseResult ProcessorDMoverOp::parse(OpAsmParser &parser,
 
 void ProcessorDMoverOp::print(OpAsmPrinter &p) {
   p << ' ';
-  p.printAttributeWithoutType(getSymNameAttr()); // prints "name"
+  p.printAttribute(getSymNameAttr()); // prints @name
   p << ", ";
   printMemPairs(p, getSrcMems(), getDstMems());
 }
