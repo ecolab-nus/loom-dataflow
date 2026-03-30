@@ -19,7 +19,7 @@ namespace loom {
 namespace lcs {
 
 // Forward declaration
-class ComputeOpRegistry;
+class HWOpRegistry;
 
 /// Workload record: operation name and its symbolic dimensions.
 /// dims maps hardware symbol names to operator IR symbolic expressions.
@@ -95,7 +95,7 @@ public:
   Scope memory_scope;
   ConstraintScope constraint_scope;
 
-  VariantETG(llvm::StringRef name, const ComputeOpRegistry *registry);
+  VariantETG(llvm::StringRef name, const HWOpRegistry *registry);
 
   /// Build ETG from an affine.for loop body.
   void buildFromAffineFor(mlir::affine::AffineForOp for_op);
@@ -108,12 +108,11 @@ public:
   llvm::json::Value toJSON() const;
 
 private:
-  const ComputeOpRegistry *hw_registry_;
+  const HWOpRegistry *hw_registry_;
   void dispatchToComputeQueues(mlir::Operation *op, Stage &target_stage);
   void dispatchNamedOp(mlir::Operation *op, Stage &target_stage);
   void dispatchGenericOp(mlir::Operation *op, Stage &target_stage);
   void dispatchToMemoryQueues(mlir::Operation *op, Stage &target_stage);
-  static std::string classifyCopyTransfer(mlir::Operation *op);
 };
 
 } // namespace lcs

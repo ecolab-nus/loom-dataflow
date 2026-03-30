@@ -1,7 +1,7 @@
 /**
  * @file compute_op_registry.cpp
- * @brief Implementation of ComputeOpRegistry for loading and indexing
- *        hardware compute IR files.
+ * @brief Implementation of HWOpRegistry for loading and indexing
+ *        hardware platform IR files.
  */
 
 #include "compute_op_registry.h"
@@ -20,85 +20,13 @@
 namespace loom {
 namespace lcs {
 
-mlir::LogicalResult
-ComputeOpRegistry::loadFromDirectory(llvm::StringRef dir_path,
-                                     mlir::MLIRContext &context) {
-  std::error_code ec;
-  for (llvm::sys::fs::directory_iterator dir(dir_path, ec), end;
-       dir != end && !ec; dir.increment(ec)) {
-    llvm::StringRef path = dir->path();
-    if (!path.ends_with(".mlir"))
-      continue;
+// ============================================================
+// Shared helper: collect loom.bind_shape bindings
+// ============================================================
 
-    llvm::StringRef stem = llvm::sys::path::stem(path);
-
-    llvm::SourceMgr sm;
-    auto file = mlir::openInputFile(path);
-    if (!file) {
-      llvm::WithColor::error(llvm::errs())
-          << "Failed to open hw IR file: " << path << "\n";
-      return mlir::failure();
-    }
-    sm.AddNewSourceBuffer(std::move(file), llvm::SMLoc());
-    auto module = mlir::parseSourceFile<mlir::ModuleOp>(sm, &context);
-    if (!module) {
-      llvm::WithColor::error(llvm::errs())
-          << "Failed to parse hw IR file: " << path << "\n";
-      return mlir::failure();
-    }
-
-    indexModule(*module, stem);
-    modules_.push_back(std::move(module));
-  }
-
-  if (ec) {
-    llvm::WithColor::error(llvm::errs())
-        << "Error reading directory: " << ec.message() << "\n";
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-const HWComputeFunc *
-ComputeOpRegistry::lookupMatrixOp(llvm::StringRef linalg_op_name) const {
-  auto it = matrix_registry_.find(linalg_op_name.str());
-  if (it != matrix_registry_.end())
-    return &it->second;
-  return nullptr;
-}
-
-const HWComputeFunc *
-ComputeOpRegistry::lookupVectorOp(llvm::StringRef body_op_name,
-                                   GenericClass cls) const {
-  auto key = std::make_pair(body_op_name.str(), cls);
-  auto it = vector_registry_.find(key);
-  if (it != vector_registry_.end())
-    return &it->second;
-  return nullptr;
-}
-
-void ComputeOpRegistry::indexModule(mlir::ModuleOp module,
-                                    llvm::StringRef hw_component) {
-  module.walk([&](mlir::func::FuncOp func) {
-    if (auto hwFunc = extractFromFunc(func, hw_component)) {
-      if (!hwFunc->body_op_name.empty()) {
-        auto key =
-            std::make_pair(hwFunc->body_op_name, hwFunc->generic_class);
-        vector_registry_[key] = std::move(*hwFunc);
-      } else {
-        matrix_registry_[hwFunc->linalg_op_name] = std::move(*hwFunc);
-      }
-    }
-  });
-}
-
-std::optional<HWComputeFunc>
-ComputeOpRegistry::extractFromFunc(mlir::func::FuncOp func,
-                                   llvm::StringRef hw_component) {
-  // 1. Collect loom.bind_shape operations to build tensor -> symbol binding map.
+llvm::DenseMap<mlir::Value, HWTensorBinding>
+HWOpRegistry::collectBindingMap(mlir::func::FuncOp func) {
   llvm::DenseMap<mlir::Value, HWTensorBinding> bindingMap;
-
   func.walk([&](loom::BindShapeOp bindshapeOp) {
     HWTensorBinding binding;
     for (mlir::Value sym : bindshapeOp.getSymbols()) {
@@ -108,6 +36,132 @@ ComputeOpRegistry::extractFromFunc(mlir::func::FuncOp func,
     }
     bindingMap[bindshapeOp.getMemref()] = std::move(binding);
   });
+  return bindingMap;
+}
+
+// ============================================================
+// Loading
+// ============================================================
+
+mlir::LogicalResult
+HWOpRegistry::loadFromPlatformFile(llvm::StringRef file_path,
+                                   mlir::MLIRContext &context) {
+  llvm::SourceMgr sm;
+  auto file = mlir::openInputFile(file_path);
+  if (!file) {
+    llvm::WithColor::error(llvm::errs())
+        << "Failed to open platform IR file: " << file_path << "\n";
+    return mlir::failure();
+  }
+  sm.AddNewSourceBuffer(std::move(file), llvm::SMLoc());
+  auto module = mlir::parseSourceFile<mlir::ModuleOp>(sm, &context);
+  if (!module) {
+    llvm::WithColor::error(llvm::errs())
+        << "Failed to parse platform IR file: " << file_path << "\n";
+    return mlir::failure();
+  }
+
+  // Walk immediate children for sub-modules.
+  for (mlir::Operation &op : module->getBody()->getOperations()) {
+    auto subModule = llvm::dyn_cast<mlir::ModuleOp>(&op);
+    if (!subModule)
+      continue;
+
+    llvm::StringRef component =
+        subModule.getName().value_or(llvm::StringRef(""));
+    if (component.empty())
+      continue;
+
+    // Detect data mover module: any func containing a loom.copy op.
+    bool is_data_mover = false;
+    subModule.walk([&](loom::CopyOp) { is_data_mover = true; });
+
+    indexModule(subModule, component, is_data_mover);
+  }
+
+  platform_module_ = std::move(module);
+  return mlir::success();
+}
+
+// ============================================================
+// Lookup
+// ============================================================
+
+const HWComputeFunc *
+HWOpRegistry::lookupMatrixOp(llvm::StringRef linalg_op_name) const {
+  auto it = matrix_registry_.find(linalg_op_name.str());
+  if (it != matrix_registry_.end())
+    return &it->second;
+  return nullptr;
+}
+
+const HWComputeFunc *
+HWOpRegistry::lookupVectorOp(llvm::StringRef body_op_name,
+                              GenericClass cls) const {
+  auto key = std::make_pair(body_op_name.str(), cls);
+  auto it = vector_registry_.find(key);
+  if (it != vector_registry_.end())
+    return &it->second;
+  return nullptr;
+}
+
+const HWComputeFunc *
+HWOpRegistry::lookupDataMoverOp(llvm::StringRef src_mem_space,
+                                 llvm::StringRef dst_mem_space,
+                                 llvm::ArrayRef<int64_t> broadcast) const {
+  DataMoverKey key{src_mem_space.str(), dst_mem_space.str(),
+                   std::vector<int64_t>(broadcast.begin(), broadcast.end())};
+  auto it = data_mover_registry_.find(key);
+  if (it != data_mover_registry_.end())
+    return &it->second;
+  return nullptr;
+}
+
+HWComputeFunc HWOpRegistry::makePlaceholder(llvm::StringRef op_name,
+                                             llvm::StringRef hw_component) {
+  HWComputeFunc p;
+  p.hw_func_name = ("__unregistered__:" + op_name).str();
+  p.hw_component = hw_component.str();
+  return p;
+}
+
+// ============================================================
+// Indexing
+// ============================================================
+
+void HWOpRegistry::indexModule(mlir::ModuleOp module,
+                               llvm::StringRef hw_component,
+                               bool is_data_mover) {
+  module.walk([&](mlir::func::FuncOp func) {
+    if (is_data_mover) {
+      if (auto hwFunc = extractDataMoverFromFunc(func, hw_component)) {
+        DataMoverKey key{hwFunc->src_mem_space, hwFunc->dst_mem_space,
+                         hwFunc->broadcast};
+        data_mover_registry_[key] = std::move(*hwFunc);
+      }
+    } else {
+      if (auto hwFunc = extractFromFunc(func, hw_component)) {
+        if (!hwFunc->body_op_name.empty()) {
+          auto key =
+              std::make_pair(hwFunc->body_op_name, hwFunc->generic_class);
+          vector_registry_[key] = std::move(*hwFunc);
+        } else {
+          matrix_registry_[hwFunc->linalg_op_name] = std::move(*hwFunc);
+        }
+      }
+    }
+  });
+}
+
+// ============================================================
+// Extraction: compute ops (linalg-based)
+// ============================================================
+
+std::optional<HWComputeFunc>
+HWOpRegistry::extractFromFunc(mlir::func::FuncOp func,
+                              llvm::StringRef hw_component) {
+  // 1. Collect loom.bind_shape bindings.
+  auto bindingMap = collectBindingMap(func);
 
   // 2. Find the unique compute linalg op (skip FillOp, CopyOp).
   mlir::Operation *computeOp = nullptr;
@@ -231,6 +285,63 @@ ComputeOpRegistry::extractFromFunc(mlir::func::FuncOp func,
           break;
       }
     }
+  }
+
+  return result;
+}
+
+// ============================================================
+// Extraction: data mover ops (loom.copy-based)
+// ============================================================
+
+std::optional<HWComputeFunc>
+HWOpRegistry::extractDataMoverFromFunc(mlir::func::FuncOp func,
+                                       llvm::StringRef hw_component) {
+  // 1. Collect loom.bind_shape bindings.
+  auto bindingMap = collectBindingMap(func);
+
+  // 2. Find the unique loom.copy op.
+  loom::CopyOp copyOp = nullptr;
+  func.walk([&](loom::CopyOp op) {
+    assert(!copyOp && "Expected exactly one loom.copy per data mover func");
+    copyOp = op;
+  });
+
+  if (!copyOp)
+    return std::nullopt;
+
+  HWComputeFunc result;
+  result.is_data_mover = true;
+  result.hw_func_name = func.getName().str();
+  result.hw_component = hw_component.str();
+
+  // Extract key attributes
+  if (auto attr = copyOp.getSrcMemSpaceAttr())
+    result.src_mem_space = attr.getLeafReference().str();
+  if (auto attr = copyOp.getDstMemSpaceAttr())
+    result.dst_mem_space = attr.getLeafReference().str();
+
+  if (auto broadcastAttr = copyOp.getBroadcastAttr()) {
+    for (auto val : broadcastAttr) {
+      result.broadcast.push_back(
+          mlir::cast<mlir::IntegerAttr>(val).getInt());
+    }
+  }
+
+  // Source binding (input)
+  auto srcIt = bindingMap.find(copyOp.getSource());
+  if (srcIt != bindingMap.end()) {
+    result.input_bindings.push_back(srcIt->second);
+  } else {
+    result.input_bindings.push_back(HWTensorBinding{});
+  }
+
+  // Destination binding (output)
+  auto dstIt = bindingMap.find(copyOp.getDestination());
+  if (dstIt != bindingMap.end()) {
+    result.output_bindings.push_back(dstIt->second);
+  } else {
+    result.output_bindings.push_back(HWTensorBinding{});
   }
 
   return result;
