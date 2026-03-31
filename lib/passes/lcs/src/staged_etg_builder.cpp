@@ -535,9 +535,10 @@ void VariantETG::buildL1FootprintConstraint() {
   for (const Expr &term : constraint_scope.l1_footprint)
     footprint_sum = footprint_sum + term;
 
-  // Push: sum(L1_footprint) <= L1_size.
+  // Push: sum(L1_footprint) * 2 <= L1_size.
+  // L1_size is in bytes; L1_footprint counts elements (2 bytes each for f16).
   constraint_scope.hard_constraints.push_back(
-      ConstraintExpr::le(footprint_sum, Expr::con(l1_size)));
+      ConstraintExpr::le(footprint_sum * Expr::con(2), Expr::con(l1_size)));
 }
 
 } // namespace lcs
