@@ -1,6 +1,11 @@
 #include "staged_etg_builder.h"
 #include "compute_op_registry.h"
 #include "lcs_utils.h"
+#include "ADLDialect.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "ADLTypes.h.inc"
+#define GET_OP_CLASSES
+#include "ADLOps.h.inc"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Math/IR/Math.h"
@@ -485,6 +490,54 @@ llvm::json::Value VariantETG::toJSON() const {
                             {"compute_scope", compute_scope.toJSON()},
                             {"memory_scope", memory_scope.toJSON()},
                             {"constraint_scope", constraint_scope.toJSON()}};
+}
+
+void VariantETG::buildL1FootprintConstraint() {
+  // TODO: should be removed after mlar is ready.
+  //       This is a workaround method to extract L1 size from the ADL
+  //       platform header (adl.memory.array / adl.memory.bank / adl.spatial_dim).
+  if (!hw_registry_ || constraint_scope.l1_footprint.empty())
+    return;
+
+  mlir::ModuleOp platformModule = hw_registry_->getPlatformModule();
+  if (!platformModule)
+    return;
+
+  int64_t l1_size = 0;
+  platformModule.walk([&](adl::MemoryArrayOp arrayOp) {
+    // Only examine direct children of the top-level module.
+    if (arrayOp->getParentOp() != platformModule.getOperation())
+      return mlir::WalkResult::skip();
+    if (arrayOp.getSymName() != "L1")
+      return mlir::WalkResult::advance();
+
+    // Compute product of all spatial dimension sizes.
+    int64_t spatial_product = 1;
+    for (mlir::Value spatialVal : arrayOp.getSpatialDims()) {
+      if (auto dimOp = spatialVal.getDefiningOp<adl::SpatialDimOp>())
+        spatial_product *= static_cast<int64_t>(dimOp.getSize());
+    }
+
+    // Extract bsize and nblk from the bank operand.
+    if (auto bankOp = arrayOp.getBank().getDefiningOp<adl::MemoryBankOp>()) {
+      int64_t bsize = static_cast<int64_t>(bankOp.getBsize());
+      int64_t nblk = static_cast<int64_t>(bankOp.getNblk());
+      l1_size = spatial_product * bsize * nblk;
+    }
+    return mlir::WalkResult::advance();
+  });
+
+  if (l1_size == 0)
+    return;
+
+  // Sum all per-alloc footprint expressions.
+  Expr footprint_sum = Expr::con(0);
+  for (const Expr &term : constraint_scope.l1_footprint)
+    footprint_sum = footprint_sum + term;
+
+  // Push: sum(L1_footprint) <= L1_size.
+  constraint_scope.hard_constraints.push_back(
+      ConstraintExpr::le(footprint_sum, Expr::con(l1_size)));
 }
 
 } // namespace lcs

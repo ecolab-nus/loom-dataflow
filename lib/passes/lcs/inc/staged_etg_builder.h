@@ -104,6 +104,9 @@ public:
   /// Extracts symbolic block sizes and loop iteration counts.
   void buildConstraintScope(mlir::func::FuncOp func_op);
 
+  /// Build and push the L1 footprint capacity constraint.
+  void buildL1FootprintConstraint();
+
   void dump(llvm::raw_ostream &os) const;
   llvm::json::Value toJSON() const;
 
