@@ -66,6 +66,9 @@ public:
   static HWComputeFunc makePlaceholder(llvm::StringRef op_name,
                                         llvm::StringRef hw_component = "__unregistered__");
 
+  /// Return the parsed platform module (kept alive by this registry).
+  mlir::ModuleOp getPlatformModule() const { return *platform_module_; }
+
 private:
   /// Named ops keyed by linalg op name (e.g., "linalg.matmul")
   std::map<std::string, HWComputeFunc> matrix_registry_;

@@ -109,6 +109,7 @@ int main(int argc, char **argv) {
       VariantETG etg(func_op.getName(), &registry);
       etg.buildFromAffineFor(target_loop);
       etg.buildConstraintScope(func_op);
+      etg.buildL1FootprintConstraint();
       json_etgs.push_back(etg.toJSON());
     }
   });
