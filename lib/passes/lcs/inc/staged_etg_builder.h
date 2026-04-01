@@ -87,6 +87,9 @@ struct ConstraintScope {
   std::vector<Expr> temp_iter;
   // hard_constraints: constraints that every valid block-size assignment must satisfy
   std::vector<ConstraintExpr> hard_constraints;
+  // metadata.booleans: symbolic boolean variables to be optimized by the solver.
+  // Represented as integer symbols constrained to {0, 1} in the SMT model.
+  std::vector<std::string> booleans;
 
   llvm::json::Value toJSON() const;
 };
