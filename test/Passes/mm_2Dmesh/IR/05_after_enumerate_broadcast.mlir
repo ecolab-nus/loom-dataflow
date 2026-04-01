@@ -1,8 +1,8 @@
 module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
-  %0 = adl.memory.bank "DRAM_bank", {bsize = 256 : i64, nblk = 8192 : i64}
+  %0 = adl.memory.bank "DRAM_bank", {bsize = 8192 : i64, nblk = 196608 : i64}
   %1 = adl.spatial_dim "dram_channel", 8
   %2 = adl.memory.array "DRAM", [%1] of %0
-  %3 = adl.memory.bank "bank", {bsize = 128 : i64, nblk = 1024 : i64}
+  %3 = adl.memory.bank "bank", {bsize = 16 : i64, nblk = 5856 : i64}
   %4 = adl.spatial_dim "nbank", 16
   %5 = adl.memory.array "L1", [%4] of %3
   %6 = adl.processor.compute @matrix_lane, [(%5, %5)]
@@ -16,9 +16,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i0__f01__n_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 64))>()[%14, %15] {
@@ -63,9 +63,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i0__f01__n_y_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 64))>()[%14, %15] {
@@ -110,9 +110,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i0__f01__n_x_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 64))>()[%14, %15] {
@@ -157,9 +157,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i0__f01__n_a_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 64))>()[%14, %15] {
@@ -204,9 +204,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i0__f10__n_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%14, %15] {
@@ -251,9 +251,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i0__f10__n_y_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%14, %15] {
@@ -298,9 +298,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i0__f10__n_x_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%14, %15] {
@@ -345,9 +345,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i0__f10__n_a_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%14, %15] {
@@ -392,9 +392,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i0__f01__n_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 64))>()[%14, %15] {
@@ -439,9 +439,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i0__f01__n_y_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 64))>()[%14, %15] {
@@ -486,9 +486,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i0__f01__n_x_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 64))>()[%14, %15] {
@@ -533,9 +533,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i0__f01__n_a_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 64))>()[%14, %15] {
@@ -580,9 +580,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i0__f10__n_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%14, %15] {
@@ -627,9 +627,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i0__f10__n_y_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%14, %15] {
@@ -674,9 +674,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i0__f10__n_x_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%14, %15] {
@@ -721,9 +721,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i0__f10__n_a_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s1)>()[%14, %15] {
@@ -768,9 +768,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i1__f01__n_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 8))>()[%14, %15] {
@@ -816,9 +816,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i1__f01__n_y_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 8))>()[%14, %15] {
@@ -864,9 +864,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i1__f01__x_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 8))>()[%14, %15] {
@@ -912,9 +912,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i1__f01__x_y_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 8))>()[%14, %15] {
@@ -960,9 +960,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i1__f10__n_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%14, %15] {
@@ -1008,9 +1008,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i1__f10__n_y_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%14, %15] {
@@ -1056,9 +1056,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i1__f10__x_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%14, %15] {
@@ -1104,9 +1104,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i0_d1i1__f10__x_y_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%14, %15] {
@@ -1152,9 +1152,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i1__f01__n_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 8))>()[%14, %15] {
@@ -1200,9 +1200,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i1__f01__n_x_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 8))>()[%14, %15] {
@@ -1248,9 +1248,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i1__f01__y_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 8))>()[%14, %15] {
@@ -1296,9 +1296,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i1__f01__y_x_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s0 * 8))>()[%14, %15] {
@@ -1344,9 +1344,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i1__f10__n_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%14, %15] {
@@ -1392,9 +1392,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i1__f10__n_x_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%14, %15] {
@@ -1440,9 +1440,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i1__f10__y_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%14, %15] {
@@ -1488,9 +1488,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i0_d0i1__f10__y_x_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 8))>()[%14, %15] {
@@ -1536,9 +1536,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i1_d1i1__f01__n_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s0)>()[%14, %15] {
@@ -1583,9 +1583,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i1_d1i1__f01__y_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s0)>()[%14, %15] {
@@ -1630,9 +1630,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i1_d1i1__f01__x_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s0)>()[%14, %15] {
@@ -1677,9 +1677,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i1_d1i1__f01__a_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s0)>()[%14, %15] {
@@ -1724,9 +1724,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i1_d1i1__f10__n_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%14, %15] {
@@ -1771,9 +1771,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i1_d1i1__f10__y_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%14, %15] {
@@ -1818,9 +1818,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i1_d1i1__f10__x_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%14, %15] {
@@ -1865,9 +1865,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d0i1_d1i1__f10__a_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%14, %15] {
@@ -1912,9 +1912,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i1_d0i1__f01__n_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s0)>()[%14, %15] {
@@ -1959,9 +1959,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i1_d0i1__f01__y_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s0)>()[%14, %15] {
@@ -2006,9 +2006,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i1_d0i1__f01__x_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s0)>()[%14, %15] {
@@ -2053,9 +2053,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i1_d0i1__f01__a_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv s0)>()[%14, %15] {
@@ -2100,9 +2100,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i1_d0i1__f10__n_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%14, %15] {
@@ -2147,9 +2147,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i1_d0i1__f10__y_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%14, %15] {
@@ -2194,9 +2194,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i1_d0i1__f10__x_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%14, %15] {
@@ -2241,9 +2241,9 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
     func.func @_matmul__d1i1_d0i1__f10__a_n_n(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
-      %14 = loom.sym @block_size_0 : index
-      %15 = loom.sym @block_size_1 : index
-      %16 = loom.sym @block_size_2 : index
+      %14 = loom.sym @tile_m {upper_bound = 4096 : index} : index
+      %15 = loom.sym @tile_n {upper_bound = 4096 : index} : index
+      %16 = loom.sym @tile_k {upper_bound = 512 : index} : index
       affine.parallel (%arg3) = (0) to (8) {
         affine.parallel (%arg4) = (0) to (8) {
           affine.for %arg5 = 0 to affine_map<()[s0, s1] -> (4096 ceildiv (s1 * 64))>()[%14, %15] {

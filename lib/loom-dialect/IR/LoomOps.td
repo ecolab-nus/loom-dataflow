@@ -550,13 +550,15 @@ def SymOp : Loom_Op<"sym", [
   }];
 
   let arguments = (ins
-    SymbolRefAttr:$symbol_ref
+    SymbolRefAttr:$symbol_ref,
+    OptionalAttr<IndexAttr>:$upper_bound,
+    DefaultValuedAttr<BoolAttr, "false">:$is_reduction
   );
 
   let results = (outs Index:$result);
 
   let assemblyFormat = [{
-    $symbol_ref `:` type($result) attr-dict
+    $symbol_ref attr-dict `:` type($result)
   }];
 }
 
