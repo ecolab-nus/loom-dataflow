@@ -465,7 +465,8 @@ public:
             return true;
           return srcTy.getNumElements() != dstTy.getNumElements();
         });
-    target.addLegalDialect<mlir::tt::ttkernel::TTKernelDialect>();
+    target.addLegalDialect<mlir::tt::ttkernel::TTKernelDialect,
+                           mlir::emitc::EmitCDialect>();
 
     // Populate conversion patterns
     RewritePatternSet patterns(context);

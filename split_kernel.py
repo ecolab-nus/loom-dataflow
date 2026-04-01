@@ -359,7 +359,7 @@ Examples:
     parser.add_argument(
         '-o', '--output-dir',
         type=str,
-        default='/tt-metal/tt_metal/programming_examples/mlir_matmul_simple/kernels',
+        default='/root/tt-metal/tt_metal/programming_examples/mlir_matmul_simple/kernels',
         help='Output directory for split files (default: split_output)'
     )
     
