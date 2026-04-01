@@ -192,6 +192,12 @@ llvm::json::Value ConstraintScope::toJSON() const {
   metadata_json["datatype"] = datatype;
   metadata_json["iter_num"] = std::move(iter_num_json);
 
+  // Build booleans JSON array
+  llvm::json::Array booleans_json;
+  for (const auto &name : booleans)
+    booleans_json.push_back(name);
+  metadata_json["booleans"] = std::move(booleans_json);
+
   // Build hard_constraints JSON array
   llvm::json::Array hard_constraints_json;
   for (const auto &c : hard_constraints) {
@@ -485,6 +491,10 @@ void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
       constraint_scope.l1_footprint.push_back(dims);
     }
   });
+
+  // Declare symbolic boolean: is_double_buffer.
+  // The SMT solver will determine True (1) or False (0) to minimize cost.
+  constraint_scope.booleans.push_back("is_double_buffer");
 }
 
 void VariantETG::dump(llvm::raw_ostream &os) const {
@@ -543,10 +553,17 @@ void VariantETG::buildL1FootprintConstraint() {
   for (const Expr &term : constraint_scope.l1_footprint)
     footprint_sum = footprint_sum + term;
 
-  // Push: sum(L1_footprint) * 2 <= L1_size.
   // L1_size is in bytes; L1_footprint counts elements (2 bytes each for f16).
+  // IfElse(is_double_buffer == 1, elem_bytes * 2, elem_bytes):
+  //   double-buffered → 2× buffer space needed in L1.
+  int64_t elem_bytes = 2;
+  auto db_cond = std::make_shared<ConstraintExpr>(
+      ConstraintExpr::eq(Expr::sym("is_double_buffer"), Expr::con(1)));
+  Expr multiplier = Expr::ifelse(
+      db_cond, Expr::con(elem_bytes * 2), Expr::con(elem_bytes));
+
   constraint_scope.hard_constraints.push_back(
-      ConstraintExpr::le(footprint_sum * Expr::con(2), Expr::con(l1_size)));
+      ConstraintExpr::le(footprint_sum * multiplier, Expr::con(l1_size)));
 }
 
 } // namespace lcs
