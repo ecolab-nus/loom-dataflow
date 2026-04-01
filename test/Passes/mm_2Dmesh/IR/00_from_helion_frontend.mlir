@@ -3,9 +3,9 @@
 module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
   func.func @_matmul(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
     %cst = arith.constant 0.000000e+00 : f16
-    %0 = "loom.sym"() {symbol_ref = @block_size_0} : () -> index
-    %1 = "loom.sym"() {symbol_ref = @block_size_1} : () -> index
-    %2 = "loom.sym"() {symbol_ref = @block_size_2} : () -> index
+    %0 = "loom.sym"() {is_reduction = false, symbol_ref = @tile_m, upper_bound = 4096 : index} : () -> index
+    %1 = "loom.sym"() {is_reduction = false, symbol_ref = @tile_n, upper_bound = 4096 : index} : () -> index
+    %2 = "loom.sym"() {is_reduction = false, symbol_ref = @tile_k, upper_bound = 512 : index} : () -> index
     affine.parallel (%arg3, %arg4) = (0, 0) to (4096 ceildiv symbol(%0), 4096 ceildiv symbol(%1)) {
       %3 = tensor.empty(%0, %1) : tensor<?x?xf16>
       %4 = linalg.fill ins(%cst : f16) outs(%3 : tensor<?x?xf16>) -> tensor<?x?xf16>
