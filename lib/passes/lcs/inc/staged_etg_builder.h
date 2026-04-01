@@ -66,11 +66,17 @@ struct Scope {
   llvm::json::Value toJSON() const;
 };
 
+/// Per-symbol metadata: type string and optional natural upper bound.
+struct SymbolInfo {
+  std::string type;        // always "int" for now
+  int64_t natural_ub = -1; // -1 = unknown / not provided by loom.sym
+};
+
 /// ConstraintScope: Captures constraint metadata from a computation variant.
 /// Contains symbolic block sizes, loop iteration counts, and assembly formulas.
 struct ConstraintScope {
-  // metadata.symbols: maps symbol name (e.g., "BB", "BM") to type ("int"/"bool")
-  std::map<std::string, std::string> symbols;
+  // metadata.symbols: maps symbol name (e.g., "tile_m") to SymbolInfo
+  std::map<std::string, SymbolInfo> symbols;
   // metadata.L1_footprint: symbolic size of each @L1 allocation
   std::vector<Expr> l1_footprint;
   // metadata.datatype: element type shared by all @L1 allocations (e.g., "f32")

@@ -160,8 +160,12 @@ llvm::json::Value Scope::toJSON() const {
 llvm::json::Value ConstraintScope::toJSON() const {
   // Build symbols JSON object
   llvm::json::Object symbols_json;
-  for (const auto &[name, type] : symbols) {
-    symbols_json[name] = type;
+  for (const auto &[name, info] : symbols) {
+    llvm::json::Object sym_obj;
+    sym_obj["type"] = info.type;
+    if (info.natural_ub >= 0)
+      sym_obj["natural_ub"] = info.natural_ub;
+    symbols_json[name] = std::move(sym_obj);
   }
 
   // Build temp_iter JSON array
@@ -397,7 +401,11 @@ void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
   // 1. Collect symbols from loom.sym ops
   func_op.walk([&](loom::SymOp op) {
     std::string name = op.getSymbolRef().getLeafReference().str();
-    constraint_scope.symbols[name] = "int";
+    SymbolInfo info;
+    info.type = "int";
+    if (auto ubAttr = op.getUpperBound())
+      info.natural_ub = ubAttr->getSExtValue();
+    constraint_scope.symbols[name] = std::move(info);
   });
 
   // 2. Walk affine.for loops in the func, check iter_type attribute
