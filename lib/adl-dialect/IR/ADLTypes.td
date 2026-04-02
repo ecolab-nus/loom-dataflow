@@ -32,3 +32,17 @@ def MemHandleType : TypeDef<ADL_Dialect, "MemHandle"> {
   // an explicit `: !adl.mem` annotation in the IR.
   let builderCall = "$_builder.getType<::adl::MemHandleType>()";
 }
+
+def ResourceHandleType : TypeDef<ADL_Dialect, "ResourceHandle"> {
+  let mnemonic = "resource";
+  let summary = "Opaque resource handle type";
+  let description = [{
+    An opaque handle representing a hardware resource.
+
+    Syntax: `!adl.resource`
+  }];
+  // Needed so declarative assemblyFormat can reconstruct the type without
+  // an explicit `: !adl.resource` annotation in the IR.
+  let builderCall = "$_builder.getType<::adl::ResourceHandleType>()";
+}
+
