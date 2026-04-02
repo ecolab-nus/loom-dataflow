@@ -81,8 +81,8 @@ void processLinalgMatmul(LinalgMatmulOp matmulOp,
 
   // Pattern matched: linalg.fill(0, outs) exists and matmul uses outs.
   OpBuilder builder(matmulOp);
-  builder.create<LoomMatmulOp>(matmulOp.getLoc(), matmulOp.getInputs()[0],
-                               matmulOp.getInputs()[1], outs);
+  LoomMatmulOp::create(builder, matmulOp.getLoc(), matmulOp.getInputs()[0],
+                       matmulOp.getInputs()[1], outs);
 
   matmulOp.erase();
   fillsToErase.insert(fillOp);

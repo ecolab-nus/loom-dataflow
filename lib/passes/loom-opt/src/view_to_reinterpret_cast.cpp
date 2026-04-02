@@ -88,14 +88,14 @@ public:
           mapOperands.push_back(value);
         } else {
           // Constant offset
-          int64_t val = cast<IntegerAttr>(ofr.get<Attribute>()).getInt();
+          int64_t val = cast<IntegerAttr>(cast<Attribute>(ofr)).getInt();
           mapOperands.push_back(
-              builder.create<arith::ConstantIndexOp>(loc, val));
+              arith::ConstantIndexOp::create(builder, loc, val));
         }
       }
 
       Value linearizedOffset =
-          builder.create<affine::AffineApplyOp>(loc, offsetMap, mapOperands);
+          affine::AffineApplyOp::create(builder, loc, offsetMap, mapOperands);
 
       // 2. Compute result strides: Strides_rc[i] = Strides_view[i] *
       // Strides_org[i]
@@ -119,8 +119,8 @@ public:
       // 3. Create memref.reinterpret_cast
       MemRefType resultType = cast<MemRefType>(subviewOp.getResult().getType());
 
-      auto rcOp = builder.create<memref::ReinterpretCastOp>(
-          loc, resultType, subviewOp.getSource(), linearizedOffset,
+      auto rcOp = memref::ReinterpretCastOp::create(
+          builder, loc, resultType, subviewOp.getSource(), linearizedOffset,
           subviewOp.getMixedSizes(), rcStrides);
 
       subviewOp.getResult().replaceAllUsesWith(rcOp.getResult());

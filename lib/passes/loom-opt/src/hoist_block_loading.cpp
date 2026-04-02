@@ -1,6 +1,5 @@
 #include "Passes.h"
 #include "block_loading_pattern.h"
-#include "hardware_info.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
@@ -68,12 +67,6 @@ public:
   void runOnOperation() override {
     mlir::ModuleOp module = getOperation();
     mlir::OpBuilder moduleBuilder(module.getBodyRegion());
-
-    // Collect hardware info to get L1 size
-    loom::HardwareInfo hardwareInfo;
-    if (failed(loom::GetHardwareInfoForExploration(module, hardwareInfo))) {
-      hardwareInfo.l1Size = 0;
-    }
 
     // Collect all functions first to avoid iterator invalidation
     llvm::SmallVector<mlir::func::FuncOp> funcs =

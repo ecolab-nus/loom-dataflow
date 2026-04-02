@@ -27,7 +27,7 @@ target_link_libraries(fuse_fill_matmul PRIVATE
   MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader
-  loomDataflowDialect
+  loomADLDialect
   loomDialect
 )
 mlir_check_all_link_libraries(fuse_fill_matmul)

@@ -33,8 +33,8 @@ Value emitGlobalIndex2d(OpBuilder &b, Location loc, Value coreI, Value coreJ,
   auto globalExpr = offsetExpr + d2 * (totalCores / tileWidth);
 
   auto map = AffineMap::get(3, 0, globalExpr, ctx);
-  return b.create<affine::AffineApplyOp>(loc, map,
-                                         ValueRange{coreI, coreJ, waveIV});
+  return affine::AffineApplyOp::create(b, loc, map,
+                                       ValueRange{coreI, coreJ, waveIV});
 }
 
 } // namespace loom

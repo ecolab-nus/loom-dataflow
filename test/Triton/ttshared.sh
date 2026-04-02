@@ -16,5 +16,4 @@ python3 <path-to-mm.py>
 
 # Run ttshared-opt
 build/tool/ttshared-opt \
-  --ttshared test/Dialect/Triton/mm_normal/ttshared.mlir \
-  --df test/Dialect/DataflowDialect/2D_mesh.mlir > merged.mlir
+  --ttshared test/Dialect/Triton/mm_normal/ttshared.mlir > merged.mlir

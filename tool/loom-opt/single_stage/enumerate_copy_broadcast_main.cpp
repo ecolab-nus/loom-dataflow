@@ -22,7 +22,11 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
 
-#include "DataflowDialect.h.inc"
+#include "ADLDialect.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "ADLTypes.h.inc"
+#define GET_OP_CLASSES
+#include "ADLOps.h.inc"
 #include "LoomDialect.h.inc"
 
 using namespace mlir;
@@ -49,7 +53,7 @@ int main(int argc, char **argv) {
                   mlir::arith::ArithDialect, mlir::tensor::TensorDialect,
                   mlir::linalg::LinalgDialect, mlir::scf::SCFDialect,
                   mlir::bufferization::BufferizationDialect,
-                  loom::df::DataflowDialect, loom::LoomDialect>();
+                  adl::ADLDialect, loom::LoomDialect>();
   MLIRContext context(registry);
   context.loadAllAvailableDialects();
 
@@ -78,27 +82,6 @@ int main(int argc, char **argv) {
   // Print result.
   mlir::OpPrintingFlags flags;
   flags.useLocalScope();
-  // Move DF ops to the beginning of the module (stable order) for printing.
-  {
-    Block &body = *module->getBody();
-    if (!body.empty()) {
-      llvm::SmallVector<Operation *, 16> dfOps;
-      for (Operation &op : body) {
-        Dialect *dialect = op.getDialect();
-        if (dialect && dialect->getNamespace() == StringRef("df"))
-          dfOps.push_back(&op);
-      }
-      if (!dfOps.empty()) {
-        Operation *front = &body.front();
-        for (auto it = dfOps.rbegin(); it != dfOps.rend(); ++it) {
-          Operation *op = *it;
-          if (op != front)
-            op->moveBefore(front);
-          front = &body.front();
-        }
-      }
-    }
-  }
   module->print(llvm::outs(), flags);
   llvm::outs() << "\n";
   return 0;

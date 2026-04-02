@@ -28,6 +28,8 @@ target_include_directories(loomTritonSharedPasses PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${MLIR_INCLUDE_DIRS}
     ${CMAKE_CURRENT_BINARY_DIR}
+    # ADL dialect generated headers
+    ${CMAKE_BINARY_DIR}/lib/adl-dialect/IR
 )
 
 # Triton-shared passes depend on affine passes and common utilities
@@ -49,7 +51,7 @@ target_link_libraries(loomTritonSharedPasses PUBLIC
     MLIRBufferizationTransforms
     MLIRAsmParser
     MLIRBytecodeReader
-    loomDataflowDialect
+    loomADLDialect
     loomDialect
 )
 mlir_check_all_link_libraries(loomTritonSharedPasses)

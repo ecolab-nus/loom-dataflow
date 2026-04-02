@@ -146,8 +146,8 @@ static LogicalResult applyMappingToFunction(
         AffineExpr d0 = builder.getAffineDimExpr(0);
         AffineExpr d1 = builder.getAffineDimExpr(1);
         AffineMap map = AffineMap::get(2, 0, d0 + d1 * factor, ctx);
-        reconstructedIV = builder.create<affine::AffineApplyOp>(
-            loc, map, ValueRange{hwmVec[0].iv, waveIV});
+        reconstructedIV = affine::AffineApplyOp::create(
+            builder, loc, map, ValueRange{hwmVec[0].iv, waveIV});
       }
     }
 

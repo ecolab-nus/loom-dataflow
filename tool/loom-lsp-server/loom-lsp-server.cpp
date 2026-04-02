@@ -5,7 +5,7 @@
 
 // The .h.inc files are generated into the build directory and 
 // contain the classes in the namespaces defined in TableGen.
-#include "DataflowDialect.h.inc"
+#include "ADLDialect.h.inc"
 #include "LoomDialect.h.inc"
 
 using namespace mlir;
@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
   registerAllDialects(registry);
   
   // Register custom dialects for LOOM.
-  registry.insert<loom::df::DataflowDialect>();
+  registry.insert<adl::ADLDialect>();
   registry.insert<loom::LoomDialect>();
 
   return failed(MlirLspServerMain(argc, argv, registry));

@@ -47,15 +47,12 @@ struct BlockSizeBinding {
   }
 };
 
-/// Placeholder for a future solver. Returns hardcoded candidate tuples.
-/// Each tuple has one value per symbolic variable, in definition order.
+/// Placeholder solver: returns hardcoded candidate tuples.
+/// Used only when no external BlockSizeMap is provided (backward compat).
 SmallVector<SmallVector<int64_t>> solveCandidateBlockSizes(unsigned numVars) {
-  // Future: call the constraint solver here.
-  // For now, return one hardcoded tuple if we have 3 variables.
   if (numVars == 3) {
     return {{1, 64, 128}};
   }
-  // Fallback: all-64 tuple
   SmallVector<int64_t> fallback(numVars, 64);
   return {fallback};
 }
@@ -80,17 +77,16 @@ LogicalResult materializeFunction(func::FuncOp func,
   OpBuilder builder(func->getContext());
   SmallVector<Operation *, 16> opsToErase;
 
-  func->walk([&](loom::GetSymbolicBlockSizeOp op) {
+  func->walk([&](loom::SymOp op) {
     SymbolRefAttr ref = op.getSymbolRef();
-    StringRef varName;
-    if (ref.getNestedReferences().size() > 0) {
-      varName = ref.getNestedReferences().back().getLeafReference();
-    } else {
-      varName = ref.getLeafReference();
-    }
+    StringRef varName = ref.getLeafReference();
 
     auto valueOpt = binding.getValue(varName);
     if (!valueOpt) {
+      // A missing concrete value here means the solver did not assign this
+      // symbolic variable in the current binding (e.g., due to partial or
+      // UNSAT results). Warn to aid debugging but continue — the caller is
+      // responsible for filtering out incomplete variants.
       op.emitWarning() << "No concrete value found for symbolic variable '"
                        << varName << "'";
       return;
@@ -98,7 +94,7 @@ LogicalResult materializeFunction(func::FuncOp func,
 
     builder.setInsertionPoint(op);
     auto constant =
-        builder.create<arith::ConstantIndexOp>(op.getLoc(), *valueOpt);
+        arith::ConstantIndexOp::create(builder, op.getLoc(), *valueOpt);
     op.getResult().replaceAllUsesWith(constant.getResult());
     opsToErase.push_back(op);
   });
@@ -114,6 +110,14 @@ class MaterializePass
     : public PassWrapper<MaterializePass, OperationPass<ModuleOp>> {
 public:
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MaterializePass)
+
+  /// Default constructor: uses hardcoded placeholder solver.
+  MaterializePass() = default;
+
+  /// Constructor with external block sizes from the SMT solver.
+  /// blockSizes maps each variant function name to its symbol assignments.
+  explicit MaterializePass(const loom::passes::BlockSizeMap &blockSizes)
+      : externalBlockSizes(&blockSizes) {}
 
   StringRef getArgument() const override { return "loom-materialize"; }
 
@@ -137,39 +141,67 @@ public:
     }
 
     for (auto nestedModule : nestedModules) {
-      // Collect all symbolic variable names from get_symbolic_block_size ops
-      SmallVector<StringRef> varNames;
-      llvm::SmallPtrSet<StringAttr, 4> seenVars;
-
-      nestedModule->walk([&](loom::GetSymbolicBlockSizeOp op) {
-        SymbolRefAttr ref = op.getSymbolRef();
-        StringAttr varNameAttr;
-        if (ref.getNestedReferences().size() > 0) {
-          varNameAttr = ref.getNestedReferences().back().getLeafReference();
-        } else {
-          varNameAttr = ref.getLeafReference();
-        }
-
-        if (seenVars.insert(varNameAttr).second) {
-          varNames.push_back(varNameAttr.getValue());
-        }
-      });
-
-      if (varNames.empty())
-        continue;
-
-      auto candidates = solveCandidateBlockSizes(varNames.size());
-      auto bindings = buildBindings(varNames, candidates);
-
-      // Collect functions to clone
+      // Collect functions to determine bindings
       SmallVector<func::FuncOp, 4> funcs;
       for (auto func : nestedModule.getOps<func::FuncOp>()) {
         funcs.push_back(func);
       }
 
+      SmallVector<BlockSizeBinding> bindings;
+
+      if (externalBlockSizes) {
+        // --- External path: one binding per function from solver results ---
+        // Each nested module contains exactly one func.func whose name is
+        // the variant name (e.g., "matmul__d0i0_d1i0__f01__d_d").
+        for (auto func : funcs) {
+          StringRef funcName = func.getName();
+          auto it = externalBlockSizes->find(funcName);
+          if (it == externalBlockSizes->end()) {
+            // An empty or absent solver result is a valid outcome — it means no
+            // feasible block-size binding was found for this variant under the
+            // current constraints (UNSAT). Emit a diagnostic to aid debugging
+            // and skip emission of this function variant from the output IR.
+            func.emitWarning()
+                << "No SMT solver result for function '" << funcName
+                << "'; skipping materialization for this variant";
+            continue;
+          }
+          BlockSizeBinding b;
+          for (auto &entry : it->second)
+            b.varValues[entry.first()] = entry.second;
+          bindings.push_back(std::move(b));
+        }
+      } else {
+        // --- Fallback path: use hardcoded placeholder solver ---
+        SmallVector<StringRef> varNames;
+        llvm::SmallPtrSet<StringAttr, 4> seenVars;
+
+        nestedModule->walk([&](loom::SymOp op) {
+          SymbolRefAttr ref = op.getSymbolRef();
+          StringAttr varNameAttr = ref.getLeafReference();
+          if (seenVars.insert(varNameAttr).second) {
+            varNames.push_back(varNameAttr.getValue());
+          }
+        });
+
+        if (varNames.empty())
+          continue;
+
+        auto candidates = solveCandidateBlockSizes(varNames.size());
+        bindings = buildBindings(varNames, candidates);
+      }
+
+      if (bindings.empty()) {
+        if (externalBlockSizes) {
+          // Variant is UNSAT or has no solver results — remove from output IR
+          nestedModule.erase();
+        }
+        continue;
+      }
+
       // Create a single nested module in the output to contain all variants
       builder.setInsertionPoint(nestedModule);
-      auto variantsModule = builder.create<ModuleOp>(nestedModule->getLoc());
+      auto variantsModule = ModuleOp::create(builder, nestedModule->getLoc());
 
       // Copy attributes from the original nested module
       if (!nestedModule->getAttrs().empty()) {
@@ -199,10 +231,20 @@ public:
       nestedModule.erase();
     }
   }
+
+private:
+  // Non-owning pointer to an external block size map (from SMT solver).
+  // Null when using the hardcoded placeholder solver.
+  const loom::passes::BlockSizeMap *externalBlockSizes = nullptr;
 };
 
 } // namespace
 
 std::unique_ptr<mlir::Pass> loom::passes::createMaterializePass() {
   return std::make_unique<MaterializePass>();
+}
+
+std::unique_ptr<mlir::Pass> loom::passes::createMaterializePass(
+    const loom::passes::BlockSizeMap &blockSizes) {
+  return std::make_unique<MaterializePass>(blockSizes);
 }
