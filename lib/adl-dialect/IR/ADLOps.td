@@ -82,19 +82,19 @@ def MemoryArrayOp : ADL_Op<"memory.array", [Symbol]> {
 }
 
 //===----------------------------------------------------------------------===//
-// adl.resource
-//   %3 = adl.resource "L1_torus::h"
+// adl.resource.exclusive
+//   %3 = adl.resource.exclusive "L1_torus::h"
 //===----------------------------------------------------------------------===//
 
-def ResourceOp : ADL_Op<"resource", [Symbol]> {
-  let summary = "Declare a hardware resource with a name";
+def ResourceExclusiveOp : ADL_Op<"resource.exclusive", [Symbol]> {
+  let summary = "Declare a hardware resource.exclusive with a name";
   let description = [{
-    `adl.resource` declares a hardware resource with a user-facing name.
-    The result is an opaque `!adl.resource` handle.
+    `adl.resource.exclusive` declares a hardware resource.exclusive with a user-facing name.
+    The result is an opaque `!adl.resource.exclusive` handle.
     The operation is a Symbol and can be referenced by name.
 
     Example:
-      `%3 = adl.resource "L1_torus::h"`
+      `%3 = adl.resource.exclusive "L1_torus::h"`
   }];
 
   let arguments = (ins StrAttr:$sym_name);
