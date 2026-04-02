@@ -16,6 +16,7 @@
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/JSON.h"
 #include <cassert>
+#include <set>
 #define GET_OP_CLASSES
 #include "LoomEnums.h.inc"
 #include "LoomOps.h.inc"
@@ -24,6 +25,73 @@
 
 namespace loom {
 namespace lcs {
+
+// ==========================================
+// File-local helpers
+// ==========================================
+namespace {
+
+/// Walk the Expr tree to find the first Div node.
+/// Returns {numerator, denominator}; both Expr::none() if no Div is found.
+std::pair<Expr, Expr> findDivNode(const Expr &e) {
+  if (e.isNone())
+    return {Expr::none(), Expr::none()};
+  if (e.kind() == Expr::Kind::Div)
+    return {e.lhs(), e.rhs()};
+  auto fromLhs = findDivNode(e.lhs());
+  if (!fromLhs.first.isNone())
+    return fromLhs;
+  return findDivNode(e.rhs());
+}
+
+/// A group of workloads that must execute sequentially (they share resources).
+struct ResourceGroup {
+  std::set<std::string> resources;
+  std::vector<const Workload *> workloads;
+};
+
+/// Partition workloads by resource overlap using transitive closure.
+/// Workloads with disjoint resource sets end up in separate groups
+/// and can be scheduled in parallel.
+std::vector<ResourceGroup>
+groupWorkloadsByResources(const std::vector<const Workload *> &all_workloads) {
+  std::vector<ResourceGroup> groups;
+
+  for (const Workload *w : all_workloads) {
+    std::set<std::string> rw(w->resources.begin(), w->resources.end());
+
+    // Collect indices of existing groups that share any resource with w.
+    std::vector<size_t> overlapping;
+    for (size_t i = 0; i < groups.size(); ++i)
+      for (const auto &r : rw)
+        if (groups[i].resources.count(r)) {
+          overlapping.push_back(i);
+          break;
+        }
+
+    if (overlapping.empty()) {
+      groups.push_back(ResourceGroup{rw, {w}});
+    } else {
+      // Merge w and all overlapping groups into the first one.
+      auto &target = groups[overlapping[0]];
+      target.resources.insert(rw.begin(), rw.end());
+      target.workloads.push_back(w);
+      // Merge remaining groups in reverse index order to keep indices valid.
+      for (size_t j = overlapping.size(); j > 1; --j) {
+        size_t idx = overlapping[j - 1];
+        target.resources.insert(groups[idx].resources.begin(),
+                                groups[idx].resources.end());
+        target.workloads.insert(target.workloads.end(),
+                                groups[idx].workloads.begin(),
+                                groups[idx].workloads.end());
+        groups.erase(groups.begin() + idx);
+      }
+    }
+  }
+  return groups;
+}
+
+} // namespace
 
 // ==========================================
 // Workload
@@ -75,55 +143,44 @@ void HardwareQueue::dump(llvm::raw_ostream &os, int indent) const {
   }
 }
 
-llvm::json::Value HardwareQueue::toJSON() const {
-  llvm::json::Array schedules_json;
-  for (const auto &workload : workloads) {
-    schedules_json.push_back(workload.toJSON());
-  }
-  return llvm::json::Object{
-      {"Sequential",
-       llvm::json::Object{{"schedules", std::move(schedules_json)},
-                           {"scenarios", llvm::json::Array{}}}}};
-}
-
 // ==========================================
 // Stage
 // ==========================================
 Stage::Stage(int id) : stage_id(id) {}
 
 void Stage::pushWorkload(const std::string &unit_name, const std::string &op,
-                         std::map<std::string, Expr> dims) {
-  if (queues.find(unit_name) == queues.end()) {
-    queues[unit_name] = HardwareQueue{unit_name, {}, std::nullopt};
-  }
-  queues[unit_name].workloads.push_back(Workload{op, std::move(dims)});
+                         std::map<std::string, Expr> dims,
+                         std::vector<std::string> resources) {
+  if (queues.find(unit_name) == queues.end())
+    queues[unit_name] = HardwareQueue{unit_name, {}};
+  queues[unit_name].workloads.push_back(
+      Workload{op, std::move(dims), std::move(resources)});
 }
 
 void Stage::dump(llvm::raw_ostream &os, int indent) const {
   os.indent(indent) << "├── Stage " << stage_id << ":\n";
-  for (auto const &[name, queue] : queues) {
+  for (auto const &[name, queue] : queues)
     queue.dump(os, indent + 4);
-  }
 }
 
 llvm::json::Value Stage::toJSON() const {
-  // Merge all workloads from all queues into one Sequential
-  llvm::json::Array schedules_json;
-  for (auto const &[name, queue] : queues) {
-    for (const auto &workload : queue.workloads) {
-      schedules_json.push_back(workload.toJSON());
-    }
+  std::vector<const Workload *> all_workloads;
+  for (auto const &[name, queue] : queues)
+    for (const auto &w : queue.workloads)
+      all_workloads.push_back(&w);
+
+  llvm::json::Array parallel_arr;
+  for (const auto &group : groupWorkloadsByResources(all_workloads)) {
+    llvm::json::Array schedules;
+    for (const Workload *w : group.workloads)
+      schedules.push_back(w->toJSON());
+    parallel_arr.push_back(llvm::json::Object{
+        {"Sequential", llvm::json::Object{{"schedules", std::move(schedules)},
+                                          {"scenarios", llvm::json::Array{}}}}});
   }
 
-  llvm::json::Object sequential;
-  sequential["schedules"] = std::move(schedules_json);
-  sequential["scenarios"] = llvm::json::Array{};
-
-  llvm::json::Object parallel;
-  parallel["Sequential"] = std::move(sequential);
-
   return llvm::json::Object{{"stage_id", stage_id},
-                            {"Parallel", std::move(parallel)}};
+                            {"Parallel", std::move(parallel_arr)}};
 }
 
 // ==========================================
@@ -132,24 +189,21 @@ llvm::json::Value Stage::toJSON() const {
 Scope::Scope(std::string name) : scope_name(name) {}
 
 Stage &Scope::getOrCreateStage(int id) {
-  if (stages.find(id) == stages.end()) {
+  if (stages.find(id) == stages.end())
     stages.emplace(id, Stage(id));
-  }
   return stages.at(id);
 }
 
 void Scope::dump(llvm::raw_ostream &os, int indent) const {
   os.indent(indent) << "└── Scope [" << scope_name << "]:\n";
-  for (auto &pair : stages) {
+  for (auto &pair : stages)
     pair.second.dump(os, indent + 4);
-  }
 }
 
 llvm::json::Value Scope::toJSON() const {
   llvm::json::Array stages_json;
-  for (auto &pair : stages) {
+  for (auto &pair : stages)
     stages_json.push_back(pair.second.toJSON());
-  }
   return llvm::json::Object{{"scope_name", scope_name},
                             {"stages", std::move(stages_json)}};
 }
@@ -158,7 +212,6 @@ llvm::json::Value Scope::toJSON() const {
 // ConstraintScope
 // ==========================================
 llvm::json::Value ConstraintScope::toJSON() const {
-  // Build symbols JSON object
   llvm::json::Object symbols_json;
   for (const auto &[name, info] : symbols) {
     llvm::json::Object sym_obj;
@@ -168,151 +221,116 @@ llvm::json::Value ConstraintScope::toJSON() const {
     symbols_json[name] = std::move(sym_obj);
   }
 
-  // Build temp_iter JSON array
   llvm::json::Array temp_iter_json;
-  for (const auto &t : temp_iter) {
+  for (const auto &t : temp_iter)
     temp_iter_json.push_back(t.toJSON());
-  }
 
-  // Build iter_num JSON object
-  llvm::json::Object iter_num_json;
-  iter_num_json["seq_iter"] = seq_iter.toJSON();
-  iter_num_json["temp_iter"] = std::move(temp_iter_json);
-
-  // Build L1_footprint JSON array
   llvm::json::Array footprint_json;
-  for (const auto &term : l1_footprint) {
+  for (const auto &term : l1_footprint)
     footprint_json.push_back(term.toJSON());
-  }
 
-  // Build metadata JSON object
+  llvm::json::Array booleans_json;
+  for (const auto &name : booleans)
+    booleans_json.push_back(name);
+
   llvm::json::Object metadata_json;
   metadata_json["symbols"] = std::move(symbols_json);
   metadata_json["L1_footprint"] = std::move(footprint_json);
   metadata_json["datatype"] = datatype;
-  metadata_json["iter_num"] = std::move(iter_num_json);
-
-  // Build booleans JSON array
-  llvm::json::Array booleans_json;
-  for (const auto &name : booleans)
-    booleans_json.push_back(name);
+  metadata_json["iter_num"] = llvm::json::Object{
+      {"seq_iter", seq_iter.toJSON()},
+      {"temp_iter", std::move(temp_iter_json)}};
   metadata_json["booleans"] = std::move(booleans_json);
 
-  // Build hard_constraints JSON array
   llvm::json::Array hard_constraints_json;
-  for (const auto &c : hard_constraints) {
+  for (const auto &c : hard_constraints)
     hard_constraints_json.push_back(c.toJSON());
-  }
 
-  // Build final ConstraintScope JSON object
   return llvm::json::Object{
       {"metadata", std::move(metadata_json)},
       {"hard_constraints", std::move(hard_constraints_json)}};
 }
 
 // ==========================================
-// VariantETG Builder
+// VariantETG — construction
 // ==========================================
 VariantETG::VariantETG(llvm::StringRef name, const HWOpRegistry *registry)
-    : variant_name(name.str()), compute_scope("ComputeScope"),
-      memory_scope("MemoryScope"), hw_registry_(registry) {}
+    : variant_name_(name.str()), compute_scope_("ComputeScope"),
+      memory_scope_("MemoryScope"), hw_registry_(registry) {}
 
+// ==========================================
+// VariantETG — ETG building
+// ==========================================
 void VariantETG::buildFromAffineFor(mlir::affine::AffineForOp for_op) {
   llvm::DenseMap<mlir::Value, int> value_ready_stage;
 
-  // 0. Initialize Loop Args
-  for (mlir::Value block_arg : for_op.getRegion().getArguments()) {
+  for (mlir::Value block_arg : for_op.getRegion().getArguments())
     value_ready_stage[block_arg] = 0;
-  }
 
-  // 1. Walk through the loop body
   for_op.getBody()->walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation *op) {
     if (op->getParentOp() != for_op)
       return;
 
-    // A. Calculate ASAP stage based on dependencies
+    // Calculate ASAP stage based on operand dependencies.
     int required_stage = 0;
-    for (mlir::Value operand : op->getOperands()) {
-      if (value_ready_stage.count(operand)) {
+    for (mlir::Value operand : op->getOperands())
+      if (value_ready_stage.count(operand))
         required_stage = std::max(required_stage, value_ready_stage[operand]);
-      }
-    }
 
-    // B. Classification and assignment
     bool is_compute = llvm::isa<mlir::linalg::LinalgOp>(op);
-    bool is_memory = op->getName().getStringRef() == "loom.copy";
-    bool is_infra =
+    bool is_memory  = op->getName().getStringRef() == "loom.copy";
+    bool is_infra   =
         is_compute && llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
 
-    if (is_compute && !is_infra) {
-      Stage &target_stage = compute_scope.getOrCreateStage(required_stage);
-      dispatchToComputeQueues(op, target_stage);
-    }
+    if (is_compute && !is_infra)
+      dispatchToComputeQueues(op, compute_scope_.getOrCreateStage(required_stage));
+    if (is_memory)
+      dispatchToMemoryQueues(op, memory_scope_.getOrCreateStage(required_stage));
 
-    if (is_memory) {
-      Stage &target_stage = memory_scope.getOrCreateStage(required_stage);
-      dispatchToMemoryQueues(op, target_stage);
-    }
-
-    // C. Update output ready times
-    int ready_time =
-        (is_infra || is_memory) ? required_stage : required_stage + 1;
-    for (mlir::Value result : op->getResults()) {
+    int ready_time = (is_infra || is_memory) ? required_stage : required_stage + 1;
+    for (mlir::Value result : op->getResults())
       value_ready_stage[result] = ready_time;
-    }
   });
 }
 
 void VariantETG::dispatchToComputeQueues(mlir::Operation *op,
                                          Stage &target_stage) {
-  assert(hw_registry_ && "ComputeOpRegistry must be provided");
-
-  if (llvm::isa<mlir::linalg::GenericOp>(op)) {
+  assert(hw_registry_ && "HWOpRegistry must be provided");
+  if (llvm::isa<mlir::linalg::GenericOp>(op))
     dispatchGenericOp(op, target_stage);
-  } else {
+  else
     dispatchNamedOp(op, target_stage);
-  }
 }
 
 void VariantETG::dispatchNamedOp(mlir::Operation *op, Stage &target_stage) {
   std::string linalg_op_name = op->getName().getStringRef().str();
-  const HWComputeFunc *hwFunc = hw_registry_->lookupMatrixOp(linalg_op_name);
+  const HWComputeFunc *hwFunc =
+      hw_registry_->lookup(HWOpKey::named(linalg_op_name));
   if (!hwFunc) {
-    auto placeholder = HWOpRegistry::makePlaceholder(linalg_op_name);
-    target_stage.pushWorkload(placeholder.hw_component,
-                              placeholder.hw_func_name, {});
+    auto ph = HWOpRegistry::makePlaceholder(linalg_op_name);
+    target_stage.pushWorkload(ph.hw_component, ph.hw_func_name, {}, {});
     return;
   }
 
   auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
   std::map<std::string, Expr> dimMap;
-
-  // Positional input dim matching
   auto inputs = linalgOp.getDpsInputs();
-  for (size_t i = 0; i < inputs.size() && i < hwFunc->input_bindings.size();
-       ++i) {
+  for (size_t i = 0; i < inputs.size() && i < hwFunc->input_bindings.size(); ++i) {
     std::vector<Expr> opDims = traceAllocDimsFromTensor(inputs[i]);
     const auto &hwBinding = hwFunc->input_bindings[i];
-    for (size_t d = 0; d < hwBinding.dim_symbols.size() && d < opDims.size();
-         ++d) {
-      const std::string &hwSym = hwBinding.dim_symbols[d];
-      if (dimMap.count(hwSym) == 0) {
-        dimMap[hwSym] = opDims[d];
-      }
-    }
+    for (size_t d = 0; d < hwBinding.dim_symbols.size() && d < opDims.size(); ++d)
+      if (dimMap.count(hwBinding.dim_symbols[d]) == 0)
+        dimMap[hwBinding.dim_symbols[d]] = opDims[d];
   }
 
   target_stage.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
-                            std::move(dimMap));
+                            std::move(dimMap), hwFunc->resources);
 }
 
 void VariantETG::dispatchGenericOp(mlir::Operation *op, Stage &target_stage) {
   auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
-
-  // 1. Analyze generic dims
   GenericDimAnalysis analysis = analyzeGenericDims(linalgOp);
 
-  // 2. Walk body for arith/math ops
   for (mlir::Operation &bodyOp : op->getRegion(0).front()) {
     if (llvm::isa<mlir::linalg::YieldOp>(&bodyOp))
       continue;
@@ -324,29 +342,22 @@ void VariantETG::dispatchGenericOp(mlir::Operation *op, Stage &target_stage) {
       continue;
 
     std::string bodyOpName = bodyOp.getName().getStringRef().str();
-
-    // 3. Lookup hw func
     const HWComputeFunc *hwFunc =
-        hw_registry_->lookupVectorOp(bodyOpName, analysis.generic_class);
+        hw_registry_->lookup(HWOpKey::generic(bodyOpName, analysis.generic_class));
     if (!hwFunc) {
-      auto placeholder = HWOpRegistry::makePlaceholder(bodyOpName);
-      target_stage.pushWorkload(placeholder.hw_component,
-                                placeholder.hw_func_name, {});
+      auto ph = HWOpRegistry::makePlaceholder(bodyOpName);
+      target_stage.pushWorkload(ph.hw_component, ph.hw_func_name, {}, {});
       continue;
     }
 
-    // 4. Build dimMap from hw symbols
     std::map<std::string, Expr> dimMap;
-    if (!hwFunc->parallel_symbol.empty() &&
-        !analysis.parallel_product.isNone())
+    if (!hwFunc->parallel_symbol.empty() && !analysis.parallel_product.isNone())
       dimMap[hwFunc->parallel_symbol] = analysis.parallel_product;
-    if (!hwFunc->reduction_symbol.empty() &&
-        !analysis.reduction_product.isNone())
+    if (!hwFunc->reduction_symbol.empty() && !analysis.reduction_product.isNone())
       dimMap[hwFunc->reduction_symbol] = analysis.reduction_product;
 
-    // 5. Dispatch by hw_component
     target_stage.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
-                              std::move(dimMap));
+                              std::move(dimMap), hwFunc->resources);
   }
 }
 
@@ -356,35 +367,27 @@ void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
   if (!copyOp)
     return;
 
-  // Extract key attributes from the copy op.
   std::string srcMem, dstMem;
   if (auto attr = copyOp.getSrcMemSpaceAttr())
     srcMem = attr.getLeafReference().str();
   if (auto attr = copyOp.getDstMemSpaceAttr())
     dstMem = attr.getLeafReference().str();
 
-  llvm::SmallVector<int64_t> broadcast;
-  if (auto broadcastAttr = copyOp.getBroadcastAttr()) {
+  std::vector<int64_t> bcastVec;
+  if (auto broadcastAttr = copyOp.getBroadcastAttr())
     for (auto val : broadcastAttr)
-      broadcast.push_back(mlir::cast<mlir::IntegerAttr>(val).getInt());
-  }
+      bcastVec.push_back(mlir::cast<mlir::IntegerAttr>(val).getInt());
 
-  // Registry lookup.
   const HWComputeFunc *hwFunc =
-      hw_registry_->lookupDataMoverOp(srcMem, dstMem, broadcast);
-
+      hw_registry_->lookup(HWOpKey::dataMover(srcMem, dstMem, bcastVec));
   if (!hwFunc) {
-    // Fallback placeholder.
-    auto placeholder = HWOpRegistry::makePlaceholder(
+    auto ph = HWOpRegistry::makePlaceholder(
         "loom.copy[" + srcMem + "->" + dstMem + "]", "data_movers");
-    target_stage.pushWorkload(placeholder.hw_component,
-                              placeholder.hw_func_name, {});
+    target_stage.pushWorkload(ph.hw_component, ph.hw_func_name, {}, {});
     return;
   }
 
-  // Build dimMap from L1 memref bindings.
-  // Try source first (handles L1→DRAM), then destination (handles DRAM→L1);
-  // one side is always an L1 alloc traceable via loom.semaphore_take.
+  // Trace the L1 alloc — try source first (L1→DRAM), then destination (DRAM→L1).
   std::map<std::string, Expr> dimMap;
   loom::AllocOp allocOp = traceToAlloc(copyOp.getSource());
   if (!allocOp)
@@ -392,129 +395,109 @@ void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
   if (allocOp && !hwFunc->input_bindings.empty()) {
     std::vector<Expr> opDims = formatAllocDims(allocOp);
     const auto &binding = hwFunc->input_bindings[0];
-    for (size_t d = 0; d < binding.dim_symbols.size() && d < opDims.size();
-         ++d) {
+    for (size_t d = 0; d < binding.dim_symbols.size() && d < opDims.size(); ++d)
       if (dimMap.count(binding.dim_symbols[d]) == 0)
         dimMap[binding.dim_symbols[d]] = opDims[d];
-    }
   }
 
   target_stage.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
-                            std::move(dimMap));
+                            std::move(dimMap), hwFunc->resources);
 }
 
-void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
-  // 1. Collect symbols from loom.sym ops
+// ==========================================
+// VariantETG — constraint scope building
+// ==========================================
+void VariantETG::collectSymbols(mlir::func::FuncOp func_op) {
   func_op.walk([&](loom::SymOp op) {
     std::string name = op.getSymbolRef().getLeafReference().str();
     SymbolInfo info;
     info.type = "int";
     if (auto ubAttr = op.getUpperBound())
       info.natural_ub = ubAttr->getSExtValue();
-    constraint_scope.symbols[name] = std::move(info);
+    constraint_scope_.symbols[name] = std::move(info);
   });
+}
 
-  // 2. Walk affine.for loops in the func, check iter_type attribute
+void VariantETG::analyzeLoopIterations(mlir::func::FuncOp func_op) {
   func_op.walk([&](mlir::affine::AffineForOp forOp) {
-    auto iterAttr = forOp->getAttrOfType<loom::IterTypeAttr>("loom.iter_type");
+    auto iterAttr =
+        forOp->getAttrOfType<loom::IterTypeAttr>("loom.iter_type");
     if (!iterAttr)
       return;
-
     Expr tripCount = extractLoopTripCount(forOp);
     if (tripCount.isNone())
       return;
-
-    if (iterAttr.getValue() == loom::IterType::Sequential) {
-      constraint_scope.seq_iter = tripCount;
-    } else if (iterAttr.getValue() == loom::IterType::Temporal) {
-      constraint_scope.temp_iter.push_back(tripCount);
-    }
+    if (iterAttr.getValue() == loom::IterType::Sequential)
+      constraint_scope_.seq_iter = tripCount;
+    else if (iterAttr.getValue() == loom::IterType::Temporal)
+      constraint_scope_.temp_iter.push_back(tripCount);
   });
+}
 
-  // Helper: given an iter-count Expr containing exactly one Div(N, D), push:
-  //   ge(iter, 1)        — the loop runs at least once
-  //   divisible(N, D)    — the division is exact (no remainder)
-  auto addIterConstraints = [&](const Expr &iter) {
-    if (iter.isNone())
-      return;
+void VariantETG::addIterDivisibilityConstraints(const Expr &iter) {
+  if (iter.isNone())
+    return;
+  constraint_scope_.hard_constraints.push_back(
+      ConstraintExpr::ge(iter, Expr::con(1)));
+  auto [num, den] = findDivNode(iter);
+  if (!num.isNone())
+    constraint_scope_.hard_constraints.push_back(
+        ConstraintExpr::divisible(num, den));
+}
 
-    // Walk the Expr tree to find the unique Div node.
-    std::function<std::pair<Expr, Expr>(const Expr &)> findDiv =
-        [&](const Expr &e) -> std::pair<Expr, Expr> {
-      if (e.isNone())
-        return {Expr::none(), Expr::none()};
-      if (e.kind() == Expr::Kind::Div)
-        return {e.lhs(), e.rhs()};
-      auto fromLhs = findDiv(e.lhs());
-      if (!fromLhs.first.isNone())
-        return fromLhs;
-      return findDiv(e.rhs());
-    };
-
-    constraint_scope.hard_constraints.push_back(
-        ConstraintExpr::ge(iter, Expr::con(1)));
-
-    auto [num, den] = findDiv(iter);
-    if (!num.isNone())
-      constraint_scope.hard_constraints.push_back(
-          ConstraintExpr::divisible(num, den));
-  };
-
-  addIterConstraints(constraint_scope.seq_iter);
-  for (const Expr &t : constraint_scope.temp_iter)
-    addIterConstraints(t);
-
-  // 3. Collect L1 allocations for footprint and datatype
+void VariantETG::collectL1Footprint(mlir::func::FuncOp func_op) {
   mlir::Type expectedElemType;
   func_op.walk([&](loom::AllocOp allocOp) {
-    // Filter: only @L1 allocations
     if (allocOp.getMemory().getLeafReference() != "L1")
       return;
-
-    // Extract element type from the memref result type
     auto memrefType =
         mlir::cast<mlir::MemRefType>(allocOp.getResult().getType());
     mlir::Type elemType = memrefType.getElementType();
-
-    // Guard: assert all @L1 allocs share the same element type
     if (!expectedElemType) {
       expectedElemType = elemType;
-      constraint_scope.datatype = formatElementType(elemType);
+      constraint_scope_.datatype = formatElementType(elemType);
     } else {
       assert(elemType == expectedElemType &&
              "All L1 allocations must have the same element type");
     }
-
-    // Collect symbolic footprint for this alloc
     Expr dims = productOfDims(formatAllocDims(allocOp));
-    if (!dims.isNone()) {
-      constraint_scope.l1_footprint.push_back(dims);
-    }
+    if (!dims.isNone())
+      constraint_scope_.l1_footprint.push_back(dims);
   });
-
-  // Declare symbolic boolean: is_double_buffer.
-  // The SMT solver will determine True (1) or False (0) to minimize cost.
-  constraint_scope.booleans.push_back("is_double_buffer");
 }
 
+void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
+  collectSymbols(func_op);
+  analyzeLoopIterations(func_op);
+  addIterDivisibilityConstraints(constraint_scope_.seq_iter);
+  for (const Expr &t : constraint_scope_.temp_iter)
+    addIterDivisibilityConstraints(t);
+  collectL1Footprint(func_op);
+  // Declare symbolic boolean for the SMT solver (0 = single-buffer, 1 = double).
+  constraint_scope_.booleans.push_back("is_double_buffer");
+}
+
+// ==========================================
+// VariantETG — output
+// ==========================================
 void VariantETG::dump(llvm::raw_ostream &os) const {
-  os << "Variant ETG: [" << variant_name << "]\n";
-  compute_scope.dump(os, 0);
-  memory_scope.dump(os, 0);
+  os << "Variant ETG: [" << variant_name_ << "]\n";
+  compute_scope_.dump(os, 0);
+  memory_scope_.dump(os, 0);
 }
 
 llvm::json::Value VariantETG::toJSON() const {
-  return llvm::json::Object{{"variant_name", variant_name},
-                            {"compute_scope", compute_scope.toJSON()},
-                            {"memory_scope", memory_scope.toJSON()},
-                            {"constraint_scope", constraint_scope.toJSON()}};
+  return llvm::json::Object{{"variant_name", variant_name_},
+                            {"compute_scope", compute_scope_.toJSON()},
+                            {"memory_scope", memory_scope_.toJSON()},
+                            {"constraint_scope", constraint_scope_.toJSON()}};
 }
 
 void VariantETG::buildL1FootprintConstraint() {
   // TODO: should be removed after mlar is ready.
   //       This is a workaround method to extract L1 size from the ADL
   //       platform header (adl.memory.array / adl.memory.bank / adl.spatial_dim).
-  if (!hw_registry_ || constraint_scope.l1_footprint.empty())
+  if (!hw_registry_ || constraint_scope_.l1_footprint.empty())
     return;
 
   mlir::ModuleOp platformModule = hw_registry_->getPlatformModule();
@@ -523,23 +506,19 @@ void VariantETG::buildL1FootprintConstraint() {
 
   int64_t l1_size = 0;
   platformModule.walk([&](adl::MemoryArrayOp arrayOp) {
-    // Only examine direct children of the top-level module.
     if (arrayOp->getParentOp() != platformModule.getOperation())
       return mlir::WalkResult::skip();
     if (arrayOp.getSymName() != "L1")
       return mlir::WalkResult::advance();
 
-    // Compute product of all spatial dimension sizes.
     int64_t spatial_product = 1;
-    for (mlir::Value spatialVal : arrayOp.getSpatialDims()) {
+    for (mlir::Value spatialVal : arrayOp.getSpatialDims())
       if (auto dimOp = spatialVal.getDefiningOp<adl::SpatialDimOp>())
         spatial_product *= static_cast<int64_t>(dimOp.getSize());
-    }
 
-    // Extract bsize and nblk from the bank operand.
     if (auto bankOp = arrayOp.getBank().getDefiningOp<adl::MemoryBankOp>()) {
       int64_t bsize = static_cast<int64_t>(bankOp.getBsize());
-      int64_t nblk = static_cast<int64_t>(bankOp.getNblk());
+      int64_t nblk  = static_cast<int64_t>(bankOp.getNblk());
       l1_size = spatial_product * bsize * nblk;
     }
     return mlir::WalkResult::advance();
@@ -548,21 +527,19 @@ void VariantETG::buildL1FootprintConstraint() {
   if (l1_size == 0)
     return;
 
-  // Sum all per-alloc footprint expressions.
   Expr footprint_sum = Expr::con(0);
-  for (const Expr &term : constraint_scope.l1_footprint)
+  for (const Expr &term : constraint_scope_.l1_footprint)
     footprint_sum = footprint_sum + term;
 
-  // L1_size is in bytes; L1_footprint counts elements (2 bytes each for f16).
-  // IfElse(is_double_buffer == 1, elem_bytes * 2, elem_bytes):
+  // IfElse(is_double_buffer == 1, elem_bytes*2, elem_bytes):
   //   double-buffered → 2× buffer space needed in L1.
   int64_t elem_bytes = 2;
   auto db_cond = std::make_shared<ConstraintExpr>(
       ConstraintExpr::eq(Expr::sym("is_double_buffer"), Expr::con(1)));
-  Expr multiplier = Expr::ifelse(
-      db_cond, Expr::con(elem_bytes * 2), Expr::con(elem_bytes));
+  Expr multiplier =
+      Expr::ifelse(db_cond, Expr::con(elem_bytes * 2), Expr::con(elem_bytes));
 
-  constraint_scope.hard_constraints.push_back(
+  constraint_scope_.hard_constraints.push_back(
       ConstraintExpr::le(footprint_sum * multiplier, Expr::con(l1_size)));
 }
 
