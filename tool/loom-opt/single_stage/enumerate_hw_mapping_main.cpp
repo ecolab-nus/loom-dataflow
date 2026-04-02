@@ -140,12 +140,12 @@ int main(int argc, char **argv) {
   // The parsed hw_spec file may be `module @system { ... }` at the top level,
   // or it may contain `module @system` as a nested child. Handle both cases.
   ModuleOp systemModule = nullptr;
-  if (hwModule->getSymName() && *hwModule->getSymName() == "system") {
+  if (hwModule->getSymName() && *hwModule->getSymName() == "arch_system") {
     systemModule = *hwModule;
   } else {
     for (Operation &op : *hwModule->getBody()) {
       if (auto mod = dyn_cast<ModuleOp>(&op)) {
-        if (mod.getSymName() && *mod.getSymName() == "system") {
+        if (mod.getSymName() && *mod.getSymName() == "arch_system") {
           systemModule = mod;
           break;
         }
@@ -154,7 +154,7 @@ int main(int argc, char **argv) {
   }
   if (!systemModule) {
     llvm::WithColor::error(llvm::errs())
-        << "Could not find module @system in hw_spec file\n";
+        << "Could not find module @arch_system in hw_spec file\n";
     return 1;
   }
   for (Operation &op : *systemModule.getBody()) {
