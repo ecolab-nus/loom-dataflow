@@ -103,9 +103,9 @@ void HWOpRegistry::buildResourceMap(mlir::ModuleOp platformModule) {
                                 mlir::Operation::operand_range resources) {
       auto &res = module_resource_map_[moduleName.str()];
       for (mlir::Value resourceVal : resources) {
-        if (auto resourceOp =
-                resourceVal.getDefiningOp<adl::ResourceOp>()) {
-          res.push_back(resourceOp.getSymName().str());
+        if (auto ResourceExclusiveOp =
+                resourceVal.getDefiningOp<adl::ResourceExclusiveOp>()) {
+          res.push_back(ResourceExclusiveOp.getSymName().str());
         }
       }
     };
