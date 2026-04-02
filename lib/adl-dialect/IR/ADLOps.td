@@ -82,6 +82,29 @@ def MemoryArrayOp : ADL_Op<"memory.array", [Symbol]> {
 }
 
 //===----------------------------------------------------------------------===//
+// adl.resource
+//   %3 = adl.resource "L1_torus::h"
+//===----------------------------------------------------------------------===//
+
+def ResourceOp : ADL_Op<"resource", [Symbol]> {
+  let summary = "Declare a hardware resource with a name";
+  let description = [{
+    `adl.resource` declares a hardware resource with a user-facing name.
+    The result is an opaque `!adl.resource` handle.
+    The operation is a Symbol and can be referenced by name.
+
+    Example:
+      `%3 = adl.resource "L1_torus::h"`
+  }];
+
+  let arguments = (ins StrAttr:$sym_name);
+  let results = (outs ResourceHandleType:$handle);
+
+  let assemblyFormat = "$sym_name attr-dict";
+}
+
+
+//===----------------------------------------------------------------------===//
 // adl.processor.compute
 //   %6 = adl.processor.compute "matrix_lane", [(%5, %5)]
 //===----------------------------------------------------------------------===//
@@ -100,7 +123,9 @@ def ProcessorComputeOp : ADL_Op<"processor.compute",
 
   let arguments = (ins FlatSymbolRefAttr:$sym_name,
                        Variadic<MemHandleType>:$src_mems,
-                       Variadic<MemHandleType>:$dst_mems);
+                       Variadic<MemHandleType>:$dst_mems,
+                       Variadic<ResourceHandleType>:$resources);
+
   let results = (outs ArchHandleType:$handle);
 
   let hasCustomAssemblyFormat = 1;
@@ -125,7 +150,9 @@ def ProcessorDMoverOp : ADL_Op<"processor.dmover",
 
   let arguments = (ins FlatSymbolRefAttr:$sym_name,
                        Variadic<MemHandleType>:$src_mems,
-                       Variadic<MemHandleType>:$dst_mems);
+                       Variadic<MemHandleType>:$dst_mems,
+                       Variadic<ResourceHandleType>:$resources);
+
   let results = (outs ArchHandleType:$handle);
 
   let hasCustomAssemblyFormat = 1;
