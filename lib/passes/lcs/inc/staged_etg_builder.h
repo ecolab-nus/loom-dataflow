@@ -5,13 +5,11 @@
 #include "expr.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 #include <map>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -21,24 +19,22 @@ namespace lcs {
 // Forward declaration
 class HWOpRegistry;
 
-/// Workload record: operation name and its symbolic dimensions.
+/// Workload record: operation name, symbolic dimensions, and resource usage.
 /// dims maps hardware symbol names to operator IR symbolic expressions.
 struct Workload {
   std::string op;
   std::map<std::string, Expr> dims;
+  std::vector<std::string> resources;
 
   llvm::json::Value toJSON() const;
 };
 
 /// Hardware queue containing a list of workloads.
-/// resolved_time is a placeholder for future time resolution.
 struct HardwareQueue {
   std::string unit_name;
   std::vector<Workload> workloads;
-  std::optional<std::string> resolved_time;
 
   void dump(llvm::raw_ostream &os, int indent = 0) const;
-  llvm::json::Value toJSON() const;
 };
 
 /// A stage groups hardware queues with a symbolic time expression.
@@ -49,7 +45,8 @@ struct Stage {
 
   Stage(int id);
   void pushWorkload(const std::string &unit_name, const std::string &op,
-                    std::map<std::string, Expr> dims);
+                    std::map<std::string, Expr> dims,
+                    std::vector<std::string> resources);
   void dump(llvm::raw_ostream &os, int indent = 0) const;
   llvm::json::Value toJSON() const;
 };
@@ -99,12 +96,12 @@ struct ConstraintScope {
 /// organizing them into compute and memory scopes with stage-based scheduling.
 class VariantETG {
 public:
-  std::string variant_name;
-  Scope compute_scope;
-  Scope memory_scope;
-  ConstraintScope constraint_scope;
-
   VariantETG(llvm::StringRef name, const HWOpRegistry *registry);
+
+  llvm::StringRef getVariantName() const { return variant_name_; }
+  const Scope &getComputeScope() const { return compute_scope_; }
+  const Scope &getMemoryScope() const { return memory_scope_; }
+  const ConstraintScope &getConstraintScope() const { return constraint_scope_; }
 
   /// Build ETG from an affine.for loop body.
   void buildFromAffineFor(mlir::affine::AffineForOp for_op);
@@ -120,11 +117,21 @@ public:
   llvm::json::Value toJSON() const;
 
 private:
+  std::string variant_name_;
+  Scope compute_scope_;
+  Scope memory_scope_;
+  ConstraintScope constraint_scope_;
   const HWOpRegistry *hw_registry_;
+
   void dispatchToComputeQueues(mlir::Operation *op, Stage &target_stage);
   void dispatchNamedOp(mlir::Operation *op, Stage &target_stage);
   void dispatchGenericOp(mlir::Operation *op, Stage &target_stage);
   void dispatchToMemoryQueues(mlir::Operation *op, Stage &target_stage);
+
+  void collectSymbols(mlir::func::FuncOp func_op);
+  void analyzeLoopIterations(mlir::func::FuncOp func_op);
+  void collectL1Footprint(mlir::func::FuncOp func_op);
+  void addIterDivisibilityConstraints(const Expr &iter);
 };
 
 } // namespace lcs

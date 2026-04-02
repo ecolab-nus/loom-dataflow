@@ -106,6 +106,10 @@ enum class GenericClass {
   Mixed      // both parallel and reduction
 };
 
+/// Classify an iterator types array into Parallel, Reduction, or Mixed.
+GenericClass classifyIteratorTypes(
+    llvm::ArrayRef<mlir::utils::IteratorType> iteratorTypes);
+
 /// Result of analyzeGenericDims: folded symbolic products per iterator class.
 struct GenericDimAnalysis {
   GenericClass generic_class;

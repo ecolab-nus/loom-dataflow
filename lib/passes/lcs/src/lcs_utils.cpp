@@ -277,11 +277,8 @@ Expr extractLoopTripCount(mlir::affine::AffineForOp forOp) {
 // Generic Op Classification & Shape Analysis
 // ==========================================
 
-GenericDimAnalysis analyzeGenericDims(mlir::linalg::LinalgOp genericOp) {
-  using namespace mlir;
-
-  // 1. Read iterator_types → classify
-  auto iteratorTypes = genericOp.getIteratorTypesArray();
+GenericClass classifyIteratorTypes(
+    llvm::ArrayRef<mlir::utils::IteratorType> iteratorTypes) {
   bool hasPar = false, hasRed = false;
   for (auto it : iteratorTypes) {
     if (it == mlir::utils::IteratorType::parallel)
@@ -289,13 +286,19 @@ GenericDimAnalysis analyzeGenericDims(mlir::linalg::LinalgOp genericOp) {
     else if (it == mlir::utils::IteratorType::reduction)
       hasRed = true;
   }
-  GenericClass cls;
   if (hasPar && hasRed)
-    cls = GenericClass::Mixed;
-  else if (hasRed)
-    cls = GenericClass::Reduction;
-  else
-    cls = GenericClass::Parallel;
+    return GenericClass::Mixed;
+  if (hasRed)
+    return GenericClass::Reduction;
+  return GenericClass::Parallel;
+}
+
+GenericDimAnalysis analyzeGenericDims(mlir::linalg::LinalgOp genericOp) {
+  using namespace mlir;
+
+  // 1. Read iterator_types → classify
+  auto iteratorTypes = genericOp.getIteratorTypesArray();
+  GenericClass cls = classifyIteratorTypes(iteratorTypes);
 
   // 2. Collect indexing maps and trace all operand dims
   auto indexingMaps = genericOp.getIndexingMapsArray();

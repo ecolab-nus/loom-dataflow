@@ -10,7 +10,6 @@
 #include <map>
 #include <optional>
 #include <string>
-#include <tuple>
 #include <vector>
 
 namespace loom {
@@ -20,6 +19,31 @@ namespace lcs {
 /// For `loom.bind %A, [%M, %K]`, stores dim_symbols = ["M", "K"].
 struct HWTensorBinding {
   std::vector<std::string> dim_symbols;
+};
+
+/// Unified lookup key for all hardware operations (named, generic, data mover).
+struct HWOpKey {
+  enum Kind { Named, Generic, DataMover };
+  Kind kind;
+
+  // Named: linalg op name (e.g., "linalg.matmul", "linalg.add")
+  std::string linalg_op_name;
+
+  // Generic: body arith/math op name + iterator classification
+  std::string body_op_name;
+  GenericClass generic_class = GenericClass::Parallel;
+
+  // DataMover: transfer attributes
+  std::string src_mem_space;
+  std::string dst_mem_space;
+  std::vector<int64_t> broadcast;
+
+  bool operator<(const HWOpKey &rhs) const;
+
+  static HWOpKey named(std::string op_name);
+  static HWOpKey generic(std::string body_op, GenericClass cls);
+  static HWOpKey dataMover(std::string src, std::string dst,
+                           std::vector<int64_t> bcast);
 };
 
 /// A hardware function entry from a platform IR file.
@@ -33,6 +57,7 @@ struct HWComputeFunc {
   std::string reduction_symbol; // hw symbol for folded reduction product
   std::vector<HWTensorBinding> input_bindings;
   std::vector<HWTensorBinding> output_bindings;
+  std::vector<std::string> resources; // e.g., {"FPU"} or {"L1_torus::h", "L1_torus::v"}
 
   // Data mover specific (empty for compute ops)
   bool is_data_mover = false;
@@ -50,17 +75,8 @@ public:
   mlir::LogicalResult loadFromPlatformFile(llvm::StringRef file_path,
                                            mlir::MLIRContext &context);
 
-  /// Look up a named linalg op (matmul, batch_matmul, etc.).
-  const HWComputeFunc *lookupMatrixOp(llvm::StringRef linalg_op_name) const;
-
-  /// Look up a vector_lane generic op by body op name and generic class.
-  const HWComputeFunc *lookupVectorOp(llvm::StringRef body_op_name,
-                                       GenericClass cls) const;
-
-  /// Look up a data mover op by its static attributes.
-  const HWComputeFunc *lookupDataMoverOp(llvm::StringRef src_mem_space,
-                                          llvm::StringRef dst_mem_space,
-                                          llvm::ArrayRef<int64_t> broadcast) const;
+  /// Unified lookup: find a registered hw func by key.
+  const HWComputeFunc *lookup(const HWOpKey &key) const;
 
   /// Create a placeholder entry for an unregistered operation.
   static HWComputeFunc makePlaceholder(llvm::StringRef op_name,
@@ -70,18 +86,17 @@ public:
   mlir::ModuleOp getPlatformModule() const { return *platform_module_; }
 
 private:
-  /// Named ops keyed by linalg op name (e.g., "linalg.matmul")
-  std::map<std::string, HWComputeFunc> matrix_registry_;
+  /// Unified registry keyed by HWOpKey.
+  std::map<HWOpKey, HWComputeFunc> registry_;
 
-  /// Vector lane ops keyed by (body_op_name, GenericClass)
-  std::map<std::pair<std::string, GenericClass>, HWComputeFunc> vector_registry_;
-
-  /// Data movers keyed by (src_mem_space, dst_mem_space, broadcast)
-  using DataMoverKey = std::tuple<std::string, std::string, std::vector<int64_t>>;
-  std::map<DataMoverKey, HWComputeFunc> data_mover_registry_;
+  /// Maps processor module name -> resource names. Built once during load.
+  std::map<std::string, std::vector<std::string>> module_resource_map_;
 
   /// Keep the parsed platform module alive for the lifetime of the registry.
   mlir::OwningOpRef<mlir::ModuleOp> platform_module_;
+
+  /// Walk platform module to build module_resource_map_.
+  void buildResourceMap(mlir::ModuleOp platformModule);
 
   /// Collect loom.bind_shape bindings from a function.
   static llvm::DenseMap<mlir::Value, HWTensorBinding>
@@ -91,6 +106,22 @@ private:
   /// If is_data_mover is true, routes to data mover extraction.
   void indexModule(mlir::ModuleOp module, llvm::StringRef hw_component,
                    bool is_data_mover);
+
+  /// Find the unique non-infra linalg op in a func; nullptr if none or ambiguous.
+  static mlir::Operation *findComputeOp(mlir::func::FuncOp func);
+
+  /// Fill input_bindings and output_bindings on result from a LinalgOp.
+  static void fillInputOutputBindings(
+      mlir::linalg::LinalgOp linalgOp,
+      const llvm::DenseMap<mlir::Value, HWTensorBinding> &bindingMap,
+      HWComputeFunc &result);
+
+  /// Fill generic-specific fields (body_op_name, generic_class, symbols).
+  /// Returns false for compound ops (bodyOpCount != 1).
+  static bool fillGenericDetails(
+      mlir::Operation *computeOp,
+      const llvm::DenseMap<mlir::Value, HWTensorBinding> &bindingMap,
+      HWComputeFunc &result);
 
   /// Extract HWComputeFunc from a single func.func with a linalg compute op.
   std::optional<HWComputeFunc>
