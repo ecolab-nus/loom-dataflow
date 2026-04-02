@@ -4,8 +4,8 @@
  * @details
  * This pass analyzes loom.copy operations and checks their source operations
  * for spatial reuse information from loom.subview operations.
- * It enumerates all possible broadcast choices (no broadcast, broadcast on x,
- * broadcast on y, broadcast on both) and generates function clones for each
+ * It enumerates all possible broadcast choices (no broadcast, broadcast on dim_x,
+ * broadcast on dim_y, broadcast on both) and generates function clones for each
  * combination.
  *
  * Hardware dimension sizes are read from adl.spatial_dim operations in the
@@ -46,7 +46,7 @@ namespace {
  */
 struct BroadcastChoice {
   SmallVector<int64_t> values; // e.g., {1, 1}, {1, 8}, {8, 1}, {8, 8}
-  std::string label;           // "n" (none), "y", "x", "a" (all)
+  std::string label;           // "n" (none), "dim_y", "dim_x", "a" (all)
 };
 
 /**
@@ -166,7 +166,7 @@ static loom::SubviewOp findSubviewSource(loom::CopyOp copyOp) {
  * @details Walks all adl::SpatialDimOp operations in the module looking for
  * one with the given symbol name.
  * @param outerModule The module to search.
- * @param symName The symbol name to look up (e.g., "x" or "y").
+ * @param symName The symbol name to look up (e.g., "dim_x" or "dim_y").
  * @return The size if found, or std::nullopt if not found.
  */
 static std::optional<uint64_t>
@@ -183,9 +183,9 @@ getSpatialDimSizeFromADL(ModuleOp outerModule, StringRef symName) {
  * @brief Find all broadcast candidate choices for a loom.copy operation.
  * @details Analyzes the copy's source subview for spatial reuse, then checks
  * which enclosing spatial parallel loops' IVs the subview offsets do NOT
- * depend on. Under the 2D assumption (dims @x and @y):
- *   - Offset independent of @x IV → can broadcast on @y → {1, size_y}
- *   - Offset independent of @y IV → can broadcast on @x → {size_x, 1}
+ * depend on. Under the 2D assumption (dims @dim_x and @dim_y):
+ *   - Offset independent of @dim_x IV → can broadcast on @dim_y → {1, size_y}
+ *   - Offset independent of @dim_y IV → can broadcast on @dim_x → {size_x, 1}
  *   - Both independent → also add {size_x, size_y}
  * Always includes the no-broadcast choice {1, 1}.
  * @param copyOp The loom.copy operation to analyze.
@@ -209,7 +209,7 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp outerModule) {
   SmallVector<affine::AffineParallelOp> parallelLoops =
       collectEnclosingParallelLoops(copyOp);
 
-  // 2D assumption: track @x and @y independence and sizes
+  // 2D assumption: track @dim_x and @dim_y independence and sizes
   bool xIndependent = false;
   bool yIndependent = false;
   int64_t sizeX = 0;
@@ -227,10 +227,10 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp outerModule) {
     if (!sizeOpt)
       continue;
 
-    if (dimName == "x") {
+    if (dimName == "dim_x") {
       xIndependent = independent;
       sizeX = static_cast<int64_t>(sizeOpt.value());
-    } else if (dimName == "y") {
+    } else if (dimName == "dim_y") {
       yIndependent = independent;
       sizeY = static_cast<int64_t>(sizeOpt.value());
     }
@@ -240,13 +240,13 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp outerModule) {
   bool canBroadcastOnX = yIndependent && sizeX > 0;
 
   if (canBroadcastOnY && canBroadcastOnX) {
-    candidates.push_back({{1, sizeY}, "y"});
-    candidates.push_back({{sizeX, 1}, "x"});
+    candidates.push_back({{1, sizeY}, "dim_y"});
+    candidates.push_back({{sizeX, 1}, "dim_x"});
     candidates.push_back({{sizeX, sizeY}, "a"});
   } else if (canBroadcastOnY) {
-    candidates.push_back({{1, sizeY}, "y"});
+    candidates.push_back({{1, sizeY}, "dim_y"});
   } else if (canBroadcastOnX) {
-    candidates.push_back({{sizeX, 1}, "x"});
+    candidates.push_back({{sizeX, 1}, "dim_x"});
   }
 
   return candidates;

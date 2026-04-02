@@ -17,11 +17,11 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
         %16 = arith.muli %arg3, %0 : index
         %17 = arith.muli %arg5, %2 : index
         %18 = loom.subview %arg0[%16, %17] [%0, %2] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<4096x512xf16> to memref<?x?xf16, strided<[512, 1], offset: ?>>
-        loom.copy %18, %6 src_mem_space @DRAM dst_mem_space @L1, broadcast : [1, 1] : memref<?x?xf16, strided<[512, 1], offset: ?>> to memref<?x?xf16>
+        loom.copy %18, %6 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] : memref<?x?xf16, strided<[512, 1], offset: ?>> to memref<?x?xf16>
         %19 = loom.bufferize_to_tensor %6[%0, %2] : memref<?x?xf16> -> tensor<?x?xf16>
         %20 = arith.muli %arg4, %1 : index
         %21 = loom.subview %arg1[%17, %20] [%2, %1] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<512x4096xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
-        loom.copy %21, %4 src_mem_space @DRAM dst_mem_space @L1, broadcast : [1, 1] : memref<?x?xf16, strided<[4096, 1], offset: ?>> to memref<?x?xf16>
+        loom.copy %21, %4 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] : memref<?x?xf16, strided<[4096, 1], offset: ?>> to memref<?x?xf16>
         %22 = loom.bufferize_to_tensor %4[%2, %1] : memref<?x?xf16> -> tensor<?x?xf16>
         %23 = linalg.matmul ins(%19, %22 : tensor<?x?xf16>, tensor<?x?xf16>) outs(%arg6 : tensor<?x?xf16>) -> tensor<?x?xf16>
         loom.semaphore_give %4 : memref<?x?xf16>
@@ -32,7 +32,7 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
       %13 = arith.muli %arg4, %1 : index
       %14 = loom.subview %arg2[%12, %13] [%0, %1] [1, 1], reuse : [seq = false, spat = false, temp = false] : memref<4096x4096xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
       %15 = loom.bufferize_to_memref %11 : tensor<?x?xf16> -> memref<?x?xf16>
-      loom.copy %15, %14 src_mem_space @L1 dst_mem_space @DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
+      loom.copy %15, %14 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
       loom.semaphore_give %8 : memref<?x?xf16>
     }
     return
