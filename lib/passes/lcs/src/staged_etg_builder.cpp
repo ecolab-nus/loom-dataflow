@@ -468,13 +468,12 @@ void VariantETG::collectL1Footprint(mlir::func::FuncOp func_op) {
 
 void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
   collectSymbols(func_op);
-  analyzeLoopIterations(func_op);
-  addIterDivisibilityConstraints(constraint_scope_.seq_iter);
-  for (const Expr &t : constraint_scope_.temp_iter)
-    addIterDivisibilityConstraints(t);
-  collectL1Footprint(func_op);
-  // Declare symbolic boolean for the SMT solver (0 = single-buffer, 1 = double).
   constraint_scope_.booleans.push_back("is_double_buffer");
+  analyzeLoopIterations(func_op);
+  // addIterDivisibilityConstraints(constraint_scope_.seq_iter);
+  // for (const Expr &t : constraint_scope_.temp_iter)
+    // addIterDivisibilityConstraints(t);
+  collectL1Footprint(func_op);
 }
 
 // ==========================================
@@ -508,7 +507,7 @@ void VariantETG::buildL1FootprintConstraint() {
   platformModule.walk([&](adl::MemoryArrayOp arrayOp) {
     if (arrayOp->getParentOp() != platformModule.getOperation())
       return mlir::WalkResult::skip();
-    if (arrayOp.getSymName() != "L1")
+    if (arrayOp.getSymName() != "mem_L1")
       return mlir::WalkResult::advance();
 
     int64_t spatial_product = 1;
