@@ -11,6 +11,7 @@
 #include "FuncOpToTTKernel.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/EmitC/IR/EmitC.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -641,6 +642,10 @@ bool multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArg
       falseAttr, // linked (optional BoolAttr)
       falseAttr, // multicast_path_reserve (optional BoolAttr)
       nocIdVal);
+  //only work for blackhole arch
+  rewriter.create<emitc::VerbatimOp>(loc, "#ifdef ARCH_BLACKHOLE");
+  rewriter.create<emitc::VerbatimOp>(loc, "noc.async_writes_flushed();");
+  rewriter.create<emitc::VerbatimOp>(loc, "#endif  // ARCH_BLACKHOLE");
 
   NocSemaphoreSetMulticastOp::create(rewriter, loc, 
     memrefArgData->mcast_receiver_semaphore_addr, 
