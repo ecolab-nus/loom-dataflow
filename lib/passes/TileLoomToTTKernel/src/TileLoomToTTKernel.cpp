@@ -27,6 +27,7 @@
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOps.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOpsTypes.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/Support/CommandLine.h"
 
 // Loom dialect headers for ::loom::AllocOp, ::loom::CopyOp, etc.
 #include "mlir/Interfaces/ViewLikeInterface.h"
@@ -285,6 +286,26 @@ class TileLoomToTTKernelPass
 public:
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(TileLoomToTTKernelPass)
 
+  TileLoomToTTKernelPass()
+      : matmulMergeBReaderIntoWriter(
+            *this, "matmul-merge-b-reader-into-writer",
+            llvm::cl::desc(
+                "For linalg.matmul, keep the A reader on RISCV_1 and merge "
+                "the B reader into the writer kernel on RISCV_0"),
+            llvm::cl::init(false)) {}
+
+  TileLoomToTTKernelPass(const TileLoomToTTKernelPass &other)
+      : PassWrapper(other),
+        matmulMergeBReaderIntoWriter(
+            *this, "matmul-merge-b-reader-into-writer",
+            llvm::cl::desc(
+                "For linalg.matmul, keep the A reader on RISCV_1 and merge "
+                "the B reader into the writer kernel on RISCV_0"),
+            llvm::cl::init(false)) {
+    matmulMergeBReaderIntoWriter =
+        static_cast<bool>(other.matmulMergeBReaderIntoWriter);
+  }
+
   StringRef getArgument() const override {
     return "loom-tileloom-to-ttkernel";
   }
@@ -306,6 +327,8 @@ public:
     // Ensure Loom dialect is loaded for loom.alloc, loom.copy operations.
     registry.insert<::loom::LoomDialect>();
   }
+
+  Option<bool> matmulMergeBReaderIntoWriter;
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
@@ -335,6 +358,12 @@ public:
     //
     // This must run before MemoryOp/ComputeOp lowering so each specialized
     // function is lowered independently.
+    if (matmulMergeBReaderIntoWriter) {
+      if (failed(prepareMatmulBReaderMerge(module))) {
+        signalPassFailure();
+        return;
+      }
+    }
     specializeFunctionsForTTKernel(module);
 
     // Create shared compile-arg tracker for index management.
@@ -641,8 +670,8 @@ public:
       auto funcType = func.getFunctionType();
       func.setType(
           FunctionType::get(ctx, newInputs, funcType.getResults()));
+      }
     }
-  }
 };
 
 } // namespace

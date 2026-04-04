@@ -50,6 +50,14 @@ namespace {
 
 constexpr llvm::StringLiteral kReductionScaleCbAttrName =
     "loom.reduction_scale_cb";
+constexpr llvm::StringLiteral kPartitionStrategyAttrName =
+    "loom.ttkernel.partition_strategy";
+constexpr llvm::StringLiteral kCopyDataMovementRoleAttrName =
+    "loom.ttkernel.dm_role";
+constexpr llvm::StringLiteral kMergedBIntoWriterStrategy =
+    "matmul_merge_b_reader_into_writer";
+constexpr llvm::StringLiteral kReaderDataMovementRole = "reader";
+constexpr llvm::StringLiteral kWriterDataMovementRole = "writer";
 
 enum class HostProgramKind { Cpp, Pybind };
 
@@ -67,6 +75,22 @@ static Value stripLoomSemaphores(Value value) {
   Value current = value;
   while (auto sem = current.getDefiningOp<::loom::SemaphoreTakeOp>())
     current = sem.getSource();
+  return current;
+}
+
+static Value stripViewLikeWrappers(Value value) {
+  Value current = value;
+  while (true) {
+    if (auto sem = current.getDefiningOp<::loom::SemaphoreTakeOp>()) {
+      current = sem.getSource();
+      continue;
+    }
+    if (auto viewLike = current.getDefiningOp<ViewLikeOpInterface>()) {
+      current = viewLike.getViewSource();
+      continue;
+    }
+    break;
+  }
   return current;
 }
 
@@ -584,6 +608,116 @@ static bool isLoomLoadOp(::loom::CopyOp op) {
   return op.getSource().getDefiningOp<memref::ReinterpretCastOp>() != nullptr;
 }
 
+static bool hasMatmulMergedBPartition(func::FuncOp func) {
+  auto strategyAttr =
+      func->getAttrOfType<StringAttr>(kPartitionStrategyAttrName);
+  return strategyAttr &&
+         strategyAttr.getValue() == kMergedBIntoWriterStrategy;
+}
+
+static StringRef getCopyDataMovementRole(::loom::CopyOp op) {
+  if (auto roleAttr =
+          op->getAttrOfType<StringAttr>(kCopyDataMovementRoleAttrName)) {
+    return roleAttr.getValue();
+  }
+  return {};
+}
+
+static void clearMatmulBReaderMergeAttrs(func::FuncOp func) {
+  func->removeAttr(kPartitionStrategyAttrName);
+  func.walk([](::loom::CopyOp op) { op->removeAttr(kCopyDataMovementRoleAttrName); });
+}
+
+static FailureOr<::loom::CopyOp>
+findUniqueCopyForBuffer(func::FuncOp func, Value buffer, bool wantLoad,
+                        StringRef description) {
+  Value canonicalBuffer = stripViewLikeWrappers(buffer);
+  SmallVector<::loom::CopyOp, 2> matches;
+  func.walk([&](::loom::CopyOp copyOp) {
+    if (wantLoad != isLoomLoadOp(copyOp))
+      return;
+    if (!wantLoad && !isLoomStoreOp(copyOp))
+      return;
+    Value endpoint = wantLoad ? copyOp.getDestination() : copyOp.getSource();
+    if (stripViewLikeWrappers(endpoint) == canonicalBuffer)
+      matches.push_back(copyOp);
+  });
+
+  if (matches.empty()) {
+    func.emitError() << "expected a " << (wantLoad ? "load" : "store")
+                     << " loom.copy for " << description;
+    return failure();
+  }
+  if (matches.size() != 1) {
+    func.emitError() << "expected exactly one " << (wantLoad ? "load" : "store")
+                     << " loom.copy for " << description << ", found "
+                     << matches.size();
+    return failure();
+  }
+  return matches.front();
+}
+
+static LogicalResult annotateMatmulBReaderMerge(func::FuncOp func) {
+  SmallVector<linalg::MatmulOp, 2> matmuls;
+  int loadCopyCount = 0;
+  int storeCopyCount = 0;
+  func.walk([&](linalg::MatmulOp matmulOp) { matmuls.push_back(matmulOp); });
+  func.walk([&](::loom::CopyOp copyOp) {
+    if (isLoomLoadOp(copyOp))
+      ++loadCopyCount;
+    else if (isLoomStoreOp(copyOp))
+      ++storeCopyCount;
+  });
+
+  if (matmuls.empty())
+    return success();
+
+  if (matmuls.size() != 1) {
+    return func.emitError()
+           << "matmul B-reader merge expects exactly one linalg.matmul";
+  }
+
+  linalg::MatmulOp matmulOp = matmuls.front();
+  if (matmulOp.getInputs().size() != 2 || matmulOp.getOutputs().size() != 1) {
+    return matmulOp.emitOpError()
+           << "matmul B-reader merge expects two inputs and one output";
+  }
+  if (loadCopyCount != 2 || storeCopyCount != 1) {
+    return func.emitError()
+           << "matmul B-reader merge expects exactly two load loom.copy ops "
+              "and one store loom.copy op";
+  }
+
+  FailureOr<::loom::CopyOp> lhsLoad =
+      findUniqueCopyForBuffer(func, matmulOp.getInputs()[0], /*wantLoad=*/true,
+                              "matmul lhs");
+  if (failed(lhsLoad))
+    return failure();
+
+  FailureOr<::loom::CopyOp> rhsLoad =
+      findUniqueCopyForBuffer(func, matmulOp.getInputs()[1], /*wantLoad=*/true,
+                              "matmul rhs");
+  if (failed(rhsLoad))
+    return failure();
+
+  FailureOr<::loom::CopyOp> outputStore =
+      findUniqueCopyForBuffer(func, matmulOp.getOutputs()[0],
+                              /*wantLoad=*/false, "matmul output");
+  if (failed(outputStore))
+    return failure();
+
+  OpBuilder builder(func.getContext());
+  func->setAttr(kPartitionStrategyAttrName,
+                builder.getStringAttr(kMergedBIntoWriterStrategy));
+  (*lhsLoad)->setAttr(kCopyDataMovementRoleAttrName,
+                      builder.getStringAttr(kReaderDataMovementRole));
+  (*rhsLoad)->setAttr(kCopyDataMovementRoleAttrName,
+                      builder.getStringAttr(kWriterDataMovementRole));
+  (*outputStore)->setAttr(kCopyDataMovementRoleAttrName,
+                          builder.getStringAttr(kWriterDataMovementRole));
+  return success();
+}
+
 /**
  * @brief Check if an operation is a compute operation.
  *
@@ -618,6 +752,7 @@ static func::FuncOp makeComputeFunc(func::FuncOp func) {
   // CB synchronization operations (cb_wait_front/cb_push_back) by the
   // ConvertComputeLoadOp and ConvertComputeStoreOp patterns.
 
+  clearMatmulBReaderMergeAttrs(computeFunc);
   return computeFunc;
 }
 
@@ -636,6 +771,7 @@ static func::FuncOp makeReaderFunc(func::FuncOp func) {
   IRMapping mapping;
   auto readerFunc = cast<func::FuncOp>(func->clone(mapping));
   readerFunc.setName((func.getName() + "__reader").str());
+  bool useMergedBPartition = hasMatmulMergedBPartition(readerFunc);
 
   // Collect compute ops and stores to erase.
   SmallVector<Operation *, 8> opsToErase;
@@ -643,8 +779,12 @@ static func::FuncOp makeReaderFunc(func::FuncOp func) {
     if (isComputeOp(op)) {
       opsToErase.push_back(op);
     }  else if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(op)) {
-      if (isLoomStoreOp(loomCopyOp))
+      if (useMergedBPartition) {
+        if (getCopyDataMovementRole(loomCopyOp) != kReaderDataMovementRole)
+          opsToErase.push_back(op);
+      } else if (isLoomStoreOp(loomCopyOp)) {
         opsToErase.push_back(op);
+      }
     }
   });
 
@@ -652,6 +792,7 @@ static func::FuncOp makeReaderFunc(func::FuncOp func) {
   for (Operation *op : llvm::reverse(opsToErase))
     op->erase();
 
+  clearMatmulBReaderMergeAttrs(readerFunc);
   return readerFunc;
 }
 
@@ -670,20 +811,26 @@ static func::FuncOp makeWriterFunc(func::FuncOp func) {
   IRMapping mapping;
   auto writerFunc = cast<func::FuncOp>(func->clone(mapping));
   writerFunc.setName((func.getName() + "__writer").str());
+  bool useMergedBPartition = hasMatmulMergedBPartition(writerFunc);
 
   SmallVector<Operation *, 8> opsToErase;
   writerFunc.walk([&](Operation *op) {
     if (isComputeOp(op)) {
       opsToErase.push_back(op);
     }  else if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(op)) {
-      if (isLoomLoadOp(loomCopyOp))
+      if (useMergedBPartition) {
+        if (getCopyDataMovementRole(loomCopyOp) != kWriterDataMovementRole)
+          opsToErase.push_back(op);
+      } else if (isLoomLoadOp(loomCopyOp)) {
         opsToErase.push_back(op);
+      }
     }
   });
 
   for (Operation *op : llvm::reverse(opsToErase))
     op->erase();
 
+  clearMatmulBReaderMergeAttrs(writerFunc);
   return writerFunc;
 }
 
@@ -1669,6 +1816,7 @@ static func::FuncOp makeHostFunc(func::FuncOp func, HostProgramKind kind) {
 
   TTMetalHostProgramEmitter emitter(func, hostFunc, kind);
   emitter.run();
+  clearMatmulBReaderMergeAttrs(hostFunc);
   return hostFunc;
 }
 
@@ -1719,6 +1867,25 @@ private:
 };
 
 } // namespace
+
+LogicalResult mlir::loom::prepareMatmulBReaderMerge(ModuleOp module) {
+  for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+    StringRef name = func.getName();
+    if (name.ends_with("__compute") || name.ends_with("__reader") ||
+        name.ends_with("__writer") || name.ends_with("__host") ||
+        name.ends_with("__host_cpp") || name.ends_with("__host_pybind")) {
+      continue;
+    }
+
+    if (func.isExternal())
+      continue;
+
+    if (failed(annotateMatmulBReaderMerge(func)))
+      return failure();
+  }
+
+  return success();
+}
 
 void mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
   // Collect functions to specialize (use make_early_inc_range since we modify

@@ -296,6 +296,20 @@ private:
 };
 
 /**
+ * @brief Mark matmul functions for merged B-reader/writer specialization.
+ *
+ * @details Identifies supported `linalg.matmul` functions before cloning and
+ *          tags the relevant `loom.copy` ops so specialization can keep the
+ *          A-side load in `__reader` and move the B-side load into
+ *          `__writer`.
+ *
+ * @param module The module containing original (unspecialized) functions.
+ * @return success if all eligible matmul functions were annotated, failure on
+ *         malformed supported input.
+ */
+LogicalResult prepareMatmulBReaderMerge(ModuleOp module);
+
+/**
  * @brief Specialize functions into compute, data, and host variants.
  *
  * @details For each func::FuncOp in the module, this creates five clones:
