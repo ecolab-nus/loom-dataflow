@@ -522,6 +522,8 @@ def CopyOp : Loom_Op<"copy", [
     `,` `broadcast` `:` $broadcast 
     attr-dict `:` type($source) `to` type($destination)
   }];
+
+  let hasCanonicalizer = 1;
 }
 
 //===----------------------------------------------------------------------===//
