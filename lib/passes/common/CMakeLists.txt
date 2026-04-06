@@ -6,7 +6,6 @@ add_library(LoomPassesCommon
   src/block_loading_pattern.cpp
   src/hardware_discovery.cpp
   src/hardware_mapping.cpp
-  src/mapping_enumeration.cpp
   src/affine_utils.cpp
   src/index_mapping.cpp
 )

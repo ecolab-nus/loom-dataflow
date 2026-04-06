@@ -4,6 +4,7 @@
 
 add_library(LoomAnalysis
   src/static_memory_analyser.cpp
+  src/mapping_prioritizer.cpp
 )
 
 target_include_directories(LoomAnalysis
@@ -29,6 +30,7 @@ target_link_libraries(LoomAnalysis
     MLIRBufferizationDialect
     MLIRTensorDialect
     MLIRLinalgDialect
+    MLIRViewLikeInterface
     loomDialect
 )
 

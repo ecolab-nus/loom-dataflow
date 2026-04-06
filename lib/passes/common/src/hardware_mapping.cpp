@@ -1,7 +1,7 @@
 #include "affine_utils.h"
 #include "hardware_info.h"
 #include "index_mapping.h"
-#include "mapping_enumeration.h"
+#include "mapping_prioritizer.h"
 #include "utils.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -180,8 +180,6 @@ EnumerateSpatialMappings(ModuleOp affineModule,
   llvm::SmallVector<func::FuncOp> allFuncs =
       loom::utils::collectFunctions(affineModule);
 
-  MappingEnumerator enumerator(hardwareInfo);
-
   for (func::FuncOp func : allFuncs) {
     ModuleOp parentModule = loom::utils::getParentModule(func);
     DictionaryAttr moduleAttrs = nullptr;
@@ -250,17 +248,16 @@ EnumerateSpatialMappings(ModuleOp affineModule,
       continue;
     }
 
-    llvm::SmallVector<loom::DimBuckets> allBucketingResults =
-        enumerator.generateAllPossibleBuckets(P, D);
+    loom::MappingPrioritizer prioritizer;
+    auto weights = prioritizer.computeIterWeights(func, root);
+    auto bijectiveMappings = prioritizer.generateBijectiveMappings(weights, D);
 
-    for (auto &bucketing : allBucketingResults) {
-      auto mappings = enumerator.permuteBuckets(bucketing);
-      for (const auto &mapping : mappings) {
-        SmallVector<unsigned> order(P);
-        std::iota(order.begin(), order.end(), 0);
+    for (const auto &mapping : bijectiveMappings) {
+      SmallVector<unsigned> order(P);
+      std::iota(order.begin(), order.end(), 0);
 
-        SmallVector<unsigned> orderCopy = order;
-        do {
+      SmallVector<unsigned> orderCopy = order;
+      do {
           builder.setInsertionPointToEnd(out.getBody());
           std::string mappingSuffix;
           std::string newNamePrefix = func.getName().str();
@@ -316,8 +313,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
             clonedFunc.setName(finalName);
           }
 
-        } while (std::next_permutation(orderCopy.begin(), orderCopy.end()));
-      }
+      } while (std::next_permutation(orderCopy.begin(), orderCopy.end()));
     }
   }
 
