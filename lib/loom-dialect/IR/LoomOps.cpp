@@ -596,6 +596,32 @@ struct FoldSemaphoreTakeType : public OpRewritePattern<SemaphoreTakeOp> {
   }
 };
 
+struct StaticizeCopy : public OpRewritePattern<CopyOp> {
+  using OpRewritePattern<CopyOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(CopyOp op,
+                                PatternRewriter &rewriter) const override {
+    Value source = op.getSource();
+    if (auto cast = source.getDefiningOp<memref::CastOp>()) {
+      source = cast.getSource();
+    }
+
+    Value destination = op.getDestination();
+    if (auto cast = destination.getDefiningOp<memref::CastOp>()) {
+      destination = cast.getSource();
+    }
+
+    if (source == op.getSource() && destination == op.getDestination()) {
+      return failure();
+    }
+
+    rewriter.replaceOpWithNewOp<CopyOp>(
+        op, source, destination, op.getSrcMemSpaceAttr(),
+        op.getDstMemSpaceAttr(), op.getBroadcastAttr());
+    return success();
+  }
+};
+
 } // namespace
 
 void SubviewOp::getCanonicalizationPatterns(RewritePatternSet &results,
@@ -626,6 +652,11 @@ void CopyToTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void SemaphoreTakeOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                                   MLIRContext *context) {
   results.add<FoldSemaphoreTakeType>(context);
+}
+
+void CopyOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                         MLIRContext *context) {
+  results.add<StaticizeCopy>(context);
 }
 
 //===----------------------------------------------------------------------===//
@@ -682,12 +713,7 @@ struct FoldBufferizeToTensorConstants
         rewriter, op.getLoc(), newResultType, op.getSource(), dynamicSizes,
         rewriter.getDenseI64ArrayAttr(staticSizes));
 
-    if (newResultType != resultType) {
-      rewriter.replaceOpWithNewOp<tensor::CastOp>(op, resultType,
-                                                  newOp.getResult());
-    } else {
-      rewriter.replaceOp(op, newOp.getResult());
-    }
+    rewriter.replaceOp(op, newOp.getResult());
     return success();
   }
 };
@@ -700,21 +726,35 @@ struct FoldBufferizeToMemrefType
 
   LogicalResult matchAndRewrite(BufferizeToMemrefOp op,
                                 PatternRewriter &rewriter) const override {
-    auto srcType = llvm::dyn_cast<RankedTensorType>(op.getSource().getType());
+    Value src = op.getSource();
+    if (auto castOp = src.getDefiningOp<tensor::CastOp>()) {
+      src = castOp.getSource();
+    }
+    auto srcType = llvm::dyn_cast<RankedTensorType>(src.getType());
     if (!srcType || !srcType.hasStaticShape())
       return failure();
 
     auto resultType = llvm::dyn_cast<MemRefType>(op.getType());
-    if (!resultType || resultType.hasStaticShape())
+    if (!resultType)
       return failure();
 
     auto newResultType = BufferizeToMemrefOp::inferResultType(
         srcType.getShape(), srcType.getElementType());
 
+    bool needsTypeUpdate = (newResultType != resultType);
+    bool needsSourceUpdate = (src != op.getSource());
+
+    if (!needsTypeUpdate && !needsSourceUpdate)
+      return failure();
+
     auto newOp = BufferizeToMemrefOp::create(rewriter, op.getLoc(),
-                                             newResultType, op.getSource());
-    rewriter.replaceOpWithNewOp<memref::CastOp>(op, resultType,
-                                                newOp.getResult());
+                                             newResultType, src);
+    if (needsTypeUpdate) {
+      rewriter.replaceOpWithNewOp<memref::CastOp>(op, resultType,
+                                                  newOp.getResult());
+    } else {
+      rewriter.replaceOp(op, newOp.getResult());
+    }
     return success();
   }
 };
