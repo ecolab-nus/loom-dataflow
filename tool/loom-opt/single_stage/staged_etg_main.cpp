@@ -1,4 +1,5 @@
 #include "staged_etg_builder.h"
+#include "compute_op_registry.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -18,8 +19,11 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
 
-// Assuming LoomDialect and DataflowDialect are available
-#include "DataflowDialect.h.inc"
+#include "ADLDialect.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "ADLTypes.h.inc"
+#define GET_OP_CLASSES
+#include "ADLOps.h.inc"
 #include "LoomDialect.h.inc"
 
 using namespace mlir;
@@ -34,6 +38,11 @@ static llvm::cl::opt<std::string>
              llvm::cl::value_desc("filename"),
              llvm::cl::init("staged_etg_dump.json"));
 
+static llvm::cl::opt<std::string>
+    clHWPlatformFile("hw_spec",
+                     llvm::cl::desc("Hardware platform MLIR file"),
+                     llvm::cl::value_desc("filename"), llvm::cl::Required);
+
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
                                     "LOOM Staged-ETG Analysis Tool\n");
@@ -44,7 +53,14 @@ int main(int argc, char **argv) {
                       mlir::tensor::TensorDialect, mlir::linalg::LinalgDialect,
                       mlir::memref::MemRefDialect, mlir::scf::SCFDialect,
                       mlir::math::MathDialect, loom::LoomDialect,
-                      loom::df::DataflowDialect>();
+                      adl::ADLDialect>();
+
+  loom::lcs::HWOpRegistry registry;
+  if (mlir::failed(registry.loadFromPlatformFile(clHWPlatformFile, context))) {
+    llvm::WithColor::error(llvm::errs())
+        << "Failed to load platform IR from: " << clHWPlatformFile << "\n";
+    return 1;
+  }
 
   llvm::SourceMgr sm;
   auto file = mlir::openInputFile(clInput);
@@ -90,9 +106,10 @@ int main(int argc, char **argv) {
     });
 
     if (target_loop) {
-      VariantETG etg(func_op.getName());
+      VariantETG etg(func_op.getName(), &registry);
       etg.buildFromAffineFor(target_loop);
       etg.buildConstraintScope(func_op);
+      etg.buildL1FootprintConstraint();
       json_etgs.push_back(etg.toJSON());
     }
   });
@@ -128,6 +145,25 @@ int main(int argc, char **argv) {
     return false;
   };
 
+  // True for arrays whose every element is a plain string.
+  auto isStringArray = [](const llvm::json::Value &val) -> bool {
+    const auto *arr = val.getAsArray();
+    if (!arr || arr->empty())
+      return false;
+    for (const auto &elem : *arr)
+      if (!elem.getAsString())
+        return false;
+    return true;
+  };
+
+  // True for a sym_map entry: a 2-element array [string, ExprNode].
+  auto isSymMapEntry = [&](const llvm::json::Value &val) -> bool {
+    const auto *arr = val.getAsArray();
+    if (!arr || arr->size() != 2)
+      return false;
+    return (*arr)[0].getAsString().has_value() && isExprNode((*arr)[1]);
+  };
+
   // Recursive pretty-printer; indent is the current indentation level.
   std::function<void(llvm::raw_ostream &, const llvm::json::Value &, int)>
       writeJSON =
@@ -135,6 +171,18 @@ int main(int argc, char **argv) {
               int indent) {
             // Expr nodes: compact one-liner using llvm's built-in formatter.
             if (isExprNode(val)) {
+              os << llvm::formatv("{0}", val);
+              return;
+            }
+
+            // String arrays (e.g. symbols): compact one-liner.
+            if (isStringArray(val)) {
+              os << llvm::formatv("{0}", val);
+              return;
+            }
+
+            // sym_map entries [string, ExprNode]: compact one-liner.
+            if (isSymMapEntry(val)) {
               os << llvm::formatv("{0}", val);
               return;
             }

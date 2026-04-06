@@ -25,8 +25,11 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
 
-#include "DataflowDialect.h.inc"
-#include "DataflowOps.h.inc"
+#include "ADLDialect.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "ADLTypes.h.inc"
+#define GET_OP_CLASSES
+#include "ADLOps.h.inc"
 #include "LoomDialect.h.inc"
 #include "LoomOps.h.inc"
 
@@ -51,7 +54,7 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::linalg::LinalgDialect>();
   context.loadDialect<mlir::scf::SCFDialect>();
   context.loadDialect<mlir::bufferization::BufferizationDialect>();
-  context.loadDialect<loom::df::DataflowDialect>();
+  context.loadDialect<adl::ADLDialect>();
   context.loadDialect<loom::LoomDialect>();
 
   llvm::SourceMgr sm;

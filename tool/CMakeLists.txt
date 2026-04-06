@@ -7,11 +7,10 @@ set(LOOM_PASSES_INC
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/triton-shared/inc
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/TileLoomToTTKernel/inc
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/common/inc
-  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/LCS/inc
   ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/loom-opt/inc
-  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/constraint-opt/inc
-  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/cost-model/inc
-  ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/tt-opt/inc
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/passes/LCS/inc
+  ${CMAKE_CURRENT_LIST_DIR}/../lib/analysis/inc
   ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
 )
 
@@ -21,9 +20,13 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/loom-opt/single_stage)
 
 # TileLoom to TTKernel tools
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tileloom-to-ttkernel)
+# TT-opt tools
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tt-opt/single_stage)
 
-# Dataflow-dialect tools
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/dataflow-dialect)
+
+
+# ADL-dialect tools
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/adl-dialect)
 
 # Resource-system demos
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/resource-system)

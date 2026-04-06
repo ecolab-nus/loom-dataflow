@@ -16,13 +16,6 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 
-// Include the generated Dataflow dialect headers
-#include "DataflowDialect.h.inc"
-#define GET_TYPEDEF_CLASSES
-#include "DataflowTypes.h.inc"
-#define GET_OP_CLASSES
-#include "DataflowOps.h.inc"
-
 // Include the generated Loom dialect headers
 #include "LoomDialect.h.inc"
 #include "mlir/Interfaces/ViewLikeInterface.h"
@@ -139,7 +132,7 @@ llvm::SmallVector<func::FuncOp> collectFunctions(ModuleOp module) {
 func::FuncOp
 cloneFuncWithConstraints(OpBuilder &builder, func::FuncOp originalFunc,
                          llvm::StringRef newName, DictionaryAttr moduleAttrs,
-                         llvm::StringRef passName,
+                         llvm::StringRef /*passName*/,
                          std::function<LogicalResult(func::FuncOp)> modifier,
                          Operation *insertAfter) {
   return cloneFunctionImpl(builder, originalFunc, newName, insertAfter,
@@ -150,8 +143,8 @@ StringRef traceToSymbolicVar(Value val) {
   if (!val)
     return "";
 
-  // Handle direct loom.get_symbolic_block_size
-  if (auto getSym = val.getDefiningOp<loom::GetSymbolicBlockSizeOp>()) {
+  // Handle direct loom.sym
+  if (auto getSym = val.getDefiningOp<loom::SymOp>()) {
     return getSym.getSymbolRef().getLeafReference().getValue();
   }
 
@@ -300,7 +293,7 @@ void utils::composeAndCanonicalizeAffineApplies(func::FuncOp func) {
         std::equal(operands.begin(), operands.end(), op.getOperands().begin());
     if (sameMap && sameOperands)
       continue;
-    auto newOp = b.create<affine::AffineApplyOp>(op.getLoc(), map, operands);
+    auto newOp = affine::AffineApplyOp::create(b, op.getLoc(), map, operands);
     op.replaceAllUsesWith(newOp.getResult());
     op.erase();
   }

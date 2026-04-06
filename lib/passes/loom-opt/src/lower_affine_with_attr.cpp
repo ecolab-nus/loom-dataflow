@@ -91,12 +91,14 @@ struct LowerAffineWithAttrPass
 
       for (unsigned i = 0; i < parOp.getNumDims(); ++i) {
         // Lower bounds using affine.apply (temporary, will be lowered later)
-        lowerBounds.push_back(builder.create<affine::AffineApplyOp>(
-            loc, parOp.getLowerBoundMap(i), parOp.getLowerBoundsOperands()));
-        upperBounds.push_back(builder.create<affine::AffineApplyOp>(
-            loc, parOp.getUpperBoundMap(i), parOp.getUpperBoundsOperands()));
-        steps.push_back(
-            builder.create<arith::ConstantIndexOp>(loc, parOp.getSteps()[i]));
+        lowerBounds.push_back(affine::AffineApplyOp::create(
+            builder, loc, parOp.getLowerBoundMap(i),
+            parOp.getLowerBoundsOperands()));
+        upperBounds.push_back(affine::AffineApplyOp::create(
+            builder, loc, parOp.getUpperBoundMap(i),
+            parOp.getUpperBoundsOperands()));
+        steps.push_back(arith::ConstantIndexOp::create(
+            builder, loc, parOp.getSteps()[i]));
 
         mappedToDims.push_back(mt ? mt : builder.getUnitAttr());
         iterTypes.push_back(it ? it : builder.getUnitAttr());
@@ -105,8 +107,8 @@ struct LowerAffineWithAttrPass
         hasAnyAttr = true;
     }
 
-    auto scfPar = builder.create<scf::ParallelOp>(
-        loc, lowerBounds, upperBounds, steps,
+    auto scfPar = scf::ParallelOp::create(
+        builder, loc, lowerBounds, upperBounds, steps,
         [&](OpBuilder &nestedBuilder, Location /*nestedLoc*/, ValueRange ivs) {
           // Map IVs
           unsigned scfIvIdx = 0;

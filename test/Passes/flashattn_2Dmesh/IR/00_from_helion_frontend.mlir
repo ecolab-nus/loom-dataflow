@@ -9,15 +9,15 @@ module {
   module {
     func.func @attention(%arg0: memref<1x128x4096xf16>, %arg1: memref<1x4096x128xf16>, %arg2: memref<1x4096x128xf16>, %arg3: memref<1x4096x128xf16>) {
       %cst = arith.constant 2.000000e+00 : f16
-      %cst_0 = arith.constant 0.12751743 : f32 // qk_scale
+      %cst_0 = arith.constant 0.12751743 : f16 // qk_scale
       %c0_i64 = arith.constant 0 : i64
       %cst_1 = arith.constant 0.000000e+00 : f16
       %cst_2 = arith.constant 1.000000e+00 : f16
       %cst_3 = arith.constant 0xFC00 : f16 // -inf
       // Manually added constraint space access
-      %0 = loom.get_symbolic_block_size @constraints::@BB : index
-      %1 = loom.get_symbolic_block_size @constraints::@BM : index
-      %2 = loom.get_symbolic_block_size @constraints::@BN : index
+      %0 = loom.sym @block_size_0 : index // BB
+      %1 = loom.sym @block_size_1 : index // BM
+      %2 = loom.sym @block_size_2 : index // BN
       affine.parallel (%arg4, %arg5) = (0, 0) to (1 ceildiv symbol(%0), 4096 ceildiv symbol(%1)) {
         %3 = tensor.empty(%0, %1) : tensor<?x?xf16>
         %4 = linalg.fill ins(%cst_3 : f16) outs(%3 : tensor<?x?xf16>) -> tensor<?x?xf16> // m_i = hl.full([tile_b, tile_m], float("-inf"), dtype=torch.float16)
@@ -43,20 +43,15 @@ module {
           %21 = tensor.empty(%0, %1) : tensor<?x?xi64>
           %22 = linalg.fill ins(%c0_i64 : i64) outs(%21 : tensor<?x?xi64>) -> tensor<?x?xi64>
           // %20: qk, %4: -inf, %22: index of max
-          %23:2 = linalg.generic {indexing_maps = [#map1, #map2, #map2], iterator_types = ["parallel", "parallel", "reduction"]} ins(%20 : tensor<?x?x?xf16>) outs(%4, %22 : tensor<?x?xf16>, tensor<?x?xi64>) {
-          ^bb0(%in: f16, %out: f16, %out_11: i64):
-            %41 = linalg.index 2 : index
-            %42 = arith.index_cast %41 : index to i64
-            %43 = arith.maximumf %in, %out : f16
-            %44 = arith.cmpf ogt, %in, %out : f16
-            %45 = arith.select %44, %42, %out_11 : i64
-            linalg.yield %43, %45 : f16, i64
-          } -> (tensor<?x?xf16>, tensor<?x?xi64>)
-          //** torch.amax(qk, -1) * qk_scale **/
-          %24 = linalg.generic {indexing_maps = [#map3, #map3], iterator_types = ["parallel", "parallel"]} ins(%23#0 : tensor<?x?xf16>) outs(%3 : tensor<?x?xf16>) {
+          %23 = linalg.generic {indexing_maps = [#map1, #map2], iterator_types = ["parallel", "parallel", "reduction"]} ins(%20 : tensor<?x?x?xf16>) outs(%4 : tensor<?x?xf16>) {
           ^bb0(%in: f16, %out: f16):
-            %41 = arith.truncf %cst_0 : f32 to f16
-            %42 = arith.mulf %in, %41 : f16
+            %43 = arith.maximumf %in, %out : f16
+            linalg.yield %43 : f16
+          } -> (tensor<?x?xf16>)
+          //** torch.amax(qk, -1) * qk_scale **/
+          %24 = linalg.generic {indexing_maps = [#map3, #map3], iterator_types = ["parallel", "parallel"]} ins(%23 : tensor<?x?xf16>) outs(%3 : tensor<?x?xf16>) {
+          ^bb0(%in: f16, %out: f16):
+            %42 = arith.mulf %in, %cst_0 : f16
             linalg.yield %42 : f16
           } -> tensor<?x?xf16>
           //** m_ij = torch.maximum(m_i, torch.amax(qk, -1) * qk_scale) **/
@@ -69,8 +64,7 @@ module {
           // qk *= qk_scale
           %26 = linalg.generic {indexing_maps = [#map1, #map1], iterator_types = ["parallel", "parallel", "parallel"]} ins(%20 : tensor<?x?x?xf16>) outs(%18 : tensor<?x?x?xf16>) {
           ^bb0(%in: f16, %out: f16):
-            %41 = arith.truncf %cst_0 : f32 to f16
-            %42 = arith.mulf %in, %41 : f16
+            %42 = arith.mulf %in, %cst_0 : f16
             linalg.yield %42 : f16
           } -> tensor<?x?x?xf16>
           // m_ij[:, :, None]

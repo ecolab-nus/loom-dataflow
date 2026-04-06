@@ -78,4 +78,18 @@ _deps/
 build/
 
 # Python cache
-lib/lcs/viz_engine/__pycache__/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+*.egg
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Some temporal files
+test/Passes/mm_2Dmesh/constraint_space/temp.json

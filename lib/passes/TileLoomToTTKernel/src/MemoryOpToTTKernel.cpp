@@ -971,32 +971,25 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
     memrefArgData->num_tiles = numPages;
     CBReserveBackOp::create(rewriter, loc, cb, memrefArgData->num_tiles);
 
-    // Determine broadcast from the loom.copy interconnect attribute.
-    // interconnect : [@vertical_links]   → isBroadcastY (vertical)
-    // interconnect : [@horizontal_links] → isBroadcastX (horizontal)
-    // interconnect : []                  → no broadcast (unicast)
+    // Determine broadcast direction from the loom.copy broadcast attribute.
+    // broadcast : [x, y]
+    //   - x > 1, y <= 1 → horizontal broadcast
+    //   - x <= 1, y > 1 → vertical broadcast
+    //   - x > 1, y > 1  → broadcast all
+    //   - otherwise     → unicast
     bool isBroadcast = false;
     bool isBroadcastX = false;
     bool isBroadcastAll = false;
-    auto interconnectAttr = op.getInterconnect();
-    if (interconnectAttr && !interconnectAttr.empty()) {
-      isBroadcast = true;
-      bool hasHorizontalLinks = false;
-      bool hasVerticalLinks = false;
-      for (Attribute attr : interconnectAttr) {
-        if (auto symRef = dyn_cast<FlatSymbolRefAttr>(attr)) {
-          StringRef name = symRef.getValue();
-          if (name == "horizontal_links") {
-            isBroadcastX = true;
-            hasHorizontalLinks = true;
-          } else if (name == "vertical_links") {
-            hasVerticalLinks = true;
-          }
-        }
-      }
-      if (hasHorizontalLinks && hasVerticalLinks) {
-        isBroadcastAll = true;
-      }
+    auto broadcastAttr = op->getAttrOfType<DenseI64ArrayAttr>("broadcast");
+    if (broadcastAttr && broadcastAttr.size() >= 2) {
+      int64_t xBroadcast = broadcastAttr[0];
+      int64_t yBroadcast = broadcastAttr[1];
+
+      bool hasHorizontalBroadcast = xBroadcast > 1;
+      bool hasVerticalBroadcast = yBroadcast > 1;
+      isBroadcast = hasHorizontalBroadcast || hasVerticalBroadcast;
+      isBroadcastX = hasHorizontalBroadcast;
+      isBroadcastAll = hasHorizontalBroadcast && hasVerticalBroadcast;
     }
 
     if (isBroadcast) {

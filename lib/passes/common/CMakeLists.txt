@@ -4,7 +4,6 @@
 add_library(LoomPassesCommon
   src/utils.cpp
   src/block_loading_pattern.cpp
-  src/static_memory_analyser.cpp
   src/hardware_discovery.cpp
   src/hardware_mapping.cpp
   src/mapping_enumeration.cpp
@@ -20,14 +19,13 @@ target_include_directories(LoomPassesCommon
     ${CMAKE_SOURCE_DIR}/lib/lcs/inc
     # Include the generated Loom dialect headers
     ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
-    # Include the generated Dataflow dialect headers
-    ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
-    # Include the generated Dataflow dialect headers
-    ${CMAKE_BINARY_DIR}/lib/dataflow-dialect/IR
+    # Include the generated ADL dialect headers
+    ${CMAKE_BINARY_DIR}/lib/adl-dialect/IR
 )
 
 target_link_libraries(LoomPassesCommon
   PUBLIC
+    LoomAnalysis
     MLIRIR
     MLIRFuncDialect
     MLIRSupport
@@ -39,7 +37,7 @@ target_link_libraries(LoomPassesCommon
     MLIRTensorDialect
     MLIRLinalgDialect
     loomDialect
-    loomDataflowDialect
+    loomADLDialect
 )
 
 # Depend on the generated Loom dialect headers

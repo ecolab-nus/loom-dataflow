@@ -2,13 +2,13 @@ module {
   module {
     func.func @attention(%arg0: memref<1x128x4096xf16>, %arg1: memref<1x4096x128xf16>, %arg2: memref<1x4096x128xf16>, %arg3: memref<1x4096x128xf16>) {
       %cst = arith.constant 2.000000e+00 : f16
-      %cst_0 = arith.constant 0.127517432 : f32
+      %cst_0 = arith.constant 1.275630e-01 : f16
       %cst_1 = arith.constant 0.000000e+00 : f16
       %cst_2 = arith.constant 1.000000e+00 : f16
       %cst_3 = arith.constant 0xFC00 : f16
-      %0 = loom.get_symbolic_block_size @constraints::@BB : index
-      %1 = loom.get_symbolic_block_size @constraints::@BM : index
-      %2 = loom.get_symbolic_block_size @constraints::@BN : index
+      %0 = loom.sym @block_size_0 : index
+      %1 = loom.sym @block_size_1 : index
+      %2 = loom.sym @block_size_2 : index
       affine.parallel (%arg4, %arg5) = (0, 0) to (1 ceildiv symbol(%0), 4096 ceildiv symbol(%1)) {
         %3 = tensor.empty(%0, %1) : tensor<?x?xf16>
         %4 = tensor.empty(%0, %1) : tensor<?x?x128xf16>
@@ -34,19 +34,17 @@ module {
           } -> tensor<?x?xf16>
           %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg7, %20 : tensor<?x?xf16>, tensor<?x?xf16>) outs(%3 : tensor<?x?xf16>) {
           ^bb0(%in: f16, %in_7: f16, %out: f16):
-            %31 = arith.truncf %cst_0 : f32 to f16
-            %32 = arith.mulf %in_7, %31 : f16
-            %33 = arith.cmpf ogt, %in, %32 : f16
-            %34 = arith.select %33, %in, %32 : f16
-            linalg.yield %34 : f16
+            %31 = arith.mulf %in_7, %cst_0 : f16
+            %32 = arith.cmpf ogt, %in, %31 : f16
+            %33 = arith.select %32, %in, %31 : f16
+            linalg.yield %33 : f16
           } -> tensor<?x?xf16>
           %22 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%18, %21 : tensor<?x?x?xf16>, tensor<?x?xf16>) outs(%16 : tensor<?x?x?xf16>) {
           ^bb0(%in: f16, %in_7: f16, %out: f16):
-            %31 = arith.truncf %cst_0 : f32 to f16
-            %32 = arith.mulf %in, %31 : f16
-            %33 = arith.subf %32, %in_7 : f16
-            %34 = math.powf %cst, %33 : f16
-            linalg.yield %34 : f16
+            %31 = arith.mulf %in, %cst_0 : f16
+            %32 = arith.subf %31, %in_7 : f16
+            %33 = math.powf %cst, %32 : f16
+            linalg.yield %33 : f16
           } -> tensor<?x?x?xf16>
           %23 = linalg.fill ins(%cst_1 : f16) outs(%3 : tensor<?x?xf16>) -> tensor<?x?xf16>
           %24 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%22 : tensor<?x?x?xf16>) outs(%23 : tensor<?x?xf16>) {

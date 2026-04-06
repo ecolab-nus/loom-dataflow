@@ -309,6 +309,97 @@ def CopyFromTensorOp : Loom_Op<"copy_from_tensor", [
   let hasCanonicalizer = 1;
 }
 
+def BufferizeToTensorOp : Loom_Op<"bufferize_to_tensor", [Pure]> {
+  let summary = "Reinterpret a memref as a tensor (pure view, no copy)";
+  let description = [{
+    The `loom.bufferize_to_tensor` operation reinterprets a memref as a
+    ranked tensor with the same element type and shape. It carries no
+    memory effects: it is a pure metadata operation that lets downstream
+    tensor-level IR consume an already-allocated L1 buffer.
+
+    This op is emitted by the memory binding pass after `loom.copy` has
+    physically moved data into the buffer. OSB can alias through it (the
+    tensor result is Equivalent to the source buffer) and erase it during
+    bufferization.
+
+    Example:
+    ```mlir
+    loom.copy %view, %buf src_mem_space @DRAM dst_mem_space @L1,
+              interconnect : [], broadcast : [1, 1]
+              : memref<?x?xf16, strided<...>>, memref<?x?xf16>
+    %t = loom.bufferize_to_tensor %buf[%m, %n]
+         : memref<?x?xf16> -> tensor<?x?xf16>
+    ```
+  }];
+
+  let arguments = (ins
+    AnyMemRef:$source,
+    Variadic<Index>:$sizes,
+    DenseI64ArrayAttr:$static_sizes
+  );
+
+  let results = (outs AnyRankedTensor:$result);
+
+  let assemblyFormat = [{
+    $source ``
+    custom<DynamicIndexList>($sizes, $static_sizes) attr-dict `:`
+    type($source) `->` type($result)
+  }];
+
+  let hasCanonicalizer = 1;
+
+  let extraClassDeclaration = [{
+    ::mlir::SmallVector<::mlir::OpFoldResult, 4> getMixedSizes() {
+      ::mlir::Builder builder(getContext());
+      return ::mlir::getMixedValues(getStaticSizes(), getSizes(), builder);
+    }
+
+    static ::mlir::RankedTensorType inferResultType(
+        ::llvm::ArrayRef<int64_t> staticSizes,
+        ::mlir::Type elementType);
+  }];
+}
+
+def BufferizeToMemrefOp : Loom_Op<"bufferize_to_memref", [Pure]> {
+  let summary = "Reinterpret a tensor as a memref (pure view, no copy)";
+  let description = [{
+    The `loom.bufferize_to_memref` operation reinterprets a ranked tensor
+    as a memref with the same element type and shape. It carries no memory
+    effects: it is a pure metadata operation.
+
+    This op is emitted by the memory binding pass before `loom.copy` writes
+    data from an L1 buffer back to DRAM. OSB erases it during bufferization
+    by replacing the memref result with the underlying buffer.
+
+    Example:
+    ```mlir
+    %buf = loom.bufferize_to_memref %tensor
+           : tensor<?x?xf16> -> memref<?x?xf16>
+    loom.copy %buf, %view src_mem_space @L1 dst_mem_space @DRAM,
+              interconnect : [], broadcast : [1, 1]
+              : memref<?x?xf16>, memref<?x?xf16, strided<...>>
+    ```
+  }];
+
+  let arguments = (ins AnyRankedTensor:$source);
+
+  let results = (outs AnyMemRef:$result);
+
+  let assemblyFormat = [{
+    $source attr-dict `:` type($source) `->` type($result)
+  }];
+
+  let hasCanonicalizer = 1;
+
+  let extraClassDeclaration = [{
+    /// Infer a plain (identity-layout) MemRefType from static sizes and
+    /// element type.  Used by the static-shape canonicalizer.
+    static ::mlir::MemRefType inferResultType(
+        ::llvm::ArrayRef<int64_t> staticSizes,
+        ::mlir::Type elementType);
+  }];
+}
+
 def InitTensorOp : Loom_Op<"init_tensor", [Pure]> {
   let summary = "Create a tensor bound to a buffer";
   let description = [{
@@ -419,7 +510,6 @@ def CopyOp : Loom_Op<"copy", [
     AnyMemRef:$destination,
     OptionalAttr<SymbolRefAttr>:$src_mem_space,
     OptionalAttr<SymbolRefAttr>:$dst_mem_space,
-    DefaultValuedAttr<ArrayAttr, "{}">:$interconnect,
     DefaultValuedAttr<I64ArrayAttr, "{1, 1}">:$broadcast
   );
 
@@ -429,9 +519,8 @@ def CopyOp : Loom_Op<"copy", [
     $source `,` $destination
     (`src_mem_space` $src_mem_space^)?
     (`dst_mem_space` $dst_mem_space^)?
-    `,` `interconnect` `:` $interconnect 
     `,` `broadcast` `:` $broadcast 
-    attr-dict `:` type($source) `,` type($destination)
+    attr-dict `:` type($source) `to` type($destination)
   }];
 }
 
@@ -439,45 +528,183 @@ def CopyOp : Loom_Op<"copy", [
 // Constraint Language Operations
 //===----------------------------------------------------------------------===//
 
-/// Reference to a symbolic variable in a constraint space.
+/// Reference to a symbolic variable.
 ///
-/// The `loom.get_symbolic_block_size` operation retrieves the value of a
-/// symbolic variable defined in a constraint space. It uses a nested symbol
-/// reference to reference the constraint space and the variable name.
+/// The `loom.sym` operation retrieves the value of a named symbolic variable.
+/// It uses a flat SymbolRefAttr to identify the variable.
 ///
 /// Example:
 /// ```mlir
-/// %m_val = loom.get_symbolic_block_size @constraints::@M : index
+/// %m_val = loom.sym @M : index
 /// ```
-def GetSymbolicBlockSizeOp : Loom_Op<"get_symbolic_block_size", [
+def SymOp : Loom_Op<"sym", [
   Pure
 ]> {
-  let summary = "Get the value of a symbolic variable from a constraint space";
+  let summary = "Reference a named symbolic variable";
   let description = [{
-    This operation retrieves the value of a symbolic variable defined within
-    a constraint space. It uses a SymbolRefAttr to reference the constraint
-    space and variable name in the format @space::@var.
-    
-    The operation is pure and returns an index value representing the
-    symbolic variable, which can be used in subsequent computations.
-    
+    This operation retrieves the value of a named symbolic variable.
+    It returns an index value that can be used in subsequent computations.
+
     Example:
-      %m_val = loom.get_symbolic_block_size @constraints::@M : index
-      
-    This retrieves the value of variable "M" from the constraint space
-    named "@constraints".
+      %m_val = loom.sym @M : index
   }];
-  
+
   let arguments = (ins
-    SymbolRefAttr:$symbol_ref
+    SymbolRefAttr:$symbol_ref,
+    OptionalAttr<IndexAttr>:$upper_bound,
+    DefaultValuedAttr<BoolAttr, "false">:$is_reduction
   );
-  
+
   let results = (outs Index:$result);
-  
+
   let assemblyFormat = [{
-    $symbol_ref `:` type($result) attr-dict
+    $symbol_ref attr-dict `:` type($result)
   }];
-  
-  let hasVerifier = 1;
 }
 
+def BindOp : Loom_Op<"bind", []> {
+  let summary = "Bind symbolic shape dimensions to a memref";
+  let description = [{
+    The `loom.bind` operation annotates a memref with its symbolic shape
+    by accepting the memref and a variadic list of index SSA values
+    (typically from `loom.sym`).
+
+    This is a metadata-only operation: it does not return any SSA value
+    and produces no runtime code.
+
+    Example:
+    ```mlir
+    %m = loom.sym @M : index
+    %n = loom.sym @N : index
+    loom.bind %memref, [%m, %n] : memref<?x?xf16>
+    ```
+  }];
+
+  let arguments = (ins
+    AnyMemRef:$memref,
+    Variadic<Index>:$symbols
+  );
+
+  let results = (outs);
+
+  let assemblyFormat = [{
+    $memref `,` `[` $symbols `]` attr-dict `:` type($memref)
+  }];
+}
+
+def BindShapeOp : Loom_Op<"bind_shape", []> {
+  let summary = "Bind symbolic shape dimensions to a memref (alias for loom.bind)";
+  let description = [{
+    The `loom.bind_shape` operation annotates a memref with its symbolic shape.
+    This is functionally identical to `loom.bind` and exists as an alias.
+
+    Example:
+    ```mlir
+    %m = loom.sym @M : index
+    %n = loom.sym @N : index
+    loom.bind_shape %memref, [%m, %n] : memref<?x?xf16>
+    ```
+  }];
+
+  let arguments = (ins
+    AnyMemRef:$memref,
+    Variadic<Index>:$symbols
+  );
+
+  let results = (outs);
+
+  let assemblyFormat = [{
+    $memref `,` `[` $symbols `]` attr-dict `:` type($memref)
+  }];
+}
+
+def BindMemOp : Loom_Op<"bind_mem", []> {
+  let summary = "Label a memref with a memory region symbol";
+  let description = [{
+    `loom.bind_mem` annotates a memref with the memory region it belongs to,
+    identified by a flat symbol reference (e.g., `@L1`, `@DRAM`).
+
+    This is a metadata-only operation: it produces no runtime code.
+
+    Example:
+    ```mlir
+    loom.bind_mem %A, @L1 : memref<?x?xf16>
+    loom.bind_mem %dram_src, @DRAM : memref<?x?xf16>
+    ```
+  }];
+
+  let arguments = (ins
+    AnyMemRef:$memref,
+    FlatSymbolRefAttr:$memory
+  );
+
+  let results = (outs);
+
+  let assemblyFormat = [{
+    $memref `,` $memory attr-dict `:` type($memref)
+  }];
+}
+
+def MatmulOp : Loom_Op<"matmul", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = "Loom implementation of matmul";
+  let description = [{
+    The `loom.matmul` operation performs matrix multiplication on memrefs.
+    It is equivalent to `linalg.matmul` but specifically used for the TT platform.
+    It currently only supports static shapes.
+
+    TODO: This op should be moved to a specific TT dialect in the future.
+
+    Example:
+    ```mlir
+    loom.matmul ins(%a, %b : memref<64x64xf16>, memref<64x64xf16>)
+                outs(%c : memref<64x64xf16>)
+    ```
+  }];
+
+  let arguments = (ins
+    AnyMemRef:$lhs,
+    AnyMemRef:$rhs,
+    AnyMemRef:$outs
+  );
+
+  let results = (outs);
+
+  let assemblyFormat = [{
+    `ins` `(` $lhs `,` $rhs `:` type($lhs) `,` type($rhs) `)`
+    `outs` `(` $outs `:` type($outs) `)` attr-dict
+  }];
+}
+
+def BatchMatmulOp : Loom_Op<"batch_matmul", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = "Loom implementation of batch_matmul";
+  let description = [{
+    The `loom.batch_matmul` operation performs batch matrix multiplication on memrefs.
+    It is equivalent to `linalg.batch_matmul` but specifically used for the TT platform.
+    It currently only supports static shapes.
+
+    TODO: This op should be moved to a specific TT dialect in the future.
+
+    Example:
+    ```mlir
+    loom.batch_matmul ins(%a, %b : memref<2x64x64xf16>, memref<2x64x64xf16>)
+                      outs(%c : memref<2x64x64xf16>)
+    ```
+  }];
+
+  let arguments = (ins
+    AnyMemRef:$lhs,
+    AnyMemRef:$rhs,
+    AnyMemRef:$outs
+  );
+
+  let results = (outs);
+
+  let assemblyFormat = [{
+    `ins` `(` $lhs `,` $rhs `:` type($lhs) `,` type($rhs) `)`
+    `outs` `(` $outs `:` type($outs) `)` attr-dict
+  }];
+}

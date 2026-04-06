@@ -71,6 +71,8 @@ public:
  */
 class MemoryBank {
 private:
+  // Non-owning pointers. All three objects are owned by the containing
+  // hardware model and must outlive this MemoryBank instance.
   MemoryCapacity *capacity_;
   MemoryPort *read_port_;
   MemoryPort *write_port_;
