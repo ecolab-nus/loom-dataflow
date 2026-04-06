@@ -795,18 +795,35 @@ static LogicalResult annotateMatmulBReaderMerge(func::FuncOp func) {
   return success();
 }
 
+static bool isLoomDataMovementOrMetadataOp(Operation *op) {
+  return isa<::loom::AllocOp, ::loom::SemaphoreTakeOp, ::loom::SemaphoreGiveOp,
+             ::loom::CopyOp, ::loom::CopyToTensorOp,
+             ::loom::CopyFromTensorOp, ::loom::BufferizeToTensorOp,
+             ::loom::BufferizeToMemrefOp, ::loom::InitTensorOp,
+             ::loom::PackToTensorOp, ::loom::SubviewOp, ::loom::BindOp,
+             ::loom::BindShapeOp, ::loom::BindMemOp, ::loom::SymOp>(op);
+}
+
 /**
- * @brief Check if an operation is a compute operation.
+ * @brief Check if an operation belongs to compute, not data movement.
  *
- * @details Currently identifies linalg.matmul as the primary compute op.
- *          Can be extended for other compute operations.
+ * @details This intentionally treats all `linalg` ops as compute and classifies
+ *          Loom ops by role:
+ *          - Data movement / metadata helpers are not compute.
+ *          - Remaining Loom ops are treated as compute.
  *
- * @param op The operation to check.
- * @return true if this is a compute operation, false otherwise.
+ * This keeps reader/writer specialization generic without hardcoding only
+ * matmul-like op classes.
  */
 static bool isComputeOp(Operation *op) {
-  return isa<linalg::MatmulOp, linalg::BatchMatmulOp, linalg::GenericOp,
-             linalg::FillOp, linalg::CopyOp>(op);
+  if (isa<linalg::LinalgOp>(op))
+    return true;
+
+  Dialect *dialect = op->getDialect();
+  if (!dialect || dialect->getNamespace() != StringRef("loom"))
+    return false;
+
+  return !isLoomDataMovementOrMetadataOp(op);
 }
 
 /**
@@ -1131,12 +1148,26 @@ private:
     });
   }
 
-  static MulticastKind classifyBroadcast(DenseI64ArrayAttr broadcastAttr) {
+  static std::optional<std::pair<int64_t, int64_t>>
+  parseBroadcastAttr(ArrayAttr broadcastAttr) {
     if (!broadcastAttr || broadcastAttr.size() < 2)
+      return std::nullopt;
+
+    auto xAttr = dyn_cast<IntegerAttr>(broadcastAttr[0]);
+    auto yAttr = dyn_cast<IntegerAttr>(broadcastAttr[1]);
+    if (!xAttr || !yAttr)
+      return std::nullopt;
+
+    return std::make_pair(xAttr.getInt(), yAttr.getInt());
+  }
+
+  static MulticastKind classifyBroadcast(ArrayAttr broadcastAttr) {
+    auto parsed = parseBroadcastAttr(broadcastAttr);
+    if (!parsed)
       return MulticastKind::None;
 
-    const int64_t xBroadcast = broadcastAttr[0];
-    const int64_t yBroadcast = broadcastAttr[1];
+    const int64_t xBroadcast = parsed->first;
+    const int64_t yBroadcast = parsed->second;
 
     // Keep compatibility with existing host runtime-arg conventions:
     //   [1, 8] => horizontal multicast
@@ -1163,8 +1194,7 @@ private:
       if (sourceArg != hostArg)
         return;
 
-      MulticastKind opKind =
-          classifyBroadcast(op->getAttrOfType<DenseI64ArrayAttr>("broadcast"));
+      MulticastKind opKind = classifyBroadcast(op.getBroadcastAttr());
       if (opKind != MulticastKind::None)
         result = opKind;
     });

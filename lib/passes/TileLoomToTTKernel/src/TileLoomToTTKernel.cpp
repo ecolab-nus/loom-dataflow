@@ -56,11 +56,8 @@ public:
     
     // Convert MemRefType to CBType for circular buffers
     addConversion([](MemRefType memref) -> Type {
-      // CBType builder requires static memref shape (it uses getNumElements()).
-      // Keep dynamic memrefs unchanged to avoid assertion failures during
-      // dialect conversion remapping.
-      if (!memref.hasStaticShape())
-        return static_cast<Type>(memref);
+      // Convert memref to CBType. The CBType wraps the memref and stores
+      // the number of elements and element type.
       return CBType::get(memref);
     });
     
@@ -68,20 +65,21 @@ public:
 };
 
 /**
- * @brief Erase all Dataflow dialect operations from the module.
+ * @brief Erase architecture-description dialect operations from the module.
  *
- * @details This helper walks the entire module and removes every operation
- *          whose dialect namespace is "df". These operations are part of the
- *          hardware description in the Dataflow dialect and are not needed
- *          after TileLoom has been fully lowered to the TTKernel dialect.
+ * @details This helper walks the module and removes every operation whose
+ *          dialect namespace is "df" or "adl". These ops describe topology /
+ *          memory hierarchy metadata and are not required after TTKernel
+ *          lowering.
  *
- * @param module The module in which to erase all Dataflow dialect operations.
+ * @param module The module in which to erase descriptor dialect operations.
  */
-static void eraseAllDfOps(ModuleOp module) {
+static void eraseDescriptorDialectOps(ModuleOp module) {
   SmallVector<Operation *, 16> toErase;
   module.walk([&](Operation *op) {
     Dialect *dialect = op->getDialect();
-    if (dialect && dialect->getNamespace() == StringRef("df"))
+    if (dialect && (dialect->getNamespace() == StringRef("df") ||
+                    dialect->getNamespace() == StringRef("adl")))
       toErase.push_back(op);
   });
 
@@ -194,6 +192,32 @@ static LogicalResult rewriteBatch1MatmulToMatmul(ModuleOp module) {
 
     builder.create<linalg::MatmulOp>(op.getLoc(), ValueRange{lhs2D, rhs2D},
                                      ValueRange{out2D});
+    op.erase();
+  }
+
+  return success();
+}
+
+static LogicalResult rewriteLoomLinearAlgebraToLinalg(ModuleOp module) {
+  SmallVector<::loom::MatmulOp> loomMatmuls;
+  SmallVector<::loom::BatchMatmulOp> loomBatchMatmuls;
+  module.walk([&](::loom::MatmulOp op) { loomMatmuls.push_back(op); });
+  module.walk(
+      [&](::loom::BatchMatmulOp op) { loomBatchMatmuls.push_back(op); });
+
+  for (::loom::MatmulOp op : loomMatmuls) {
+    OpBuilder builder(op);
+    builder.create<linalg::MatmulOp>(
+        op.getLoc(), ValueRange{op.getLhs(), op.getRhs()},
+        ValueRange{op.getOuts()});
+    op.erase();
+  }
+
+  for (::loom::BatchMatmulOp op : loomBatchMatmuls) {
+    OpBuilder builder(op);
+    builder.create<linalg::BatchMatmulOp>(
+        op.getLoc(), ValueRange{op.getLhs(), op.getRhs()},
+        ValueRange{op.getOuts()});
     op.erase();
   }
 
@@ -349,6 +373,11 @@ public:
         bufferization::createBufferHoistingPass());
     //prePm.addPass(createCanonicalizerPass());
     if (failed(prePm.run(module))) {
+      signalPassFailure();
+      return;
+    }
+
+    if (failed(rewriteLoomLinearAlgebraToLinalg(module))) {
       signalPassFailure();
       return;
     }
@@ -570,8 +599,8 @@ public:
       return;
     }
 
-    // Final stage: strip all Dataflow (df) dialect ops from the module.
-    eraseAllDfOps(module);
+    // Final stage: strip descriptor dialect ops (df/adl) from the module.
+    eraseDescriptorDialectOps(module);
   }
 };
 

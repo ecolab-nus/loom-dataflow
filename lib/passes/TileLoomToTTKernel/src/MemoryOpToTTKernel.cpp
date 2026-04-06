@@ -113,6 +113,19 @@ static bool isWriterKernel(Operation *op) {
   return name.ends_with("__writer");
 }
 
+static std::optional<std::pair<int64_t, int64_t>>
+parseBroadcastAttr(ArrayAttr broadcastAttr) {
+  if (!broadcastAttr || broadcastAttr.size() < 2)
+    return std::nullopt;
+
+  auto xAttr = dyn_cast<IntegerAttr>(broadcastAttr[0]);
+  auto yAttr = dyn_cast<IntegerAttr>(broadcastAttr[1]);
+  if (!xAttr || !yAttr)
+    return std::nullopt;
+
+  return std::make_pair(xAttr.getInt(), yAttr.getInt());
+}
+
 static int64_t getPackedWordForScalarOne(Type elementType) {
   if (auto tileType = dyn_cast_or_null<TileType>(elementType)) {
     switch (tileType.getDataType()) {
@@ -980,10 +993,10 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
     bool isBroadcast = false;
     bool isBroadcastX = false;
     bool isBroadcastAll = false;
-    auto broadcastAttr = op->getAttrOfType<DenseI64ArrayAttr>("broadcast");
-    if (broadcastAttr && broadcastAttr.size() >= 2) {
-      int64_t xBroadcast = broadcastAttr[0];
-      int64_t yBroadcast = broadcastAttr[1];
+    auto parsedBroadcast = parseBroadcastAttr(op.getBroadcastAttr());
+    if (parsedBroadcast) {
+      int64_t xBroadcast = parsedBroadcast->first;
+      int64_t yBroadcast = parsedBroadcast->second;
 
       bool hasHorizontalBroadcast = xBroadcast > 1;
       bool hasVerticalBroadcast = yBroadcast > 1;
