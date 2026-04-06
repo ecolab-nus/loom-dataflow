@@ -23,8 +23,8 @@
 #include "mlir/Support/FileUtilities.h"
 #include "llvm/Support/CommandLine.h"
 
-// Loom Dataflow dialect (df.*) used by input modules.
-#include "DataflowDialect.h.inc"
+// ADL dialect for hardware/resource descriptions.
+#include "ADLDialect.h.inc"
 // Loom dialect (loom.*) for loom.alloc, loom.copy, etc.
 #include "LoomDialect.h.inc"
 // TTKernel dialect from tt-mlir (types like DataFormatType, ops, etc.).
@@ -41,10 +41,8 @@ int main(int argc, char **argv) {
   DialectRegistry registry;
   registerAllDialects(registry);
   registerAllPasses();
-  // Note: the Dataflow dialect lives in the global `::loom::df` namespace
-  // (not `mlir::loom`), so use a leading `::` here to avoid namespace
-  // confusion with `using namespace mlir::loom;`.
-  registry.insert<::loom::df::DataflowDialect>();
+  // Register ADL dialect for hardware/resource descriptions.
+  registry.insert<adl::ADLDialect>();
   // Register Loom dialect so loom.alloc, loom.copy, etc. are available.
   registry.insert<::loom::LoomDialect>();
   // Register TTKernel dialect so its types/ops are available.
@@ -56,4 +54,3 @@ int main(int argc, char **argv) {
   return failed(mlir::MlirOptMain(
       argc, argv, "TileLoom to TTKernel optimizer driver\n", registry));
 }
-

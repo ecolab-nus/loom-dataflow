@@ -56,8 +56,11 @@ public:
     
     // Convert MemRefType to CBType for circular buffers
     addConversion([](MemRefType memref) -> Type {
-      // Convert memref to CBType. The CBType wraps the memref and stores
-      // the number of elements and element type.
+      // CBType builder requires static memref shape (it uses getNumElements()).
+      // Keep dynamic memrefs unchanged to avoid assertion failures during
+      // dialect conversion remapping.
+      if (!memref.hasStaticShape())
+        return static_cast<Type>(memref);
       return CBType::get(memref);
     });
     

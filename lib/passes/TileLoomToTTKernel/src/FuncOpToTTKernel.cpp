@@ -1131,29 +1131,26 @@ private:
     });
   }
 
-  static MulticastKind classifyInterconnect(ArrayAttr interconnectAttr) {
-    if (!interconnectAttr || interconnectAttr.empty())
+  static MulticastKind classifyBroadcast(DenseI64ArrayAttr broadcastAttr) {
+    if (!broadcastAttr || broadcastAttr.size() < 2)
       return MulticastKind::None;
 
-    bool hasHorizontal = false;
-    bool hasVertical = false;
-    for (Attribute attr : interconnectAttr) {
-      if (auto symRef = dyn_cast<FlatSymbolRefAttr>(attr)) {
-        StringRef name = symRef.getValue();
-        if (name == "horizontal_links")
-          hasHorizontal = true;
-        if (name == "vertical_links")
-          hasVertical = true;
-      }
-    }
+    const int64_t xBroadcast = broadcastAttr[0];
+    const int64_t yBroadcast = broadcastAttr[1];
+
+    // Keep compatibility with existing host runtime-arg conventions:
+    //   [1, 8] => horizontal multicast
+    //   [8, 1] => vertical multicast
+    const bool hasHorizontal = yBroadcast > 1;
+    const bool hasVertical = xBroadcast > 1;
 
     if (hasHorizontal && hasVertical)
       return MulticastKind::All;
-    if (hasHorizontal && !hasVertical)
+    if (hasHorizontal)
       return MulticastKind::Horizontal;
-    if (!hasHorizontal && hasVertical)
+    if (hasVertical)
       return MulticastKind::Vertical;
-    return MulticastKind::None; 
+    return MulticastKind::None;
   }
 
   MulticastKind findInputMulticastKind(Value hostArg) {
@@ -1166,7 +1163,8 @@ private:
       if (sourceArg != hostArg)
         return;
 
-      MulticastKind opKind = classifyInterconnect(op.getInterconnect());
+      MulticastKind opKind =
+          classifyBroadcast(op->getAttrOfType<DenseI64ArrayAttr>("broadcast"));
       if (opKind != MulticastKind::None)
         result = opKind;
     });
