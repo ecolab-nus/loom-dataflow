@@ -74,7 +74,7 @@ struct MemrefArgData {
   Value mcast_sender_semaphore_noc_addr;
   /// The noc address of receiver semaphore
   Value mcast_receiver_semaphore_noc_addr;
-  /// The NOC ID for multicast. default is 0 first, left it to later optimization, TODO: change to dynamic later
+  /// The NOC ID resolved from the owning data-movement kernel processor.
   int8_t noc_id = 0;
   /// The number of tiles for this memref (stored as Value for use in CB ops).
   Value num_tiles;

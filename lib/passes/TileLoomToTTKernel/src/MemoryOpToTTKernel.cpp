@@ -616,13 +616,14 @@ bool multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArg
   // Create noc_id as a Value
   Value nocIdVal = rewriter.create<arith::ConstantIntOp>(
       loc, rewriter.getI8Type(), memrefArgData->noc_id);
-  Value noc_multicast_addr = GetNocMulticastAddrOp::create(
-      rewriter, loc, NocAddrType::get(rewriter.getContext()),
-      memrefArgData->mcast_dest_noc_end_x,
-      memrefArgData->mcast_dest_noc_end_y,
-      memrefArgData->mcast_dest_noc_start_x, 
-      memrefArgData->mcast_dest_noc_start_y,
-      multicast_l1Addr, nocIdVal);
+  Value noc_multicast_addr =
+      rewriter.create<ExperimentalGetNocMulticastAddrOp>(
+                  loc, memrefArgData->mcast_dest_noc_start_x,
+                  memrefArgData->mcast_dest_noc_start_y,
+                  memrefArgData->mcast_dest_noc_end_x,
+                  memrefArgData->mcast_dest_noc_end_y, multicast_l1Addr,
+                  nocIdVal)
+          .getResult();
 
   //init multicast semaphore
   // Store 1 to the semaphore pointer: *(mcast_receiver_semaphore_addr_ptr) = 1;

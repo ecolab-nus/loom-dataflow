@@ -28,6 +28,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <optional>
 
 // Loom dialect headers for ::::loom::CopyOp, ::loom::AllocOp
 #include "mlir/Interfaces/ViewLikeInterface.h"
@@ -54,12 +55,76 @@ constexpr llvm::StringLiteral kPartitionStrategyAttrName =
     "loom.ttkernel.partition_strategy";
 constexpr llvm::StringLiteral kCopyDataMovementRoleAttrName =
     "loom.ttkernel.dm_role";
+constexpr llvm::StringLiteral kDMProcessorAttrName =
+    "loom.ttkernel.dm_processor";
 constexpr llvm::StringLiteral kMergedBIntoWriterStrategy =
     "matmul_merge_b_reader_into_writer";
 constexpr llvm::StringLiteral kReaderDataMovementRole = "reader";
 constexpr llvm::StringLiteral kWriterDataMovementRole = "writer";
+constexpr llvm::StringLiteral kDMProcessorRISCV0 = "riscv0";
+constexpr llvm::StringLiteral kDMProcessorRISCV1 = "riscv1";
 
 enum class HostProgramKind { Cpp, Pybind };
+enum class DataMovementKernelRole { Reader, Writer };
+
+struct DataMovementKernelSpec {
+  llvm::StringLiteral processorAttrValue;
+  int8_t nocId;
+  llvm::StringLiteral hostProcessorExpr;
+  llvm::StringLiteral hostNocExpr;
+};
+
+static DataMovementKernelSpec
+getDataMovementKernelSpec(DataMovementKernelRole role) {
+  switch (role) {
+  case DataMovementKernelRole::Reader:
+    return {kDMProcessorRISCV1, 1, "DataMovementProcessor::RISCV_1",
+            "NOC::RISCV_1_default"};
+  case DataMovementKernelRole::Writer:
+    return {kDMProcessorRISCV0, 0, "DataMovementProcessor::RISCV_0",
+            "NOC::RISCV_0_default"};
+  }
+  llvm_unreachable("unknown data movement kernel role");
+}
+
+static std::optional<DataMovementKernelRole>
+getDataMovementKernelRoleForFuncName(StringRef name) {
+  if (name.ends_with("__reader"))
+    return DataMovementKernelRole::Reader;
+  if (name.ends_with("__writer"))
+    return DataMovementKernelRole::Writer;
+  return std::nullopt;
+}
+
+static std::optional<DataMovementKernelSpec>
+getDataMovementKernelSpecForProcessorAttr(StringRef processorAttrValue) {
+  if (processorAttrValue == kDMProcessorRISCV1)
+    return getDataMovementKernelSpec(DataMovementKernelRole::Reader);
+  if (processorAttrValue == kDMProcessorRISCV0)
+    return getDataMovementKernelSpec(DataMovementKernelRole::Writer);
+  return std::nullopt;
+}
+
+static std::optional<DataMovementKernelSpec>
+resolveDataMovementKernelSpec(func::FuncOp func) {
+  if (auto processorAttr =
+          func->getAttrOfType<StringAttr>(kDMProcessorAttrName)) {
+    if (auto spec =
+            getDataMovementKernelSpecForProcessorAttr(processorAttr.getValue()))
+      return spec;
+  }
+
+  if (auto role = getDataMovementKernelRoleForFuncName(func.getName()))
+    return getDataMovementKernelSpec(*role);
+  return std::nullopt;
+}
+
+static std::string
+buildHostDataMovementConfigExpr(const DataMovementKernelSpec &spec) {
+  return "tt_metal::DataMovementConfig{.processor = " +
+         spec.hostProcessorExpr.str() + ", .noc = " + spec.hostNocExpr.str() +
+         ", .compile_args = compile_args}";
+}
 
 static Value stripMemrefCasts(Value value) {
   Value current = value;
@@ -292,6 +357,17 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     isComputeKernel = threadAttr.getValue() == ThreadType::Compute;
   }
 
+  int8_t resolvedDmNocId = 0;
+  if (!isComputeKernel) {
+    auto dmSpec = resolveDataMovementKernelSpec(func);
+    if (!dmSpec) {
+      return func.emitError()
+             << "failed to resolve data movement noc id for function "
+             << func.getName();
+    }
+    resolvedDmNocId = dmSpec->nocId;
+  }
+
   // Save insertion point and set to start of function body.
   OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToStart(&entry);
@@ -355,6 +431,8 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
       Value mcast_receiver_semaphore_addr_ptr;
       Value mcast_sender_semaphore_addr_ptr;
       if (!isComputeKernel) {
+        Value nocIdVal = rewriter.create<arith::ConstantIntOp>(
+            loc, rewriter.getI8Type(), resolvedDmNocId);
         mcast_sender_semaphore_addr_op = GetSemaphoreOp::create(
           rewriter, loc, mcast_sender_semaphore_addr_arg);
         mcast_receiver_semaphore_addr_op = GetSemaphoreOp::create(
@@ -377,16 +455,14 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
                            mcast_sender_noc_x_op,
                            mcast_sender_noc_y_op,
                            mcast_sender_semaphore_addr_op);
-        
-        auto zeroVal = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI8Type(), 0);
+
         mcast_receiver_semaphore_noc_addr_op =
-          GetNocMulticastAddrOp::create(
-              rewriter, loc, NocAddrType::get(rewriter.getContext()),
-              mcast_dest_noc_end_x_op,
-              mcast_dest_noc_end_y_op,
-              mcast_dest_noc_start_x_op,
-              mcast_dest_noc_start_y_op,
-              mcast_receiver_semaphore_addr_op, zeroVal);
+            rewriter.create<ExperimentalGetNocMulticastAddrOp>(
+                        loc, mcast_dest_noc_start_x_op,
+                        mcast_dest_noc_start_y_op, mcast_dest_noc_end_x_op,
+                        mcast_dest_noc_end_y_op,
+                        mcast_receiver_semaphore_addr_op, nocIdVal)
+                .getResult();
       }
 
       // pre-created base address when processing load/store ops.
@@ -406,7 +482,8 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
         mcast_sender_semaphore_addr_ptr, // L1 multicast sender semaphore address pointer
         mcast_receiver_semaphore_addr_ptr, // L1 multicast receiver semaphore address pointer
         mcast_sender_semaphore_noc_addr_op, // noc address of sender semaphore
-        mcast_receiver_semaphore_noc_addr_op // noc address of receiver semaphore
+        mcast_receiver_semaphore_noc_addr_op, // noc address of receiver semaphore
+        resolvedDmNocId // resolved noc id for this data-movement kernel
       };
       memrefArgToData[arg].initLoc = loc;
 
@@ -1753,17 +1830,17 @@ private:
   void emitKernelRoles() {
     emitLine("MathFidelity math_fidelity = MathFidelity::HiFi4;");
 
+    const DataMovementKernelSpec readerSpec =
+        getDataMovementKernelSpec(DataMovementKernelRole::Reader);
+    const DataMovementKernelSpec writerSpec =
+        getDataMovementKernelSpec(DataMovementKernelRole::Writer);
     const SmallVector<KernelRoleInfo, 3> roles = {
         {"reader_id",
          "reader.cpp",
-         "tt_metal::DataMovementConfig{.processor = "
-         "DataMovementProcessor::RISCV_1, .noc = NOC::RISCV_1_default, "
-         ".compile_args = compile_args}"},
+         buildHostDataMovementConfigExpr(readerSpec)},
         {"writer_id",
          "writer.cpp",
-         "tt_metal::DataMovementConfig{.processor = "
-         "DataMovementProcessor::RISCV_0, .noc = NOC::RISCV_0_default, "
-         ".compile_args = compile_args}"},
+         buildHostDataMovementConfigExpr(writerSpec)},
         {"compute_kernel_id",
          "compute.cpp",
          "tt_metal::ComputeConfig{.math_fidelity = math_fidelity, "
@@ -1846,12 +1923,23 @@ public:
         ctx, mlir::tt::ttkernel::ThreadType::Compute);
     auto nocAttr = mlir::tt::ttkernel::ThreadTypeAttr::get(
         ctx, mlir::tt::ttkernel::ThreadType::Noc);
+    Builder attrBuilder(ctx);
 
     computeFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, computeAttr);
     readerFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
     writerFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
     hostCppFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
     hostPybindFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
+    readerFunc->setAttr(
+        kDMProcessorAttrName,
+        attrBuilder.getStringAttr(
+            getDataMovementKernelSpec(DataMovementKernelRole::Reader)
+                .processorAttrValue));
+    writerFunc->setAttr(
+        kDMProcessorAttrName,
+        attrBuilder.getStringAttr(
+            getDataMovementKernelSpec(DataMovementKernelRole::Writer)
+                .processorAttrValue));
 
     // Insert specialized functions into the module (before the original)
     module.insert(func, computeFunc);
