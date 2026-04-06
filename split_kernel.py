@@ -106,6 +106,9 @@ def process_source_content(lines, section_name=None):
         ]
         processed = [line.replace(" tt_metal::", " tt::tt_metal::").replace('CBIndex::', 'tt::CBIndex::') for line in lines]
 
+    if section_name and section_name.startswith("reader"):
+        processed = insert_include_if_missing(processed, '#include "ttnn/operations/ccl/kernel_common/worker_sync_utils.hpp"\n')
+
     if section_name and section_name.startswith("host"):
         processed = insert_include_if_missing(
             processed, "#include <tt-metalium/host_api.hpp>\n"
@@ -151,7 +154,8 @@ def process_source_content(lines, section_name=None):
         processed = insert_include_if_missing(processed, "#include <vector>\n")
 
     if section_name and section_name.startswith("compute"):
-        processed = insert_include_if_missing(processed, '#include "math.h"\n')
+        #it seems that math.h is not needed for compute kernels on blackhole machine
+        #processed = insert_include_if_missing(processed, '#include "math.h"\n')
         processed = insert_include_if_missing(processed, '#include "debug/dprint.h"\n')
         processed = insert_include_if_missing(processed, '#include "debug/dprint_pages.h"\n')
         processed = insert_include_if_missing(processed, '#include "debug/dprint_tensix.h"\n')

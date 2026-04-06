@@ -644,7 +644,7 @@ bool multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArg
       nocIdVal);
   //only work for blackhole arch
   rewriter.create<emitc::VerbatimOp>(loc, "#ifdef ARCH_BLACKHOLE");
-  rewriter.create<emitc::VerbatimOp>(loc, "noc.async_writes_flushed();");
+  rewriter.create<emitc::VerbatimOp>(loc, "noc_async_writes_flushed();");
   rewriter.create<emitc::VerbatimOp>(loc, "#endif  // ARCH_BLACKHOLE");
 
   NocSemaphoreSetMulticastOp::create(rewriter, loc, 
