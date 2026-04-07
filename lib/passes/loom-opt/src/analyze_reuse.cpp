@@ -27,6 +27,8 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 
+#include "ssa_utils.h"
+
 // Loom dialect headers
 #include "LoomDialect.h.inc"
 #include "LoomEnums.h.inc"
@@ -39,38 +41,6 @@
 using namespace mlir;
 
 namespace {
-
-/// @brief Check whether `value` depends (transitively) on `target`.
-/// @details Walks the SSA def-use graph backward from `value` to determine if
-/// `target` appears among its transitive operands. Block arguments stop the
-/// walk.
-/// @note This function is duplicated in enumerate_copy_broadcast.cpp. Consolidate 
-/// into a shared utility header in a future refactor.
-static bool dependsOn(Value value, Value target) {
-  if (!value || value == target)
-    return value == target;
-
-  SmallPtrSet<Value, 16> visited;
-  SmallVector<Value, 16> worklist = {value};
-
-  while (!worklist.empty()) {
-    Value current = worklist.pop_back_val();
-    if (!visited.insert(current).second)
-      continue;
-    if (current == target)
-      return true;
-
-    // Block arguments stop the walk (treated as leaves).
-    if (llvm::isa<BlockArgument>(current))
-      continue;
-
-    if (Operation *def = current.getDefiningOp()) {
-      worklist.append(def->operand_begin(), def->operand_end());
-    }
-  }
-
-  return false;
-}
 
 class AnnotateSubviewReusePass
     : public PassWrapper<AnnotateSubviewReusePass, OperationPass<ModuleOp>> {
@@ -165,7 +135,7 @@ public:
         bool loopHasReuse = false;
         for (Value iv : ivs) {
           bool isVariant = llvm::any_of(
-              dynamicOffsets, [&](Value v) { return dependsOn(v, iv); });
+              dynamicOffsets, [&](Value v) { return loom::utils::dependsOn(v, iv); });
           if (!isVariant) {
             loopHasReuse = true;
             break;

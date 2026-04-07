@@ -29,6 +29,7 @@
 #include "utils.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
+#include "ssa_utils.h"
 
 // Include Loom dialect headers for CopyOp and SubviewOp
 #include "mlir/Interfaces/ViewLikeInterface.h"
@@ -75,35 +76,6 @@ struct DimBroadcastResult {
   bool canBroadcast;    // coefficient > 1
 };
 
-/**
- * @brief Check whether a value depends (transitively) on a target value.
- * @note This function is duplicated in evaluate_reuse.cpp. Consolidate into a 
- * shared utility header in a future refactor.
- */
-static bool dependsOn(Value value, Value target) {
-  if (!value || value == target)
-    return value == target;
-
-  SmallPtrSet<Value, 16> visited;
-  SmallVector<Value, 16> worklist = {value};
-
-  while (!worklist.empty()) {
-    Value current = worklist.pop_back_val();
-    if (!visited.insert(current).second)
-      continue;
-    if (current == target)
-      return true;
-
-    if (llvm::isa<BlockArgument>(current))
-      continue;
-
-    if (Operation *def = current.getDefiningOp()) {
-      worklist.append(def->operand_begin(), def->operand_end());
-    }
-  }
-
-  return false;
-}
 
 /**
  * @brief Set the broadcast attribute on a loom.copy operation.
@@ -127,7 +99,7 @@ static bool checkOffsetDependencyOnIVs(ArrayRef<Value> offsets,
                                        ValueRange ivs) {
   for (Value iv : ivs) {
     for (Value offset : offsets) {
-      if (dependsOn(offset, iv)) {
+      if (loom::utils::dependsOn(offset, iv)) {
         return true;
       }
     }
