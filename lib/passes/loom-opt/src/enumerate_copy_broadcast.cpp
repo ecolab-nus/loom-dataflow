@@ -77,6 +77,8 @@ struct DimBroadcastResult {
 
 /**
  * @brief Check whether a value depends (transitively) on a target value.
+ * @note This function is duplicated in evaluate_reuse.cpp. Consolidate into a 
+ * shared utility header in a future refactor.
  */
 static bool dependsOn(Value value, Value target) {
   if (!value || value == target)
@@ -451,7 +453,6 @@ struct EnumerateCopyBroadcastPass
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(EnumerateCopyBroadcastPass)
 
   EnumerateCopyBroadcastPass() = default;
-  EnumerateCopyBroadcastPass(bool analysisOnly) : analysisOnly(analysisOnly) {}
 
   StringRef getArgument() const override {
     return "loom-enumerate-copy-broadcast";
@@ -467,12 +468,11 @@ struct EnumerateCopyBroadcastPass
     enumerator.enumerate();
   }
 
-  bool analysisOnly = false;
 };
 
 } // namespace
 
 std::unique_ptr<mlir::Pass>
-loom::passes::createEnumerateCopyBroadcastPass(bool analysisOnly) {
-  return std::make_unique<EnumerateCopyBroadcastPass>(analysisOnly);
+loom::passes::createEnumerateCopyBroadcastPass() {
+  return std::make_unique<EnumerateCopyBroadcastPass>();
 }

@@ -1,6 +1,7 @@
 [
   {
     "memory_scope": {
+      "scope_name": "MemoryScope",
       "stages": [
         {
           "stage_id": 2,
@@ -11,13 +12,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_m"}],
                             ["N",{"Sym":"tile_k"}]
                           ]
                         },
+                        "symbols": ["M","N"],
                         "name": "dram_to_l1_f16"
                       },
                       "scenarios": []
@@ -26,13 +27,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_k"}],
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["M","N"],
                         "name": "dram_to_l1_f16"
                       },
                       "scenarios": []
@@ -44,12 +45,31 @@
             }
           ]
         }
-      ],
-      "scope_name": "MemoryScope"
+      ]
     },
+    "variant_name": "_matmul__x8_y8__d0i0_d1i1__f01__n_n_n",
     "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
       "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
+          ]
+        },
         "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
           "tile_n": {
             "type": "int",
             "natural_ub": 4096
@@ -57,32 +77,14 @@
           "tile_k": {
             "type": "int",
             "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
           }
         },
         "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
         "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
+      }
     },
     "compute_scope": {
+      "scope_name": "ComputeScope",
       "stages": [
         {
           "stage_id": 1,
@@ -93,7 +95,6 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["K","M","N"],
                         "sym_map": {
                           "entries": [
                             ["K",{"Sym":"tile_k"}],
@@ -101,6 +102,7 @@
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["K","M","N"],
                         "name": "matmul_f16"
                       },
                       "scenarios": []
@@ -112,13 +114,12 @@
             }
           ]
         }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d0i0_d1i1__f01__n_n_n"
+      ]
+    }
   },
   {
     "memory_scope": {
+      "scope_name": "MemoryScope",
       "stages": [
         {
           "stage_id": 2,
@@ -129,131 +130,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_k"}],
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
-                        "name": "dram_to_l1_1d_bcst_v_f16"
-                      },
-                      "scenarios": []
-                    }
-                  },
-                  {
-                    "Func": {
-                      "func": {
                         "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_k"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "MemoryScope"
-    },
-    "constraint_scope": {
-      "metadata": {
-        "symbols": {
-          "tile_n": {
-            "type": "int",
-            "natural_ub": 4096
-          },
-          "tile_k": {
-            "type": "int",
-            "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
-          }
-        },
-        "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
-        "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
-    },
-    "compute_scope": {
-      "stages": [
-        {
-          "stage_id": 1,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["K","M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["K",{"Sym":"tile_k"}],
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "matmul_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d0i0_d1i1__f01__n_dim_y_n"
-  },
-  {
-    "memory_scope": {
-      "stages": [
-        {
-          "stage_id": 2,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_k"}]
-                          ]
-                        },
                         "name": "dram_to_l1_1d_bcst_h_f16"
                       },
                       "scenarios": []
@@ -262,139 +145,14 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_k"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "MemoryScope"
-    },
-    "constraint_scope": {
-      "metadata": {
-        "symbols": {
-          "tile_n": {
-            "type": "int",
-            "natural_ub": 4096
-          },
-          "tile_k": {
-            "type": "int",
-            "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
-          }
-        },
-        "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
-        "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
-    },
-    "compute_scope": {
-      "stages": [
-        {
-          "stage_id": 1,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["K","M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["K",{"Sym":"tile_k"}],
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "matmul_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d0i0_d1i1__f01__dim_x_n_n"
-  },
-  {
-    "memory_scope": {
-      "stages": [
-        {
-          "stage_id": 2,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_m"}],
                             ["N",{"Sym":"tile_k"}]
                           ]
                         },
-                        "name": "dram_to_l1_1d_bcst_h_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            },
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
                         "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_k"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_1d_bcst_v_f16"
+                        "name": "dram_to_l1_f16"
                       },
                       "scenarios": []
                     }
@@ -405,12 +163,31 @@
             }
           ]
         }
-      ],
-      "scope_name": "MemoryScope"
+      ]
     },
+    "variant_name": "_matmul__x8_y8__d0i0_d1i1__f01__n_dim_x_level0_bc8_n",
     "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
       "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
+          ]
+        },
         "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
           "tile_n": {
             "type": "int",
             "natural_ub": 4096
@@ -418,32 +195,14 @@
           "tile_k": {
             "type": "int",
             "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
           }
         },
         "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
         "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
+      }
     },
     "compute_scope": {
+      "scope_name": "ComputeScope",
       "stages": [
         {
           "stage_id": 1,
@@ -454,7 +213,6 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["K","M","N"],
                         "sym_map": {
                           "entries": [
                             ["K",{"Sym":"tile_k"}],
@@ -462,6 +220,7 @@
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["K","M","N"],
                         "name": "matmul_f16"
                       },
                       "scenarios": []
@@ -473,13 +232,12 @@
             }
           ]
         }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d0i0_d1i1__f01__dim_x_dim_y_n"
+      ]
+    }
   },
   {
     "memory_scope": {
+      "scope_name": "MemoryScope",
       "stages": [
         {
           "stage_id": 2,
@@ -490,131 +248,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_m"}],
                             ["N",{"Sym":"tile_k"}]
                           ]
                         },
-                        "name": "dram_to_l1_f16"
-                      },
-                      "scenarios": []
-                    }
-                  },
-                  {
-                    "Func": {
-                      "func": {
                         "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_k"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "MemoryScope"
-    },
-    "constraint_scope": {
-      "metadata": {
-        "symbols": {
-          "tile_n": {
-            "type": "int",
-            "natural_ub": 4096
-          },
-          "tile_k": {
-            "type": "int",
-            "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
-          }
-        },
-        "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
-        "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
-    },
-    "compute_scope": {
-      "stages": [
-        {
-          "stage_id": 1,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["K","M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["K",{"Sym":"tile_k"}],
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "matmul_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d0i0_d1i1__f10__n_n_n"
-  },
-  {
-    "memory_scope": {
-      "stages": [
-        {
-          "stage_id": 2,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_k"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
                         "name": "dram_to_l1_1d_bcst_v_f16"
                       },
                       "scenarios": []
@@ -623,131 +263,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_k"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "MemoryScope"
-    },
-    "constraint_scope": {
-      "metadata": {
-        "symbols": {
-          "tile_n": {
-            "type": "int",
-            "natural_ub": 4096
-          },
-          "tile_k": {
-            "type": "int",
-            "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
-          }
-        },
-        "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
-        "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
-    },
-    "compute_scope": {
-      "stages": [
-        {
-          "stage_id": 1,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["K","M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["K",{"Sym":"tile_k"}],
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "matmul_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d0i0_d1i1__f10__n_dim_y_n"
-  },
-  {
-    "memory_scope": {
-      "stages": [
-        {
-          "stage_id": 2,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_k"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_1d_bcst_h_f16"
-                      },
-                      "scenarios": []
-                    }
-                  },
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_k"}],
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["M","N"],
                         "name": "dram_to_l1_f16"
                       },
                       "scenarios": []
@@ -759,12 +281,31 @@
             }
           ]
         }
-      ],
-      "scope_name": "MemoryScope"
+      ]
     },
+    "variant_name": "_matmul__x8_y8__d0i0_d1i1__f01__dim_y_level0_bc8_n_n",
     "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
       "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
+          ]
+        },
         "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
           "tile_n": {
             "type": "int",
             "natural_ub": 4096
@@ -772,32 +313,14 @@
           "tile_k": {
             "type": "int",
             "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
           }
         },
         "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
         "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
+      }
     },
     "compute_scope": {
+      "scope_name": "ComputeScope",
       "stages": [
         {
           "stage_id": 1,
@@ -808,7 +331,6 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["K","M","N"],
                         "sym_map": {
                           "entries": [
                             ["K",{"Sym":"tile_k"}],
@@ -816,6 +338,7 @@
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["K","M","N"],
                         "name": "matmul_f16"
                       },
                       "scenarios": []
@@ -827,13 +350,12 @@
             }
           ]
         }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d0i0_d1i1__f10__dim_x_n_n"
+      ]
+    }
   },
   {
     "memory_scope": {
+      "scope_name": "MemoryScope",
       "stages": [
         {
           "stage_id": 2,
@@ -844,13 +366,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_k"}]
+                            ["M",{"Sym":"tile_k"}],
+                            ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["M","N"],
                         "name": "dram_to_l1_1d_bcst_h_f16"
                       },
                       "scenarios": []
@@ -866,13 +388,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
-                            ["M",{"Sym":"tile_k"}],
-                            ["N",{"Sym":"tile_n"}]
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_k"}]
                           ]
                         },
+                        "symbols": ["M","N"],
                         "name": "dram_to_l1_1d_bcst_v_f16"
                       },
                       "scenarios": []
@@ -884,12 +406,31 @@
             }
           ]
         }
-      ],
-      "scope_name": "MemoryScope"
+      ]
     },
+    "variant_name": "_matmul__x8_y8__d0i0_d1i1__f01__dim_y_level0_bc8_dim_x_level0_bc8_n",
     "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
       "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
+          ]
+        },
         "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
           "tile_n": {
             "type": "int",
             "natural_ub": 4096
@@ -897,32 +438,14 @@
           "tile_k": {
             "type": "int",
             "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
           }
         },
         "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
         "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
+      }
     },
     "compute_scope": {
+      "scope_name": "ComputeScope",
       "stages": [
         {
           "stage_id": 1,
@@ -933,7 +456,6 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["K","M","N"],
                         "sym_map": {
                           "entries": [
                             ["K",{"Sym":"tile_k"}],
@@ -941,6 +463,7 @@
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["K","M","N"],
                         "name": "matmul_f16"
                       },
                       "scenarios": []
@@ -952,13 +475,12 @@
             }
           ]
         }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d0i0_d1i1__f10__dim_x_dim_y_n"
+      ]
+    }
   },
   {
     "memory_scope": {
+      "scope_name": "MemoryScope",
       "stages": [
         {
           "stage_id": 2,
@@ -969,13 +491,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_m"}],
                             ["N",{"Sym":"tile_k"}]
                           ]
                         },
+                        "symbols": ["M","N"],
                         "name": "dram_to_l1_f16"
                       },
                       "scenarios": []
@@ -984,13 +506,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_k"}],
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["M","N"],
                         "name": "dram_to_l1_f16"
                       },
                       "scenarios": []
@@ -1002,12 +524,31 @@
             }
           ]
         }
-      ],
-      "scope_name": "MemoryScope"
+      ]
     },
+    "variant_name": "_matmul__x8_y8__d0i0_d1i1__f10__n_n_n",
     "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
       "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
+          ]
+        },
         "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
           "tile_n": {
             "type": "int",
             "natural_ub": 4096
@@ -1015,32 +556,14 @@
           "tile_k": {
             "type": "int",
             "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
           }
         },
         "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
         "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
+      }
     },
     "compute_scope": {
+      "scope_name": "ComputeScope",
       "stages": [
         {
           "stage_id": 1,
@@ -1051,7 +574,6 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["K","M","N"],
                         "sym_map": {
                           "entries": [
                             ["K",{"Sym":"tile_k"}],
@@ -1059,6 +581,7 @@
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["K","M","N"],
                         "name": "matmul_f16"
                       },
                       "scenarios": []
@@ -1070,13 +593,12 @@
             }
           ]
         }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d1i0_d0i1__f01__n_n_n"
+      ]
+    }
   },
   {
     "memory_scope": {
+      "scope_name": "MemoryScope",
       "stages": [
         {
           "stage_id": 2,
@@ -1087,13 +609,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_k"}],
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["M","N"],
                         "name": "dram_to_l1_1d_bcst_h_f16"
                       },
                       "scenarios": []
@@ -1102,13 +624,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_m"}],
                             ["N",{"Sym":"tile_k"}]
                           ]
                         },
+                        "symbols": ["M","N"],
                         "name": "dram_to_l1_f16"
                       },
                       "scenarios": []
@@ -1120,12 +642,31 @@
             }
           ]
         }
-      ],
-      "scope_name": "MemoryScope"
+      ]
     },
+    "variant_name": "_matmul__x8_y8__d0i0_d1i1__f10__n_dim_x_level0_bc8_n",
     "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
       "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
+          ]
+        },
         "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
           "tile_n": {
             "type": "int",
             "natural_ub": 4096
@@ -1133,32 +674,14 @@
           "tile_k": {
             "type": "int",
             "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
           }
         },
         "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
         "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
+      }
     },
     "compute_scope": {
+      "scope_name": "ComputeScope",
       "stages": [
         {
           "stage_id": 1,
@@ -1169,7 +692,6 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["K","M","N"],
                         "sym_map": {
                           "entries": [
                             ["K",{"Sym":"tile_k"}],
@@ -1177,6 +699,7 @@
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["K","M","N"],
                         "name": "matmul_f16"
                       },
                       "scenarios": []
@@ -1188,13 +711,12 @@
             }
           ]
         }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d1i0_d0i1__f01__n_dim_x_n"
+      ]
+    }
   },
   {
     "memory_scope": {
+      "scope_name": "MemoryScope",
       "stages": [
         {
           "stage_id": 2,
@@ -1205,13 +727,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_m"}],
                             ["N",{"Sym":"tile_k"}]
                           ]
                         },
+                        "symbols": ["M","N"],
                         "name": "dram_to_l1_1d_bcst_v_f16"
                       },
                       "scenarios": []
@@ -1220,13 +742,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_k"}],
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["M","N"],
                         "name": "dram_to_l1_f16"
                       },
                       "scenarios": []
@@ -1238,373 +760,31 @@
             }
           ]
         }
-      ],
-      "scope_name": "MemoryScope"
-    },
-    "constraint_scope": {
-      "metadata": {
-        "symbols": {
-          "tile_n": {
-            "type": "int",
-            "natural_ub": 4096
-          },
-          "tile_k": {
-            "type": "int",
-            "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
-          }
-        },
-        "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
-        "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
       ]
     },
-    "compute_scope": {
-      "stages": [
-        {
-          "stage_id": 1,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["K","M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["K",{"Sym":"tile_k"}],
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "matmul_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d1i0_d0i1__f01__dim_y_n_n"
-  },
-  {
-    "memory_scope": {
-      "stages": [
-        {
-          "stage_id": 2,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_k"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_1d_bcst_h_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            },
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_k"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_1d_bcst_v_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "MemoryScope"
-    },
+    "variant_name": "_matmul__x8_y8__d0i0_d1i1__f10__dim_y_level0_bc8_n_n",
     "constraint_scope": {
-      "metadata": {
-        "symbols": {
-          "tile_n": {
-            "type": "int",
-            "natural_ub": 4096
-          },
-          "tile_k": {
-            "type": "int",
-            "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
-          }
-        },
-        "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
-        "datatype": "f16"
-      },
       "hard_constraints": [
         {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
-    },
-    "compute_scope": {
-      "stages": [
-        {
-          "stage_id": 1,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["K","M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["K",{"Sym":"tile_k"}],
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "matmul_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
       ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d1i0_d0i1__f01__dim_y_dim_x_n"
-  },
-  {
-    "memory_scope": {
-      "stages": [
-        {
-          "stage_id": 2,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_k"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_f16"
-                      },
-                      "scenarios": []
-                    }
-                  },
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_k"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "MemoryScope"
-    },
-    "constraint_scope": {
       "metadata": {
-        "symbols": {
-          "tile_n": {
-            "type": "int",
-            "natural_ub": 4096
-          },
-          "tile_k": {
-            "type": "int",
-            "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
-          }
-        },
-        "booleans": ["is_double_buffer"],
         "L1_footprint": [
           {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
           {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
           {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
         ],
         "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
           "temp_iter": [
             {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
             {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
+          ]
         },
-        "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
-    },
-    "compute_scope": {
-      "stages": [
-        {
-          "stage_id": 1,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["K","M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["K",{"Sym":"tile_k"}],
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "matmul_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d1i0_d0i1__f10__n_n_n"
-  },
-  {
-    "memory_scope": {
-      "stages": [
-        {
-          "stage_id": 2,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_k"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_1d_bcst_h_f16"
-                      },
-                      "scenarios": []
-                    }
-                  },
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_k"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "MemoryScope"
-    },
-    "constraint_scope": {
-      "metadata": {
         "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
           "tile_n": {
             "type": "int",
             "natural_ub": 4096
@@ -1612,32 +792,14 @@
           "tile_k": {
             "type": "int",
             "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
           }
         },
         "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
         "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
+      }
     },
     "compute_scope": {
+      "scope_name": "ComputeScope",
       "stages": [
         {
           "stage_id": 1,
@@ -1648,7 +810,6 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["K","M","N"],
                         "sym_map": {
                           "entries": [
                             ["K",{"Sym":"tile_k"}],
@@ -1656,6 +817,7 @@
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["K","M","N"],
                         "name": "matmul_f16"
                       },
                       "scenarios": []
@@ -1667,131 +829,12 @@
             }
           ]
         }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d1i0_d0i1__f10__n_dim_x_n"
-  },
-  {
-    "memory_scope": {
-      "stages": [
-        {
-          "stage_id": 2,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_k"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_1d_bcst_v_f16"
-                      },
-                      "scenarios": []
-                    }
-                  },
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_k"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "dram_to_l1_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "MemoryScope"
-    },
-    "constraint_scope": {
-      "metadata": {
-        "symbols": {
-          "tile_n": {
-            "type": "int",
-            "natural_ub": 4096
-          },
-          "tile_k": {
-            "type": "int",
-            "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
-          }
-        },
-        "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
-        "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
       ]
-    },
-    "compute_scope": {
-      "stages": [
-        {
-          "stage_id": 1,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "symbols": ["K","M","N"],
-                        "sym_map": {
-                          "entries": [
-                            ["K",{"Sym":"tile_k"}],
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "name": "matmul_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ],
-      "scope_name": "ComputeScope"
-    },
-    "variant_name": "_matmul__d1i0_d0i1__f10__dim_y_n_n"
+    }
   },
   {
     "memory_scope": {
+      "scope_name": "MemoryScope",
       "stages": [
         {
           "stage_id": 2,
@@ -1802,13 +845,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_k"}],
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["M","N"],
                         "name": "dram_to_l1_1d_bcst_h_f16"
                       },
                       "scenarios": []
@@ -1824,13 +867,13 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["M","N"],
                         "sym_map": {
                           "entries": [
                             ["M",{"Sym":"tile_m"}],
                             ["N",{"Sym":"tile_k"}]
                           ]
                         },
+                        "symbols": ["M","N"],
                         "name": "dram_to_l1_1d_bcst_v_f16"
                       },
                       "scenarios": []
@@ -1842,12 +885,31 @@
             }
           ]
         }
-      ],
-      "scope_name": "MemoryScope"
+      ]
     },
+    "variant_name": "_matmul__x8_y8__d0i0_d1i1__f10__dim_y_level0_bc8_dim_x_level0_bc8_n",
     "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
       "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
+          ]
+        },
         "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
           "tile_n": {
             "type": "int",
             "natural_ub": 4096
@@ -1855,32 +917,14 @@
           "tile_k": {
             "type": "int",
             "natural_ub": 512
-          },
-          "tile_m": {
-            "type": "int",
-            "natural_ub": 4096
           }
         },
         "booleans": ["is_double_buffer"],
-        "L1_footprint": [
-          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
-          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
-        ],
-        "iter_num": {
-          "temp_iter": [
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
-            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
-          ],
-          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]}
-        },
         "datatype": "f16"
-      },
-      "hard_constraints": [
-        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
-      ]
+      }
     },
     "compute_scope": {
+      "scope_name": "ComputeScope",
       "stages": [
         {
           "stage_id": 1,
@@ -1891,7 +935,6 @@
                   {
                     "Func": {
                       "func": {
-                        "symbols": ["K","M","N"],
                         "sym_map": {
                           "entries": [
                             ["K",{"Sym":"tile_k"}],
@@ -1899,6 +942,7 @@
                             ["N",{"Sym":"tile_n"}]
                           ]
                         },
+                        "symbols": ["K","M","N"],
                         "name": "matmul_f16"
                       },
                       "scenarios": []
@@ -1910,9 +954,965 @@
             }
           ]
         }
-      ],
-      "scope_name": "ComputeScope"
+      ]
+    }
+  },
+  {
+    "memory_scope": {
+      "scope_name": "MemoryScope",
+      "stages": [
+        {
+          "stage_id": 2,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_k"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_f16"
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_k"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
     },
-    "variant_name": "_matmul__d1i0_d0i1__f10__dim_y_dim_x_n"
+    "variant_name": "_matmul__x8_y8__d1i0_d0i1__f01__n_n_n",
+    "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
+          ]
+        },
+        "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_n": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_k": {
+            "type": "int",
+            "natural_ub": 512
+          }
+        },
+        "booleans": ["is_double_buffer"],
+        "datatype": "f16"
+      }
+    },
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "stage_id": 1,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["K",{"Sym":"tile_k"}],
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["K","M","N"],
+                        "name": "matmul_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "memory_scope": {
+      "scope_name": "MemoryScope",
+      "stages": [
+        {
+          "stage_id": 2,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_k"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_1d_bcst_v_f16"
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_k"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "variant_name": "_matmul__x8_y8__d1i0_d0i1__f01__n_dim_y_level0_bc8_n",
+    "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
+          ]
+        },
+        "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_n": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_k": {
+            "type": "int",
+            "natural_ub": 512
+          }
+        },
+        "booleans": ["is_double_buffer"],
+        "datatype": "f16"
+      }
+    },
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "stage_id": 1,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["K",{"Sym":"tile_k"}],
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["K","M","N"],
+                        "name": "matmul_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "memory_scope": {
+      "scope_name": "MemoryScope",
+      "stages": [
+        {
+          "stage_id": 2,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_k"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_1d_bcst_h_f16"
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_k"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "variant_name": "_matmul__x8_y8__d1i0_d0i1__f01__dim_x_level0_bc8_n_n",
+    "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
+          ]
+        },
+        "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_n": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_k": {
+            "type": "int",
+            "natural_ub": 512
+          }
+        },
+        "booleans": ["is_double_buffer"],
+        "datatype": "f16"
+      }
+    },
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "stage_id": 1,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["K",{"Sym":"tile_k"}],
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["K","M","N"],
+                        "name": "matmul_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "memory_scope": {
+      "scope_name": "MemoryScope",
+      "stages": [
+        {
+          "stage_id": 2,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_k"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_1d_bcst_h_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            },
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_k"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_1d_bcst_v_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "variant_name": "_matmul__x8_y8__d1i0_d0i1__f01__dim_x_level0_bc8_dim_y_level0_bc8_n",
+    "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]}
+          ]
+        },
+        "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_n": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_k": {
+            "type": "int",
+            "natural_ub": 512
+          }
+        },
+        "booleans": ["is_double_buffer"],
+        "datatype": "f16"
+      }
+    },
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "stage_id": 1,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["K",{"Sym":"tile_k"}],
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["K","M","N"],
+                        "name": "matmul_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "memory_scope": {
+      "scope_name": "MemoryScope",
+      "stages": [
+        {
+          "stage_id": 2,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_k"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_f16"
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_k"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "variant_name": "_matmul__x8_y8__d1i0_d0i1__f10__n_n_n",
+    "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
+          ]
+        },
+        "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_n": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_k": {
+            "type": "int",
+            "natural_ub": 512
+          }
+        },
+        "booleans": ["is_double_buffer"],
+        "datatype": "f16"
+      }
+    },
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "stage_id": 1,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["K",{"Sym":"tile_k"}],
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["K","M","N"],
+                        "name": "matmul_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "memory_scope": {
+      "scope_name": "MemoryScope",
+      "stages": [
+        {
+          "stage_id": 2,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_k"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_1d_bcst_v_f16"
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_k"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "variant_name": "_matmul__x8_y8__d1i0_d0i1__f10__n_dim_y_level0_bc8_n",
+    "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
+          ]
+        },
+        "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_n": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_k": {
+            "type": "int",
+            "natural_ub": 512
+          }
+        },
+        "booleans": ["is_double_buffer"],
+        "datatype": "f16"
+      }
+    },
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "stage_id": 1,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["K",{"Sym":"tile_k"}],
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["K","M","N"],
+                        "name": "matmul_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "memory_scope": {
+      "scope_name": "MemoryScope",
+      "stages": [
+        {
+          "stage_id": 2,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_k"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_1d_bcst_h_f16"
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_k"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "variant_name": "_matmul__x8_y8__d1i0_d0i1__f10__dim_x_level0_bc8_n_n",
+    "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
+          ]
+        },
+        "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_n": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_k": {
+            "type": "int",
+            "natural_ub": 512
+          }
+        },
+        "booleans": ["is_double_buffer"],
+        "datatype": "f16"
+      }
+    },
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "stage_id": 1,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["K",{"Sym":"tile_k"}],
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["K","M","N"],
+                        "name": "matmul_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "memory_scope": {
+      "scope_name": "MemoryScope",
+      "stages": [
+        {
+          "stage_id": 2,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_k"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_1d_bcst_h_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            },
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_k"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["M","N"],
+                        "name": "dram_to_l1_1d_bcst_v_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "variant_name": "_matmul__x8_y8__d1i0_d0i1__f10__dim_x_level0_bc8_dim_y_level0_bc8_n",
+    "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
+          {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}
+        ],
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":512},{"Sym":"tile_k"}]},
+          "temp_iter": [
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_m"},{"Const":8}]}]},
+            {"Div":[{"Const":4096},{"Mul":[{"Sym":"tile_n"},{"Const":8}]}]}
+          ]
+        },
+        "symbols": {
+          "tile_m": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_n": {
+            "type": "int",
+            "natural_ub": 4096
+          },
+          "tile_k": {
+            "type": "int",
+            "natural_ub": 512
+          }
+        },
+        "booleans": ["is_double_buffer"],
+        "datatype": "f16"
+      }
+    },
+    "compute_scope": {
+      "scope_name": "ComputeScope",
+      "stages": [
+        {
+          "stage_id": 1,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "sym_map": {
+                          "entries": [
+                            ["K",{"Sym":"tile_k"}],
+                            ["M",{"Sym":"tile_m"}],
+                            ["N",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["K","M","N"],
+                        "name": "matmul_f16"
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ]
+    }
   }
 ]

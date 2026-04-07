@@ -26,6 +26,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
 
+// ADL dialect needed for parsing Step 3 results which contain hardware declarations
 #include "ADLDialect.h.inc"
 #include "LoomDialect.h.inc"
 

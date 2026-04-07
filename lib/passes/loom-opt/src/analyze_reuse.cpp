@@ -44,6 +44,8 @@ namespace {
 /// @details Walks the SSA def-use graph backward from `value` to determine if
 /// `target` appears among its transitive operands. Block arguments stop the
 /// walk.
+/// @note This function is duplicated in enumerate_copy_broadcast.cpp. Consolidate 
+/// into a shared utility header in a future refactor.
 static bool dependsOn(Value value, Value target) {
   if (!value || value == target)
     return value == target;
