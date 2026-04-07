@@ -1,5 +1,6 @@
 #include "affine_utils.h"
 #include "hardware_info.h"
+#include "hw_dim_splitter.h"
 #include "index_mapping.h"
 #include "mapping_prioritizer.h"
 #include "utils.h"
@@ -64,6 +65,47 @@ static void markLoopsTemporal(func::FuncOp func) {
   });
 }
 
+// Build split description string in "x4x2_y8" format from a HWDimSplit.
+// Groups logical dims by sourceIdx, emits short name + factors inner-to-outer.
+static std::string buildSplitDesc(const loom::HWDimSplit &split) {
+  // Collect factors per source dim, ordered by level.
+  llvm::DenseMap<unsigned, llvm::SmallVector<int64_t>> factorsBySource;
+  llvm::SmallVector<unsigned> sourceOrder;
+  for (const auto &ld : split.logicalDims) {
+    if (factorsBySource.find(ld.sourceIdx) == factorsBySource.end())
+      sourceOrder.push_back(ld.sourceIdx);
+    factorsBySource[ld.sourceIdx].push_back(ld.size);
+  }
+  // sourceOrder already reflects insertion order (level ASC, sourceIdx ASC),
+  // but we want dims sorted by sourceIdx for the name.
+  std::sort(sourceOrder.begin(), sourceOrder.end());
+
+  std::string desc;
+  for (unsigned i = 0; i < sourceOrder.size(); ++i) {
+    if (i > 0)
+      desc += "_";
+    unsigned srcIdx = sourceOrder[i];
+    // Extract short name: "dim_x" -> "x", "dim_y" -> "y"
+    std::string shortName;
+    for (const auto &ld : split.logicalDims) {
+      if (ld.sourceIdx == srcIdx) {
+        llvm::StringRef ref(ld.sourceName);
+        if (ref.starts_with("dim_"))
+          shortName = ref.drop_front(4).str();
+        else
+          shortName = ref.str();
+        break;
+      }
+    }
+    // Factors for this source are already in level order (inner first)
+    // because logicalDims is sorted by (level, sourceIdx).
+    const auto &factors = factorsBySource[srcIdx];
+    for (int64_t f : factors)
+      desc += shortName + std::to_string(f);
+  }
+  return desc;
+}
+
 static affine::AffineParallelOp getOutermostParallel(func::FuncOp func) {
   affine::AffineParallelOp result = nullptr;
   func.walk([&](affine::AffineParallelOp par) {
@@ -97,8 +139,12 @@ static LogicalResult applyMappingToFunction(
 
       StringRef symbolName =
           sd.symbolName.empty() ? StringRef("dim") : StringRef(sd.symbolName);
-      tiled_parallels.tiled_new_->setAttr("loom.mapped_to",
+      tiled_parallels.tiled_new_->setAttr("loom.physical_dim",
                                           SymbolRefAttr::get(ctx, symbolName));
+      tiled_parallels.tiled_new_->setAttr(
+          "loom.logical_level",
+          IntegerAttr::get(IntegerType::get(ctx, 64),
+                           static_cast<int64_t>(sd.level)));
       tiled_parallels.tiled_new_->setAttr(
           "loom.iter_type",
           loom::IterTypeAttr::get(ctx, loom::IterType::Spatial));
@@ -248,72 +294,95 @@ EnumerateSpatialMappings(ModuleOp affineModule,
       continue;
     }
 
+    // Generate all HW dim splits to produce P logical dims from D physical dims.
+    loom::HWDimSplitter splitter;
+    auto allSplits =
+        splitter.generateAllSplits(P, hardwareInfo.spatialDimInfoVec);
+
     loom::MappingPrioritizer prioritizer;
     auto weights = prioritizer.computeIterWeights(func, root);
-    auto bijectiveMappings = prioritizer.generateBijectiveMappings(weights, D);
+    // Bijective mappings depend only on weights and P, not on the split.
+    auto bijectiveMappings =
+        prioritizer.generateBijectiveMappings(weights, P);
 
-    for (const auto &mapping : bijectiveMappings) {
-      SmallVector<unsigned> order(P);
-      std::iota(order.begin(), order.end(), 0);
+    for (const auto &split : allSplits) {
+      // Convert LogicalDims to SpatialDimInfo for applyMappingToFunction.
+      SmallVector<loom::SpatialDimInfo> logicalDimInfos;
+      for (const auto &ld : split.logicalDims) {
+        loom::SpatialDimInfo sdi;
+        sdi.name = ld.sourceName;
+        sdi.size = ld.size;
+        sdi.symbolName = ld.sourceName;
+        sdi.level = ld.level;
+        logicalDimInfos.push_back(sdi);
+      }
 
-      SmallVector<unsigned> orderCopy = order;
-      do {
-          builder.setInsertionPointToEnd(out.getBody());
-          std::string mappingSuffix;
-          std::string newNamePrefix = func.getName().str();
-          newNamePrefix += "__";
+      std::string splitDesc = buildSplitDesc(split);
 
-          auto clonedFunc = loom::utils::cloneFuncWithConstraints(
-              builder, func, "", moduleAttrs, "EnumerateHWMapping",
-              [&](func::FuncOp cloned) -> LogicalResult {
-                markLoopsSequential(cloned);
-                affine::AffineParallelOp tar_forOp =
-                    getOutermostParallel(cloned);
-                if (!tar_forOp) {
-                  return failure();
-                }
+      for (const auto &mapping : bijectiveMappings) {
+        SmallVector<unsigned> order(P);
+        std::iota(order.begin(), order.end(), 0);
 
-                llvm::SmallVector<loom::ParallelToHWMapping> hwMappingInfo;
-                if (failed(applyMappingToFunction(
-                        cloned, mapping, hardwareInfo.spatialDimInfoVec,
-                        tar_forOp, mappingSuffix, hwMappingInfo))) {
-                  return failure();
-                }
+        SmallVector<unsigned> orderCopy = order;
+        do {
+            builder.setInsertionPointToEnd(out.getBody());
+            std::string mappingSuffix;
+            std::string newNamePrefix = func.getName().str();
+            newNamePrefix += "__";
 
-                if (!tar_forOp || failed(loom_affine::ConvertParallelToNested(
-                                      tar_forOp, orderCopy))) {
-                  return failure();
-                }
-
-                markLoopsTemporal(cloned);
-
-                // Assign memory attributes to copy ops
-                cloned.walk([&](Operation *op) {
-                  if (auto copyTo = dyn_cast<loom::CopyToTensorOp>(op)) {
-                    copyTo.setMemoryAttr(SymbolRefAttr::get(ctx, "L1"));
-                  } else if (auto copyFrom =
-                                 dyn_cast<loom::CopyFromTensorOp>(op)) {
-                    copyFrom.setMemoryAttr(SymbolRefAttr::get(ctx, "DRAM"));
+            auto clonedFunc = loom::utils::cloneFuncWithConstraints(
+                builder, func, "", moduleAttrs, "EnumerateHWMapping",
+                [&](func::FuncOp cloned) -> LogicalResult {
+                  markLoopsSequential(cloned);
+                  affine::AffineParallelOp tar_forOp =
+                      getOutermostParallel(cloned);
+                  if (!tar_forOp) {
+                    return failure();
                   }
-                });
 
-                loom::utils::composeAndCanonicalizeAffineApplies(cloned);
-                loom_affine::flattenCeilDivInForBounds(cloned);
-                return success();
-              },
-              nullptr);
+                  llvm::SmallVector<loom::ParallelToHWMapping> hwMappingInfo;
+                  if (failed(applyMappingToFunction(
+                          cloned, mapping, logicalDimInfos,
+                          tar_forOp, mappingSuffix, hwMappingInfo))) {
+                    return failure();
+                  }
 
-          if (clonedFunc) {
-            std::string finalName = newNamePrefix;
-            if (!mappingSuffix.empty())
-              finalName += mappingSuffix;
-            finalName += "__f";
-            for (unsigned idx : orderCopy)
-              finalName += std::to_string(idx);
-            clonedFunc.setName(finalName);
-          }
+                  if (!tar_forOp ||
+                      failed(loom_affine::ConvertParallelToNested(
+                          tar_forOp, orderCopy))) {
+                    return failure();
+                  }
 
-      } while (std::next_permutation(orderCopy.begin(), orderCopy.end()));
+                  markLoopsTemporal(cloned);
+
+                  // Assign memory attributes to copy ops
+                  cloned.walk([&](Operation *op) {
+                    if (auto copyTo = dyn_cast<loom::CopyToTensorOp>(op)) {
+                      copyTo.setMemoryAttr(SymbolRefAttr::get(ctx, "L1"));
+                    } else if (auto copyFrom =
+                                   dyn_cast<loom::CopyFromTensorOp>(op)) {
+                      copyFrom.setMemoryAttr(SymbolRefAttr::get(ctx, "DRAM"));
+                    }
+                  });
+
+                  loom::utils::composeAndCanonicalizeAffineApplies(cloned);
+                  loom_affine::flattenCeilDivInForBounds(cloned);
+                  return success();
+                },
+                nullptr);
+
+            if (clonedFunc) {
+              std::string finalName = newNamePrefix + splitDesc;
+              if (!mappingSuffix.empty())
+                finalName += "__" + mappingSuffix;
+              finalName += "__f";
+              for (unsigned idx : orderCopy)
+                finalName += std::to_string(idx);
+              clonedFunc.setName(finalName);
+            }
+
+        } while (std::next_permutation(orderCopy.begin(), orderCopy.end()));
+      }
     }
   }
 

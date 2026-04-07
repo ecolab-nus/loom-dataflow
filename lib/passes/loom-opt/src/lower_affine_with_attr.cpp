@@ -81,12 +81,14 @@ struct LowerAffineWithAttrPass
     IRMapping mapping;
 
     SmallVector<Value> lowerBounds, upperBounds, steps;
-    SmallVector<Attribute> mappedToDims;
+    SmallVector<Attribute> physicalDims;
+    SmallVector<Attribute> logicalLevels;
     SmallVector<Attribute> iterTypes;
     bool hasAnyAttr = false;
 
     for (auto parOp : nest) {
-      auto mt = parOp->getAttr("loom.mapped_to");
+      auto pd = parOp->getAttr("loom.physical_dim");
+      auto ll = parOp->getAttr("loom.logical_level");
       auto it = parOp->getAttr("loom.iter_type");
 
       for (unsigned i = 0; i < parOp.getNumDims(); ++i) {
@@ -100,10 +102,11 @@ struct LowerAffineWithAttrPass
         steps.push_back(arith::ConstantIndexOp::create(
             builder, loc, parOp.getSteps()[i]));
 
-        mappedToDims.push_back(mt ? mt : builder.getUnitAttr());
+        physicalDims.push_back(pd ? pd : builder.getUnitAttr());
+        logicalLevels.push_back(ll ? ll : builder.getUnitAttr());
         iterTypes.push_back(it ? it : builder.getUnitAttr());
       }
-      if (mt || it)
+      if (pd || ll || it)
         hasAnyAttr = true;
     }
 
@@ -127,8 +130,10 @@ struct LowerAffineWithAttrPass
 
     // Set mapped attributes if any
     if (hasAnyAttr) {
-      scfPar->setAttr("loom.mapped_to_dims",
-                      builder.getArrayAttr(mappedToDims));
+      scfPar->setAttr("loom.physical_dims",
+                      builder.getArrayAttr(physicalDims));
+      scfPar->setAttr("loom.logical_levels",
+                      builder.getArrayAttr(logicalLevels));
       scfPar->setAttr("loom.iter_types", builder.getArrayAttr(iterTypes));
     }
 
