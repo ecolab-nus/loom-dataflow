@@ -47,6 +47,9 @@ int main(int argc, char **argv) {
   context.loadDialect<mlir::scf::SCFDialect>();
   context.loadDialect<mlir::bufferization::BufferizationDialect>();
   context.loadDialect<loom::LoomDialect>();
+  // We intentionally do not load the ControlFlow (cf) dialect here. The pipeline
+  // contract guarantees that Step 1 (tensor_canonicalize) eliminates all cf ops
+  // before Step 2 (memory_binding) begins.
 
   llvm::SourceMgr sm;
   auto file = mlir::openInputFile(clInput);

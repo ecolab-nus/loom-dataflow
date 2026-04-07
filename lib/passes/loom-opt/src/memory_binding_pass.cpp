@@ -14,9 +14,6 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-#include <chrono>
-#include <fstream>
-
 // Loom dialect and analysis headers
 #include "LoomDialect.h.inc"
 #include "static_memory_analyser.h"
@@ -211,7 +208,7 @@ public:
 private:
   /// Trace the outs operand of a linalg op back to its defining loom.alloc.
   /// After applyPatternRewrites, all bufferization.to_tensor ops have been
-  /// converted to loom.copy_to_tensor, so only loom ops remain.
+  /// converted to loom.bufferize_to_tensor, so only loom ops remain.
   Value traceOutsToAlloc(Value tensor) {
     // 1. Primary path: Use the pre-computed allocation plan
     auto it = plan.tensorToBufferMap.find(tensor);

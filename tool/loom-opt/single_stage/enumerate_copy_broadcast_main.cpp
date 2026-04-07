@@ -35,13 +35,6 @@ static llvm::cl::opt<std::string>
     clInput("input", llvm::cl::desc("Path to input MLIR (DF+funcs)"),
             llvm::cl::value_desc("filename"), llvm::cl::Required);
 
-static llvm::cl::opt<bool> clAnalysisOnly(
-    "analysis-only",
-    llvm::cl::desc("Only attach loom.copy.candidates; do not clone"),
-    llvm::cl::init(false));
-
-// No max-variants: we always enumerate all combinations.
-
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
                                     "Single-stage copy broadcast enumerator\n");
@@ -73,7 +66,7 @@ int main(int argc, char **argv) {
   }
 
   PassManager pm1(&context);
-  pm1.addPass(loom::passes::createEnumerateCopyBroadcastPass(clAnalysisOnly));
+  pm1.addPass(loom::passes::createEnumerateCopyBroadcastPass());
   if (failed(pm1.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "Mapping exploration failed\n";
     return 3;

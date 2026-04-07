@@ -33,8 +33,6 @@ struct TritonSharedExploreSpatialMappingsPass
       TritonSharedExploreSpatialMappingsPass)
 
   TritonSharedExploreSpatialMappingsPass() = default;
-  explicit TritonSharedExploreSpatialMappingsPass(bool withOuterFors)
-      : withOuterFors(withOuterFors) {}
 
   StringRef getArgument() const override {
     return "loom-triton-shared-explore-spatial-mappings";
@@ -114,13 +112,11 @@ struct TritonSharedExploreSpatialMappingsPass
     }
   }
 
-  bool withOuterFors = true;
 };
 
 } // namespace
 
 std::unique_ptr<mlir::Pass>
-loom::passes::createTritonSharedExploreSpatialMappingsPass(bool withOuterFors) {
-  return std::make_unique<TritonSharedExploreSpatialMappingsPass>(
-      withOuterFors);
+loom::passes::createTritonSharedExploreSpatialMappingsPass() {
+  return std::make_unique<TritonSharedExploreSpatialMappingsPass>();
 }

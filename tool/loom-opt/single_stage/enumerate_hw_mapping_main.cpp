@@ -54,16 +54,9 @@ static llvm::cl::opt<std::string>
                   llvm::cl::desc("Path to ADL MLIR file (hardware specification)"),
                   llvm::cl::value_desc("filename"), llvm::cl::Required);
 
-static llvm::cl::opt<unsigned> clNumGridDims(
-    "grid-dims", llvm::cl::desc("Number of grid dimensions to consider (1..3)"),
-    llvm::cl::init(3));
-
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
                                     "LOOM Triton-shared spatial explorer\n");
-
-  // Legacy option retained for compatibility of CLI; ignored in the new format.
-  (void)clNumGridDims;
 
   mlir::DialectRegistry registry;
   registry.insert<mlir::BuiltinDialect, mlir::func::FuncDialect,

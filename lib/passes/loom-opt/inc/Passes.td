@@ -13,10 +13,6 @@ def TritonSharedExploreSpatialMappings : Pass<"loom-triton-shared-explore-spatia
     loops with loom.mapped_to, and insert outer affine.for waves when needed.
   }];
   let constructor = "loom::passes::createTritonSharedExploreSpatialMappingsPass()";
-  let options = [
-    Option<"withOuterFors", "with-outer-fors", "bool", "true",
-           "Convert remaining affine.parallel to affine.for with all permutations">
-  ];
 }
 
 def HoistBlockLoading : Pass<"loom-hoist-block-loading", "mlir::ModuleOp"> {
@@ -47,10 +43,6 @@ def EnumerateCopyBroadcast : Pass<"loom-enumerate-copy-broadcast", "mlir::Module
     with spatial total-reuse.
   }];
   let constructor = "loom::passes::createEnumerateCopyBroadcastPass()";
-  let options = [
-    Option<"analysisOnly", "analysis-only", "bool", "false",
-           "Only attach loom.copy.candidates; do not clone functions">
-  ];
 }
 
 
