@@ -1,86 +1,36 @@
-// Standalone driver to run the hoist block loading pass.
+// Standalone driver to run the LOOM block-loading hoisting pass.
 //
 // Usage:
 //   hoist_block_loading --input <input.mlir>
-//   hoist_block_loading --input -  (reads from stdin)
 
 #include "Passes.h"
-
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/Linalg/IR/Linalg.h"
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/Dialect/Tensor/IR/Tensor.h"
-#include "mlir/IR/AsmState.h"
-#include "mlir/IR/BuiltinDialect.h"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/Parser/Parser.h"
+#include "driver_utils.h"
 #include "mlir/Pass/PassManager.h"
-#include "mlir/Support/FileUtilities.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/WithColor.h"
-
-#include "ADLDialect.h.inc"
-#define GET_TYPEDEF_CLASSES
-#include "ADLTypes.h.inc"
-#define GET_OP_CLASSES
-#include "ADLOps.h.inc"
-#include "LoomDialect.h.inc"
-#include "LoomOps.h.inc"
 
 using namespace mlir;
 
 static llvm::cl::opt<std::string>
-    clInput("input",
-            llvm::cl::desc("Path to input MLIR file (use '-' for stdin)"),
+    clInput("input", llvm::cl::desc("Path to input MLIR file"),
             llvm::cl::value_desc("filename"), llvm::cl::init("-"));
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
-                                    "LOOM Triton-shared hoist block loading\n");
+                                     "LOOM block-loading hoisting\n");
 
   MLIRContext context;
-  context.loadDialect<mlir::BuiltinDialect>();
-  context.loadDialect<mlir::func::FuncDialect>();
-  context.loadDialect<mlir::affine::AffineDialect>();
-  context.loadDialect<mlir::arith::ArithDialect>();
-  context.loadDialect<mlir::memref::MemRefDialect>();
-  context.loadDialect<mlir::tensor::TensorDialect>();
-  context.loadDialect<mlir::linalg::LinalgDialect>();
-  context.loadDialect<mlir::scf::SCFDialect>();
-  context.loadDialect<mlir::bufferization::BufferizationDialect>();
-  context.loadDialect<adl::ADLDialect>();
-  context.loadDialect<loom::LoomDialect>();
+  loom::driver::registerLoomAndADLDialects(context);
 
-  llvm::SourceMgr sm;
-  auto file = mlir::openInputFile(clInput);
-  if (!file) {
-    llvm::WithColor::error(llvm::errs())
-        << "Failed to open input file: " << clInput << "\n";
-    return 1;
-  }
-  sm.AddNewSourceBuffer(std::move(file), llvm::SMLoc());
-  OwningOpRef<ModuleOp> module = parseSourceFile<ModuleOp>(sm, &context);
-  if (!module) {
-    llvm::WithColor::error(llvm::errs()) << "Failed to parse MLIR module\n";
-    return 1;
-  }
+  auto module = loom::driver::parseMLIRFile(clInput, context);
+  if (!module) return 1;
 
   PassManager pm(&context);
   pm.addPass(loom::passes::createHoistBlockLoadingPass());
   if (failed(pm.run(*module))) {
-    llvm::WithColor::error(llvm::errs()) << "Hoist block loading pass failed\n";
+    llvm::errs() << "LOOM block-loading hoisting pass failed\n";
     return 2;
   }
 
-  mlir::OpPrintingFlags flags;
-  flags.useLocalScope();
-  module->print(llvm::outs(), flags);
-  llvm::outs() << "\n";
+  loom::driver::printModule(*module);
   return 0;
 }
