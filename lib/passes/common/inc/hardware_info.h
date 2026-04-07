@@ -14,6 +14,7 @@ struct SpatialDimInfo {
   std::string name;
   std::optional<int64_t> size;
   std::string symbolName; // Symbol name for SymbolRefAttr references
+  unsigned level = 0;     // Logical split level (0 = innermost)
 };
 
 /**

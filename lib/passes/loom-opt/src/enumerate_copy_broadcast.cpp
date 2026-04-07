@@ -216,7 +216,7 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp outerModule) {
   int64_t sizeY = 0;
 
   for (auto par : parallelLoops) {
-    auto mappedToAttr = par->getAttrOfType<SymbolRefAttr>("loom.mapped_to");
+    auto mappedToAttr = par->getAttrOfType<SymbolRefAttr>("loom.physical_dim");
     if (!mappedToAttr)
       continue;
 

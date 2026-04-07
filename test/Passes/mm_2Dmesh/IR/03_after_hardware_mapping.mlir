@@ -20,7 +20,7 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
   %18 = adl.processor.dmover @proc_dram_l1_bcst_h, [(%2, %7), (%7, %2)], with [%3]
   %19 = adl.arch.compose "arch_system", arch[%15, %16, %17, %18], mem[%2]
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
-    func.func @_matmul__d0i0_d1i1__f01(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
+    func.func @_matmul__x8_y8__d0i0_d1i1__f01(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %20 = loom.sym @tile_m {upper_bound = 4096 : index} : index
       %21 = loom.sym @tile_n {upper_bound = 4096 : index} : index
@@ -68,7 +68,7 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
     }
   }
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
-    func.func @_matmul__d0i0_d1i1__f10(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
+    func.func @_matmul__x8_y8__d0i0_d1i1__f10(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %20 = loom.sym @tile_m {upper_bound = 4096 : index} : index
       %21 = loom.sym @tile_n {upper_bound = 4096 : index} : index
@@ -116,7 +116,7 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
     }
   }
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
-    func.func @_matmul__d1i0_d0i1__f01(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
+    func.func @_matmul__x8_y8__d1i0_d0i1__f01(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %20 = loom.sym @tile_m {upper_bound = 4096 : index} : index
       %21 = loom.sym @tile_n {upper_bound = 4096 : index} : index
@@ -164,7 +164,7 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
     }
   }
   module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : index, loom.block_size_2 = -1 : index} {
-    func.func @_matmul__d1i0_d0i1__f10(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
+    func.func @_matmul__x8_y8__d1i0_d0i1__f10(%arg0: memref<4096x512xf16>, %arg1: memref<512x4096xf16>, %arg2: memref<4096x4096xf16>) {
       %cst = arith.constant 0.000000e+00 : f16
       %20 = loom.sym @tile_m {upper_bound = 4096 : index} : index
       %21 = loom.sym @tile_n {upper_bound = 4096 : index} : index
