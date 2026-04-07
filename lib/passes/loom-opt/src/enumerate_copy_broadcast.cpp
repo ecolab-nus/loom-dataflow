@@ -184,8 +184,8 @@ getSpatialDimSizeFromADL(ModuleOp outerModule, StringRef symName) {
  * @details Analyzes the copy's source subview for spatial reuse, then checks
  * which enclosing spatial parallel loops' IVs the subview offsets do NOT
  * depend on. Under the 2D assumption (dims @dim_x and @dim_y):
- *   - Offset independent of @dim_x IV → can broadcast on @dim_y → {1, size_y}
- *   - Offset independent of @dim_y IV → can broadcast on @dim_x → {size_x, 1}
+ *   - Offset independent of @dim_x IV → can broadcast on @dim_x → {size_x, 1}
+ *   - Offset independent of @dim_y IV → can broadcast on @dim_y → {1, size_y}
  *   - Both independent → also add {size_x, size_y}
  * Always includes the no-broadcast choice {1, 1}.
  * @param copyOp The loom.copy operation to analyze.
@@ -236,8 +236,8 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp outerModule) {
     }
   }
 
-  bool canBroadcastOnY = xIndependent && sizeY > 0;
-  bool canBroadcastOnX = yIndependent && sizeX > 0;
+  bool canBroadcastOnY = yIndependent && sizeY > 0;
+  bool canBroadcastOnX = xIndependent && sizeX > 0;
 
   if (canBroadcastOnY && canBroadcastOnX) {
     candidates.push_back({{1, sizeY}, "dim_y"});
