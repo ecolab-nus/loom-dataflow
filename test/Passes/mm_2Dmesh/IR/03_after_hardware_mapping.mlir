@@ -62,8 +62,8 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
               loom.semaphore_give %30 : memref<?x?xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @dim_y}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @dim_x}
+        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
       return
     }
   }
@@ -110,8 +110,8 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
               loom.semaphore_give %30 : memref<?x?xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @dim_y}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @dim_x}
+        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
       return
     }
   }
@@ -158,8 +158,8 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
               loom.semaphore_give %30 : memref<?x?xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @dim_x}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @dim_y}
+        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
       return
     }
   }
@@ -206,8 +206,8 @@ module attributes {loom.block_size_0 = -1 : index, loom.block_size_1 = -1 : inde
               loom.semaphore_give %30 : memref<?x?xf16>
             } {loom.iter_type = #loom.iter_type<temporal>}
           } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @dim_x}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.mapped_to = @dim_y}
+        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
       return
     }
   }
