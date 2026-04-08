@@ -488,6 +488,36 @@ def Loom_PackToTensorOp : Loom_Op<"pack_to_tensor", [
   }];
 }
 
+def ReduceSumOp : Loom_Op<"reduce_sum", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = "Reduce-sum a tensor over a 2D mesh with UB/LB bounds";
+  let description = [{
+    The `loom.reduce_sum` operation performs a reduction sum on the input tensor
+    across a 2D mesh grid. UB and LB are each a pair of integers [x, y] that
+    specify the upper and lower mesh coordinates over which to reduce.
+
+    Example:
+    ```mlir
+    %result = loom.reduce_sum %input (UB : [2, 4], LB : [0, 0])
+              : tensor<?x?xf32> -> tensor<?x?xf32>
+    ```
+  }];
+
+  let arguments = (ins
+    AnyRankedTensor:$input,
+    DenseI64ArrayAttr:$ub,
+    DenseI64ArrayAttr:$lb
+  );
+
+  let results = (outs AnyRankedTensor:$result);
+
+  let assemblyFormat = [{
+    $input `(` `UB` `:` $ub `,` `LB` `:` $lb `)` attr-dict `:`
+    type($input) `->` type($result)
+  }];
+}
+
 def CopyOp : Loom_Op<"copy", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
 ]> {
