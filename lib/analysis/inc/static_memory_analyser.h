@@ -195,7 +195,7 @@ public:
 };
 
 struct LoopContext {
-  mlir::affine::AffineForOp forOp;
+  mlir::Operation *loopOp; // Either affine::AffineForOp or scf::ForOp
   int startIndex;
   int endIndex;
 };
@@ -224,7 +224,7 @@ public:
 
   int getOpIndex(mlir::Operation *op) const;
   mlir::Operation *getOpFromIndex(int index) const;
-  int getLoopEndIndex(mlir::affine::AffineForOp forOp) const;
+  int getLoopEndIndex(mlir::Operation *loopOp) const;
   int getValueDeathIndex(mlir::Value v) const;
 
   // --- Analysis Entry Points ---

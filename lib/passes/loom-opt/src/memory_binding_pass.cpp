@@ -50,9 +50,20 @@ struct ReadBlockLoadingLowering
     if (!subviewOp)
       return failure();
 
+    // 1. Look up the alloc from the coloring plan (check preconditions before
+    //    creating any ops to avoid orphaned ops on failure).
+    auto it = tensorToBufferMap.find(op.getResult());
+    if (it == tensorToBufferMap.end())
+      return failure();
+    auto allocIt =
+        colorToAlloc.find({it->second.bucketKey, it->second.colorId});
+    if (allocIt == colorToAlloc.end())
+      return failure();
+    Value allocVal = allocIt->second;
+
     Location loc = op.getLoc();
 
-    // 1. Create loom.subview
+    // 2. Create loom.subview
     auto subviewResultType = loom::SubviewOp::inferResultType(
         cast<MemRefType>(subviewOp.getSource().getType()),
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
@@ -62,16 +73,6 @@ struct ReadBlockLoadingLowering
         subviewOp.getOffsets(), subviewOp.getSizes(), subviewOp.getStrides(),
         subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
         subviewOp.getStaticStrides(), false, false, false);
-
-    // 2. Look up the alloc from the coloring plan
-    auto it = tensorToBufferMap.find(op.getResult());
-    if (it == tensorToBufferMap.end())
-      return failure();
-    auto allocIt =
-        colorToAlloc.find({it->second.bucketKey, it->second.colorId});
-    if (allocIt == colorToAlloc.end())
-      return failure();
-    Value allocVal = allocIt->second;
 
     // 3. Create loom.copy_to_tensor
     // Use the pre-created semaphore for the virtual buffer
@@ -267,6 +268,12 @@ private:
           current = forOp.getInits()[argIdx];
           continue;
         }
+        if (auto forOp = dyn_cast<scf::ForOp>(
+                blockArg.getOwner()->getParentOp())) {
+          unsigned argIdx = blockArg.getArgNumber() - 1; // 1 IV in scf.for
+          current = forOp.getInits()[argIdx];
+          continue;
+        }
       }
       break;
     }
@@ -403,14 +410,22 @@ private:
       for (int c = 0; c < numColors; ++c) {
         SmallVector<Value> dynamicSizes;
         SmallVector<int64_t> staticSizes;
+        bool hasUnresolvableDim = false;
         for (const auto &dim : sig.dims) {
           if (auto attr = dim.dyn_cast<Attribute>()) {
-            staticSizes.push_back(cast<IntegerAttr>(attr).getInt());
+            int64_t v = cast<IntegerAttr>(attr).getInt();
+            if (v < 0) { // unresolvable dynamic dim (e.g. getMixedSizesFromType fallback)
+              hasUnresolvableDim = true;
+              break;
+            }
+            staticSizes.push_back(v);
           } else {
             staticSizes.push_back(ShapedType::kDynamic);
             dynamicSizes.push_back(dim.dyn_cast<Value>());
           }
         }
+        if (hasUnresolvableDim)
+          continue;
         auto allocType = MemRefType::get(staticSizes, sig.elementType);
         auto allocOp = loom::AllocOp::create(
             builder, bucket.scopeOp->getLoc(), allocType, dynamicSizes,
@@ -436,12 +451,12 @@ private:
 
         // For Fused/LoopCarried VBs, find the iterarg (BlockArgument) member.
         Value iterArg = nullptr;
-        Operation *forOp = nullptr;
+        Operation *loopOp = nullptr;
         if (vb->type == VBType::Fused || vb->type == VBType::LoopCarried) {
           for (TensorNode *member : vb->members) {
             if (auto blockArg = mlir::dyn_cast<BlockArgument>(member->value)) {
               iterArg = blockArg;
-              forOp = blockArg.getOwner()->getParentOp();
+              loopOp = blockArg.getOwner()->getParentOp();
               break;
             }
           }
@@ -461,7 +476,7 @@ private:
             if (outsOp.get().getDefiningOp<tensor::EmptyOp>()) {
               // If this VB has an iterarg AND the op is inside the loop,
               // use iterarg as the outs to preserve SSA chain.
-              if (iterArg && forOp->isProperAncestor(linalgOp)) {
+              if (iterArg && loopOp->isProperAncestor(linalgOp)) {
                 outsOp.set(iterArg);
               } else {
                 outsOp.set(getOrCreateInitTensor(allocVal, semaphore));
@@ -489,31 +504,36 @@ private:
 
         // Step 1: IterArg handling (special case)
         if (auto blockArg = mlir::dyn_cast<BlockArgument>(birthNode->value)) {
-          // IterArg: trace to init value, clone its defining op onto PB
-          auto forOp =
-              dyn_cast<affine::AffineForOp>(blockArg.getOwner()->getParentOp());
-          assert(forOp && "iterarg birthNode must be inside an affine.for");
-          unsigned argIdx = blockArg.getArgNumber() -
-                            forOp.getBody()->getNumArguments() +
-                            forOp.getNumIterOperands();
-          Value initVal = forOp.getInits()[argIdx];
-          Operation *initDefOp = initVal.getDefiningOp();
-          if (initDefOp && isa<linalg::LinalgOp>(initDefOp)) {
-            // Create init_tensor bound directly to PB alloc
-            Value semaphore = vbIdToSemaphoreMap.lookup(vb->id);
-            if (!semaphore)
-              continue;
-            Value initTensor = getOrCreateInitTensor(allocVal, semaphore);
-            // Clone the init op, redirect outs to init_tensor
-            OpBuilder cloneBuilder(context);
-            cloneBuilder.setInsertionPointAfter(initDefOp);
-            Operation *clonedOp = cloneBuilder.clone(*initDefOp);
-            cast<linalg::LinalgOp>(clonedOp).getDpsInitsMutable()[0].set(
-                initTensor);
-            clonedOp->getResult(0).setType(initTensor.getType());
+          // IterArg: trace to init value, clone its defining op onto PB.
+          // Helper lambda to redirect loop init after cloning.
+          auto redirectLoopInit = [&](unsigned argIdx, ValueRange inits,
+                                      auto loopOp) {
+            Value initVal = inits[argIdx];
+            Operation *initDefOp = initVal.getDefiningOp();
+            if (initDefOp && isa<linalg::LinalgOp>(initDefOp)) {
+              Value semaphore = vbIdToSemaphoreMap.lookup(vb->id);
+              if (!semaphore)
+                return;
+              Value initTensor = getOrCreateInitTensor(allocVal, semaphore);
+              OpBuilder cloneBuilder(context);
+              cloneBuilder.setInsertionPointAfter(initDefOp);
+              Operation *clonedOp = cloneBuilder.clone(*initDefOp);
+              cast<linalg::LinalgOp>(clonedOp).getDpsInitsMutable()[0].set(
+                  initTensor);
+              clonedOp->getResult(0).setType(initTensor.getType());
+              loopOp.getInitsMutable()[argIdx].set(clonedOp->getResult(0));
+            }
+          };
 
-            // Redirect affine.for init to cloned op's result
-            forOp.getInitsMutable()[argIdx].set(clonedOp->getResult(0));
+          Operation *parentOp = blockArg.getOwner()->getParentOp();
+          if (auto affFor = dyn_cast<affine::AffineForOp>(parentOp)) {
+            unsigned argIdx = blockArg.getArgNumber() -
+                              affFor.getBody()->getNumArguments() +
+                              affFor.getNumIterOperands();
+            redirectLoopInit(argIdx, affFor.getInits(), affFor);
+          } else if (auto scfFor = dyn_cast<scf::ForOp>(parentOp)) {
+            unsigned argIdx = blockArg.getArgNumber() - 1;
+            redirectLoopInit(argIdx, scfFor.getInits(), scfFor);
           }
         } else {
           // Step 2: Non-iterarg birth. Redirect defining LinalgOp if exists.
@@ -565,20 +585,25 @@ private:
 
         Value yieldVal = split.yieldVal;
 
-        // Find the affine.yield op
-        auto forOp = cast<affine::AffineForOp>(
-            mlir::cast<BlockArgument>(split.iterArg).getOwner()->getParentOp());
-        auto yieldOp =
-            cast<affine::AffineYieldOp>(forOp.getBody()->getTerminator());
+        // Find the yield op (supports both affine.for and scf.for)
+        Operation *parentOp =
+            mlir::cast<BlockArgument>(split.iterArg).getOwner()->getParentOp();
+        Operation *yieldOp = nullptr;
+        if (auto affFor = dyn_cast<affine::AffineForOp>(parentOp))
+          yieldOp = affFor.getBody()->getTerminator();
+        else if (auto scfFor = dyn_cast<scf::ForOp>(parentOp))
+          yieldOp = scfFor.getBody()->getTerminator();
+        else
+          continue;
 
         OpBuilder builder(context);
         builder.setInsertionPoint(yieldOp);
 
-        auto copyOp = linalg::CopyOp::create(builder, yieldOp.getLoc(), yieldVal,
-                                             itArg->first);
+        auto copyOp = linalg::CopyOp::create(builder, yieldOp->getLoc(),
+                                              yieldVal, itArg->first);
 
         // Update the yield operand
-        yieldOp.setOperand(split.iterArgIndex, copyOp.getResult(0));
+        yieldOp->setOperand(split.iterArgIndex, copyOp.getResult(0));
       }
     }
   }
