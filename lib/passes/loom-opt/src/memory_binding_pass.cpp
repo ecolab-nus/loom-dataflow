@@ -403,11 +403,37 @@ private:
       if (!bucket.scopeOp)
         continue;
 
-      OpBuilder builder(context);
-      builder.setInsertionPointToStart(&bucket.scopeOp->getRegion(0).front());
       int numColors = plan.colorCountPerBucket.lookup(sig);
-
       for (int c = 0; c < numColors; ++c) {
+        Operation *earliestBirthOp = nullptr;
+        int minBirthIdx = std::numeric_limits<int>::max();
+
+        for (const auto &vb : bucket.virtualBuffers) {
+          if (vb->members.empty() || vb->color != c)
+            continue;
+          if (vb->liveness.birth < minBirthIdx) {
+            minBirthIdx = vb->liveness.birth;
+          }
+        }
+
+        if (minBirthIdx != std::numeric_limits<int>::max()) {
+          earliestBirthOp = analysisCtx.getOpFromIndex(minBirthIdx);
+        }
+
+        OpBuilder builder(context);
+        builder.setInsertionPointToStart(&bucket.scopeOp->getRegion(0).front());
+
+        if (earliestBirthOp) {
+          // Trace up to immediate child of scopeOp to ensure we stay in the same block
+          Operation *insertPt = earliestBirthOp;
+          while (insertPt && insertPt->getParentOp() != bucket.scopeOp) {
+            insertPt = insertPt->getParentOp();
+          }
+          if (insertPt) {
+            builder.setInsertionPoint(insertPt);
+          }
+        }
+
         SmallVector<Value> dynamicSizes;
         SmallVector<int64_t> staticSizes;
         bool hasUnresolvableDim = false;
