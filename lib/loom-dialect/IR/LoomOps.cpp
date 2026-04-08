@@ -179,6 +179,13 @@ loom::AllocOp::inferResultType(::llvm::ArrayRef<int64_t> staticSizes,
   return MemRefType::get(staticSizes, elementType);
 }
 
+void loom::ReduceSumOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(MemoryEffects::Read::get());
+  effects.emplace_back(MemoryEffects::Write::get());
+}
+
 void loom::CopyToTensorOp::getEffects(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects) {
