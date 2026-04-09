@@ -42,6 +42,15 @@ public:
   generateBijectiveMappings(const llvm::SmallVector<int64_t> &weights,
                             unsigned numHWDims);
 
+  /// Forced-first variant for cross-core reduction:
+  ///   - iter forcedIterIdx is unconditionally assigned to HW dim 0 (highest
+  ///   priority).
+  ///   - remaining iters are assigned to HW dims 1..(P-1) by ascending weight.
+  llvm::SmallVector<DimBuckets>
+  generateBijectiveMappingsWithForcedFirst(
+      const llvm::SmallVector<int64_t> &weights, unsigned numHWDims,
+      unsigned forcedIterIdx);
+
 private:
   /// Recursively collect all root parallel IV block args that `v`
   /// transitively depends on. Uses `visited` to avoid redundant traversal.

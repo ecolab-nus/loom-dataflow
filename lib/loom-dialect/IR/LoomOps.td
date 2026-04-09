@@ -506,14 +506,17 @@ def ReduceSumOp : Loom_Op<"reduce_sum", [
 
   let arguments = (ins
     AnyRankedTensor:$input,
-    DenseI64ArrayAttr:$ub,
-    DenseI64ArrayAttr:$lb
+    Index:$ub_x,
+    Index:$ub_y,
+    Index:$lb_x,
+    Index:$lb_y
   );
 
   let results = (outs AnyRankedTensor:$result);
 
   let assemblyFormat = [{
-    $input `(` `UB` `:` $ub `,` `LB` `:` $lb `)` attr-dict `:`
+    $input `(` `UB` `:` `[` $ub_x `,` $ub_y `]` `,`
+               `LB` `:` `[` $lb_x `,` $lb_y `]` `)` attr-dict `:`
     type($input) `->` type($result)
   }];
 }

@@ -15,6 +15,7 @@ struct SpatialDimInfo {
   std::optional<int64_t> size;
   std::string symbolName; // Symbol name for SymbolRefAttr references
   unsigned level = 0;     // Logical split level (0 = innermost)
+  unsigned sourceIdx = 0; // Original HW dim index
 };
 
 /**

@@ -1,6 +1,7 @@
 #include "hw_dim_splitter.h"
 
 #include <algorithm>
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include <cassert>
 
 namespace loom {
@@ -161,6 +162,48 @@ HWDimSplitter::generateAllSplits(
   assert(!allSplits.empty() &&
          "No valid HW dim split found for the given P and hardware dims");
   return allSplits;
+}
+
+using namespace mlir;
+
+mlir::Value
+MeshCoordinateSystem::emitLinearIndex(mlir::OpBuilder &builder,
+                                      mlir::Location loc,
+                                      const AxisLinearIndex &axis) const {
+  if (axis.ivs.empty()) {
+    return builder.create<arith::ConstantIndexOp>(loc, 0);
+  }
+  Value result = axis.ivs[0];
+  int64_t stride = axis.tileSizes[0];
+  for (unsigned i = 1; i < axis.ivs.size(); ++i) {
+    Value strideVal = builder.create<arith::ConstantIndexOp>(loc, stride);
+    Value term = builder.create<arith::MulIOp>(loc, axis.ivs[i], strideVal);
+    result = builder.create<arith::AddIOp>(loc, result, term);
+    stride *= axis.tileSizes[i];
+  }
+  return result;
+}
+
+mlir::Value MeshCoordinateSystem::emitLinearIndexWithOverride(
+    mlir::OpBuilder &builder, mlir::Location loc, const AxisLinearIndex &axis,
+    unsigned overrideLevelIdx, int64_t overrideValue) const {
+  if (axis.ivs.empty()) {
+    return builder.create<arith::ConstantIndexOp>(loc, 0);
+  }
+
+  Value overrideIV =
+      builder.create<arith::ConstantIndexOp>(loc, overrideValue);
+
+  Value result = (overrideLevelIdx == 0) ? overrideIV : axis.ivs[0];
+  int64_t stride = axis.tileSizes[0];
+  for (unsigned i = 1; i < axis.ivs.size(); ++i) {
+    Value iv = (i == overrideLevelIdx) ? overrideIV : axis.ivs[i];
+    Value strideVal = builder.create<arith::ConstantIndexOp>(loc, stride);
+    Value term = builder.create<arith::MulIOp>(loc, iv, strideVal);
+    result = builder.create<arith::AddIOp>(loc, result, term);
+    stride *= axis.tileSizes[i];
+  }
+  return result;
 }
 
 } // namespace loom
