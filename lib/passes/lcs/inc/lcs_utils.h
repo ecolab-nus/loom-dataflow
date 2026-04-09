@@ -8,6 +8,7 @@
 #include "expr.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Types.h"
@@ -94,6 +95,11 @@ Expr affineExprToExpr(mlir::AffineExpr expr,
  * @return Expr for the trip count, or Expr::none() if extraction fails
  */
 Expr extractLoopTripCount(mlir::affine::AffineForOp forOp);
+
+/// Extract symbolic trip count from an scf::ForOp's upper bound SSA value.
+/// Traces arith constants, loom.sym refs, and simple arithmetic (ceildivui,
+/// muli, addi) into Expr nodes. Assumes lb=0 and step=1.
+Expr extractLoopTripCount(mlir::scf::ForOp forOp);
 
 // ==========================================
 // Generic Op Classification & Shape Analysis
