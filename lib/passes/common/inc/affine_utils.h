@@ -1,7 +1,6 @@
 #pragma once
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/AffineExpr.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
@@ -38,7 +37,10 @@ mlir::LogicalResult tileAffineParallel(mlir::affine::AffineParallelOp op,
 
 /**
  * Convert an outermost `affine.parallel` to a perfectly nested chain of
- * `affine.for` loops using the specified iterator order.
+ * `scf.for` loops using the specified iterator order.  The lower/upper
+ * bound affine maps are materialized as plain index-typed arith ops so the
+ * produced loops carry SSA bounds directly consumable by downstream
+ * trip-count tracing.
  */
 mlir::LogicalResult ConvertParallelToNested(mlir::affine::AffineParallelOp par,
                                             llvm::ArrayRef<unsigned> order);
@@ -50,11 +52,5 @@ mlir::LogicalResult ConvertParallelToNested(mlir::affine::AffineParallelOp par,
  * The transformation is mathematically valid for positive integer operands.
  */
 mlir::AffineExpr flattenNestedCeilDiv(mlir::AffineExpr expr);
-
-/**
- * Walk all affine.for upper-bound maps in `func` and apply
- * flattenNestedCeilDiv to every result expression.
- */
-void flattenCeilDivInForBounds(mlir::func::FuncOp func);
 
 } // namespace loom_affine

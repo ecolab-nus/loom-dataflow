@@ -496,7 +496,6 @@ EnumerateSpatialMappings(ModuleOp affineModule,
                 });
 
                 loom::utils::composeAndCanonicalizeAffineApplies(cloned);
-                loom_affine::flattenCeilDivInForBounds(cloned);
 
                 return success();
               },

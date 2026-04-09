@@ -262,38 +262,6 @@ VariantETG::VariantETG(llvm::StringRef name, const HWOpRegistry *registry)
 // ==========================================
 // VariantETG — ETG building
 // ==========================================
-void VariantETG::buildFromAffineFor(mlir::affine::AffineForOp for_op) {
-  llvm::DenseMap<mlir::Value, int> value_ready_stage;
-
-  for (mlir::Value block_arg : for_op.getRegion().getArguments())
-    value_ready_stage[block_arg] = 0;
-
-  for_op.getBody()->walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation *op) {
-    if (op->getParentOp() != for_op)
-      return;
-
-    // Calculate ASAP stage based on operand dependencies.
-    int required_stage = 0;
-    for (mlir::Value operand : op->getOperands())
-      if (value_ready_stage.count(operand))
-        required_stage = std::max(required_stage, value_ready_stage[operand]);
-
-    bool is_compute = llvm::isa<mlir::linalg::LinalgOp>(op);
-    bool is_memory  = op->getName().getStringRef() == "loom.copy";
-    bool is_infra   =
-        is_compute && llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
-
-    if (is_compute && !is_infra)
-      dispatchToComputeQueues(op, compute_scope_.getOrCreateStage(required_stage));
-    if (is_memory)
-      dispatchToMemoryQueues(op, memory_scope_.getOrCreateStage(required_stage));
-
-    int ready_time = (is_infra || is_memory) ? required_stage : required_stage + 1;
-    for (mlir::Value result : op->getResults())
-      value_ready_stage[result] = ready_time;
-  });
-}
-
 void VariantETG::buildFromSCFFor(mlir::scf::ForOp for_op) {
   llvm::DenseMap<mlir::Value, int> value_ready_stage;
 
@@ -451,20 +419,6 @@ void VariantETG::collectSymbols(mlir::func::FuncOp func_op) {
 }
 
 void VariantETG::analyzeLoopIterations(mlir::func::FuncOp func_op) {
-  func_op.walk([&](mlir::affine::AffineForOp forOp) {
-    auto iterAttr =
-        forOp->getAttrOfType<loom::IterTypeAttr>("loom.iter_type");
-    if (!iterAttr)
-      return;
-    Expr tripCount = extractLoopTripCount(forOp);
-    if (tripCount.isNone())
-      return;
-    if (iterAttr.getValue() == loom::IterType::Sequential)
-      constraint_scope_.seq_iter = tripCount;
-    else if (iterAttr.getValue() == loom::IterType::Temporal)
-      constraint_scope_.temp_iter.push_back(tripCount);
-  });
-  // Also handle scf.for loops (e.g., the sequential K loop from helion frontend)
   func_op.walk([&](mlir::scf::ForOp forOp) {
     auto iterAttr =
         forOp->getAttrOfType<loom::IterTypeAttr>("loom.iter_type");
