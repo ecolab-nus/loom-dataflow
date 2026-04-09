@@ -3,7 +3,6 @@
 
 #include "constraint_expr.h"
 #include "expr.h"
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Operation.h"
@@ -104,10 +103,7 @@ public:
   const Scope &getMemoryScope() const { return memory_scope_; }
   const ConstraintScope &getConstraintScope() const { return constraint_scope_; }
 
-  /// Build ETG from an affine.for loop body.
-  void buildFromAffineFor(mlir::affine::AffineForOp for_op);
-
-  /// Build ETG from an scf.for loop body (equivalent to buildFromAffineFor).
+  /// Build ETG from an scf.for loop body.
   void buildFromSCFFor(mlir::scf::ForOp for_op);
 
   /// Build constraint scope from a func operation.

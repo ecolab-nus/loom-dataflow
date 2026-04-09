@@ -6,10 +6,8 @@
 #pragma once
 
 #include "expr.h"
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
@@ -73,28 +71,6 @@ Expr productOfDims(const std::vector<Expr> &dims);
  * @return String representation of the type
  */
 std::string formatElementType(mlir::Type elemType);
-
-/**
- * @brief Convert an AffineExpr to a symbolic Expr ADT.
- * Recursively walks the expression tree and substitutes symbol references
- * with Expr::sym() nodes. Returns Expr::none() for unhandled cases.
- *
- * @param expr The affine expression to convert
- * @param symbolNames Vector mapping symbol index (s0, s1, ...) to traced names
- * @return Expr representing the affine expression
- */
-Expr affineExprToExpr(mlir::AffineExpr expr,
-                      const llvm::SmallVector<std::string> &symbolNames);
-
-/**
- * @brief Extract symbolic trip count from an AffineForOp's upper bound.
- * Assumes lower bound is 0. Extracts the upper bound map, traces its symbol
- * operands to symbolic names, and converts the result expression to an Expr.
- *
- * @param forOp The affine loop to analyze
- * @return Expr for the trip count, or Expr::none() if extraction fails
- */
-Expr extractLoopTripCount(mlir::affine::AffineForOp forOp);
 
 /// Extract symbolic trip count from an scf::ForOp's upper bound SSA value.
 /// Traces arith constants, loom.sym refs, and simple arithmetic (ceildivui,
