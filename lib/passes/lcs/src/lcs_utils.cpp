@@ -7,6 +7,8 @@
 #include "utils.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include <cassert>
 
 namespace loom {
@@ -32,6 +34,14 @@ std::vector<Expr> traceBlockArgumentToInit(mlir::BlockArgument blockArg) {
     // iter_args start after the induction variable (argIdx 0)
     if (argIdx > 0 && argIdx - 1 < inits.size()) {
       return traceAllocDimsFromTensor(inits[argIdx - 1]);
+    }
+  }
+  // Handle scf.for: block args are (induction_var, iter_args...) — same layout
+  else if (auto forOp = mlir::dyn_cast<mlir::scf::ForOp>(parentOp)) {
+    unsigned argIdx = blockArg.getArgNumber();
+    auto initArgs = forOp.getInitArgs();
+    if (argIdx > 0 && argIdx - 1 < initArgs.size()) {
+      return traceAllocDimsFromTensor(initArgs[argIdx - 1]);
     }
   }
   // Handle affine.parallel: all block args are iter_args (no induction var)
@@ -163,6 +173,16 @@ std::vector<Expr> traceAllocDimsFromTensor(mlir::Value tensorVal) {
     return {};
   }
 
+  // Case 4b: scf.for result — trace back to the corresponding init arg
+  if (auto forOp = dyn_cast<scf::ForOp>(op)) {
+    unsigned resultIdx = cast<OpResult>(tensorVal).getResultNumber();
+    auto initArgs = forOp.getInitArgs();
+    if (resultIdx < initArgs.size()) {
+      return traceAllocDimsFromTensor(initArgs[resultIdx]);
+    }
+    return {};
+  }
+
   return {};
 }
 
@@ -271,6 +291,56 @@ Expr extractLoopTripCount(mlir::affine::AffineForOp forOp) {
          "run flattenCeilDivInForBounds first");
 
   return affineExprToExpr(resultExpr, symbolNames);
+}
+
+/// Recursively trace an SSA index value to a symbolic Expr.
+/// Handles: loom.sym → Sym, arith.constant → Const,
+///          arith.ceildivui/si → Div, arith.muli → Mul, arith.addi → Add.
+static Expr traceIndexValueToExpr(mlir::Value val) {
+  using namespace mlir;
+  if (!val)
+    return Expr::none();
+
+  // First try to resolve directly to a named symbolic variable (loom.sym).
+  llvm::StringRef symName = loom::utils::traceToSymbolicVar(val);
+  if (!symName.empty())
+    return Expr::sym(symName.str());
+
+  Operation *op = val.getDefiningOp();
+  if (!op)
+    return Expr::none();
+
+  // arith.constant
+  if (auto constOp = dyn_cast<arith::ConstantOp>(op))
+    if (auto intAttr = dyn_cast<IntegerAttr>(constOp.getValue()))
+      return Expr::con(intAttr.getInt());
+
+  // arith.ceildivui / arith.ceildivsi → Div (same semantics for trip counts)
+  if (auto cdiv = dyn_cast<arith::CeilDivUIOp>(op))
+    return traceIndexValueToExpr(cdiv.getLhs()) /
+           traceIndexValueToExpr(cdiv.getRhs());
+  if (auto cdiv = dyn_cast<arith::CeilDivSIOp>(op))
+    return traceIndexValueToExpr(cdiv.getLhs()) /
+           traceIndexValueToExpr(cdiv.getRhs());
+
+  // arith.muli → Mul
+  if (auto mul = dyn_cast<arith::MulIOp>(op))
+    return traceIndexValueToExpr(mul.getLhs()) *
+           traceIndexValueToExpr(mul.getRhs());
+
+  // arith.addi → Add
+  if (auto add = dyn_cast<arith::AddIOp>(op))
+    return traceIndexValueToExpr(add.getLhs()) +
+           traceIndexValueToExpr(add.getRhs());
+
+  return Expr::none();
+}
+
+Expr extractLoopTripCount(mlir::scf::ForOp forOp) {
+  if (!forOp)
+    return Expr::none();
+  // Assumes lb=0 and step=1, so trip count == upper bound.
+  return traceIndexValueToExpr(forOp.getUpperBound());
 }
 
 // ==========================================

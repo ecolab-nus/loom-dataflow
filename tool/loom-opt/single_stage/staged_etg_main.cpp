@@ -3,6 +3,7 @@
 #include "driver_utils.h"
 
 #include "mlir/Dialect/Math/IR/Math.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/JSON.h"
 
@@ -44,12 +45,11 @@ int main(int argc, char **argv) {
 
   // Iterate over all functions and variants effectively
   module->walk([&](mlir::func::FuncOp func_op) {
-    mlir::affine::AffineForOp target_loop = nullptr;
+    mlir::scf::ForOp target_loop = nullptr;
 
-    // Find the unique loop with loom.iter_type = sequential
-    func_op.walk([&](mlir::affine::AffineForOp for_op) {
+    // Find the scf.for loop with loom.iter_type = sequential
+    func_op.walk([&](mlir::scf::ForOp for_op) {
       if (for_op->hasAttr("loom.iter_type")) {
-        // Simple heuristic: search for "sequential" in the attribute string
         std::string attr_str;
         llvm::raw_string_ostream os(attr_str);
         for_op->getAttr("loom.iter_type").print(os);
@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
 
     if (target_loop) {
       VariantETG etg(func_op.getName(), &registry);
-      etg.buildFromAffineFor(target_loop);
+      etg.buildFromSCFFor(target_loop);
       etg.buildConstraintScope(func_op);
       etg.buildL1FootprintConstraint();
       json_etgs.push_back(etg.toJSON());

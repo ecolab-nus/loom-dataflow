@@ -5,6 +5,7 @@
 #include "expr.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "llvm/Support/JSON.h"
@@ -105,6 +106,9 @@ public:
 
   /// Build ETG from an affine.for loop body.
   void buildFromAffineFor(mlir::affine::AffineForOp for_op);
+
+  /// Build ETG from an scf.for loop body (equivalent to buildFromAffineFor).
+  void buildFromSCFFor(mlir::scf::ForOp for_op);
 
   /// Build constraint scope from a func operation.
   /// Extracts symbolic block sizes and loop iteration counts.
