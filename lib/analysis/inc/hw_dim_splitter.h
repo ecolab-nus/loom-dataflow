@@ -1,6 +1,8 @@
 #pragma once
 
 #include "hardware_info.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/Value.h"
 #include "llvm/ADT/SmallVector.h"
 #include <string>
 
@@ -59,6 +61,32 @@ private:
       llvm::SmallVector<llvm::SmallVector<int64_t>> &current,
       llvm::SmallVector<llvm::SmallVector<llvm::SmallVector<int64_t>>>
           &results);
+};
+
+/// Describes how a single physical mesh axis (x or y) was split into
+/// multiple parallel loop levels after hardware mapping.
+struct AxisLinearIndex {
+  unsigned sourceIdx;                          // 0 = x, 1 = y
+  llvm::SmallVector<mlir::Value> ivs;          // IVs ordered innermost to outermost
+  llvm::SmallVector<int64_t> tileSizes;        // Tile size at each level
+  llvm::SmallVector<unsigned> logicalDimIndices; // Index into logicalDims for each level
+};
+
+/// Complete 2D mesh coordinate system after hardware mapping.
+struct MeshCoordinateSystem {
+  AxisLinearIndex xAxis; // sourceIdx = 0
+  AxisLinearIndex yAxis; // sourceIdx = 1
+
+  /// Emit the linear index SSA value for the given axis using all real IVs.
+  mlir::Value emitLinearIndex(mlir::OpBuilder &builder, mlir::Location loc,
+                              const AxisLinearIndex &axis) const;
+
+  /// Emit the linear index with a specific level's IV replaced by a constant.
+  mlir::Value emitLinearIndexWithOverride(mlir::OpBuilder &builder,
+                                          mlir::Location loc,
+                                          const AxisLinearIndex &axis,
+                                          unsigned overrideLevelIdx,
+                                          int64_t overrideValue) const;
 };
 
 } // namespace loom

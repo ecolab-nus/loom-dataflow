@@ -19,7 +19,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %subview_1 = memref.subview %arg0[%3, %6] [%0, %1] [1, 1] : memref<256x256xf32> to memref<?x?xf32, strided<[256, 1], offset: ?>>
       %is_first_k = arith.cmpi eq, %4, %c0 : index
       scf.if %is_first_k {
-        %11 = loom.reduce_sum %10 (UB : [1, 0], LB : [1, 0]) : tensor<?x?xf32> -> tensor<?x?xf32>
+        %11 = loom.reduce_sum %10 (UB : [%c0, %c0], LB : [%c0, %c0]) : tensor<?x?xf32> -> tensor<?x?xf32>
         %12 = bufferization.to_buffer %11 : tensor<?x?xf32> to memref<?x?xf32, strided<[256, 1], offset: ?>>
         memref.copy %12, %subview_1 : memref<?x?xf32, strided<[256, 1], offset: ?>> to memref<?x?xf32, strided<[256, 1], offset: ?>>
       }

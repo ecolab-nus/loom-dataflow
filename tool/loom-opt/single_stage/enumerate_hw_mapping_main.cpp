@@ -10,6 +10,8 @@
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/IRMapping.h"
+#include "mlir/Pass/PassManager.h"
+#include "mlir/Transforms/Passes.h"
 #include "llvm/Support/CommandLine.h"
 
 using namespace mlir;
@@ -75,6 +77,15 @@ int main(int argc, char **argv) {
   // Then, insert all the nested modules containing function variants
   for (Operation &op : *out->getBody())
     builder.clone(op, mapping);
+
+  // Clean up the generated code with CSE and DCE (Canonicalizer)
+  PassManager pm(&context);
+  pm.addPass(mlir::createCSEPass());
+  pm.addPass(mlir::createCanonicalizerPass());
+  if (failed(pm.run(*merged))) {
+    llvm::errs() << "Cleanup passes failed\n";
+    return 1;
+  }
 
   loom::driver::printModule(*merged);
   return 0;

@@ -41,6 +41,55 @@ struct HWDimMapping {
   Value iv;
 };
 
+struct ReductionAxisInfo {
+  unsigned parallelIterIdx; // Index in the affine.parallel (e.g., 2 for K)
+  Value parallelIV;         // The block argument (%arg5)
+  scf::IfOp ifOp;           // The scf.if operation
+  Value conditionSSA;       // The arith.cmpi result
+};
+
+static void collectDependentBlockArgs(Value val,
+                                      SmallPtrSetImpl<Value> &blockArgs) {
+  if (!val)
+    return;
+  if (auto arg = mlir::dyn_cast<BlockArgument>(val)) {
+    blockArgs.insert(arg);
+    return;
+  }
+  Operation *op = val.getDefiningOp();
+  if (!op)
+    return;
+  for (Value operand : op->getOperands()) {
+    collectDependentBlockArgs(operand, blockArgs);
+  }
+}
+
+static std::optional<ReductionAxisInfo>
+detectReductionAxis(affine::AffineParallelOp root) {
+  std::optional<ReductionAxisInfo> result;
+  root.walk([&](scf::IfOp ifOp) {
+    if (result)
+      return;
+    Value cond = ifOp.getCondition();
+    SmallPtrSet<Value, 4> deps;
+    collectDependentBlockArgs(cond, deps);
+
+    SmallVector<unsigned, 4> parallelDeps;
+    auto ivs = root.getIVs();
+    for (unsigned i = 0; i < ivs.size(); ++i) {
+      if (deps.count(ivs[i])) {
+        parallelDeps.push_back(i);
+      }
+    }
+
+    if (parallelDeps.size() == 1) {
+      unsigned idx = parallelDeps[0];
+      result = {idx, ivs[idx], ifOp, cond};
+    }
+  });
+  return result;
+}
+
 static void markLoopsSequential(func::FuncOp func) {
   MLIRContext *ctx = func.getContext();
   func.walk([ctx](Operation *op) {
@@ -119,7 +168,8 @@ static LogicalResult applyMappingToFunction(
     func::FuncOp func, const loom::DimBuckets &mapping,
     const llvm::SmallVector<loom::SpatialDimInfo> &dims,
     affine::AffineParallelOp &tar_forOp, std::string &suffix,
-    llvm::SmallVector<loom::ParallelToHWMapping> &mappingInfo) {
+    llvm::SmallVector<loom::ParallelToHWMapping> &mappingInfo,
+    std::optional<ReductionAxisInfo> reductionInfo) {
   suffix.clear();
   mappingInfo.clear();
 
@@ -203,6 +253,80 @@ static LogicalResult applyMappingToFunction(
           continue;
         use.set(reconstructedIV);
       }
+    }
+  }
+
+  // Enhancement 2 & 3: Handle reduction axis
+  if (reductionInfo) {
+    loom::MeshCoordinateSystem meshCoords;
+    for (auto &entry : iterIdxToHWMappings) {
+      for (const auto &hwm : entry.second) {
+        unsigned srcIdx = dims[hwm.hwDimIdx].sourceIdx;
+        loom::AxisLinearIndex &axis =
+            (srcIdx == 0) ? meshCoords.xAxis : meshCoords.yAxis;
+        axis.sourceIdx = srcIdx;
+        axis.ivs.push_back(hwm.iv);
+        axis.tileSizes.push_back(hwm.hwDimSize);
+        axis.logicalDimIndices.push_back(hwm.hwDimIdx);
+      }
+    }
+
+    // Identfy reduction axis in the mesh coordinate system
+    // Based on Enhancement 1, it must be at logicalDimIndices[0]
+    unsigned reductionIterIdx = reductionInfo->parallelIterIdx;
+    auto it = iterIdxToHWMappings.find(reductionIterIdx);
+    if (it != iterIdxToHWMappings.end() && !it->second.empty()) {
+      // Per Enhancement 1, it's pushed to HW dim 0 (logical dim 0)
+      const auto &hwm = it->second.front();
+      unsigned hwDimIdx = hwm.hwDimIdx;
+      unsigned srcIdx = dims[hwDimIdx].sourceIdx;
+      loom::AxisLinearIndex &targetAxis =
+          (srcIdx == 0) ? meshCoords.xAxis : meshCoords.yAxis;
+
+      unsigned levelIdx = 0;
+      for (unsigned i = 0; i < targetAxis.logicalDimIndices.size(); ++i) {
+        if (targetAxis.logicalDimIndices[i] == hwDimIdx) {
+          levelIdx = i;
+          break;
+        }
+      }
+
+      // Rewrite scf.if condition
+      func.walk([&](scf::IfOp ifOp) {
+        OpBuilder condBuilder(ifOp);
+        Value c0 = condBuilder.create<arith::ConstantIndexOp>(loc, 0);
+        Value newCond = condBuilder.create<arith::CmpIOp>(
+            loc, arith::CmpIPredicate::eq, hwm.iv, c0);
+        ifOp.getConditionMutable().assign(newCond);
+      });
+
+      // Update reduce_sum
+      func.walk([&](loom::ReduceSumOp reduceOp) {
+        OpBuilder rsBuilder(reduceOp);
+        Value ub_x, ub_y, lb_x, lb_y;
+        if (srcIdx == 0) { // reduction on x
+          ub_x = meshCoords.emitLinearIndexWithOverride(rsBuilder, loc,
+                                                        meshCoords.xAxis,
+                                                        levelIdx, 0);
+          ub_y = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.yAxis);
+          lb_x = meshCoords.emitLinearIndexWithOverride(
+              rsBuilder, loc, meshCoords.xAxis, levelIdx, hwm.hwDimSize);
+          lb_y = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.yAxis);
+        } else { // reduction on y
+          ub_x = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.xAxis);
+          ub_y = meshCoords.emitLinearIndexWithOverride(rsBuilder, loc,
+                                                        meshCoords.yAxis,
+                                                        levelIdx, 0);
+          lb_x = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.xAxis);
+          lb_y = meshCoords.emitLinearIndexWithOverride(
+              rsBuilder, loc, meshCoords.yAxis, levelIdx, hwm.hwDimSize);
+        }
+        auto newReduce = rsBuilder.create<loom::ReduceSumOp>(
+            loc, reduceOp.getType(), reduceOp.getInput(), ub_x, ub_y, lb_x,
+            lb_y);
+        reduceOp.replaceAllUsesWith(newReduce.getResult());
+        reduceOp.erase();
+      });
     }
   }
 
@@ -301,9 +425,13 @@ EnumerateSpatialMappings(ModuleOp affineModule,
 
     loom::MappingPrioritizer prioritizer;
     auto weights = prioritizer.computeIterWeights(func, root);
+    auto reductionInfoMain = detectReductionAxis(root);
+
     // Bijective mappings depend only on weights and P, not on the split.
     auto bijectiveMappings =
-        prioritizer.generateBijectiveMappings(weights, P);
+        reductionInfoMain ? prioritizer.generateBijectiveMappingsWithForcedFirst(
+                                weights, P, reductionInfoMain->parallelIterIdx)
+                          : prioritizer.generateBijectiveMappings(weights, P);
 
     for (const auto &split : allSplits) {
       // Convert LogicalDims to SpatialDimInfo for applyMappingToFunction.
@@ -314,6 +442,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
         sdi.size = ld.size;
         sdi.symbolName = ld.sourceName;
         sdi.level = ld.level;
+        sdi.sourceIdx = ld.sourceIdx;
         logicalDimInfos.push_back(sdi);
       }
 
@@ -325,61 +454,63 @@ EnumerateSpatialMappings(ModuleOp affineModule,
 
         SmallVector<unsigned> orderCopy = order;
         do {
-            builder.setInsertionPointToEnd(out.getBody());
-            std::string mappingSuffix;
-            std::string newNamePrefix = func.getName().str();
-            newNamePrefix += "__";
+          builder.setInsertionPointToEnd(out.getBody());
+          std::string mappingSuffix;
+          std::string newNamePrefix = func.getName().str();
+          newNamePrefix += "__";
 
-            auto clonedFunc = loom::utils::cloneFuncWithConstraints(
-                builder, func, "", moduleAttrs, "EnumerateHWMapping",
-                [&](func::FuncOp cloned) -> LogicalResult {
-                  markLoopsSequential(cloned);
-                  affine::AffineParallelOp tar_forOp =
-                      getOutermostParallel(cloned);
-                  if (!tar_forOp) {
-                    return failure();
+          auto clonedFunc = loom::utils::cloneFuncWithConstraints(
+              builder, func, "", moduleAttrs, "EnumerateHWMapping",
+              [&](func::FuncOp cloned) -> LogicalResult {
+                markLoopsSequential(cloned);
+                affine::AffineParallelOp tar_forOp =
+                    getOutermostParallel(cloned);
+                if (!tar_forOp) {
+                  return failure();
+                }
+
+                auto reductionInfoCloned = detectReductionAxis(tar_forOp);
+
+                llvm::SmallVector<loom::ParallelToHWMapping> hwMappingInfo;
+                if (failed(applyMappingToFunction(
+                        cloned, mapping, logicalDimInfos, tar_forOp,
+                        mappingSuffix, hwMappingInfo, reductionInfoCloned))) {
+                  return failure();
+                }
+
+                if (!tar_forOp || failed(loom_affine::ConvertParallelToNested(
+                                      tar_forOp, orderCopy))) {
+                  return failure();
+                }
+
+                markLoopsTemporal(cloned);
+
+                // Assign memory attributes to copy ops
+                cloned.walk([&](Operation *op) {
+                  if (auto copyTo = dyn_cast<loom::CopyToTensorOp>(op)) {
+                    copyTo.setMemoryAttr(SymbolRefAttr::get(ctx, "L1"));
+                  } else if (auto copyFrom =
+                                 dyn_cast<loom::CopyFromTensorOp>(op)) {
+                    copyFrom.setMemoryAttr(SymbolRefAttr::get(ctx, "DRAM"));
                   }
+                });
 
-                  llvm::SmallVector<loom::ParallelToHWMapping> hwMappingInfo;
-                  if (failed(applyMappingToFunction(
-                          cloned, mapping, logicalDimInfos,
-                          tar_forOp, mappingSuffix, hwMappingInfo))) {
-                    return failure();
-                  }
+                loom::utils::composeAndCanonicalizeAffineApplies(cloned);
+                loom_affine::flattenCeilDivInForBounds(cloned);
 
-                  if (!tar_forOp ||
-                      failed(loom_affine::ConvertParallelToNested(
-                          tar_forOp, orderCopy))) {
-                    return failure();
-                  }
+                return success();
+              },
+              nullptr);
 
-                  markLoopsTemporal(cloned);
-
-                  // Assign memory attributes to copy ops
-                  cloned.walk([&](Operation *op) {
-                    if (auto copyTo = dyn_cast<loom::CopyToTensorOp>(op)) {
-                      copyTo.setMemoryAttr(SymbolRefAttr::get(ctx, "L1"));
-                    } else if (auto copyFrom =
-                                   dyn_cast<loom::CopyFromTensorOp>(op)) {
-                      copyFrom.setMemoryAttr(SymbolRefAttr::get(ctx, "DRAM"));
-                    }
-                  });
-
-                  loom::utils::composeAndCanonicalizeAffineApplies(cloned);
-                  loom_affine::flattenCeilDivInForBounds(cloned);
-                  return success();
-                },
-                nullptr);
-
-            if (clonedFunc) {
-              std::string finalName = newNamePrefix + splitDesc;
-              if (!mappingSuffix.empty())
-                finalName += "__" + mappingSuffix;
-              finalName += "__f";
-              for (unsigned idx : orderCopy)
-                finalName += std::to_string(idx);
-              clonedFunc.setName(finalName);
-            }
+          if (clonedFunc) {
+            std::string finalName = newNamePrefix + splitDesc;
+            if (!mappingSuffix.empty())
+              finalName += "__" + mappingSuffix;
+            finalName += "__f";
+            for (unsigned idx : orderCopy)
+              finalName += std::to_string(idx);
+            clonedFunc.setName(finalName);
+          }
 
         } while (std::next_permutation(orderCopy.begin(), orderCopy.end()));
       }
