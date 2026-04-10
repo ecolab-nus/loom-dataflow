@@ -603,6 +603,46 @@ struct FoldSemaphoreTakeType : public OpRewritePattern<SemaphoreTakeOp> {
   }
 };
 
+struct StaticizeReduceSum : public OpRewritePattern<ReduceSumOp> {
+  using OpRewritePattern<ReduceSumOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(ReduceSumOp op,
+                                PatternRewriter &rewriter) const override {
+    Value input = op.getInput();
+    if (auto cast = input.getDefiningOp<tensor::CastOp>()) {
+      input = cast.getSource();
+    }
+
+    auto inputType = llvm::dyn_cast<RankedTensorType>(input.getType());
+    if (!inputType)
+      return failure(); // ignore memref
+
+    auto resultType = llvm::dyn_cast<RankedTensorType>(op.getType());
+    if (!resultType)
+      return failure(); // should be tensor if input is tensor
+
+    bool needsInputUpdate = (input != op.getInput());
+    bool needsTypeUpdate = inputType.hasStaticShape() && !resultType.hasStaticShape();
+
+    if (!needsInputUpdate && !needsTypeUpdate)
+      return failure();
+
+    Type newResultType = needsTypeUpdate ? inputType : resultType;
+
+    auto newOp = rewriter.create<ReduceSumOp>(
+        op.getLoc(), newResultType, input, op.getUbX(), op.getUbY(),
+        op.getLbX(), op.getLbY());
+
+    if (newResultType != resultType) {
+      rewriter.replaceOpWithNewOp<tensor::CastOp>(op, resultType,
+                                                  newOp.getResult());
+    } else {
+      rewriter.replaceOp(op, newOp.getResult());
+    }
+    return success();
+  }
+};
+
 struct StaticizeCopy : public OpRewritePattern<CopyOp> {
   using OpRewritePattern<CopyOp>::OpRewritePattern;
 
@@ -664,6 +704,11 @@ void SemaphoreTakeOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void CopyOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                          MLIRContext *context) {
   results.add<StaticizeCopy>(context);
+}
+
+void ReduceSumOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                              MLIRContext *context) {
+  results.add<StaticizeReduceSum>(context);
 }
 
 //===----------------------------------------------------------------------===//
