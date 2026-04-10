@@ -950,6 +950,7 @@ public:
   void run() {
     inferCoreCoordArgOrder();
     collectDramInfos();
+    collectBroadcastRegions();
     collectCbInfos();
     annotateHostSignatureMetadata();
     eraseNonHostOps();
@@ -983,6 +984,11 @@ private:
     bool isInput;
     bool isOutput;
     MulticastKind multicastKind;
+    bool hasBroadcastRegion;
+    std::string ulXExpr;
+    std::string ulYExpr;
+    std::string lrXExpr;
+    std::string lrYExpr;
     std::string inputName;
     std::string configName;
     std::string bufferName;
@@ -1027,6 +1033,153 @@ private:
     if (index < 26)
       return std::string(1, static_cast<char>('A' + index));
     return "V" + std::to_string(index);
+  }
+
+  using IndexExprMap = llvm::DenseMap<Value, std::string>;
+
+  std::optional<std::string> buildIndexExpr(Value value,
+                                            const IndexExprMap &knownExprs) const {
+    if (!value)
+      return std::nullopt;
+
+    if (auto it = knownExprs.find(value); it != knownExprs.end())
+      return it->second;
+
+    if (isa<BlockArgument>(value))
+      return std::nullopt;
+
+    if (auto cst = value.getDefiningOp<arith::ConstantIndexOp>())
+      return std::to_string(cst.value());
+
+    if (auto cst = value.getDefiningOp<arith::ConstantIntOp>())
+      return std::to_string(cst.value());
+
+    if (auto cst = value.getDefiningOp<arith::ConstantOp>()) {
+      if (auto intAttr = dyn_cast<IntegerAttr>(cst.getValue()))
+        return std::to_string(intAttr.getValue().getSExtValue());
+    }
+
+    if (auto cast = value.getDefiningOp<arith::IndexCastOp>())
+      return buildIndexExpr(cast.getIn(), knownExprs);
+
+    auto emitBinaryExpr = [&](Value lhs, Value rhs,
+                              StringRef opSymbol) -> std::optional<std::string> {
+      auto lhsExpr = buildIndexExpr(lhs, knownExprs);
+      auto rhsExpr = buildIndexExpr(rhs, knownExprs);
+      if (!lhsExpr || !rhsExpr)
+        return std::nullopt;
+      return "((" + *lhsExpr + ") " + opSymbol.str() + " (" + *rhsExpr + "))";
+    };
+
+    if (auto op = value.getDefiningOp<arith::AddIOp>())
+      return emitBinaryExpr(op.getLhs(), op.getRhs(), "+");
+    if (auto op = value.getDefiningOp<arith::SubIOp>())
+      return emitBinaryExpr(op.getLhs(), op.getRhs(), "-");
+    if (auto op = value.getDefiningOp<arith::MulIOp>())
+      return emitBinaryExpr(op.getLhs(), op.getRhs(), "*");
+    if (auto op = value.getDefiningOp<arith::DivSIOp>())
+      return emitBinaryExpr(op.getLhs(), op.getRhs(), "/");
+    if (auto op = value.getDefiningOp<arith::RemSIOp>())
+      return emitBinaryExpr(op.getLhs(), op.getRhs(), "%");
+
+    return std::nullopt;
+  }
+
+  void collectParallelIvExprs() {
+    parallelIvExprByValue.clear();
+
+    hostFunc.walk([&](scf::ParallelOp op) {
+      auto mappedDims = op->getAttrOfType<ArrayAttr>("loom.physical_dims");
+      if (!mappedDims)
+        mappedDims = op->getAttrOfType<ArrayAttr>("loom.mapped_to_dims");
+      if (!mappedDims)
+        return;
+
+      auto iterTypes = op->getAttrOfType<ArrayAttr>("loom.iter_types");
+      auto logicalLevels = op->getAttrOfType<ArrayAttr>("loom.logical_levels");
+
+      struct AxisComponent {
+        size_t idx = 0;
+        int64_t logicalLevel = 0;
+      };
+
+      SmallVector<AxisComponent, 4> xComponents;
+      SmallVector<AxisComponent, 4> yComponents;
+
+      auto getLogicalLevelForIndex = [&](size_t idx) -> int64_t {
+        if (!logicalLevels || idx >= logicalLevels.size())
+          return static_cast<int64_t>(idx);
+        if (auto intAttr = dyn_cast<IntegerAttr>(logicalLevels[idx]))
+          return intAttr.getInt();
+        return static_cast<int64_t>(idx);
+      };
+
+      ValueRange lbs = op.getLowerBound();
+      ValueRange ubs = op.getUpperBound();
+      ValueRange steps = op.getStep();
+
+      for (size_t idx = 0; idx < op.getInductionVars().size(); ++idx) {
+        if (idx >= mappedDims.size() || idx >= lbs.size() || idx >= ubs.size() ||
+            idx >= steps.size())
+          break;
+        if (iterTypes && idx < iterTypes.size() &&
+            !isSpatialIterAttr(iterTypes[idx]))
+          continue;
+
+        std::string dimName = extractDimName(mappedDims[idx]);
+        StringRef dim = StringRef(dimName).trim();
+        if (dim.starts_with("@"))
+          dim = dim.drop_front();
+
+        if (dim.equals_insensitive("x") || dim.equals_insensitive("dim_x")) {
+          xComponents.push_back(AxisComponent{idx, getLogicalLevelForIndex(idx)});
+          continue;
+        }
+        if (dim.equals_insensitive("y") || dim.equals_insensitive("dim_y")) {
+          yComponents.push_back(AxisComponent{idx, getLogicalLevelForIndex(idx)});
+          continue;
+        }
+      }
+
+      auto sortByLevelThenIndex = [](SmallVectorImpl<AxisComponent> &components) {
+        std::stable_sort(
+            components.begin(), components.end(),
+            [](const AxisComponent &a, const AxisComponent &b) {
+              if (a.logicalLevel != b.logicalLevel)
+                return a.logicalLevel < b.logicalLevel;
+              return a.idx < b.idx;
+            });
+      };
+
+      sortByLevelThenIndex(xComponents);
+      sortByLevelThenIndex(yComponents);
+
+      auto buildAxisIvExprs = [&](ArrayRef<AxisComponent> components,
+                                  StringRef axisExpr) {
+        std::string strideExpr = "1";
+        for (const AxisComponent &component : components) {
+          size_t idx = component.idx;
+          auto lbExpr = buildIndexExpr(lbs[idx], parallelIvExprByValue);
+          auto ubExpr = buildIndexExpr(ubs[idx], parallelIvExprByValue);
+          auto stepExpr = buildIndexExpr(steps[idx], parallelIvExprByValue);
+          if (!lbExpr || !ubExpr || !stepExpr)
+            continue;
+
+          std::string extentExpr = "((((" + *ubExpr + ") - (" + *lbExpr +
+                                   ")) + (" + *stepExpr + ") - 1) / (" +
+                                   *stepExpr + "))";
+          std::string ivExpr = "((" + *lbExpr + ") + (((((" + axisExpr.str() +
+                               ") / (" + strideExpr + ")) % (" + extentExpr +
+                               ")) * (" + *stepExpr + "))))";
+
+          parallelIvExprByValue[op.getInductionVars()[idx]] = ivExpr;
+          strideExpr = "((" + strideExpr + ") * (" + extentExpr + "))";
+        }
+      };
+
+      buildAxisIvExprs(xComponents, "core.x");
+      buildAxisIvExprs(yComponents, "core.y");
+    });
   }
   //TODO: tmp fix, need to get the total size and then divide by the tile size
   static bool buildTilesExpr(MemRefType memrefType, std::string &expr) {
@@ -1278,6 +1431,11 @@ private:
           isInput,
           isOutput,
           multicastKind,
+          /*hasBroadcastRegion=*/false,
+          /*ulXExpr=*/"",
+          /*ulYExpr=*/"",
+          /*lrXExpr=*/"",
+          /*lrYExpr=*/"",
           inputName,
           "dram_config_" + letter,
           roleName + "_dram_buffer",
@@ -1285,6 +1443,48 @@ private:
           tilesExpr,
           sizeExpr});
     }
+  }
+
+  void collectBroadcastRegions() {
+    collectParallelIvExprs();
+
+    hostFunc.walk([&](::loom::CopyOp op) {
+      auto sourceRC = op.getSource().getDefiningOp<memref::ReinterpretCastOp>();
+      if (!sourceRC)
+        return;
+
+      Value memrefArg = stripCasts(sourceRC.getSource());
+      DramBufferInfo *dramInfo = findDramInfoMutable(memrefArg);
+      if (!dramInfo || !dramInfo->isInput || dramInfo->hasBroadcastRegion)
+        return;
+
+      auto parsedBroadcast = parseBroadcastAttr(op.getBroadcastAttr());
+      if (!parsedBroadcast)
+        return;
+      bool isBroadcast = parsedBroadcast->first > 1 || parsedBroadcast->second > 1;
+      if (!isBroadcast)
+        return;
+
+      Value ulX = op.getUlX();
+      Value ulY = op.getUlY();
+      Value lrX = op.getLrX();
+      Value lrY = op.getLrY();
+      if (!ulX || !ulY || !lrX || !lrY)
+        return;
+
+      auto ulXExpr = buildIndexExpr(ulX, parallelIvExprByValue);
+      auto ulYExpr = buildIndexExpr(ulY, parallelIvExprByValue);
+      auto lrXExpr = buildIndexExpr(lrX, parallelIvExprByValue);
+      auto lrYExpr = buildIndexExpr(lrY, parallelIvExprByValue);
+      if (!ulXExpr || !ulYExpr || !lrXExpr || !lrYExpr)
+        return;
+
+      dramInfo->hasBroadcastRegion = true;
+      dramInfo->ulXExpr = *ulXExpr;
+      dramInfo->ulYExpr = *ulYExpr;
+      dramInfo->lrXExpr = *lrXExpr;
+      dramInfo->lrYExpr = *lrYExpr;
+    });
   }
 
   void collectCbInfos() {
@@ -1662,80 +1862,76 @@ private:
   }
 
   void emitCoreMulticastMappingAtEnd() {
-    emitLine("uint32_t num_cores_with_work_c = end_core_x - start_core_x + 1;");
-    emitLine("uint32_t num_cores_with_work_r = end_core_y - start_core_y + 1;");
     emitLine("constexpr bool row_major = true;");
     emitLine("auto cores = corerange_to_cores(all_cores, std::nullopt, row_major);");
-
-    auto emitMulticastMappingForKind = [&](StringRef prefix,
-                                           StringRef senderCoreExpr,
-                                           StringRef destStartCoreExpr,
-                                           StringRef destEndCoreExpr) {
-      emitLine("CoreCoord " + prefix.str() + "_sender_core = " +
-               senderCoreExpr.str() + ";");
-      emitLine("CoreCoord " + prefix.str() + "_dest_start_core = " +
-               destStartCoreExpr.str() + ";");
-      emitLine("CoreCoord " + prefix.str() + "_dest_end_core = " +
-               destEndCoreExpr.str() + ";");
-
-      emitLine("auto " + prefix.str() +
-               "_sender_physical = device->worker_core_from_logical_core(" +
-               prefix.str() + "_sender_core);");
-      emitLine("auto " + prefix.str() +
-               "_dest_start_physical = device->worker_core_from_logical_core(" +
-               prefix.str() + "_dest_start_core);");
-      emitLine("auto " + prefix.str() +
-               "_dest_end_physical = device->worker_core_from_logical_core(" +
-               prefix.str() + "_dest_end_core);");
-
-      emitLine("uint32_t " + prefix.str() +
-               "_multicast_dest_noc_start_x = (std::uint32_t)" + prefix.str() +
-               "_dest_start_physical.x;");
-      emitLine("uint32_t " + prefix.str() +
-               "_multicast_dest_noc_start_y = (std::uint32_t)" + prefix.str() +
-               "_dest_start_physical.y;");
-      emitLine("uint32_t " + prefix.str() +
-               "_multicast_dest_noc_end_x = (std::uint32_t)" + prefix.str() +
-               "_dest_end_physical.x;");
-      emitLine("uint32_t " + prefix.str() +
-               "_multicast_dest_noc_end_y = (std::uint32_t)" + prefix.str() +
-               "_dest_end_physical.y;");
-      emitLine("uint32_t " + prefix.str() +
-               "_multicast_sender_noc_x = (std::uint32_t)" + prefix.str() +
-               "_sender_physical.x;");
-      emitLine("uint32_t " + prefix.str() +
-               "_multicast_sender_noc_y = (std::uint32_t)" + prefix.str() +
-               "_sender_physical.y;");
-    };
-
     emitLine("for (const auto& core : cores) {");
-
-    emitMulticastMappingForKind(
-        "horizontal",
-        "{(std::size_t)0, (std::size_t)core.y}",
-        "{(std::size_t)1, (std::size_t)core.y}",
-        "{(std::size_t)(num_cores_with_work_c - 1), (std::size_t)core.y}");
-
-    emitMulticastMappingForKind(
-        "vertical",
-        "{(std::size_t)core.x, (std::size_t)0}",
-        "{(std::size_t)core.x, (std::size_t)1}",
-        "{(std::size_t)core.x, (std::size_t)(num_cores_with_work_r - 1)}");
-
-    emitMulticastMappingForKind(
-        "all",
-        "{(std::size_t)0, (std::size_t)0}",
-        "{(std::size_t)0, (std::size_t)0}",
-        "{(std::size_t)(num_cores_with_work_c - 1), "
-        "(std::size_t)(num_cores_with_work_r - 1)}");
-
     emitReaderRuntimeArgsForCore();
     emitLine("}");
   }
 
   void emitReaderRuntimeArgsForCore() {
+    auto regionPrefixForInfo = [&](const DramBufferInfo &info) -> std::string {
+      if (!info.inputName.empty())
+        return info.inputName;
+      return "in" + std::to_string(info.memrefOrdinal);
+    };
+
+    for (const DramBufferInfo &info : dramInfos) {
+      if (!info.isInput || !info.hasBroadcastRegion)
+        continue;
+
+      std::string prefix = regionPrefixForInfo(info);
+      emitLine("std::size_t " + prefix + "_ul_x = static_cast<std::size_t>(" +
+               info.ulXExpr + ");");
+      emitLine("std::size_t " + prefix + "_ul_y = static_cast<std::size_t>(" +
+               info.ulYExpr + ");");
+      emitLine("std::size_t " + prefix + "_lr_x = static_cast<std::size_t>(" +
+               info.lrXExpr + ");");
+      emitLine("std::size_t " + prefix + "_lr_y = static_cast<std::size_t>(" +
+               info.lrYExpr + ");");
+
+      emitLine("CoreCoord " + prefix + "_sender_core = {" + prefix +
+               "_ul_x, " + prefix + "_ul_y};");
+      emitLine("CoreCoord " + prefix + "_dest_start_core = {" + prefix +
+               "_ul_x, " + prefix + "_ul_y};");
+      emitLine("CoreCoord " + prefix + "_dest_end_core = {" + prefix +
+               "_lr_x, " + prefix + "_lr_y};");
+
+      emitLine("auto " + prefix +
+               "_sender_physical = device->worker_core_from_logical_core(" +
+               prefix + "_sender_core);");
+      emitLine("auto " + prefix +
+               "_dest_start_physical = device->worker_core_from_logical_core(" +
+               prefix + "_dest_start_core);");
+      emitLine("auto " + prefix +
+               "_dest_end_physical = device->worker_core_from_logical_core(" +
+               prefix + "_dest_end_core);");
+
+      emitLine("uint32_t " + prefix +
+               "_multicast_dest_noc_start_x = (std::uint32_t)" + prefix +
+               "_dest_start_physical.x;");
+      emitLine("uint32_t " + prefix +
+               "_multicast_dest_noc_start_y = (std::uint32_t)" + prefix +
+               "_dest_start_physical.y;");
+      emitLine("uint32_t " + prefix +
+               "_multicast_dest_noc_end_x = (std::uint32_t)" + prefix +
+               "_dest_end_physical.x;");
+      emitLine("uint32_t " + prefix +
+               "_multicast_dest_noc_end_y = (std::uint32_t)" + prefix +
+               "_dest_end_physical.y;");
+      emitLine("uint32_t " + prefix +
+               "_multicast_sender_noc_x = (std::uint32_t)" + prefix +
+               "_sender_physical.x;");
+      emitLine("uint32_t " + prefix +
+               "_multicast_sender_noc_y = (std::uint32_t)" + prefix +
+               "_sender_physical.y;");
+      emitLine("uint32_t " + prefix + "_multicast_dest_num = static_cast<uint32_t>(((" +
+               prefix + "_lr_x - " + prefix + "_ul_x + 1) * (" + prefix +
+               "_lr_y - " + prefix + "_ul_y + 1)) - 1);");
+    }
+
     auto emitMulticastTuple = [&](const DramBufferInfo &info) {
-      if (!info.isInput || info.multicastKind == MulticastKind::None) {
+      if (!info.isInput || !info.hasBroadcastRegion) {
         emitLine("0,");
         emitLine("0,");
         emitLine("0,");
@@ -1747,31 +1943,15 @@ private:
         emitLine("0,");
         return;
       }
-      if (info.multicastKind == MulticastKind::All) {
-        emitLine("all_multicast_dest_noc_start_x,");
-        emitLine("all_multicast_dest_noc_start_y,");
-        emitLine("all_multicast_dest_noc_end_x,");
-        emitLine("all_multicast_dest_noc_end_y,");
-        emitLine("(num_cores_with_work_c * num_cores_with_work_r - 1),");
-        emitLine("all_multicast_sender_noc_x,");
-        emitLine("all_multicast_sender_noc_y,");
-      } else if (info.multicastKind == MulticastKind::Horizontal) {
-        emitLine("horizontal_multicast_dest_noc_start_x,");
-        emitLine("horizontal_multicast_dest_noc_start_y,");
-        emitLine("horizontal_multicast_dest_noc_end_x,");
-        emitLine("horizontal_multicast_dest_noc_end_y,");
-        emitLine("(num_cores_with_work_c - 1),");
-        emitLine("horizontal_multicast_sender_noc_x,");
-        emitLine("horizontal_multicast_sender_noc_y,");
-      } else {
-        emitLine("vertical_multicast_dest_noc_start_x,");
-        emitLine("vertical_multicast_dest_noc_start_y,");
-        emitLine("vertical_multicast_dest_noc_end_x,");
-        emitLine("vertical_multicast_dest_noc_end_y,");
-        emitLine("(num_cores_with_work_r - 1),");
-        emitLine("vertical_multicast_sender_noc_x,");
-        emitLine("vertical_multicast_sender_noc_y,");
-      }
+
+      std::string prefix = regionPrefixForInfo(info);
+      emitLine(prefix + "_multicast_dest_noc_start_x,");
+      emitLine(prefix + "_multicast_dest_noc_start_y,");
+      emitLine(prefix + "_multicast_dest_noc_end_x,");
+      emitLine(prefix + "_multicast_dest_noc_end_y,");
+      emitLine(prefix + "_multicast_dest_num,");
+      emitLine(prefix + "_multicast_sender_noc_x,");
+      emitLine(prefix + "_multicast_sender_noc_y,");
 
       emitLine(info.inputName + "_mcast_sender_semaphore_addr,");
       emitLine(info.inputName + "_mcast_receiver_semaphore_addr,");
@@ -1864,6 +2044,7 @@ private:
   HostProgramKind kind;
   SmallVector<DramBufferInfo, 8> dramInfos;
   SmallVector<CircularBufferInfo, 8> cbInfos;
+  IndexExprMap parallelIvExprByValue;
   SmallVector<unsigned, 8> internalCbRuntimeArgOrder;
   llvm::DenseMap<Value, unsigned> semaphoreToCbIndex;
   llvm::DenseMap<Value, unsigned> allocToCbInfo;
