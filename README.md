@@ -112,29 +112,29 @@ cd third_party/loom-dataflow
 ```bash
 # Step 1
 build/tool/loom-opt/single_stage/tensor_canonicalize \
-  --input test/Passes/bmm_2Dmesh/IR/00_from_helion_frontend.mlir \
-  > test/Passes/bmm_2Dmesh/IR/01_tensor_canonicalized.mlir
+  --input test/Passes/mm_2Dmesh/IR/00_from_helion_frontend.mlir \
+  > test/Passes/mm_2Dmesh/IR/01_tensor_canonicalized.mlir
 
 # Step 2
 build/tool/loom-opt/single_stage/memory_binding \
-  --input test/Passes/bmm_2Dmesh/IR/01_tensor_canonicalized.mlir \
-  > test/Passes/bmm_2Dmesh/IR/02_explicit_memory_access.mlir
+  --input test/Passes/mm_2Dmesh/IR/01_tensor_canonicalized.mlir \
+  > test/Passes/mm_2Dmesh/IR/02_explicit_memory_access.mlir
 
 # Step 3
 build/tool/loom-opt/single_stage/enumerate_hw_mapping \
-  --input test/Passes/bmm_2Dmesh/IR/02_explicit_memory_access.mlir \
+  --input test/Passes/mm_2Dmesh/IR/02_explicit_memory_access.mlir \
   --hw_spec /root/loom-monorepo/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
-  > test/Passes/bmm_2Dmesh/IR/03_after_hardware_mapping.mlir
+  > test/Passes/mm_2Dmesh/IR/03_after_hardware_mapping.mlir
 
 # Step 4
 build/tool/loom-opt/single_stage/analyze_reuse \
-  --input test/Passes/bmm_2Dmesh/IR/03_after_hardware_mapping.mlir \
-  > test/Passes/bmm_2Dmesh/IR/04_after_reuse_analyzation.mlir
+  --input test/Passes/mm_2Dmesh/IR/03_after_hardware_mapping.mlir \
+  > test/Passes/mm_2Dmesh/IR/04_after_reuse_analyzation.mlir
 
 # Step 5
 build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
-  --input test/Passes/bmm_2Dmesh/IR/04_after_reuse_analyzation.mlir \
-  > test/Passes/bmm_2Dmesh/IR/05_after_enumerate_broadcast.mlir
+  --input test/Passes/mm_2Dmesh/IR/04_after_reuse_analyzation.mlir \
+  > test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir
 
 # Step 6 — emits JSON constraint model
 build/tool/loom-opt/single_stage/staged_etg \
