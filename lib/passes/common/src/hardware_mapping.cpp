@@ -23,6 +23,9 @@
 #include <algorithm>
 #include <numeric>
 
+#define SKIP_TEMPORAL_EXPLORATION // Toggle this to skip temporal loop exploration
+
+
 #include "LoomDialect.h.inc"
 #include "LoomEnums.h.inc"
 #define GET_ATTRDEF_CLASSES
@@ -479,7 +482,9 @@ EnumerateSpatialMappings(ModuleOp affineModule,
         std::iota(order.begin(), order.end(), 0);
 
         SmallVector<unsigned> orderCopy = order;
+#ifndef SKIP_TEMPORAL_EXPLORATION
         do {
+#endif
           builder.setInsertionPointToEnd(out.getBody());
           std::string mappingSuffix;
           std::string newNamePrefix = func.getName().str();
@@ -537,7 +542,10 @@ EnumerateSpatialMappings(ModuleOp affineModule,
             clonedFunc.setName(finalName);
           }
 
+#ifndef SKIP_TEMPORAL_EXPLORATION
         } while (std::next_permutation(orderCopy.begin(), orderCopy.end()));
+#endif
+
       }
     }
   }
