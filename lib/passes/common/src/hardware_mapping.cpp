@@ -329,27 +329,27 @@ static LogicalResult applyMappingToFunction(
       // Update reduce_sum
       func.walk([&](loom::ReduceSumOp reduceOp) {
         OpBuilder rsBuilder(reduceOp);
-        Value ub_x, ub_y, lb_x, lb_y;
+        Value ul_x, ul_y, lr_x, lr_y;
         if (srcIdx == 0) { // reduction on x
-          ub_x = meshCoords.emitLinearIndexWithOverride(rsBuilder, loc,
+          ul_x = meshCoords.emitLinearIndexWithOverride(rsBuilder, loc,
                                                         meshCoords.xAxis,
                                                         levelIdx, 0);
-          ub_y = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.yAxis);
-          lb_x = meshCoords.emitLinearIndexWithOverride(
-              rsBuilder, loc, meshCoords.xAxis, levelIdx, hwm.hwDimSize);
-          lb_y = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.yAxis);
+          ul_y = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.yAxis);
+          lr_x = meshCoords.emitLinearIndexWithOverride(
+              rsBuilder, loc, meshCoords.xAxis, levelIdx, hwm.hwDimSize - 1);
+          lr_y = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.yAxis);
         } else { // reduction on y
-          ub_x = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.xAxis);
-          ub_y = meshCoords.emitLinearIndexWithOverride(rsBuilder, loc,
+          ul_x = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.xAxis);
+          ul_y = meshCoords.emitLinearIndexWithOverride(rsBuilder, loc,
                                                         meshCoords.yAxis,
                                                         levelIdx, 0);
-          lb_x = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.xAxis);
-          lb_y = meshCoords.emitLinearIndexWithOverride(
-              rsBuilder, loc, meshCoords.yAxis, levelIdx, hwm.hwDimSize);
+          lr_x = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.xAxis);
+          lr_y = meshCoords.emitLinearIndexWithOverride(
+              rsBuilder, loc, meshCoords.yAxis, levelIdx, hwm.hwDimSize - 1);
         }
         auto newReduce = rsBuilder.create<loom::ReduceSumOp>(
             loc, reduceOp->getResultTypes(), reduceOp.getInput(),
-            reduceOp.getInit(), ub_x, ub_y, lb_x, lb_y);
+            reduceOp.getInit(), ul_x, ul_y, lr_x, lr_y);
         reduceOp.replaceAllUsesWith(newReduce.getResults());
         reduceOp.erase();
       });

@@ -515,10 +515,10 @@ def ReduceSumOp : Loom_Op<"reduce_sum", [
   let arguments = (ins
     AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$input,
     AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$init,
-    Index:$ub_x,
-    Index:$ub_y,
-    Index:$lb_x,
-    Index:$lb_y
+    Index:$ul_x,
+    Index:$ul_y,
+    Index:$lr_x,
+    Index:$lr_y
   );
 
   let results = (outs Variadic<AnyRankedTensor>:$result);
@@ -526,8 +526,8 @@ def ReduceSumOp : Loom_Op<"reduce_sum", [
   let assemblyFormat = [{
     `ins` `(` $input `)`
     `outs` `(` $init `)`
-    `(` `UB` `:` `[` $ub_x `,` $ub_y `]` `,`
-        `LB` `:` `[` $lb_x `,` $lb_y `]` `)` attr-dict `:`
+    `(` `UL` `:` `[` $ul_x `,` $ul_y `]` `,`
+        `LR` `:` `[` $lr_x `,` $lr_y `]` `)` attr-dict `:`
     type($input) (`->` type($result)^ )?
   }];
 

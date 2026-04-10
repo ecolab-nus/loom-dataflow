@@ -219,9 +219,9 @@ struct ReduceSumOpInterface
 
     // Create memref-mode ReduceSumOp (no results — pure buffer semantics).
     loom::ReduceSumOp::create(rewriter, op->getLoc(), /*resultTypes=*/TypeRange{},
-                              *inputBuffer, *initBuffer, reduceOp.getUbX(),
-                              reduceOp.getUbY(), reduceOp.getLbX(),
-                              reduceOp.getLbY());
+                              *inputBuffer, *initBuffer, reduceOp.getUlX(),
+                              reduceOp.getUlY(), reduceOp.getLrX(),
+                              reduceOp.getLrY());
 
     // The init buffer IS the result (DPS in-place semantics).
     replaceOpWithBufferizedValues(rewriter, op, *initBuffer);
