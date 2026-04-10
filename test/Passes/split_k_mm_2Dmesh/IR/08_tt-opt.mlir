@@ -24,13 +24,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -64,7 +65,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -84,13 +85,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -124,7 +126,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -144,13 +146,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -184,7 +187,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -204,13 +207,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -244,7 +248,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -264,13 +268,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -304,7 +309,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -324,13 +329,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -364,7 +370,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -384,13 +390,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -424,7 +431,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -444,13 +451,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -484,7 +492,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -504,13 +512,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -544,7 +553,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -564,13 +573,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -604,7 +614,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -624,13 +634,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -664,7 +675,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -684,13 +695,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -724,7 +736,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -744,13 +756,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -784,7 +797,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -804,13 +817,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -844,7 +858,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -864,13 +878,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -904,7 +919,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -924,13 +939,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -964,7 +980,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -984,13 +1000,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -1024,7 +1041,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1044,13 +1061,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -1084,7 +1102,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1104,13 +1122,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -1144,7 +1163,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1164,13 +1183,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -1204,7 +1224,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1224,13 +1244,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -1264,7 +1285,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1284,13 +1305,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -1324,7 +1346,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1344,13 +1366,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -1384,7 +1407,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1404,13 +1427,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -1444,7 +1468,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1464,13 +1488,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -1504,7 +1529,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1524,13 +1549,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -1564,7 +1590,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1584,13 +1610,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -1624,7 +1651,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1644,13 +1671,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -1684,7 +1712,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1704,13 +1732,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -1744,7 +1773,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1764,13 +1793,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -1804,7 +1834,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1824,13 +1854,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -1864,7 +1895,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1884,13 +1915,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -1924,7 +1956,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -1944,13 +1976,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -1984,7 +2017,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2004,13 +2037,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -2044,7 +2078,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2064,13 +2098,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -2104,7 +2139,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2124,13 +2159,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -2164,7 +2200,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2184,13 +2220,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -2224,7 +2261,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2244,13 +2281,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -2284,7 +2322,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2304,13 +2342,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -2344,7 +2383,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2364,13 +2403,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -2404,7 +2444,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2424,13 +2464,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -2464,7 +2505,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2484,13 +2525,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -2524,7 +2566,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2544,13 +2586,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -2584,7 +2627,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2604,13 +2647,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -2644,7 +2688,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2664,13 +2708,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -2704,7 +2749,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2724,13 +2769,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -2764,7 +2810,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2784,13 +2830,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -2824,7 +2871,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2844,13 +2891,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -2884,7 +2932,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2904,13 +2952,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -2944,7 +2993,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -2964,13 +3013,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -3004,7 +3054,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3024,13 +3074,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -3064,7 +3115,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3084,13 +3135,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -3124,7 +3176,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3144,13 +3196,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -3184,7 +3237,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3204,13 +3257,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -3244,7 +3298,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3264,13 +3318,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -3304,7 +3359,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3324,13 +3379,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -3364,7 +3420,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3384,13 +3440,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -3424,7 +3481,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3444,13 +3501,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -3484,7 +3542,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3504,13 +3562,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -3544,7 +3603,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3564,13 +3623,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -3604,7 +3664,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3624,13 +3684,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -3664,7 +3725,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3684,13 +3745,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -3724,7 +3786,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3744,13 +3806,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -3784,7 +3847,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3804,13 +3867,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -3844,7 +3908,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3864,13 +3928,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -3904,7 +3969,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3924,13 +3989,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -3964,7 +4030,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -3984,13 +4050,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -4024,7 +4091,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4044,13 +4111,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -4084,7 +4152,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4104,13 +4172,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -4144,7 +4213,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4164,13 +4233,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -4204,7 +4274,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4224,13 +4294,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -4264,7 +4335,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4284,13 +4355,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -4324,7 +4396,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4344,13 +4416,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -4384,7 +4457,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4404,13 +4477,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -4444,7 +4518,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4464,13 +4538,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -4504,7 +4579,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4524,13 +4599,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -4564,7 +4640,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4584,13 +4660,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -4624,7 +4701,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4644,13 +4721,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -4684,7 +4762,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4704,13 +4782,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -4744,7 +4823,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4764,13 +4843,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -4804,7 +4884,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4824,13 +4904,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -4864,7 +4945,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4884,13 +4965,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -4924,7 +5006,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -4944,13 +5026,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -4984,7 +5067,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5004,13 +5087,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -5044,7 +5128,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5064,13 +5148,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -5104,7 +5189,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5124,13 +5209,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -5164,7 +5250,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5184,13 +5270,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -5224,7 +5311,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5244,13 +5331,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -5284,7 +5372,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5304,13 +5392,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -5344,7 +5433,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5364,13 +5453,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -5404,7 +5494,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5424,13 +5514,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -5464,7 +5555,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5484,13 +5575,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -5524,7 +5616,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5544,13 +5636,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -5584,7 +5677,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5604,13 +5697,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -5644,7 +5738,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5664,13 +5758,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -5704,7 +5799,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5724,13 +5819,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c4, %c8) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -5764,7 +5860,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
               %40 = arith.addi %arg3, %39 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%c0, %40], LB : [%c8, %40]) : memref<32x32xf32>
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%c0, %40], LR : [%c7, %40]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %21, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5823,8 +5919,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5883,8 +5979,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -5943,8 +6039,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6003,8 +6099,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6063,8 +6159,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6123,8 +6219,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6183,8 +6279,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6243,8 +6339,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6303,8 +6399,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6363,8 +6459,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6423,8 +6519,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6483,8 +6579,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6543,8 +6639,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6603,8 +6699,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6663,8 +6759,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6723,8 +6819,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6783,8 +6879,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6843,8 +6939,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6903,8 +6999,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -6963,8 +7059,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -7023,8 +7119,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -7083,8 +7179,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -7143,8 +7239,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -7203,8 +7299,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c2 : index
-              %40 = arith.addi %39, %c2 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c1 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -7223,14 +7319,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f012__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -7262,8 +7358,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -7282,14 +7378,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f012__n_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -7321,8 +7417,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -7341,14 +7437,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f012__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -7380,8 +7476,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -7400,14 +7496,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f012__dim_y_level0_bc8_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -7439,8 +7535,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -7459,14 +7555,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f021__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -7498,8 +7594,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -7518,14 +7614,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f021__n_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -7557,8 +7653,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -7577,14 +7673,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f021__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -7616,8 +7712,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -7636,14 +7732,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f021__dim_y_level0_bc8_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -7675,8 +7771,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -7695,14 +7791,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f102__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -7734,8 +7830,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -7754,14 +7850,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f102__n_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -7793,8 +7889,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -7813,14 +7909,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f102__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -7852,8 +7948,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -7872,14 +7968,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f102__dim_y_level0_bc8_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -7911,8 +8007,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -7934,11 +8030,11 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -7970,8 +8066,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -7993,11 +8089,11 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -8029,8 +8125,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -8052,11 +8148,11 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -8088,8 +8184,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -8111,11 +8207,11 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -8147,8 +8243,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -8169,12 +8265,12 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -8206,8 +8302,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -8228,12 +8324,12 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -8265,8 +8361,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -8287,12 +8383,12 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -8324,8 +8420,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -8346,12 +8442,12 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -8383,8 +8479,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -8405,12 +8501,12 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -8442,8 +8538,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -8464,12 +8560,12 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -8501,8 +8597,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -8523,12 +8619,12 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -8560,8 +8656,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -8582,12 +8678,12 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -8619,8 +8715,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c4 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -8640,6 +8736,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -8679,8 +8776,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -8700,6 +8797,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -8739,8 +8837,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -8760,6 +8858,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -8799,8 +8898,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -8820,6 +8919,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -8859,8 +8959,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -8880,6 +8980,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -8919,8 +9020,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -8940,6 +9041,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -8979,8 +9081,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9000,6 +9102,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9039,8 +9142,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9060,6 +9163,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9099,8 +9203,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9120,6 +9224,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9159,8 +9264,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9180,6 +9285,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9219,8 +9325,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9240,6 +9346,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9279,8 +9386,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9300,6 +9407,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9339,8 +9447,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9360,6 +9468,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9399,8 +9508,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9420,6 +9529,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9459,8 +9569,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9480,6 +9590,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9519,8 +9630,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9540,6 +9651,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9579,8 +9691,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9600,6 +9712,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -9639,8 +9752,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9660,6 +9773,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -9699,8 +9813,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9720,6 +9834,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -9759,8 +9874,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9780,6 +9895,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -9819,8 +9935,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9840,6 +9956,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -9879,8 +9996,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9900,6 +10017,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -9939,8 +10057,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -9960,6 +10078,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -9999,8 +10118,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -10020,6 +10139,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c8192 = arith.constant 8192 : index
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -10059,8 +10179,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
               %39 = arith.muli %arg4, %c4 : index
-              %40 = arith.addi %39, %c4 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%39, %arg3], LB : [%40, %arg3]) : memref<32x32xf32>
+              %40 = arith.addi %39, %c3 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%39, %arg3], LR : [%40, %arg3]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %41 = arith.muli %arg3, %c8192 : index
               %42 = arith.addi %41, %29 : index
@@ -10081,12 +10201,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -10118,8 +10239,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10140,12 +10261,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -10177,8 +10299,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10199,12 +10321,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -10236,8 +10359,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10258,12 +10381,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -10295,8 +10419,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10317,12 +10441,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -10354,8 +10479,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10376,12 +10501,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -10413,8 +10539,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10435,12 +10561,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -10472,8 +10599,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10494,12 +10621,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -10531,8 +10659,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10553,12 +10681,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -10590,8 +10719,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10612,12 +10741,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -10649,8 +10779,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10671,12 +10801,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -10708,8 +10839,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10730,12 +10861,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c4 step %c1 {
           scf.for %arg7 = %c0 to %c2 step %c1 {
@@ -10767,8 +10899,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10789,12 +10921,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -10826,8 +10959,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10848,12 +10981,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -10885,8 +11019,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10907,12 +11041,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -10944,8 +11079,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -10966,12 +11101,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -11003,8 +11139,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -11025,12 +11161,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -11062,8 +11199,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -11084,12 +11221,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -11121,8 +11259,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -11143,12 +11281,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -11180,8 +11319,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -11202,12 +11341,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -11239,8 +11379,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -11261,12 +11401,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -11298,8 +11439,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -11320,12 +11461,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -11357,8 +11499,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -11379,12 +11521,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -11416,8 +11559,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index
@@ -11438,12 +11581,13 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c131072 = arith.constant 131072 : index
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
       %c512 = arith.constant 512 : index
+      %c8 = arith.constant 8 : index
       scf.parallel (%arg3, %arg4, %arg5) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg6 = %c0 to %c2 step %c1 {
           scf.for %arg7 = %c0 to %c4 step %c1 {
@@ -11475,8 +11619,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
             %38 = arith.cmpi eq, %arg5, %c0 : index
             scf.if %38 {
               linalg.fill ins(%cst : f32) outs(%37 : memref<32x32xf32>)
-              %39 = arith.addi %arg3, %c8 : index
-              loom.reduce_sum ins(%35) outs(%37) (UB : [%arg3, %arg4], LB : [%39, %arg4]) : memref<32x32xf32>
+              %39 = arith.addi %arg3, %c6 : index
+              loom.reduce_sum ins(%35) outs(%37) (UL : [%arg3, %arg4], LR : [%39, %arg4]) : memref<32x32xf32>
               loom.semaphore_give %35 : memref<32x32xf32>
               %40 = arith.muli %21, %c8192 : index
               %41 = arith.addi %40, %29 : index

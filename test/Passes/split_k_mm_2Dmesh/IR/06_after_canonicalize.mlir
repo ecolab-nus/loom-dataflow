@@ -22,7 +22,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f012__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -66,7 +66,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -85,7 +85,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f012__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -129,7 +129,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -148,7 +148,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f012__n_dim_y_level0_bc2_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -192,7 +192,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -211,7 +211,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f012__n_dim_y_level0_bc2_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -255,7 +255,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -274,7 +274,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f021__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -318,7 +318,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -337,7 +337,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f021__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -381,7 +381,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -400,7 +400,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f021__n_dim_y_level0_bc2_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -444,7 +444,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -463,7 +463,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f021__n_dim_y_level0_bc2_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -507,7 +507,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -526,7 +526,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f102__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -570,7 +570,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -589,7 +589,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f102__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -633,7 +633,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -652,7 +652,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f102__n_dim_y_level0_bc2_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -696,7 +696,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -715,7 +715,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f102__n_dim_y_level0_bc2_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -759,7 +759,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -778,8 +778,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f120__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -822,7 +822,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -841,8 +841,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f120__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -885,7 +885,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -904,8 +904,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f120__n_dim_y_level0_bc2_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -948,7 +948,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -967,8 +967,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f120__n_dim_y_level0_bc2_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -1011,7 +1011,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1030,9 +1030,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f201__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -1074,7 +1074,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1093,9 +1093,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f201__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -1137,7 +1137,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1156,9 +1156,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f201__n_dim_y_level0_bc2_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -1200,7 +1200,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1219,9 +1219,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f201__n_dim_y_level0_bc2_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -1263,7 +1263,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1282,9 +1282,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f210__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -1326,7 +1326,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1345,9 +1345,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f210__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -1389,7 +1389,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1408,9 +1408,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f210__n_dim_y_level0_bc2_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -1452,7 +1452,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1471,9 +1471,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d1i0_d2i1_d0i2__f210__n_dim_y_level0_bc2_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -1515,7 +1515,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1534,7 +1534,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f012__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -1578,7 +1578,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1597,7 +1597,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f012__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -1641,7 +1641,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1660,7 +1660,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f012__dim_y_level0_bc2_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -1704,7 +1704,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1723,7 +1723,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f012__dim_y_level0_bc2_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -1767,7 +1767,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1786,7 +1786,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f021__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -1830,7 +1830,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1849,7 +1849,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f021__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -1893,7 +1893,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1912,7 +1912,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f021__dim_y_level0_bc2_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -1956,7 +1956,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -1975,7 +1975,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f021__dim_y_level0_bc2_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -2019,7 +2019,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2038,7 +2038,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f102__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -2082,7 +2082,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2101,7 +2101,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f102__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -2145,7 +2145,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2164,7 +2164,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f102__dim_y_level0_bc2_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -2208,7 +2208,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2227,7 +2227,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f102__dim_y_level0_bc2_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -2271,7 +2271,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2290,8 +2290,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f120__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -2334,7 +2334,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2353,8 +2353,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f120__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -2397,7 +2397,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2416,8 +2416,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f120__dim_y_level0_bc2_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -2460,7 +2460,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2479,8 +2479,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f120__dim_y_level0_bc2_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -2523,7 +2523,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2542,9 +2542,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f201__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -2586,7 +2586,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2605,9 +2605,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f201__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -2649,7 +2649,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2668,9 +2668,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f201__dim_y_level0_bc2_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -2712,7 +2712,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2731,9 +2731,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f201__dim_y_level0_bc2_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -2775,7 +2775,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2794,9 +2794,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f210__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -2838,7 +2838,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2857,9 +2857,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f210__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -2901,7 +2901,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2920,9 +2920,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f210__dim_y_level0_bc2_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -2964,7 +2964,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -2983,9 +2983,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y2y4__d2i0_d1i1_d0i2__f210__dim_y_level0_bc2_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -3027,7 +3027,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3046,7 +3046,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f012__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -3090,7 +3090,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3109,7 +3109,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f012__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -3153,7 +3153,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3172,7 +3172,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f012__n_dim_y_level0_bc4_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -3216,7 +3216,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3235,7 +3235,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f012__n_dim_y_level0_bc4_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -3279,7 +3279,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3298,7 +3298,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f021__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -3342,7 +3342,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3361,7 +3361,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f021__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -3405,7 +3405,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3424,7 +3424,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f021__n_dim_y_level0_bc4_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -3468,7 +3468,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3487,7 +3487,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f021__n_dim_y_level0_bc4_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -3531,7 +3531,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3550,7 +3550,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f102__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -3594,7 +3594,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3613,7 +3613,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f102__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -3657,7 +3657,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3676,7 +3676,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f102__n_dim_y_level0_bc4_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -3720,7 +3720,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3739,7 +3739,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f102__n_dim_y_level0_bc4_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -3783,7 +3783,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3802,8 +3802,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f120__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -3846,7 +3846,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3865,8 +3865,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f120__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -3909,7 +3909,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3928,8 +3928,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f120__n_dim_y_level0_bc4_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -3972,7 +3972,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -3991,8 +3991,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f120__n_dim_y_level0_bc4_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -4035,7 +4035,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4054,9 +4054,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f201__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -4098,7 +4098,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4117,9 +4117,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f201__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -4161,7 +4161,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4180,9 +4180,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f201__n_dim_y_level0_bc4_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -4224,7 +4224,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4243,9 +4243,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f201__n_dim_y_level0_bc4_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -4287,7 +4287,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4306,9 +4306,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f210__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -4350,7 +4350,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4369,9 +4369,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f210__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -4413,7 +4413,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4432,9 +4432,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f210__n_dim_y_level0_bc4_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -4476,7 +4476,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4495,9 +4495,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d1i0_d2i1_d0i2__f210__n_dim_y_level0_bc4_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c7 = arith.constant 7 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -4539,7 +4539,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4558,7 +4558,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f012__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -4602,7 +4602,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4621,7 +4621,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f012__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -4665,7 +4665,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4684,7 +4684,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f012__dim_y_level0_bc4_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -4728,7 +4728,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4747,7 +4747,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f012__dim_y_level0_bc4_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -4791,7 +4791,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4810,7 +4810,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f021__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -4854,7 +4854,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4873,7 +4873,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f021__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -4917,7 +4917,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4936,7 +4936,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f021__dim_y_level0_bc4_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -4980,7 +4980,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -4999,7 +4999,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f021__dim_y_level0_bc4_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c1 = arith.constant 1 : index
       %c2 = arith.constant 2 : index
       %c0 = arith.constant 0 : index
@@ -5043,7 +5043,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5062,7 +5062,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f102__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -5106,7 +5106,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5125,7 +5125,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f102__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -5169,7 +5169,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5188,7 +5188,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f102__dim_y_level0_bc4_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -5232,7 +5232,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5251,7 +5251,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f102__dim_y_level0_bc4_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -5295,7 +5295,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5314,8 +5314,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f120__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -5358,7 +5358,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5377,8 +5377,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f120__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -5421,7 +5421,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5440,8 +5440,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f120__dim_y_level0_bc4_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -5484,7 +5484,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5503,8 +5503,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f120__dim_y_level0_bc4_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -5547,7 +5547,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5566,9 +5566,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f201__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -5610,7 +5610,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5629,9 +5629,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f201__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -5673,7 +5673,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5692,9 +5692,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f201__dim_y_level0_bc4_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -5736,7 +5736,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5755,9 +5755,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f201__dim_y_level0_bc4_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -5799,7 +5799,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5818,9 +5818,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f210__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -5862,7 +5862,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5881,9 +5881,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f210__n_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -5925,7 +5925,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -5944,9 +5944,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f210__dim_y_level0_bc4_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -5988,7 +5988,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6007,9 +6007,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x8_y4y2__d2i0_d1i1_d0i2__f210__dim_y_level0_bc4_n_dim_x_level0_bc8__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
+      %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -6051,7 +6051,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
                   %44 = arith.addi %arg3, %43 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%c0, %44], LB : [%c8, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%c0, %44], LR : [%c7, %44]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6112,8 +6112,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6174,8 +6174,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6236,8 +6236,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6298,8 +6298,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6360,8 +6360,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6422,8 +6422,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6484,8 +6484,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6546,8 +6546,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6608,8 +6608,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6670,8 +6670,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6732,8 +6732,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6794,8 +6794,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6856,8 +6856,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6918,8 +6918,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -6980,8 +6980,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7042,8 +7042,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7104,8 +7104,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7166,8 +7166,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7228,8 +7228,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7290,8 +7290,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7352,8 +7352,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7414,8 +7414,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7476,8 +7476,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7538,8 +7538,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c2 : index
-                  %44 = arith.addi %43, %c2 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c1 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7557,10 +7557,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f012__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -7600,8 +7599,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7619,10 +7618,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f012__n_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -7662,8 +7660,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7681,10 +7679,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f012__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -7724,8 +7721,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7743,10 +7740,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f012__dim_y_level0_bc8_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -7786,8 +7782,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7805,10 +7801,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f021__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -7848,8 +7843,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7867,10 +7862,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f021__n_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -7910,8 +7904,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7929,10 +7923,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f021__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -7972,8 +7965,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -7991,10 +7984,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f021__dim_y_level0_bc8_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
+      %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -8034,8 +8026,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8053,10 +8045,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f102__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -8096,8 +8087,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8115,10 +8106,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f102__n_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -8158,8 +8148,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8177,10 +8167,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f102__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -8220,8 +8209,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8239,10 +8228,9 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f102__dim_y_level0_bc8_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
-      %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -8282,8 +8270,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8304,7 +8292,6 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -8344,8 +8331,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8366,7 +8353,6 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -8406,8 +8392,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8428,7 +8414,6 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -8468,8 +8453,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8490,7 +8475,6 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -8530,8 +8514,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8551,7 +8535,6 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f201__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -8592,8 +8575,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8613,7 +8596,6 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f201__n_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -8654,8 +8636,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8675,7 +8657,6 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f201__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -8716,8 +8697,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8737,7 +8718,6 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f201__dim_y_level0_bc8_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -8778,8 +8758,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8799,7 +8779,6 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f210__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -8840,8 +8819,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8861,7 +8840,6 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f210__n_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -8902,8 +8880,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8923,7 +8901,6 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f210__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -8964,8 +8941,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -8985,7 +8962,6 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x2x4_y8__d2i0_d1i1_d0i2__f210__dim_y_level0_bc8_n_dim_x_level0_bc2__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -9026,8 +9002,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c4 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9046,6 +9022,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f012__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9088,8 +9065,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9108,6 +9085,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f012__n_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9150,8 +9128,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9170,6 +9148,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f012__n_dim_y_level0_bc8_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9212,8 +9191,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9232,6 +9211,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f012__n_dim_y_level0_bc8_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9274,8 +9254,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9294,6 +9274,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f021__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9336,8 +9317,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9356,6 +9337,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f021__n_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9398,8 +9380,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9418,6 +9400,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f021__n_dim_y_level0_bc8_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9460,8 +9443,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9480,6 +9463,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f021__n_dim_y_level0_bc8_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9522,8 +9506,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9542,6 +9526,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f102__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9584,8 +9569,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9604,6 +9589,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f102__n_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9646,8 +9632,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9666,6 +9652,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f102__n_dim_y_level0_bc8_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9708,8 +9695,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9728,6 +9715,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f102__n_dim_y_level0_bc8_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9770,8 +9758,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9790,6 +9778,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f120__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9832,8 +9821,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9852,6 +9841,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f120__n_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9894,8 +9884,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9914,6 +9904,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f120__n_dim_y_level0_bc8_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -9956,8 +9947,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -9976,6 +9967,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f120__n_dim_y_level0_bc8_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c4 = arith.constant 4 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
@@ -10018,8 +10010,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10038,6 +10030,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f201__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -10080,8 +10073,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10100,6 +10093,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f201__n_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -10142,8 +10136,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10162,6 +10156,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f201__n_dim_y_level0_bc8_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -10204,8 +10199,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10224,6 +10219,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f201__n_dim_y_level0_bc8_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -10266,8 +10262,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10286,6 +10282,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f210__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -10328,8 +10325,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10348,6 +10345,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f210__n_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -10390,8 +10388,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10410,6 +10408,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f210__n_dim_y_level0_bc8_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -10452,8 +10451,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10472,6 +10471,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
   module attributes {loom.pass_name = "Materialize", loom.tile_k = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 256 : index}} {
     func.func @split_k_matmul__x4x2_y8__d1i0_d2i1_d0i2__f210__n_dim_y_level0_bc8_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
+      %c3 = arith.constant 3 : index
       %c1 = arith.constant 1 : index
       %c4 = arith.constant 4 : index
       %c0 = arith.constant 0 : index
@@ -10514,8 +10514,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
                   %43 = arith.muli %arg4, %c4 : index
-                  %44 = arith.addi %43, %c4 : index
-                  %45 = loom.reduce_sum ins(%37) outs(%42) (UB : [%43, %arg3], LB : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %44 = arith.addi %43, %c3 : index
+                  %45 = loom.reduce_sum ins(%37) outs(%42) (UL : [%43, %arg3], LR : [%44, %arg3]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %46 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%46], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10535,7 +10535,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f012__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -10576,8 +10576,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10597,7 +10597,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f012__n_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -10638,8 +10638,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10659,7 +10659,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f012__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -10700,8 +10700,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10721,7 +10721,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f012__dim_y_level0_bc8_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -10762,8 +10762,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10783,7 +10783,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f021__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -10824,8 +10824,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10845,7 +10845,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f021__n_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -10886,8 +10886,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10907,7 +10907,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f021__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -10948,8 +10948,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -10969,7 +10969,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f021__dim_y_level0_bc8_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -11010,8 +11010,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11031,8 +11031,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f102__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -11072,8 +11072,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11093,8 +11093,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f102__n_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -11134,8 +11134,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11155,8 +11155,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f102__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -11196,8 +11196,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11217,8 +11217,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f102__dim_y_level0_bc8_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c2 = arith.constant 2 : index
       %c4 = arith.constant 4 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -11258,8 +11258,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11279,8 +11279,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f120__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -11320,8 +11320,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11341,8 +11341,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f120__n_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -11382,8 +11382,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11403,8 +11403,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f120__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -11444,8 +11444,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11465,8 +11465,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f120__dim_y_level0_bc8_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
-      %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
       %c32 = arith.constant 32 : index
@@ -11506,8 +11506,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11527,7 +11527,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f201__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -11568,8 +11568,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11589,7 +11589,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f201__n_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -11630,8 +11630,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11651,7 +11651,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f201__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -11692,8 +11692,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11713,7 +11713,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f201__dim_y_level0_bc8_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -11754,8 +11754,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11775,7 +11775,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f210__n_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -11816,8 +11816,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11837,7 +11837,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f210__n_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -11878,8 +11878,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11899,7 +11899,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f210__dim_y_level0_bc8_n_n__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -11940,8 +11940,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
@@ -11961,7 +11961,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
     func.func @split_k_matmul__x4x2_y8__d2i0_d1i1_d0i2__f210__dim_y_level0_bc8_n_dim_x_level0_bc4__tile_k512__tile_m32__tile_n32(%arg0: memref<256x256xf32>, %arg1: memref<256x4096xf32>, %arg2: memref<4096x256xf32>) {
       %c4 = arith.constant 4 : index
       %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
+      %c6 = arith.constant 6 : index
       %c1 = arith.constant 1 : index
       %c0 = arith.constant 0 : index
       %cst = arith.constant 0.000000e+00 : f32
@@ -12002,8 +12002,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
                 %41 = arith.cmpi eq, %arg5, %c0 : index
                 scf.if %41 {
                   %42 = linalg.fill ins(%cst : f32) outs(%40 : tensor<32x32xf32>) -> tensor<32x32xf32>
-                  %43 = arith.addi %arg3, %c8 : index
-                  %44 = loom.reduce_sum ins(%37) outs(%42) (UB : [%arg3, %arg4], LB : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
+                  %43 = arith.addi %arg3, %c6 : index
+                  %44 = loom.reduce_sum ins(%37) outs(%42) (UL : [%arg3, %arg4], LR : [%43, %arg4]) : tensor<32x32xf32> -> tensor<32x32xf32>
                   loom.semaphore_give %34 : memref<32x32xf32>
                   %45 = affine.apply affine_map<(d0, d1) -> (d0 * 256 + d1)>(%22, %28)
                   %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%45], sizes: [32, 32], strides: [256, 1] : memref<256x256xf32> to memref<32x32xf32, strided<[256, 1], offset: ?>>
