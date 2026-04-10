@@ -70,10 +70,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+            } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
       return
     }
   }
@@ -128,10 +128,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+            } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
       return
     }
   }
@@ -186,10 +186,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+            } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
       return
     }
   }
@@ -244,10 +244,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+            } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
       return
     }
   }
@@ -302,10 +302,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+            } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
       return
     }
   }
@@ -360,10 +360,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+            } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
       return
     }
   }
@@ -418,10 +418,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+            } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
       return
     }
   }
@@ -476,10 +476,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+            } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
       return
     }
   }
@@ -534,10 +534,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+            } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
       return
     }
   }
@@ -592,10 +592,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+            } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
       return
     }
   }
@@ -650,10 +650,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+            } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
       return
     }
   }
@@ -708,10 +708,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+            } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
       return
     }
   }
@@ -766,10 +766,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+            } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
       return
     }
   }
@@ -824,10 +824,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+            } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
       return
     }
   }
@@ -882,10 +882,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+            } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
       return
     }
   }
@@ -940,10 +940,10 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
               %42 = loom.bufferize_to_memref %38 : tensor<?x?xf16> -> memref<?x?xf16>
               loom.copy %42, %41 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
               loom.semaphore_give %31 : memref<?x?xf16>
-            } {loom.iter_type = #loom.iter_type<temporal>}
-          } {loom.iter_type = #loom.iter_type<temporal>}
-        } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
-      } {loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
+            } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
+          } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<temporal>}
+        } {loom.block_sym = @tile_n, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_x}
+      } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<spatial>, loom.logical_level = 0 : i64, loom.physical_dim = @dim_y}
       return
     }
   }
