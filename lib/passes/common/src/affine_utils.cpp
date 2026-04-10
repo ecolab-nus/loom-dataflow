@@ -269,6 +269,11 @@ LogicalResult ConvertParallelToNested(affine::AffineParallelOp par,
     Value step = arith::ConstantIndexOp::create(builder, loc, stepVal);
 
     scf::ForOp forOp = scf::ForOp::create(builder, loc, lb, ub, step);
+    // Annotate with the loom.sym block symbol found in this dimension's UB.
+    // The materialized `ub` Value traces back through arith ceildiv chains to
+    // a loom.sym op whose symbol_ref names the logical tile dimension.
+    if (auto blockSym = traceToLoomSymRef(ub))
+      forOp->setAttr("loom.block_sym", *blockSym);
     newFors.push_back(forOp);
   }
 
@@ -322,6 +327,28 @@ AffineExpr flattenNestedCeilDiv(AffineExpr expr) {
   }
 
   return lhs.ceilDiv(rhs);
+}
+
+// --- loom.sym tracing ---
+
+std::optional<SymbolRefAttr> traceToLoomSymRef(Value v) {
+  if (!v)
+    return std::nullopt;
+  Operation *defOp = v.getDefiningOp();
+  if (!defOp)
+    return std::nullopt;
+  // Match loom.sym by op name to avoid pulling in loom dialect headers.
+  if (defOp->getName().getStringRef() == "loom.sym") {
+    if (auto attr = defOp->getAttrOfType<SymbolRefAttr>("symbol_ref"))
+      return attr;
+  }
+  // Recurse through all operands. The caller guarantees exactly one loom.sym
+  // is reachable from any given UB value, so the first hit is the right one.
+  for (Value operand : defOp->getOperands()) {
+    if (auto found = traceToLoomSymRef(operand))
+      return found;
+  }
+  return std::nullopt;
 }
 
 } // namespace loom_affine

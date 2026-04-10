@@ -2,8 +2,11 @@
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/IR/AffineExpr.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+
+#include <optional>
 
 namespace loom_affine {
 
@@ -52,5 +55,14 @@ mlir::LogicalResult ConvertParallelToNested(mlir::affine::AffineParallelOp par,
  * The transformation is mathematically valid for positive integer operands.
  */
 mlir::AffineExpr flattenNestedCeilDiv(mlir::AffineExpr expr);
+
+/**
+ * Walk the def-use chain of \p v through arith binary ops (ceildivui, divui,
+ * remui, muli, addi) to find a loom.sym op. Returns its symbol_ref
+ * SymbolRefAttr, or nullopt if not found. Matching is by op-name string to
+ * avoid pulling in loom dialect headers.
+ * The caller guarantees at most one loom.sym is reachable from \p v.
+ */
+std::optional<mlir::SymbolRefAttr> traceToLoomSymRef(mlir::Value v);
 
 } // namespace loom_affine
