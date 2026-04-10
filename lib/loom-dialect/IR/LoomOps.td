@@ -13,6 +13,7 @@ include "mlir/IR/RegionKindInterface.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.td"
 include "mlir/IR/EnumAttr.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
 
 //===----------------------------------------------------------------------===//
 // Loom Enum Attributes
@@ -489,7 +490,8 @@ def Loom_PackToTensorOp : Loom_Op<"pack_to_tensor", [
 }
 
 def ReduceSumOp : Loom_Op<"reduce_sum", [
-  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  AllTypesMatch<["input", "result"]>
 ]> {
   let summary = "Reduce-sum a tensor over a 2D mesh with UB/LB bounds";
   let description = [{
@@ -505,20 +507,22 @@ def ReduceSumOp : Loom_Op<"reduce_sum", [
   }];
 
   let arguments = (ins
-    AnyRankedTensor:$input,
+    AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$input,
     Index:$ub_x,
     Index:$ub_y,
     Index:$lb_x,
     Index:$lb_y
   );
 
-  let results = (outs AnyRankedTensor:$result);
+  let results = (outs AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$result);
 
   let assemblyFormat = [{
     $input `(` `UB` `:` `[` $ub_x `,` $ub_y `]` `,`
                `LB` `:` `[` $lb_x `,` $lb_y `]` `)` attr-dict `:`
     type($input) `->` type($result)
   }];
+
+  let hasCanonicalizer = 1;
 }
 
 def CopyOp : Loom_Op<"copy", [
