@@ -128,7 +128,7 @@ public:
     }
 
     // Record explicit x/y core coordinates based on mapped spatial dims.
-    if (auto mappedDims = op->getAttrOfType<ArrayAttr>("loom.mapped_to_dims")) {
+    if (auto mappedDims = op->getAttrOfType<ArrayAttr>("loom.physical_dims")) {
       auto iterTypes = op->getAttrOfType<ArrayAttr>("loom.iter_types");
       for (auto [idx, ivVal] : llvm::enumerate(newIvValues)) {
         if (idx >= mappedDims.size())
@@ -142,7 +142,7 @@ public:
         StringRef dim = StringRef(dimName).trim();
         if (dim.starts_with("@"))
           dim = dim.drop_front();
-        if (dim.equals_insensitive("x") || dim.equals_insensitive("y"))
+        if (dim.equals_insensitive("dim_x") || dim.equals_insensitive("dim_y"))
           tracker->setCoreCoordForDim(parentFunc, dim, ivVal);
       }
     }
