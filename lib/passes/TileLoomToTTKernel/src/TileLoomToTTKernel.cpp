@@ -150,6 +150,23 @@ static void eraseHostLoweringArtifacts(ModuleOp module) {
   }
 }
 
+static void eraseLoomLoopAttrs(ModuleOp module) {
+  auto erasePrefixedAttrs = [](Operation *op) {
+    SmallVector<StringAttr, 8> attrsToErase;
+    for (NamedAttribute namedAttr : op->getAttrs()) {
+      if (namedAttr.getName().strref().starts_with("loom."))
+        attrsToErase.push_back(namedAttr.getName());
+    }
+    for (StringAttr attrName : attrsToErase)
+      op->removeAttr(attrName);
+  };
+
+  module.walk([&](scf::ForOp forOp) { erasePrefixedAttrs(forOp.getOperation()); });
+  module.walk([&](scf::ParallelOp parOp) {
+    erasePrefixedAttrs(parOp.getOperation());
+  });
+}
+
 static LogicalResult rewriteBatch1MatmulToMatmul(ModuleOp module) {
   SmallVector<linalg::BatchMatmulOp> batchMatmuls;
   module.walk([&](linalg::BatchMatmulOp op) { batchMatmuls.push_back(op); });
@@ -575,6 +592,10 @@ public:
       signalPassFailure();
       return;
     }
+
+    // Mapping metadata on loop shells is no longer needed after lowering and
+    // leaks unregistered Loom attrs into TT-facing pipelines.
+    eraseLoomLoopAttrs(module);
 
     // Post-conversion: Remove all function arguments.
     // After conversion, memref args used in reinterpret_cast should be dead
