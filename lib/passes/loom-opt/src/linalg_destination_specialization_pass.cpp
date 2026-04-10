@@ -252,12 +252,12 @@ struct SpecializeLinalgDestination
     if (!producer)
       return failure();
 
-    // Step 5: Get the actual accumulator (typically iter_args)
+    // Step 4: Get the actual accumulator (typically iter_args)
     Value actualAccumulator = getActualAccumulator(consumer, producerResult);
     if (!actualAccumulator)
       return failure();
 
-    // Step 9: Transformation - clone producer at consumer's location
+    // Step 5: Transformation - clone producer at consumer's location
     rewriter.setInsertionPoint(consumer);
 
     // Use IRMapping to clone the producer
@@ -271,7 +271,7 @@ struct SpecializeLinalgDestination
     // accumulator
     clonedLinalgOp.getDpsInitOperand(0)->set(actualAccumulator);
 
-    // Step 10: Replace all uses of consumer result with cloned producer result
+    // Step 6: Replace all uses of consumer result with cloned producer result
     rewriter.replaceOp(consumer, cloned->getResults());
 
     return success();

@@ -2,14 +2,12 @@
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/Operation.h"
-#include "llvm/ADT/DenseMap.h"
 
 using namespace mlir;
 
@@ -134,55 +132,47 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp original_parop,
 
 // --- Parallel to Nested For ---
 
-static AffineExpr remapDimsToSymbols(
-    AffineExpr expr, const llvm::DenseMap<unsigned, unsigned> &dimToSymMap,
-    const llvm::DenseMap<unsigned, unsigned> &dimRemapMap, MLIRContext *ctx) {
-  if (!expr)
-    return expr;
-
-  std::function<AffineExpr(AffineExpr)> remap =
-      [&](AffineExpr e) -> AffineExpr {
-    switch (e.getKind()) {
-    case AffineExprKind::DimId: {
-      auto dim = llvm::cast<AffineDimExpr>(e);
-      unsigned oldPos = dim.getPosition();
-      auto symIt = dimToSymMap.find(oldPos);
-      if (symIt != dimToSymMap.end()) {
-        return getAffineSymbolExpr(symIt->second, ctx);
-      }
-      auto dimIt = dimRemapMap.find(oldPos);
-      if (dimIt != dimRemapMap.end()) {
-        return getAffineDimExpr(dimIt->second, ctx);
-      }
-      return e;
-    }
-    case AffineExprKind::SymbolId:
-    case AffineExprKind::Constant:
-      return e;
-    case AffineExprKind::Add: {
-      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
-      return remap(bin.getLHS()) + remap(bin.getRHS());
-    }
-    case AffineExprKind::Mul: {
-      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
-      return remap(bin.getLHS()) * remap(bin.getRHS());
-    }
-    case AffineExprKind::Mod: {
-      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
-      return remap(bin.getLHS()) % remap(bin.getRHS());
-    }
-    case AffineExprKind::FloorDiv: {
-      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
-      return remap(bin.getLHS()).floorDiv(remap(bin.getRHS()));
-    }
-    case AffineExprKind::CeilDiv: {
-      auto bin = llvm::cast<AffineBinaryOpExpr>(e);
-      return remap(bin.getLHS()).ceilDiv(remap(bin.getRHS()));
-    }
-    }
-    return e;
-  };
-  return remap(expr);
+/// Recursively materialize an AffineExpr as index-typed arith ops.
+/// Unlike `mlir::affine::expandAffineMap`, this emits `arith.ceildivui` /
+/// `arith.divui` / `arith.remui` directly instead of the sign-safe lowering
+/// (cmpi + select chains).  Trip counts and tile sizes are always
+/// non-negative, so the unsigned variants are sound, and the resulting
+/// def-use chain is shallow enough for `traceIndexValueToExpr` to recover
+/// a symbolic `Expr`.
+static Value materializeAffineExprAsIndex(OpBuilder &builder, Location loc,
+                                          AffineExpr expr,
+                                          ValueRange dimOperands,
+                                          ValueRange symOperands) {
+  if (auto c = llvm::dyn_cast<AffineConstantExpr>(expr)) {
+    return arith::ConstantIndexOp::create(builder, loc, c.getValue());
+  }
+  if (auto d = llvm::dyn_cast<AffineDimExpr>(expr)) {
+    assert(d.getPosition() < dimOperands.size() && "dim operand OOB");
+    return dimOperands[d.getPosition()];
+  }
+  if (auto s = llvm::dyn_cast<AffineSymbolExpr>(expr)) {
+    assert(s.getPosition() < symOperands.size() && "sym operand OOB");
+    return symOperands[s.getPosition()];
+  }
+  auto bin = llvm::cast<AffineBinaryOpExpr>(expr);
+  Value lhs = materializeAffineExprAsIndex(builder, loc, bin.getLHS(),
+                                           dimOperands, symOperands);
+  Value rhs = materializeAffineExprAsIndex(builder, loc, bin.getRHS(),
+                                           dimOperands, symOperands);
+  switch (expr.getKind()) {
+  case AffineExprKind::Add:
+    return arith::AddIOp::create(builder, loc, lhs, rhs);
+  case AffineExprKind::Mul:
+    return arith::MulIOp::create(builder, loc, lhs, rhs);
+  case AffineExprKind::CeilDiv:
+    return arith::CeilDivUIOp::create(builder, loc, lhs, rhs);
+  case AffineExprKind::FloorDiv:
+    return arith::DivUIOp::create(builder, loc, lhs, rhs);
+  case AffineExprKind::Mod:
+    return arith::RemUIOp::create(builder, loc, lhs, rhs);
+  default:
+    llvm_unreachable("unexpected AffineExpr kind in trip-count materialization");
+  }
 }
 
 static LogicalResult getIteratorBoundsAndStep(affine::AffineParallelOp par,
@@ -222,13 +212,14 @@ LogicalResult ConvertParallelToNested(affine::AffineParallelOp par,
 
   OpBuilder builder(par);
   Location loc = par.getLoc();
-  SmallVector<affine::AffineForOp> newFors;
+  MLIRContext *ctx = par.getContext();
+
+  SmallVector<scf::ForOp> newFors;
   newFors.reserve(P);
-  affine::AffineForOp innermostFor = nullptr;
-  func::FuncOp parentFunc = par->getParentOfType<func::FuncOp>();
 
   for (unsigned i = 0; i < P; ++i) {
     unsigned iterIdx = order[i];
+
     AffineMap lbMap, ubMap;
     SmallVector<Value> lbOperands, ubOperands;
     int64_t stepVal = 1;
@@ -236,70 +227,76 @@ LogicalResult ConvertParallelToNested(affine::AffineParallelOp par,
                                         ubOperands, stepVal)))
       return failure();
 
-    SmallVector<Value> ubDimOperands, ubSymOperands;
-    llvm::DenseMap<unsigned, unsigned> dimToSymMap;
-    llvm::DenseMap<unsigned, unsigned> dimRemapMap;
+    // Only single-result lower/upper bound maps are supported by scf.for.
+    // affine.parallel bound maps can be multi-result (for min/max semantics);
+    // our tiling never produces such maps, but fail loudly if one appears.
+    if (lbMap.getNumResults() != 1 || ubMap.getNumResults() != 1)
+      return par.emitError(
+          "ConvertParallelToNested: multi-result affine.parallel bound "
+          "maps are not supported when lowering to scf.for");
 
-    if (parentFunc) {
-      unsigned newDimIdx = 0;
-      unsigned newSymIdx = 0;
-      for (unsigned j = 0; j < ubOperands.size(); ++j) {
-        Value operand = ubOperands[j];
-        if (auto blockArg = dyn_cast<BlockArgument>(operand)) {
-          if (blockArg.getOwner() == &parentFunc.getBody().front()) {
-            dimToSymMap[j] = newSymIdx++;
-            ubSymOperands.push_back(operand);
-            continue;
-          }
-        }
-        dimRemapMap[j] = newDimIdx++;
-        ubDimOperands.push_back(operand);
-      }
-
-      if (!ubSymOperands.empty()) {
-        MLIRContext *ctx = ubMap.getContext();
-        SmallVector<AffineExpr, 4> newResults;
-        for (AffineExpr expr : ubMap.getResults()) {
-          newResults.push_back(
-              remapDimsToSymbols(expr, dimToSymMap, dimRemapMap, ctx));
-        }
-        ubMap = AffineMap::get(ubDimOperands.size(), ubSymOperands.size(),
-                               newResults, ctx);
-        ubOperands.clear();
-        ubOperands.append(ubDimOperands.begin(), ubDimOperands.end());
-        ubOperands.append(ubSymOperands.begin(), ubSymOperands.end());
-      }
-    }
+    // Flatten nested ceildiv in the UB so the expanded arith chain stays
+    // shallow (N ceildiv (A*B) instead of (N ceildiv A) ceildiv B).
+    AffineExpr flatUbExpr = flattenNestedCeilDiv(ubMap.getResult(0));
+    if (flatUbExpr != ubMap.getResult(0))
+      ubMap = AffineMap::get(ubMap.getNumDims(), ubMap.getNumSymbols(),
+                             flatUbExpr, ctx);
 
     if (i == 0)
       builder.setInsertionPoint(par);
     else
       builder.setInsertionPointToStart(newFors.back().getBody());
 
-    affine::AffineForOp forOp = affine::AffineForOp::create(
-        builder, loc, lbOperands, lbMap, ubOperands, ubMap, stepVal);
-    if (forOp.getBody()->empty() ||
-        !isa<affine::AffineYieldOp>(forOp.getBody()->back())) {
-      OpBuilder termBuilder = OpBuilder::atBlockEnd(forOp.getBody());
-      affine::AffineYieldOp::create(termBuilder, loc);
-    }
+    // Materialize bound affine maps as plain index-typed arith ops.
+    // affine.parallel bound operands are laid out as [dims..., syms...],
+    // where the leading `numDims` operands map to AffineDimExprs and the
+    // remainder map to AffineSymbolExprs.
+    auto splitOperands = [](AffineMap m, ArrayRef<Value> all,
+                            SmallVector<Value> &dims,
+                            SmallVector<Value> &syms) {
+      unsigned nd = m.getNumDims();
+      dims.assign(all.begin(), all.begin() + nd);
+      syms.assign(all.begin() + nd, all.end());
+    };
+    SmallVector<Value> lbDimOps, lbSymOps, ubDimOps, ubSymOps;
+    splitOperands(lbMap, lbOperands, lbDimOps, lbSymOps);
+    splitOperands(ubMap, ubOperands, ubDimOps, ubSymOps);
+
+    Value lb = materializeAffineExprAsIndex(builder, loc, lbMap.getResult(0),
+                                            lbDimOps, lbSymOps);
+    Value ub = materializeAffineExprAsIndex(builder, loc, ubMap.getResult(0),
+                                            ubDimOps, ubSymOps);
+    Value step = arith::ConstantIndexOp::create(builder, loc, stepVal);
+
+    scf::ForOp forOp = scf::ForOp::create(builder, loc, lb, ub, step);
+    // Annotate with the loom.sym block symbol found in this dimension's UB.
+    // The materialized `ub` Value traces back through arith ceildiv chains to
+    // a loom.sym op whose symbol_ref names the logical tile dimension.
+    if (auto blockSym = traceToLoomSymRef(ub))
+      forOp->setAttr("loom.block_sym", *blockSym);
     newFors.push_back(forOp);
-    innermostFor = forOp;
   }
 
+  // Map each original parallel IV to the corresponding new scf.for IV.
   IRMapping mapping;
   SmallVector<Value> forIVForIter(P);
-  for (unsigned depth = 0; depth < P; ++depth) {
+  for (unsigned depth = 0; depth < P; ++depth)
     forIVForIter[order[depth]] = newFors[depth].getInductionVar();
-  }
   for (unsigned iterIdx = 0; iterIdx < P; ++iterIdx)
     mapping.map(par.getIVs()[iterIdx], forIVForIter[iterIdx]);
 
+  // Clone the parallel body into the innermost scf.for body, skipping the
+  // affine.yield terminator.  scf::ForOp::create already installs an
+  // scf.yield (no iter_args → no operands), which we keep as the terminator.
+  scf::ForOp innermost = newFors.back();
+  Block *innerBody = innermost.getBody();
+  builder.setInsertionPoint(innerBody->getTerminator());
+
   Block &srcBody = par.getRegion().front();
-  builder.setInsertionPointToStart(innermostFor.getBody());
   for (Operation &op : srcBody) {
-    if (!isa<affine::AffineYieldOp>(op))
-      builder.clone(op, mapping);
+    if (isa<affine::AffineYieldOp>(op))
+      continue;
+    builder.clone(op, mapping);
   }
 
   par.erase();
@@ -332,25 +329,26 @@ AffineExpr flattenNestedCeilDiv(AffineExpr expr) {
   return lhs.ceilDiv(rhs);
 }
 
-void flattenCeilDivInForBounds(func::FuncOp func) {
-  func.walk([](affine::AffineForOp forOp) {
-    AffineMap ubMap = forOp.getUpperBoundMap();
-    bool changed = false;
-    SmallVector<AffineExpr> newExprs;
-    newExprs.reserve(ubMap.getNumResults());
-    for (AffineExpr expr : ubMap.getResults()) {
-      AffineExpr flattened = flattenNestedCeilDiv(expr);
-      newExprs.push_back(flattened);
-      if (flattened != expr)
-        changed = true;
-    }
-    if (changed) {
-      AffineMap newMap =
-          AffineMap::get(ubMap.getNumDims(), ubMap.getNumSymbols(), newExprs,
-                         ubMap.getContext());
-      forOp.setUpperBoundMap(newMap);
-    }
-  });
+// --- loom.sym tracing ---
+
+std::optional<SymbolRefAttr> traceToLoomSymRef(Value v) {
+  if (!v)
+    return std::nullopt;
+  Operation *defOp = v.getDefiningOp();
+  if (!defOp)
+    return std::nullopt;
+  // Match loom.sym by op name to avoid pulling in loom dialect headers.
+  if (defOp->getName().getStringRef() == "loom.sym") {
+    if (auto attr = defOp->getAttrOfType<SymbolRefAttr>("symbol_ref"))
+      return attr;
+  }
+  // Recurse through all operands. The caller guarantees exactly one loom.sym
+  // is reachable from any given UB value, so the first hit is the right one.
+  for (Value operand : defOp->getOperands()) {
+    if (auto found = traceToLoomSymRef(operand))
+      return found;
+  }
+  return std::nullopt;
 }
 
 } // namespace loom_affine

@@ -4,17 +4,22 @@
  * @details
  * This pass analyzes loom.copy operations and checks their source operations
  * for spatial reuse information from loom.subview operations.
- * It enumerates all possible broadcast choices (no broadcast, broadcast on dim_x,
- * broadcast on dim_y, broadcast on both) and generates function clones for each
- * combination.
+ * It enumerates all possible broadcast choices based on per-dimension,
+ * multi-level analysis and generates function clones for each combination.
  *
- * Hardware dimension sizes are read from adl.spatial_dim operations in the
- * outer module. No df dialect is used.
+ * For each physical dimension, the broadcast coefficient is the product of
+ * upper bounds of all contiguous independent levels starting from level 0.
+ * If level 0 is dependent, no broadcast on that dim. If levels 0..K are
+ * independent but level K+1 is dependent, the coefficient = UB0 * ... * UBK.
+ *
+ * Hardware dimension info is read from adl.arch.scale and adl.spatial_dim
+ * operations in the outer module.
  */
 
 #include "Passes.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -23,13 +28,16 @@
 #include "mlir/Pass/Pass.h"
 #include "utils.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
+#include "ssa_utils.h"
 
 // Include Loom dialect headers for CopyOp and SubviewOp
 #include "mlir/Interfaces/ViewLikeInterface.h"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
-// Include ADL dialect headers for adl.spatial_dim
+// Include ADL dialect headers for adl.spatial_dim, adl.arch.scale
 #define GET_TYPEDEF_CLASSES
 #include "ADLTypes.h.inc"
 #define GET_OP_CLASSES
@@ -45,50 +53,33 @@ namespace {
  * generated function names.
  */
 struct BroadcastChoice {
-  SmallVector<int64_t> values; // e.g., {1, 1}, {1, 8}, {8, 1}, {8, 8}
-  std::string label;           // "n" (none), "dim_y", "dim_x", "a" (all)
+  SmallVector<int64_t> values; // e.g., {1, 1}, {1, 2}, {8, 1}, {8, 8}
+  std::string label;           // "n", "dim_y_level0_bc2", etc.
 };
 
 /**
- * @brief Check whether a value depends (transitively) on a target value.
- * @details Walks the SSA def-use graph backward from value to determine if
- * target appears among its transitive operands. Block arguments stop the walk.
- * @param value The value to check for dependency.
- * @param target The target value to search for.
- * @return true if value depends on target, false otherwise.
+ * @brief Info about a spatial parallel loop with its dim/level metadata.
  */
-static bool dependsOn(Value value, Value target) {
-  if (!value || value == target)
-    return value == target;
+struct SpatialLoopEntry {
+  affine::AffineParallelOp parOp;
+  std::string physicalDim; // e.g., "dim_x", "dim_y"
+  int64_t logicalLevel;    // 0, 1, 2, ...
+  int64_t upperBound;      // constant UB of this loop
+};
 
-  SmallPtrSet<Value, 16> visited;
-  SmallVector<Value, 16> worklist = {value};
+/**
+ * @brief Per-dimension broadcast analysis result.
+ */
+struct DimBroadcastResult {
+  std::string dimName;
+  int64_t coefficient;  // product of UBs of contiguous independent levels from 0
+  int64_t highestLevel; // highest contiguous independent level (-1 if none)
+  bool canBroadcast;    // coefficient > 1
+};
 
-  while (!worklist.empty()) {
-    Value current = worklist.pop_back_val();
-    if (!visited.insert(current).second)
-      continue;
-    if (current == target)
-      return true;
-
-    // Block arguments stop the walk (treated as leaves).
-    if (llvm::isa<BlockArgument>(current))
-      continue;
-
-    if (Operation *def = current.getDefiningOp()) {
-      worklist.append(def->operand_begin(), def->operand_end());
-    }
-  }
-
-  return false;
-}
 
 /**
  * @brief Set the broadcast attribute on a loom.copy operation.
- * @details Creates an ArrayAttr of IntegerAttr from the broadcast values and
- * sets it on the operation.
- * @param copyOp The copy operation to set the attribute on.
- * @param broadcastValues The broadcast values to set.
  */
 static void setBroadcastAttribute(Operation *copyOp,
                                   ArrayRef<int64_t> broadcastValues) {
@@ -102,36 +93,14 @@ static void setBroadcastAttribute(Operation *copyOp,
 }
 
 /**
- * @brief Collect all enclosing affine.parallel loops for an operation.
- * @details Walks up the parent chain to find all affine.parallel operations
- * that enclose the given operation.
- * @param op The operation to find enclosing loops for.
- * @return A vector of enclosing affine.parallel operations in order from
- * outermost to innermost.
- */
-static SmallVector<affine::AffineParallelOp>
-collectEnclosingParallelLoops(Operation *op) {
-  SmallVector<affine::AffineParallelOp> parallelLoops;
-  for (Operation *parent = op->getParentOp(); parent;
-       parent = parent->getParentOp()) {
-    if (auto par = dyn_cast<affine::AffineParallelOp>(parent))
-      parallelLoops.push_back(par);
-  }
-  return parallelLoops;
-}
-
-/**
  * @brief Check if any offset value depends on any of the given induction
  * variables.
- * @param offsets The offset values to check.
- * @param ivs The induction variables to check dependency against.
- * @return true if any offset depends on any IV, false otherwise.
  */
 static bool checkOffsetDependencyOnIVs(ArrayRef<Value> offsets,
                                        ValueRange ivs) {
   for (Value iv : ivs) {
     for (Value offset : offsets) {
-      if (dependsOn(offset, iv)) {
+      if (loom::utils::dependsOn(offset, iv)) {
         return true;
       }
     }
@@ -140,20 +109,111 @@ static bool checkOffsetDependencyOnIVs(ArrayRef<Value> offsets,
 }
 
 /**
- * @brief Find and verify the subview source operation for a copy operation.
- * @details Checks if the copy operation's source operand is defined by a
- * loom.subview with spatial_reuse enabled.
- * @param copyOp The loom.copy operation to analyze.
- * @return The subview operation if found and valid, nullptr otherwise.
+ * @brief Extract the constant upper bound from a spatial parallel loop.
+ * @details Spatial parallel loops always have constant upper bounds
+ * (hardware tile sizes). Asserts if the bound is not constant.
+ */
+static int64_t getConstantUpperBound(affine::AffineParallelOp par) {
+  AffineMap ubMap = par.getUpperBoundsMap();
+  assert(ubMap.getNumResults() == 1 && "spatial loop must have single UB");
+  auto constExpr = dyn_cast<AffineConstantExpr>(ubMap.getResult(0));
+  assert(constExpr && "spatial loop must have constant UB");
+  return constExpr.getValue();
+}
+
+/**
+ * @brief Collect ordered mesh dimension names from adl.arch.scale.
+ * @details The spatial dims used in adl.arch.scale define the mesh dimensions
+ * and their ordering (e.g., ["dim_x", "dim_y"]).
+ */
+static SmallVector<std::string> collectMeshDimNames(ModuleOp outerModule) {
+  SmallVector<std::string> dimNames;
+  outerModule.walk([&](adl::ArchScaleOp scaleOp) {
+    for (Value operand : scaleOp.getSpatialDims()) {
+      if (auto dimOp = operand.getDefiningOp<adl::SpatialDimOp>())
+        dimNames.push_back(dimOp.getSymName().str());
+    }
+  });
+  return dimNames;
+}
+
+/**
+ * @brief Collect enclosing spatial parallel loops grouped by physical dim.
+ * @details Walks up the parent chain from an operation, collecting all
+ * affine.parallel loops with loom.physical_dim and loom.logical_level
+ * attributes. Results are grouped by dim name and sorted by level ascending.
+ */
+static llvm::StringMap<SmallVector<SpatialLoopEntry>>
+collectSpatialLoopsByDim(Operation *op) {
+  llvm::StringMap<SmallVector<SpatialLoopEntry>> dimLoops;
+
+  for (Operation *parent = op->getParentOp(); parent;
+       parent = parent->getParentOp()) {
+    auto par = dyn_cast<affine::AffineParallelOp>(parent);
+    if (!par)
+      continue;
+
+    auto dimAttr = par->getAttrOfType<SymbolRefAttr>("loom.physical_dim");
+    auto levelAttr = par->getAttrOfType<IntegerAttr>("loom.logical_level");
+    if (!dimAttr || !levelAttr)
+      continue;
+
+    int64_t ub = getConstantUpperBound(par);
+    std::string dimName = dimAttr.getRootReference().getValue().str();
+    int64_t level = levelAttr.getInt();
+
+    dimLoops[dimName].push_back({par, dimName, level, ub});
+  }
+
+  // Sort each dim's entries by level ascending
+  for (auto &entry : dimLoops) {
+    llvm::sort(entry.second, [](const SpatialLoopEntry &a,
+                                const SpatialLoopEntry &b) {
+      return a.logicalLevel < b.logicalLevel;
+    });
+  }
+
+  return dimLoops;
+}
+
+/**
+ * @brief Compute per-dim broadcast coefficient using contiguous level
+ * independence.
+ * @details Starting from level 0, accumulates UBs of consecutive independent
+ * levels. Stops at the first dependent level (chain-breaking rule).
+ */
+static DimBroadcastResult
+computeDimBroadcastCoeff(StringRef dimName,
+                         SmallVectorImpl<SpatialLoopEntry> &levelEntries,
+                         ArrayRef<Value> offsets) {
+  int64_t coeff = 1;
+  int64_t highestLevel = -1;
+
+  for (auto &entry : levelEntries) {
+    bool independent = !checkOffsetDependencyOnIVs(offsets, entry.parOp.getIVs());
+    if (!independent)
+      break; // chain broken - stop accumulating
+    coeff *= entry.upperBound;
+    highestLevel = entry.logicalLevel;
+  }
+
+  return {dimName.str(), coeff, highestLevel, coeff > 1};
+}
+
+/**
+ * @brief Find and verify the subview operand for a copy operation.
+ * @details Every loom.copy must have exactly one operand (source or
+ * destination) produced by a loom.subview. Returns the subview only if it has
+ * spatial_reuse enabled (broadcast candidate). Returns nullptr otherwise.
  */
 static loom::SubviewOp findSubviewSource(loom::CopyOp copyOp) {
-  if (!copyOp)
-    return nullptr;
+  auto srcSubview = copyOp.getSource().getDefiningOp<loom::SubviewOp>();
+  auto dstSubview = copyOp.getDestination().getDefiningOp<loom::SubviewOp>();
+  assert((srcSubview || dstSubview) &&
+         "loom.copy must have a loom.subview operand");
 
-  Value source = copyOp.getSource();
-  auto subviewOp = source.getDefiningOp<loom::SubviewOp>();
-  if (!subviewOp)
-    return nullptr;
+  // For broadcast analysis, prefer the source subview (load direction)
+  loom::SubviewOp subviewOp = srcSubview ? srcSubview : dstSubview;
 
   if (!subviewOp.getSpatialReuse())
     return nullptr;
@@ -162,40 +222,23 @@ static loom::SubviewOp findSubviewSource(loom::CopyOp copyOp) {
 }
 
 /**
- * @brief Get the size of a named adl.spatial_dim from the outer module.
- * @details Walks all adl::SpatialDimOp operations in the module looking for
- * one with the given symbol name.
- * @param outerModule The module to search.
- * @param symName The symbol name to look up (e.g., "dim_x" or "dim_y").
- * @return The size if found, or std::nullopt if not found.
- */
-static std::optional<uint64_t>
-getSpatialDimSizeFromADL(ModuleOp outerModule, StringRef symName) {
-  std::optional<uint64_t> result;
-  outerModule.walk([&](adl::SpatialDimOp dimOp) {
-    if (dimOp.getSymName() == symName)
-      result = dimOp.getSize();
-  });
-  return result;
-}
-
-/**
  * @brief Find all broadcast candidate choices for a loom.copy operation.
- * @details Analyzes the copy's source subview for spatial reuse, then checks
- * which enclosing spatial parallel loops' IVs the subview offsets do NOT
- * depend on. Under the 2D assumption (dims @dim_x and @dim_y):
- *   - Offset independent of @dim_x IV → can broadcast on @dim_y → {1, size_y}
- *   - Offset independent of @dim_y IV → can broadcast on @dim_x → {size_x, 1}
- *   - Both independent → also add {size_x, size_y}
- * Always includes the no-broadcast choice {1, 1}.
- * @param copyOp The loom.copy operation to analyze.
- * @param outerModule The top-level module containing adl.spatial_dim ops.
- * @return A vector of BroadcastChoice candidates (always non-empty).
+ * @details Analyzes the copy's subview for spatial reuse, then for each mesh
+ * dimension checks which contiguous levels (from level 0 up) have IVs that the
+ * subview offsets do NOT depend on. The broadcast coefficient per dim is the
+ * product of UBs of those contiguous independent levels.
+ *
+ * Generates all 2^N subsets of broadcastable dimensions as choices (plus the
+ * no-broadcast choice).
  */
 static SmallVector<BroadcastChoice>
-findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp outerModule) {
+findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp /*outerModule*/,
+                            ArrayRef<std::string> meshDimNames) {
+  size_t numDims = meshDimNames.size();
   SmallVector<BroadcastChoice> candidates;
-  candidates.push_back({{1, 1}, "n"}); // Always include no-broadcast option
+
+  // Always include no-broadcast option
+  candidates.push_back({SmallVector<int64_t>(numDims, 1), "n"});
 
   auto subviewOp = findSubviewSource(copyOp);
   if (!subviewOp)
@@ -206,47 +249,46 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp outerModule) {
   if (offsets.empty())
     return candidates;
 
-  SmallVector<affine::AffineParallelOp> parallelLoops =
-      collectEnclosingParallelLoops(copyOp);
+  // Collect spatial loops grouped by physical dim
+  auto dimLoops = collectSpatialLoopsByDim(copyOp);
 
-  // 2D assumption: track @dim_x and @dim_y independence and sizes
-  bool xIndependent = false;
-  bool yIndependent = false;
-  int64_t sizeX = 0;
-  int64_t sizeY = 0;
-
-  for (auto par : parallelLoops) {
-    auto mappedToAttr = par->getAttrOfType<SymbolRefAttr>("loom.mapped_to");
-    if (!mappedToAttr)
-      continue;
-
-    StringRef dimName = mappedToAttr.getRootReference().getValue();
-    bool independent = !checkOffsetDependencyOnIVs(offsets, par.getIVs());
-
-    auto sizeOpt = getSpatialDimSizeFromADL(outerModule, dimName);
-    if (!sizeOpt)
-      continue;
-
-    if (dimName == "dim_x") {
-      xIndependent = independent;
-      sizeX = static_cast<int64_t>(sizeOpt.value());
-    } else if (dimName == "dim_y") {
-      yIndependent = independent;
-      sizeY = static_cast<int64_t>(sizeOpt.value());
-    }
+  // Compute per-dim broadcast results in mesh dim order
+  SmallVector<DimBroadcastResult> dimResults;
+  for (const auto &dimName : meshDimNames) {
+    auto it = dimLoops.find(dimName);
+    if (it != dimLoops.end())
+      dimResults.push_back(
+          computeDimBroadcastCoeff(dimName, it->second, offsets));
+    else
+      dimResults.push_back({dimName, 1, -1, false});
   }
 
-  bool canBroadcastOnY = xIndependent && sizeY > 0;
-  bool canBroadcastOnX = yIndependent && sizeX > 0;
+  // Collect broadcastable dim indices
+  SmallVector<size_t> bcDims;
+  for (size_t i = 0; i < dimResults.size(); ++i) {
+    if (dimResults[i].canBroadcast)
+      bcDims.push_back(i);
+  }
 
-  if (canBroadcastOnY && canBroadcastOnX) {
-    candidates.push_back({{1, sizeY}, "dim_y"});
-    candidates.push_back({{sizeX, 1}, "dim_x"});
-    candidates.push_back({{sizeX, sizeY}, "a"});
-  } else if (canBroadcastOnY) {
-    candidates.push_back({{1, sizeY}, "dim_y"});
-  } else if (canBroadcastOnX) {
-    candidates.push_back({{sizeX, 1}, "dim_x"});
+  // Enumerate all non-empty subsets of broadcastable dims
+  size_t numBroadcastable = bcDims.size();
+  for (size_t mask = 1; mask < (1u << numBroadcastable); ++mask) {
+    SmallVector<int64_t> values(numDims, 1);
+    std::string label;
+
+    for (size_t bit = 0; bit < numBroadcastable; ++bit) {
+      if (mask & (1u << bit)) {
+        size_t idx = bcDims[bit];
+        values[idx] = dimResults[idx].coefficient;
+        if (!label.empty())
+          label += "_";
+        label += dimResults[idx].dimName + "_level" +
+                 std::to_string(dimResults[idx].highestLevel) + "_bc" +
+                 std::to_string(dimResults[idx].coefficient);
+      }
+    }
+
+    candidates.push_back({values, label});
   }
 
   return candidates;
@@ -254,9 +296,6 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp outerModule) {
 
 /**
  * @brief Generate a function name based on broadcast choices.
- * @param baseName The original function name.
- * @param choices The broadcast choices, one per copy op in the function.
- * @return The generated function name.
  */
 static std::string generateFunctionName(StringRef baseName,
                                         ArrayRef<BroadcastChoice> choices) {
@@ -291,8 +330,6 @@ static void generateCartesianProduct(
 
 /**
  * @brief Find all loom.copy operations in a function.
- * @param func The function to search.
- * @return A vector of loom.copy operations found in the function.
  */
 static SmallVector<loom::CopyOp> findCopyOpsInFunc(func::FuncOp func) {
   SmallVector<loom::CopyOp> copyOps;
@@ -307,7 +344,8 @@ static SmallVector<loom::CopyOp> findCopyOpsInFunc(func::FuncOp func) {
 class CopyBroadcastEnumerator {
 public:
   CopyBroadcastEnumerator(ModuleOp module)
-      : module(module), builder(module.getBodyRegion()) {}
+      : module(module), builder(module.getBodyRegion()),
+        meshDimNames(collectMeshDimNames(module)) {}
 
   /// @brief Enumerate choices for all functions in the module.
   void enumerate() {
@@ -330,7 +368,8 @@ private:
     // Collect broadcast candidates for each copy operation
     SmallVector<SmallVector<BroadcastChoice>> allCandidates;
     for (auto copyOp : copyOps) {
-      allCandidates.push_back(findCopyBroadcastCandidates(copyOp, module));
+      allCandidates.push_back(
+          findCopyBroadcastCandidates(copyOp, module, meshDimNames));
     }
 
     // Generate all Cartesian product combinations
@@ -376,20 +415,17 @@ private:
 
   ModuleOp module;
   OpBuilder builder;
+  SmallVector<std::string> meshDimNames;
 };
 
 /**
  * @brief Pass to enumerate copy broadcast choices.
- * @details Analyzes loom.copy operations and generates function variants for
- * different broadcast choices. For functions with copy operations, creates
- * clones for each combination of broadcast candidates (including no-broadcast).
  */
 struct EnumerateCopyBroadcastPass
     : public PassWrapper<EnumerateCopyBroadcastPass, OperationPass<ModuleOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(EnumerateCopyBroadcastPass)
 
   EnumerateCopyBroadcastPass() = default;
-  EnumerateCopyBroadcastPass(bool analysisOnly) : analysisOnly(analysisOnly) {}
 
   StringRef getArgument() const override {
     return "loom-enumerate-copy-broadcast";
@@ -405,12 +441,11 @@ struct EnumerateCopyBroadcastPass
     enumerator.enumerate();
   }
 
-  bool analysisOnly = false;
 };
 
 } // namespace
 
 std::unique_ptr<mlir::Pass>
-loom::passes::createEnumerateCopyBroadcastPass(bool analysisOnly) {
-  return std::make_unique<EnumerateCopyBroadcastPass>(analysisOnly);
+loom::passes::createEnumerateCopyBroadcastPass() {
+  return std::make_unique<EnumerateCopyBroadcastPass>();
 }

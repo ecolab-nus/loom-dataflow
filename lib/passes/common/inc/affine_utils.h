@@ -1,10 +1,12 @@
 #pragma once
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/AffineExpr.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+
+#include <optional>
 
 namespace loom_affine {
 
@@ -38,7 +40,10 @@ mlir::LogicalResult tileAffineParallel(mlir::affine::AffineParallelOp op,
 
 /**
  * Convert an outermost `affine.parallel` to a perfectly nested chain of
- * `affine.for` loops using the specified iterator order.
+ * `scf.for` loops using the specified iterator order.  The lower/upper
+ * bound affine maps are materialized as plain index-typed arith ops so the
+ * produced loops carry SSA bounds directly consumable by downstream
+ * trip-count tracing.
  */
 mlir::LogicalResult ConvertParallelToNested(mlir::affine::AffineParallelOp par,
                                             llvm::ArrayRef<unsigned> order);
@@ -52,9 +57,12 @@ mlir::LogicalResult ConvertParallelToNested(mlir::affine::AffineParallelOp par,
 mlir::AffineExpr flattenNestedCeilDiv(mlir::AffineExpr expr);
 
 /**
- * Walk all affine.for upper-bound maps in `func` and apply
- * flattenNestedCeilDiv to every result expression.
+ * Walk the def-use chain of \p v through arith binary ops (ceildivui, divui,
+ * remui, muli, addi) to find a loom.sym op. Returns its symbol_ref
+ * SymbolRefAttr, or nullopt if not found. Matching is by op-name string to
+ * avoid pulling in loom dialect headers.
+ * The caller guarantees at most one loom.sym is reachable from \p v.
  */
-void flattenCeilDivInForBounds(mlir::func::FuncOp func);
+std::optional<mlir::SymbolRefAttr> traceToLoomSymRef(mlir::Value v);
 
 } // namespace loom_affine

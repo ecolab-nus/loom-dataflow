@@ -5,8 +5,10 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #include "mlir/Support/LLVM.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/Support/raw_ostream.h"
@@ -149,8 +151,8 @@ Operation *MemoryAnalysisContext::getOpFromIndex(int index) const {
   return indexToOpMap_[index];
 }
 
-int MemoryAnalysisContext::getLoopEndIndex(affine::AffineForOp forOp) const {
-  Operation *yield = forOp.getBody()->getTerminator();
+int MemoryAnalysisContext::getLoopEndIndex(Operation *loopOp) const {
+  Operation *yield = loopOp->getRegion(0).front().getTerminator();
   return getOpIndex(yield);
 }
 
@@ -185,7 +187,12 @@ std::optional<LoopContext> MemoryAnalysisContext::findLoopContext() const {
             mlir::dyn_cast<affine::AffineParallelOp>(entry.first)) {
       for (auto &op : *parallelOp.getBody()) {
         if (auto forOp = mlir::dyn_cast<affine::AffineForOp>(op)) {
-          return LoopContext{forOp, getOpIndex(forOp), getLoopEndIndex(forOp)};
+          return LoopContext{forOp.getOperation(), getOpIndex(forOp),
+                             getLoopEndIndex(forOp)};
+        }
+        if (auto forOp = mlir::dyn_cast<scf::ForOp>(op)) {
+          return LoopContext{forOp.getOperation(), getOpIndex(forOp),
+                             getLoopEndIndex(forOp)};
         }
       }
     }
@@ -199,12 +206,12 @@ std::optional<LoopContext> MemoryAnalysisContext::findLoopContext() const {
 
 /// Check if Init's value has any use by an op physically inside the loop body.
 /// Excludes the affine.for itself.
-static bool isInitPure(Value initVal, affine::AffineForOp forOp) {
+static bool isInitPure(Value initVal, Operation *loopOp) {
   for (auto &use : initVal.getUses()) {
     Operation *user = use.getOwner();
-    if (user == forOp.getOperation())
+    if (user == loopOp)
       continue;
-    if (forOp->isProperAncestor(user))
+    if (loopOp->isProperAncestor(user))
       return false;
   }
   return true;
@@ -212,26 +219,44 @@ static bool isInitPure(Value initVal, affine::AffineForOp forOp) {
 
 void MemoryAnalysisContext::applyPhiFusionAxiom(
     Bucket &bucket, const LoopContext &loopContext) {
-  affine::AffineForOp forOp = loopContext.forOp;
-  unsigned numIterArgs = forOp.getNumIterOperands();
-  affine::AffineYieldOp yieldOp =
-      mlir::cast<affine::AffineYieldOp>(forOp.getBody()->getTerminator());
+  Operation *loopOp = loopContext.loopOp;
+
+  // Extract loop properties generically for both affine.for and scf.for.
+  unsigned numIterArgs;
+  ValueRange regionIterArgs;
+  ValueRange inits;
+  ResultRange results = loopOp->getResults();
+  Operation *yieldOp;
+
+  if (auto affFor = mlir::dyn_cast<affine::AffineForOp>(loopOp)) {
+    numIterArgs = affFor.getNumIterOperands();
+    regionIterArgs = affFor.getRegionIterArgs();
+    inits = affFor.getInits();
+    yieldOp = affFor.getBody()->getTerminator();
+  } else if (auto scfFor = mlir::dyn_cast<scf::ForOp>(loopOp)) {
+    numIterArgs = scfFor.getInitArgs().size();
+    regionIterArgs = scfFor.getRegionIterArgs();
+    inits = scfFor.getInits();
+    yieldOp = scfFor.getBody()->getTerminator();
+  } else {
+    return;
+  }
 
   for (unsigned i = 0; i < numIterArgs; ++i) {
-    Value argVal = forOp.getRegionIterArgs()[i];
+    Value argVal = regionIterArgs[i];
     TensorNode *argNode = bucket.findNode(argVal);
     if (!argNode)
       continue;
 
-    Value initVal = forOp.getInits()[i];
-    Value yieldVal = yieldOp.getOperand(i);
-    Value resultVal = forOp.getResults()[i];
+    Value initVal = inits[i];
+    Value yieldVal = yieldOp->getOperand(i);
+    Value resultVal = results[i];
 
     TensorNode *initNode = bucket.findNode(initVal);
     TensorNode *yieldNode = bucket.findNode(yieldVal);
     TensorNode *resultNode = bucket.findNode(resultVal);
 
-    bool pure = initNode && isInitPure(initVal, forOp);
+    bool pure = initNode && isInitPure(initVal, loopOp);
     VirtualBuffer *vb = bucket.createVB(
         nextVBId_++, pure ? VBType::Fused : VBType::LoopCarried);
 
@@ -280,19 +305,19 @@ void MemoryAnalysisContext::applyPhiFusionAxiom(
 
 void MemoryAnalysisContext::applyExternalEternityAxiom(
     Bucket &bucket, const LoopContext &loopContext) {
-  affine::AffineForOp forOp = loopContext.forOp;
+  Operation *loopOp = loopContext.loopOp;
   for (auto &node : bucket.nodes) {
     if (node.mappedVBId.has_value())
       continue;
 
     // DefiningOp is outside loop
-    if (forOp->isProperAncestor(node.definingOp))
+    if (loopOp->isProperAncestor(node.definingOp))
       continue;
 
     // At least one user inside loop
     bool usedInLoop = false;
     for (auto &use : node.value.getUses()) {
-      if (forOp->isProperAncestor(use.getOwner())) {
+      if (loopOp->isProperAncestor(use.getOwner())) {
         usedInLoop = true;
         break;
       }
@@ -321,14 +346,12 @@ void MemoryAnalysisContext::applyStandardAxiom(Bucket &bucket) {
 
 void MemoryAnalysisContext::buildVirtualBuffers() {
   auto loopOpt = findLoopContext();
-  if (!loopOpt)
-    return;
-
-  const LoopContext &loop = *loopOpt;
 
   for (auto &[sig, bucket] : buckets_) {
-    applyPhiFusionAxiom(bucket, loop);
-    applyExternalEternityAxiom(bucket, loop);
+    if (loopOpt) {
+      applyPhiFusionAxiom(bucket, *loopOpt);
+      applyExternalEternityAxiom(bucket, *loopOpt);
+    }
     applyStandardAxiom(bucket);
   }
 }
@@ -442,12 +465,18 @@ bool InterferenceGraph::checkHandoffInterference(
   if (!operandA)
     return false;
 
+  // Check DPS semantics: if the operand is a DPS init, it aliases the result
+  // and is safe to share the buffer.  This covers loom.reduce_sum (which now
+  // implements DestinationStyleOpInterface) and all linalg ops.
+  if (auto dpsOp = mlir::dyn_cast<mlir::DestinationStyleOpInterface>(
+          vbB.definingOp)) {
+    if (dpsOp.isDpsInit(operandA))
+      return false;
+  }
+
   auto linalgOp = mlir::dyn_cast<linalg::LinalgOp>(vbB.definingOp);
   if (!linalgOp)
-    return true; // Conservative for non-linalg
-
-  if (linalgOp.isDpsInit(operandA))
-    return false; // Destination passing style, safe
+    return true; // Conservative for non-linalg/non-DPS ops
 
   AffineMap mapA = linalgOp.getMatchingIndexingMap(operandA);
   OpOperand *initOperand = linalgOp.getDpsInitOperand(0);
@@ -683,7 +712,8 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
       }
     }
 
-    if (auto forOp = mlir::dyn_cast<affine::AffineForOp>(op)) {
+    // Collect iter_args from affine.for and scf.for loops.
+    auto collectIterArgs = [&](auto forOp) {
       for (auto arg : forOp.getRegionIterArgs()) {
         if (auto tensorType = mlir::dyn_cast<RankedTensorType>(arg.getType())) {
           auto sig = utils::traceShape(arg);
@@ -694,7 +724,12 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
           ctx.addTensor(arg, signature, op, ctx.getOpIndex(op));
         }
       }
-    }
+    };
+
+    if (auto forOp = mlir::dyn_cast<affine::AffineForOp>(op))
+      collectIterArgs(forOp);
+    else if (auto forOp = mlir::dyn_cast<scf::ForOp>(op))
+      collectIterArgs(forOp);
   });
 
   ctx.computeDeathIndices();

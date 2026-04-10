@@ -6,9 +6,10 @@ add_library(LoomPassesCommon
   src/block_loading_pattern.cpp
   src/hardware_discovery.cpp
   src/hardware_mapping.cpp
-  src/mapping_enumeration.cpp
   src/affine_utils.cpp
   src/index_mapping.cpp
+  src/driver_utils.cpp
+  src/ssa_utils.cpp
 )
 
 target_include_directories(LoomPassesCommon
@@ -21,12 +22,18 @@ target_include_directories(LoomPassesCommon
     ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
     # Include the generated ADL dialect headers
     ${CMAKE_BINARY_DIR}/lib/adl-dialect/IR
+    # Include the source directory for other Loom internal headers
+    ${PROJECT_SOURCE_DIR}/lib/passes/loom-opt/inc
 )
 
 target_link_libraries(LoomPassesCommon
   PUBLIC
     LoomAnalysis
     MLIRIR
+    MLIRPass
+    MLIRParser
+    MLIRAsmParser
+    MLIRBytecodeReader
     MLIRFuncDialect
     MLIRSupport
     MLIRAffineDialect
@@ -36,6 +43,7 @@ target_link_libraries(LoomPassesCommon
     MLIRBufferizationDialect
     MLIRTensorDialect
     MLIRLinalgDialect
+    MLIRControlFlowDialect
     loomDialect
     loomADLDialect
 )

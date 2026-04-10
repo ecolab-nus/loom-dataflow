@@ -13,6 +13,7 @@
 #include "compute_op_registry.h"
 #include "hardware_info.h"
 #include "staged_etg_builder.h"
+#include "driver_utils.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -131,9 +132,9 @@ buildETGString(ModuleOp module, const loom::lcs::HWOpRegistry &registry) {
   llvm::json::Array json_etgs;
 
   module.walk([&](func::FuncOp func_op) {
-    affine::AffineForOp target_loop = nullptr;
+    scf::ForOp target_loop = nullptr;
 
-    func_op.walk([&](affine::AffineForOp for_op) {
+    func_op.walk([&](scf::ForOp for_op) {
       if (for_op->hasAttr("loom.iter_type")) {
         std::string attr_str;
         llvm::raw_string_ostream os(attr_str);
@@ -146,7 +147,7 @@ buildETGString(ModuleOp module, const loom::lcs::HWOpRegistry &registry) {
 
     if (target_loop) {
       loom::lcs::VariantETG etg(func_op.getName(), &registry);
-      etg.buildFromAffineFor(target_loop);
+      etg.buildFromSCFFor(target_loop);
       etg.buildConstraintScope(func_op);
       etg.buildL1FootprintConstraint();
       json_etgs.push_back(etg.toJSON());
@@ -262,10 +263,15 @@ runExplorationPipeline(const std::string &input_mlir_text,
 
     // Insert DF hardware declarations from the hardware specification at the
     // top of the outer module.
-    // We skip cloning ModuleOp to avoid nesting the hardware specification
-    // (e.g. `module @system`) inside our output module.
-    for (Operation &op : *dfModule->getBody()) {
+    // We use findArchSystemModule to locate the @arch_system module.
+    ModuleOp systemModule = loom::driver::findArchSystemModule(*dfModule);
+    if (!systemModule)
+      return {"Could not find module @arch_system in hw_spec file", "", ""};
+
+    for (Operation &op : *systemModule.getBody()) {
       if (isa<ModuleOp>(&op))
+          continue;
+      if (op.hasTrait<OpTrait::IsTerminator>())
           continue;
       builder.clone(op, mapping);
     }
@@ -284,6 +290,10 @@ runExplorationPipeline(const std::string &input_mlir_text,
   // ================================================================
   {
     PassManager pm(&context);
+    // Cleanup the generated code with CSE and DCE (Canonicalizer)
+    pm.addPass(mlir::createCSEPass());
+    pm.addPass(mlir::createCanonicalizerPass());
+
     pm.addPass(loom::passes::createAnnotateSubviewReusePass());
     pm.addPass(loom::passes::createEnumerateCopyBroadcastPass());
 

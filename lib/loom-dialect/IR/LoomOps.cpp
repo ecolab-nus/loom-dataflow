@@ -25,6 +25,7 @@
 #define GET_ATTRDEF_CLASSES
 #include "LoomAttributes.h.inc"
 
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -177,6 +178,13 @@ loom::InitTensorOp::inferResultType(::llvm::ArrayRef<int64_t> staticSizes,
 loom::AllocOp::inferResultType(::llvm::ArrayRef<int64_t> staticSizes,
                                ::mlir::Type elementType) {
   return MemRefType::get(staticSizes, elementType);
+}
+
+void loom::ReduceSumOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(MemoryEffects::Read::get());
+  effects.emplace_back(MemoryEffects::Write::get());
 }
 
 void loom::CopyToTensorOp::getEffects(
@@ -596,6 +604,81 @@ struct FoldSemaphoreTakeType : public OpRewritePattern<SemaphoreTakeOp> {
   }
 };
 
+struct StaticizeReduceSum : public OpRewritePattern<ReduceSumOp> {
+  using OpRewritePattern<ReduceSumOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(ReduceSumOp op,
+                                PatternRewriter &rewriter) const override {
+    Value input = op.getInput();
+    if (auto cast = input.getDefiningOp<tensor::CastOp>())
+      input = cast.getSource();
+
+    Value init = op.getInit();
+    if (auto cast = init.getDefiningOp<tensor::CastOp>())
+      init = cast.getSource();
+
+    // Only canonicalize tensor-mode ops (those with a result).
+    if (op->getNumResults() == 0)
+      return failure();
+
+    auto inputType = llvm::dyn_cast<RankedTensorType>(input.getType());
+    if (!inputType)
+      return failure();
+
+    auto resultType = llvm::dyn_cast<RankedTensorType>(op->getResultTypes()[0]);
+    if (!resultType)
+      return failure();
+
+    bool needsInputUpdate = (input != op.getInput());
+    bool needsInitUpdate = (init != op.getInit());
+    bool needsTypeUpdate =
+        inputType.hasStaticShape() && !resultType.hasStaticShape();
+
+    if (!needsInputUpdate && !needsInitUpdate && !needsTypeUpdate)
+      return failure();
+
+    Type newResultType = needsTypeUpdate ? inputType : resultType;
+
+    auto newOp = rewriter.create<ReduceSumOp>(
+        op.getLoc(), newResultType, input, init, op.getUlX(), op.getUlY(),
+        op.getLrX(), op.getLrY());
+
+    if (newResultType != resultType) {
+      rewriter.replaceOpWithNewOp<tensor::CastOp>(op, resultType,
+                                                  newOp.getResult());
+    } else {
+      rewriter.replaceOp(op, newOp.getResults());
+    }
+    return success();
+  }
+};
+
+struct StaticizeCopy : public OpRewritePattern<CopyOp> {
+  using OpRewritePattern<CopyOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(CopyOp op,
+                                PatternRewriter &rewriter) const override {
+    Value source = op.getSource();
+    if (auto cast = source.getDefiningOp<memref::CastOp>()) {
+      source = cast.getSource();
+    }
+
+    Value destination = op.getDestination();
+    if (auto cast = destination.getDefiningOp<memref::CastOp>()) {
+      destination = cast.getSource();
+    }
+
+    if (source == op.getSource() && destination == op.getDestination()) {
+      return failure();
+    }
+
+    rewriter.replaceOpWithNewOp<CopyOp>(
+        op, source, destination, op.getSrcMemSpaceAttr(),
+        op.getDstMemSpaceAttr(), op.getBroadcastAttr());
+    return success();
+  }
+};
+
 } // namespace
 
 void SubviewOp::getCanonicalizationPatterns(RewritePatternSet &results,
@@ -626,6 +709,16 @@ void CopyToTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void SemaphoreTakeOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                                   MLIRContext *context) {
   results.add<FoldSemaphoreTakeType>(context);
+}
+
+void CopyOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                         MLIRContext *context) {
+  results.add<StaticizeCopy>(context);
+}
+
+void ReduceSumOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                              MLIRContext *context) {
+  results.add<StaticizeReduceSum>(context);
 }
 
 //===----------------------------------------------------------------------===//
@@ -682,12 +775,7 @@ struct FoldBufferizeToTensorConstants
         rewriter, op.getLoc(), newResultType, op.getSource(), dynamicSizes,
         rewriter.getDenseI64ArrayAttr(staticSizes));
 
-    if (newResultType != resultType) {
-      rewriter.replaceOpWithNewOp<tensor::CastOp>(op, resultType,
-                                                  newOp.getResult());
-    } else {
-      rewriter.replaceOp(op, newOp.getResult());
-    }
+    rewriter.replaceOp(op, newOp.getResult());
     return success();
   }
 };
@@ -700,21 +788,35 @@ struct FoldBufferizeToMemrefType
 
   LogicalResult matchAndRewrite(BufferizeToMemrefOp op,
                                 PatternRewriter &rewriter) const override {
-    auto srcType = llvm::dyn_cast<RankedTensorType>(op.getSource().getType());
+    Value src = op.getSource();
+    if (auto castOp = src.getDefiningOp<tensor::CastOp>()) {
+      src = castOp.getSource();
+    }
+    auto srcType = llvm::dyn_cast<RankedTensorType>(src.getType());
     if (!srcType || !srcType.hasStaticShape())
       return failure();
 
     auto resultType = llvm::dyn_cast<MemRefType>(op.getType());
-    if (!resultType || resultType.hasStaticShape())
+    if (!resultType)
       return failure();
 
     auto newResultType = BufferizeToMemrefOp::inferResultType(
         srcType.getShape(), srcType.getElementType());
 
+    bool needsTypeUpdate = (newResultType != resultType);
+    bool needsSourceUpdate = (src != op.getSource());
+
+    if (!needsTypeUpdate && !needsSourceUpdate)
+      return failure();
+
     auto newOp = BufferizeToMemrefOp::create(rewriter, op.getLoc(),
-                                             newResultType, op.getSource());
-    rewriter.replaceOpWithNewOp<memref::CastOp>(op, resultType,
-                                                newOp.getResult());
+                                             newResultType, src);
+    if (needsTypeUpdate) {
+      rewriter.replaceOpWithNewOp<memref::CastOp>(op, resultType,
+                                                  newOp.getResult());
+    } else {
+      rewriter.replaceOp(op, newOp.getResult());
+    }
     return success();
   }
 };

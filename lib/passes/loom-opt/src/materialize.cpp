@@ -14,6 +14,7 @@
 #include "llvm/Support/Casting.h"
 
 // Include Loom dialect headers
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -51,7 +52,7 @@ struct BlockSizeBinding {
 /// Used only when no external BlockSizeMap is provided (backward compat).
 SmallVector<SmallVector<int64_t>> solveCandidateBlockSizes(unsigned numVars) {
   if (numVars == 3) {
-    return {{1, 64, 128}};
+    return {{32, 32, 512}};
   }
   SmallVector<int64_t> fallback(numVars, 64);
   return {fallback};

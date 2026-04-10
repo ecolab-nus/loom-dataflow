@@ -5,8 +5,13 @@
 
 #include "lcs_utils.h"
 #include "utils.h"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 
 namespace loom {
@@ -32,6 +37,14 @@ std::vector<Expr> traceBlockArgumentToInit(mlir::BlockArgument blockArg) {
     // iter_args start after the induction variable (argIdx 0)
     if (argIdx > 0 && argIdx - 1 < inits.size()) {
       return traceAllocDimsFromTensor(inits[argIdx - 1]);
+    }
+  }
+  // Handle scf.for: block args are (induction_var, iter_args...) — same layout
+  else if (auto forOp = mlir::dyn_cast<mlir::scf::ForOp>(parentOp)) {
+    unsigned argIdx = blockArg.getArgNumber();
+    auto initArgs = forOp.getInitArgs();
+    if (argIdx > 0 && argIdx - 1 < initArgs.size()) {
+      return traceAllocDimsFromTensor(initArgs[argIdx - 1]);
     }
   }
   // Handle affine.parallel: all block args are iter_args (no induction var)
@@ -163,6 +176,16 @@ std::vector<Expr> traceAllocDimsFromTensor(mlir::Value tensorVal) {
     return {};
   }
 
+  // Case 4b: scf.for result — trace back to the corresponding init arg
+  if (auto forOp = dyn_cast<scf::ForOp>(op)) {
+    unsigned resultIdx = cast<OpResult>(tensorVal).getResultNumber();
+    auto initArgs = forOp.getInitArgs();
+    if (resultIdx < initArgs.size()) {
+      return traceAllocDimsFromTensor(initArgs[resultIdx]);
+    }
+    return {};
+  }
+
   return {};
 }
 
@@ -182,95 +205,76 @@ std::string formatElementType(mlir::Type elemType) {
   return typeStr;
 }
 
-Expr affineExprToExpr(mlir::AffineExpr expr,
-                      const llvm::SmallVector<std::string> &symbolNames) {
+/// Recursively trace an SSA index value to a symbolic Expr.
+/// Handles: loom.sym → Sym, arith.constant → Const,
+///          arith.ceildivui/si → Div, arith.muli → Mul, arith.addi → Add.
+static Expr traceIndexValueToExpr(mlir::Value val) {
   using namespace mlir;
-
-  if (!expr)
+  if (!val)
     return Expr::none();
 
-  switch (expr.getKind()) {
-  case AffineExprKind::Constant: {
-    auto constExpr = mlir::cast<mlir::AffineConstantExpr>(expr);
-    return Expr::con(constExpr.getValue());
-  }
-  case AffineExprKind::SymbolId: {
-    auto symExpr = mlir::cast<mlir::AffineSymbolExpr>(expr);
-    unsigned symId = symExpr.getPosition();
-    if (symId < symbolNames.size() && !symbolNames[symId].empty()) {
-      return Expr::sym(symbolNames[symId]);
-    }
-    return Expr::sym("s" + std::to_string(symId));
-  }
-  case AffineExprKind::DimId: {
-    auto dimExpr = mlir::cast<mlir::AffineDimExpr>(expr);
-    unsigned dimId = dimExpr.getPosition();
-    return Expr::sym("d" + std::to_string(dimId));
-  }
-  case AffineExprKind::Add: {
-    auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
-    return affineExprToExpr(binExpr.getLHS(), symbolNames) +
-           affineExprToExpr(binExpr.getRHS(), symbolNames);
-  }
-  case AffineExprKind::Mul: {
-    auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
-    return affineExprToExpr(binExpr.getLHS(), symbolNames) *
-           affineExprToExpr(binExpr.getRHS(), symbolNames);
-  }
-  case AffineExprKind::FloorDiv:
-  case AffineExprKind::CeilDiv: {
-    auto binExpr = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
-    return affineExprToExpr(binExpr.getLHS(), symbolNames) /
-           affineExprToExpr(binExpr.getRHS(), symbolNames);
-  }
-  case AffineExprKind::Mod:
-    // AffineExprKind::Mod has no direct Expr equivalent; return none.
+  // First try to resolve directly to a named symbolic variable (loom.sym).
+  llvm::StringRef symName = loom::utils::traceToSymbolicVar(val);
+  if (!symName.empty())
+    return Expr::sym(symName.str());
+
+  Operation *op = val.getDefiningOp();
+  if (!op)
     return Expr::none();
+
+  // arith.constant
+  if (auto constOp = dyn_cast<arith::ConstantOp>(op))
+    if (auto intAttr = dyn_cast<IntegerAttr>(constOp.getValue()))
+      return Expr::con(intAttr.getInt());
+
+  // arith.ceildivui / arith.ceildivsi → Div (same semantics for trip counts)
+  if (auto cdiv = dyn_cast<arith::CeilDivUIOp>(op))
+    return traceIndexValueToExpr(cdiv.getLhs()) /
+           traceIndexValueToExpr(cdiv.getRhs());
+  if (auto cdiv = dyn_cast<arith::CeilDivSIOp>(op))
+    return traceIndexValueToExpr(cdiv.getLhs()) /
+           traceIndexValueToExpr(cdiv.getRhs());
+
+  // arith.muli → Mul
+  if (auto mul = dyn_cast<arith::MulIOp>(op))
+    return traceIndexValueToExpr(mul.getLhs()) *
+           traceIndexValueToExpr(mul.getRhs());
+
+  // arith.addi → Add
+  if (auto add = dyn_cast<arith::AddIOp>(op))
+    return traceIndexValueToExpr(add.getLhs()) +
+           traceIndexValueToExpr(add.getRhs());
+
+  // Type-conversion ops in the trip-count def-use chain are explicitly
+  // unsupported.  Canonicalize/CSE should have removed them before ETG
+  // extraction; if any survive, fail loudly rather than silently producing
+  // an empty expression.
+  if (llvm::isa<arith::IndexCastOp, arith::IndexCastUIOp, arith::ExtSIOp,
+                arith::ExtUIOp, arith::TruncIOp>(op)) {
+    op->emitError() << "traceIndexValueToExpr: type-conversion op in the "
+                       "trip-count def-use chain is unsupported. Run "
+                       "--canonicalize/--cse first, or keep index-typed "
+                       "values throughout the bound chain.";
+    llvm::report_fatal_error("unsupported type-cast in trip-count chain");
   }
-  return Expr::none();
+
+  // Any other op in the def-use chain is unexpected; refuse to silently
+  // drop the expression.
+  {
+    std::string msg;
+    llvm::raw_string_ostream os(msg);
+    os << "traceIndexValueToExpr: unhandled op '" << op->getName()
+       << "' in trip-count def-use chain";
+    op->emitError() << msg;
+    llvm::report_fatal_error("unhandled op in trip-count chain");
+  }
 }
 
-/// Count the number of CeilDiv nodes anywhere in an AffineExpr tree.
-static unsigned countCeilDivs(mlir::AffineExpr expr) {
-  if (!expr)
-    return 0;
-  if (expr.getKind() == mlir::AffineExprKind::CeilDiv) {
-    auto bin = mlir::cast<mlir::AffineBinaryOpExpr>(expr);
-    return 1 + countCeilDivs(bin.getLHS()) + countCeilDivs(bin.getRHS());
-  }
-  if (auto bin = mlir::dyn_cast<mlir::AffineBinaryOpExpr>(expr))
-    return countCeilDivs(bin.getLHS()) + countCeilDivs(bin.getRHS());
-  return 0;
-}
-
-Expr extractLoopTripCount(mlir::affine::AffineForOp forOp) {
-  using namespace mlir;
-
+Expr extractLoopTripCount(mlir::scf::ForOp forOp) {
   if (!forOp)
     return Expr::none();
-
-  // Get the upper bound map
-  auto upperBoundMap = forOp.getUpperBoundMap();
-  if (upperBoundMap.getNumResults() != 1)
-    return Expr::none();
-
-  // Get upper bound operands
-  auto upperBoundOperands = forOp.getUpperBoundOperands();
-
-  // Build symbol names from operands using traceToSymbolicVar
-  llvm::SmallVector<std::string> symbolNames;
-  for (auto operand : upperBoundOperands) {
-    llvm::StringRef symName = loom::utils::traceToSymbolicVar(operand);
-    symbolNames.push_back(std::string(symName));
-  }
-
-  // Expect at most one ceildiv after the flattening pass.
-  auto resultExpr = upperBoundMap.getResult(0);
-  assert(countCeilDivs(resultExpr) <= 1 &&
-         "UB affine expression must contain at most one ceildiv; "
-         "run flattenCeilDivInForBounds first");
-
-  return affineExprToExpr(resultExpr, symbolNames);
+  // Assumes lb=0 and step=1, so trip count == upper bound.
+  return traceIndexValueToExpr(forOp.getUpperBound());
 }
 
 // ==========================================

@@ -14,11 +14,13 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 
 // Include the generated Loom dialect headers
 #include "LoomDialect.h.inc"
 #include "mlir/Interfaces/ViewLikeInterface.h"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -350,11 +352,16 @@ SmallVector<SymbolicDim, 4> traceShape(Value v) {
   if (!v)
     return {};
 
-  // Case 1: BlockArgument (affine.for iter_args)
+  // Case 1: BlockArgument (affine.for / scf.for iter_args)
   if (auto arg = mlir::dyn_cast<BlockArgument>(v)) {
     if (auto forOp = mlir::dyn_cast<affine::AffineForOp>(
             arg.getOwner()->getParentOp())) {
       unsigned argIdx = arg.getArgNumber() - 1;
+      return traceShape(forOp.getInits()[argIdx]);
+    }
+    if (auto forOp = mlir::dyn_cast<scf::ForOp>(
+            arg.getOwner()->getParentOp())) {
+      unsigned argIdx = arg.getArgNumber() - 1; // 1 IV in scf.for
       return traceShape(forOp.getInits()[argIdx]);
     }
   }
@@ -395,14 +402,22 @@ SmallVector<SymbolicDim, 4> traceShape(Value v) {
     Value init = linalgOp.getDpsInits()[resultIdx];
     return traceShape(init);
   }
-  // Case D: affine.for (Results)
+  // Case D: affine.for / scf.for (Results)
   else if (auto forOp = mlir::dyn_cast<affine::AffineForOp>(op)) {
+    unsigned resultIdx = mlir::cast<OpResult>(v).getResultNumber();
+    return traceShape(forOp.getInits()[resultIdx]);
+  }
+  else if (auto forOp = mlir::dyn_cast<scf::ForOp>(op)) {
     unsigned resultIdx = mlir::cast<OpResult>(v).getResultNumber();
     return traceShape(forOp.getInits()[resultIdx]);
   }
   // Case E: tensor.extract_slice
   else if (auto extractSlice = mlir::dyn_cast<tensor::ExtractSliceOp>(op)) {
     rawDims = extractSlice.getMixedSizes();
+  }
+  // Case F: loom.reduce_sum (output has same shape as input)
+  else if (auto reduceSumOp = mlir::dyn_cast<loom::ReduceSumOp>(op)) {
+    return traceShape(reduceSumOp.getInput());
   }
   // Fallback
   else {

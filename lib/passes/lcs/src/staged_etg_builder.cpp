@@ -4,10 +4,12 @@
 #include "ADLDialect.h.inc"
 #define GET_TYPEDEF_CLASSES
 #include "ADLTypes.h.inc"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "ADLOps.h.inc"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -261,17 +263,16 @@ VariantETG::VariantETG(llvm::StringRef name, const HWOpRegistry *registry)
 // ==========================================
 // VariantETG — ETG building
 // ==========================================
-void VariantETG::buildFromAffineFor(mlir::affine::AffineForOp for_op) {
+void VariantETG::buildFromSCFFor(mlir::scf::ForOp for_op) {
   llvm::DenseMap<mlir::Value, int> value_ready_stage;
 
-  for (mlir::Value block_arg : for_op.getRegion().getArguments())
+  for (mlir::Value block_arg : for_op.getBody()->getArguments())
     value_ready_stage[block_arg] = 0;
 
   for_op.getBody()->walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation *op) {
     if (op->getParentOp() != for_op)
       return;
 
-    // Calculate ASAP stage based on operand dependencies.
     int required_stage = 0;
     for (mlir::Value operand : op->getOperands())
       if (value_ready_stage.count(operand))
@@ -419,7 +420,7 @@ void VariantETG::collectSymbols(mlir::func::FuncOp func_op) {
 }
 
 void VariantETG::analyzeLoopIterations(mlir::func::FuncOp func_op) {
-  func_op.walk([&](mlir::affine::AffineForOp forOp) {
+  func_op.walk([&](mlir::scf::ForOp forOp) {
     auto iterAttr =
         forOp->getAttrOfType<loom::IterTypeAttr>("loom.iter_type");
     if (!iterAttr)
