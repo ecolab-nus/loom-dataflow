@@ -640,8 +640,8 @@ struct StaticizeReduceSum : public OpRewritePattern<ReduceSumOp> {
     Type newResultType = needsTypeUpdate ? inputType : resultType;
 
     auto newOp = rewriter.create<ReduceSumOp>(
-        op.getLoc(), newResultType, input, init, op.getUbX(), op.getUbY(),
-        op.getLbX(), op.getLbY());
+        op.getLoc(), newResultType, input, init, op.getUlX(), op.getUlY(),
+        op.getLrX(), op.getLrY());
 
     if (newResultType != resultType) {
       rewriter.replaceOpWithNewOp<tensor::CastOp>(op, resultType,
