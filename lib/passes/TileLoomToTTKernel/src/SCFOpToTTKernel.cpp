@@ -33,6 +33,7 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
 
 #include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOps.h"
@@ -108,30 +109,45 @@ public:
 
     Location loc = op.getLoc();
 
-    // For each induction variable, create a compile-time argument and cast it
-    // back to index. We materialize the compile-arg loads just before the
-    // scf.parallel op so they are in the surrounding function body.
-    SmallVector<Value, 2> newIvValues;
-    newIvValues.reserve(op.getInductionVars().size());
+    // Rewritten IV values. We prefer deriving all mapped spatial IVs from
+    // exactly two physical compile args (x/y). Any IV that cannot be derived
+    // from mapping metadata falls back to a direct compile arg.
+    SmallVector<Value, 4> newIvValues(op.getInductionVars().size(), Value{});
     auto parentFunc = op->getParentOfType<func::FuncOp>();
     if (!parentFunc)
       return failure();
 
     rewriter.setInsertionPoint(op);
 
-    for (Value iv : op.getInductionVars()) {
-      // Create a compile-arg for this IV using the tracker.
-      Value ivIndex = tracker->createIndexCompileArg(iv, loc, rewriter);
-      newIvValues.push_back(ivIndex);
-      // Append to the per-function core list using the parent function.
-      tracker->appendToCoreList(parentFunc, ivIndex);
-    }
+    // Gather metadata used to map N logical spatial IVs <-> 2 physical axes.
+    auto mappedDims = op->getAttrOfType<ArrayAttr>("loom.physical_dims");
+    if (!mappedDims)
+      mappedDims = op->getAttrOfType<ArrayAttr>("loom.mapped_to_dims");
+    auto iterTypes = op->getAttrOfType<ArrayAttr>("loom.iter_types");
+    auto logicalLevels = op->getAttrOfType<ArrayAttr>("loom.logical_levels");
 
-    // Record explicit x/y core coordinates based on mapped spatial dims.
-    if (auto mappedDims = op->getAttrOfType<ArrayAttr>("loom.physical_dims")) {
-      auto iterTypes = op->getAttrOfType<ArrayAttr>("loom.iter_types");
-      for (auto [idx, ivVal] : llvm::enumerate(newIvValues)) {
-        if (idx >= mappedDims.size())
+    struct AxisComponent {
+      size_t idx = 0;
+      int64_t logicalLevel = 0;
+    };
+    SmallVector<AxisComponent, 4> xComponents;
+    SmallVector<AxisComponent, 4> yComponents;
+
+    auto getLogicalLevelForIndex = [&](size_t idx) -> int64_t {
+      if (!logicalLevels || idx >= logicalLevels.size())
+        return static_cast<int64_t>(idx);
+      if (auto intAttr = dyn_cast<IntegerAttr>(logicalLevels[idx]))
+        return intAttr.getInt();
+      return static_cast<int64_t>(idx);
+    };
+
+    ValueRange lbs = op.getLowerBound();
+    ValueRange ubs = op.getUpperBound();
+    ValueRange steps = op.getStep();
+    if (mappedDims) {
+      for (size_t idx = 0; idx < newIvValues.size(); ++idx) {
+        if (idx >= mappedDims.size() || idx >= lbs.size() || idx >= ubs.size() ||
+            idx >= steps.size())
           break;
 
         if (iterTypes && idx < iterTypes.size() &&
@@ -142,9 +158,84 @@ public:
         StringRef dim = StringRef(dimName).trim();
         if (dim.starts_with("@"))
           dim = dim.drop_front();
-        if (dim.equals_insensitive("dim_x") || dim.equals_insensitive("dim_y"))
-          tracker->setCoreCoordForDim(parentFunc, dim, ivVal);
+
+        if (dim.equals_insensitive("x") || dim.equals_insensitive("dim_x")) {
+          xComponents.push_back(AxisComponent{idx, getLogicalLevelForIndex(idx)});
+          continue;
+        }
+        if (dim.equals_insensitive("y") || dim.equals_insensitive("dim_y")) {
+          yComponents.push_back(AxisComponent{idx, getLogicalLevelForIndex(idx)});
+          continue;
+        }
       }
+    }
+
+    auto sortByLevelThenIndex = [](SmallVectorImpl<AxisComponent> &components) {
+      std::stable_sort(
+          components.begin(), components.end(),
+          [](const AxisComponent &a, const AxisComponent &b) {
+            if (a.logicalLevel != b.logicalLevel)
+              return a.logicalLevel < b.logicalLevel;
+            return a.idx < b.idx;
+          });
+    };
+    sortByLevelThenIndex(xComponents);
+    sortByLevelThenIndex(yComponents);
+
+    // Materialize exactly two physical compile args (x, y) when we can map
+    // logical IVs through physical dims metadata.
+    if (!xComponents.empty() || !yComponents.empty()) {
+      Value one = rewriter.create<arith::ConstantIndexOp>(loc, 1);
+      Value xCompileArgI32 = tracker->createTypedCompileArg(
+          loc, rewriter, parentFunc, rewriter.getI32Type());
+      Value yCompileArgI32 = tracker->createTypedCompileArg(
+          loc, rewriter, parentFunc, rewriter.getI32Type());
+      if (!xCompileArgI32 || !yCompileArgI32)
+        return failure();
+
+      Value xCoord = rewriter.create<arith::IndexCastOp>(
+          loc, rewriter.getIndexType(), xCompileArgI32);
+      Value yCoord = rewriter.create<arith::IndexCastOp>(
+          loc, rewriter.getIndexType(), yCompileArgI32);
+
+      tracker->appendToCoreList(parentFunc, xCoord);
+      tracker->appendToCoreList(parentFunc, yCoord);
+      tracker->setCoreCoordForDim(parentFunc, "x", xCoord);
+      tracker->setCoreCoordForDim(parentFunc, "y", yCoord);
+
+      // Decompose each axis coordinate into its logical components in
+      // logical-level order:
+      //   iv = lb + ((axis / stride) % extent) * step.
+      auto materializeAxisIvs = [&](ArrayRef<AxisComponent> components,
+                                    Value axisCoord) {
+        Value stride = one;
+        for (const AxisComponent &component : components) {
+          size_t idx = component.idx;
+          Value span = rewriter.create<arith::SubIOp>(loc, ubs[idx], lbs[idx]);
+          Value extent =
+              rewriter.create<arith::CeilDivSIOp>(loc, span, steps[idx]);
+          Value quotient = rewriter.create<arith::DivSIOp>(loc, axisCoord, stride);
+          Value digit = rewriter.create<arith::RemSIOp>(loc, quotient, extent);
+          Value scaledDigit = rewriter.create<arith::MulIOp>(loc, digit, steps[idx]);
+          Value ivVal = rewriter.create<arith::AddIOp>(loc, lbs[idx], scaledDigit);
+          newIvValues[idx] = ivVal;
+          stride = rewriter.create<arith::MulIOp>(loc, stride, extent);
+        }
+      };
+
+      materializeAxisIvs(xComponents, xCoord);
+      materializeAxisIvs(yComponents, yCoord);
+    }
+
+    // Any IV not covered by x/y physical mapping falls back to a dedicated
+    // compile-time argument.
+    for (auto [idx, oldIv] : llvm::enumerate(op.getInductionVars())) {
+      if (newIvValues[idx])
+        continue;
+      Value ivIndex = tracker->createIndexCompileArg(oldIv, loc, rewriter);
+      if (!ivIndex)
+        return failure();
+      newIvValues[idx] = ivIndex;
     }
 
     // Replace all IV uses in the loop body with the new compile-arg-based

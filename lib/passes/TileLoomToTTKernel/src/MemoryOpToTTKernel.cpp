@@ -519,110 +519,6 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
   return std::make_pair(totalSizeBytes, multicast_l1Addr);
 }
 
-//it seems this only works for host kernels, dataflow kernel doesn't include worker_logical_row_to_virtual_row
-LogicalResult generate_multicast_address(
-    bool isBroadcastX, ConversionPatternRewriter &rewriter, Location loc,
-    MemrefArgData *memrefArgData, std::shared_ptr<CompileArgTracker> tracker,
-    Operation *parentFunc, Value &logicalCoreX, Value &logicalCoreY) {
-  if (!memrefArgData)
-    return failure();
-  Location initLoc =
-      memrefArgData->initLoc ? Location(memrefArgData->initLoc) : loc;
-
-  logicalCoreX = tracker->getCoreCoordForDim(parentFunc, "x");
-  logicalCoreY = tracker->getCoreCoordForDim(parentFunc, "y");
-  if (!logicalCoreX || !logicalCoreY) {
-    llvm::errs() << "missing mapped spatial core coordinates for broadcast; "
-                    "expected loom.mapped_to_dims to define both @x and @y\n";
-    return failure();
-  }
-
-  {
-    // Hoist multicast-address helpers to where core compile-args are
-    // available (outside loop bodies), rather than emitting at loom.copy.
-    OpBuilder::InsertionGuard guard(rewriter);
-    Operation *insertAfter = nullptr;
-
-    auto considerInsertionAnchor = [&](Value value) {
-      if (Operation *defOp = value.getDefiningOp()) {
-        if (!insertAfter ||
-            (insertAfter->getBlock() == defOp->getBlock() &&
-             insertAfter->isBeforeInBlock(defOp)))
-          insertAfter = defOp;
-      }
-    };
-    considerInsertionAnchor(logicalCoreX);
-    considerInsertionAnchor(logicalCoreY);
-    if (insertAfter)
-      rewriter.setInsertionPointAfter(insertAfter);
-
-    auto toI32 = [&](Value v) -> Value {
-      if (v.getType().isIndex())
-        return rewriter.create<arith::IndexCastOp>(initLoc,
-                                                   rewriter.getI32Type(), v);
-      return v;
-    };
-
-    logicalCoreX = toI32(logicalCoreX);
-    logicalCoreY = toI32(logicalCoreY);
-
-    Value zero = rewriter.create<arith::ConstantIntOp>(initLoc,
-                                                       rewriter.getI32Type(), 0);
-    Value one = rewriter.create<arith::ConstantIntOp>(initLoc,
-                                                      rewriter.getI32Type(), 1);
-    // TODO: replace this with a runtime/core-grid-derived max coordinate.
-    Value seven = rewriter.create<arith::ConstantIntOp>(
-        initLoc, rewriter.getI32Type(), 7);
-
-    Value currentPhysicalCoreX =
-        rewriter.create<ConvertLogicalXToTranslatedOp>(initLoc,
-                                                       rewriter.getI32Type(),
-                                                       logicalCoreX);
-    Value currentPhysicalCoreY =
-        rewriter.create<ConvertLogicalYToTranslatedOp>(initLoc,
-                                                       rewriter.getI32Type(),
-                                                       logicalCoreY);
-
-    Value senderCoreX;
-    Value senderCoreY;
-    Value startCoreX;
-    Value startCoreY;
-    Value endCoreX;
-    Value endCoreY;
-    if (isBroadcastX) {
-      // Broadcast to all cores in the same column (same x).
-      senderCoreX = currentPhysicalCoreX;
-      senderCoreY = rewriter.create<ConvertLogicalYToTranslatedOp>(
-          initLoc, rewriter.getI32Type(), zero);
-      startCoreX = currentPhysicalCoreX;
-      startCoreY = rewriter.create<ConvertLogicalYToTranslatedOp>(
-          initLoc, rewriter.getI32Type(), one);
-      endCoreY = rewriter.create<ConvertLogicalYToTranslatedOp>(
-          initLoc, rewriter.getI32Type(), seven);
-      endCoreX = currentPhysicalCoreX;
-    } else {
-      // Broadcast to all cores in the same row (same y).
-      senderCoreX = rewriter.create<ConvertLogicalXToTranslatedOp>(
-          initLoc, rewriter.getI32Type(), zero);
-      senderCoreY = currentPhysicalCoreY;
-      startCoreX = rewriter.create<ConvertLogicalXToTranslatedOp>(
-          initLoc, rewriter.getI32Type(), one);
-      startCoreY = currentPhysicalCoreY;
-      endCoreX = rewriter.create<ConvertLogicalXToTranslatedOp>(
-          initLoc, rewriter.getI32Type(), seven);
-      endCoreY = currentPhysicalCoreY;
-    }
-
-    memrefArgData->mcast_sender_noc_x = senderCoreX;
-    memrefArgData->mcast_sender_noc_y = senderCoreY;
-    memrefArgData->mcast_dest_noc_start_x = startCoreX;
-    memrefArgData->mcast_dest_noc_start_y = startCoreY;
-    memrefArgData->mcast_dest_noc_end_x = endCoreX;
-    memrefArgData->mcast_dest_noc_end_y = endCoreY;
-  }
-  return success();
-}
-
 bool multicast_send(ConversionPatternRewriter &rewriter, Location loc, MemrefArgData *memrefArgData, Value totalSizeBytes, Value multicast_l1Addr) {
   Value zero = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
   auto falseAttr = rewriter.getBoolAttr(false);
@@ -1009,17 +905,13 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
       Operation *parentFunc = op->getParentOfType<func::FuncOp>();
       Value coreX;
       Value coreY;
-/*       if (failed(generate_multicast_address(
-              isBroadcastX, rewriter, loc, memrefArgData, tracker, parentFunc,
-              coreX, coreY))) {
-        return failure();
-      } */
 
       coreX = tracker->getCoreCoordForDim(parentFunc, "x");
       coreY = tracker->getCoreCoordForDim(parentFunc, "y");
       if (!coreX || !coreY) {
         llvm::errs() << "missing mapped spatial core coordinates for broadcast; "
-                        "expected loom.mapped_to_dims to define both @x and @y\n";
+                        "expected scf.parallel metadata to define x/y "
+                        "(loom.physical_dims or loom.mapped_to_dims)\n";
         return failure();
       }
       auto toI32 = [&](Value v) -> Value {
@@ -1032,21 +924,21 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
       coreX = toI32(coreX);
       coreY = toI32(coreY);
 
-      Value zero = rewriter.create<arith::ConstantIntOp>(
-          loc, rewriter.getI32Type(), 0);
-      Value cond;
-      if (isBroadcastAll) {
-        Value condX = rewriter.create<arith::CmpIOp>(
-            loc, arith::CmpIPredicate::eq, coreX, zero);
-        Value condY = rewriter.create<arith::CmpIOp>(
-            loc, arith::CmpIPredicate::eq, coreY, zero);
-        cond = rewriter.create<arith::AndIOp>(loc, condX, condY);
-      } else if (isBroadcastX)
-        cond = rewriter.create<arith::CmpIOp>(
-            loc, arith::CmpIPredicate::eq, coreX, zero);
-      else
-        cond = rewriter.create<arith::CmpIOp>(
-            loc, arith::CmpIPredicate::eq, coreY, zero);
+      Value ulX = op.getUlX();
+      Value ulY = op.getUlY();
+      if (!ulX || !ulY) {
+        llvm::errs() << "missing broadcast UL coordinates on loom.copy; "
+                        "expected region : (UL : [x, y], LR : [...])\n";
+        return failure();
+      }
+      ulX = toI32(ulX);
+      ulY = toI32(ulY);
+
+      Value isSenderX = arith::CmpIOp::create(
+          rewriter, loc, arith::CmpIPredicate::eq, coreX, ulX);
+      Value isSenderY = arith::CmpIOp::create(
+          rewriter, loc, arith::CmpIPredicate::eq, coreY, ulY);
+      Value cond = arith::AndIOp::create(rewriter, loc, isSenderX, isSenderY);
 
       auto ifOp = rewriter.create<scf::IfOp>(loc, cond, true);
       {

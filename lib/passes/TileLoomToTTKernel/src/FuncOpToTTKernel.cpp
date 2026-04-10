@@ -607,10 +607,12 @@ void mlir::loom::CompileArgTracker::clearCoreList(Operation *funcOp) {
 void mlir::loom::CompileArgTracker::setCoreCoordForDim(Operation *funcOp,
                                                         StringRef dimName,
                                                         Value value) {
-  StringRef dim = dimName.trim().lower();
-  if (dim == "x")
+  StringRef dim = dimName.trim();
+  if (dim.starts_with("@"))
+    dim = dim.drop_front();
+  if (dim.equals_insensitive("x") || dim.equals_insensitive("dim_x"))
     funcToCoreCoordsByDim[funcOp].x = value;
-  else if (dim == "y")
+  else if (dim.equals_insensitive("y") || dim.equals_insensitive("dim_y"))
     funcToCoreCoordsByDim[funcOp].y = value;
 }
 
@@ -620,10 +622,12 @@ Value mlir::loom::CompileArgTracker::getCoreCoordForDim(Operation *funcOp,
   if (it == funcToCoreCoordsByDim.end())
     return {};
 
-  StringRef dim = dimName.trim().lower();
-  if (dim == "x")
+  StringRef dim = dimName.trim();
+  if (dim.starts_with("@"))
+    dim = dim.drop_front();
+  if (dim.equals_insensitive("x") || dim.equals_insensitive("dim_x"))
     return it->second.x;
-  if (dim == "y")
+  if (dim.equals_insensitive("y") || dim.equals_insensitive("dim_y"))
     return it->second.y;
   return {};
 }
@@ -1113,39 +1117,10 @@ private:
   }
 
   void inferCoreCoordArgOrder() {
+    // SCF lowering now materializes exactly two physical core compile args in
+    // fixed order: [x, y]. Keep host runtime-arg emission aligned.
     coreCoordArg0Expr = "core.x";
     coreCoordArg1Expr = "core.y";
-
-    bool foundOrder = false;
-    hostFunc.walk([&](scf::ParallelOp op) {
-      if (foundOrder)
-        return;
-
-      auto mappedAttr = op->getAttrOfType<ArrayAttr>("loom.mapped_to_dims");
-      if (!mappedAttr || mappedAttr.size() < 2)
-        return;
-
-      auto iterTypesAttr = op->getAttrOfType<ArrayAttr>("loom.iter_types");
-      SmallVector<std::string, 4> spatialMappedDims;
-      for (auto [idx, mapped] : llvm::enumerate(mappedAttr)) {
-        if (iterTypesAttr && idx < iterTypesAttr.size() &&
-            !isSpatialIterAttr(iterTypesAttr[idx]))
-          continue;
-        spatialMappedDims.push_back(extractDimName(mapped));
-      }
-
-      if (spatialMappedDims.size() < 2)
-        return;
-
-      std::string firstExpr = coreCoordExprForDim(spatialMappedDims[0]);
-      std::string secondExpr = coreCoordExprForDim(spatialMappedDims[1]);
-      if (firstExpr.empty() || secondExpr.empty())
-        return;
-
-      coreCoordArg0Expr = firstExpr;
-      coreCoordArg1Expr = secondExpr;
-      foundOrder = true;
-    });
   }
 
   static std::optional<std::pair<int64_t, int64_t>>
