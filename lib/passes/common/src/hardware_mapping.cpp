@@ -182,6 +182,29 @@ static LogicalResult applyMappingToFunction(
     for (unsigned dimIdx : mapping[iterIdx]) {
       const auto &sd = dims[dimIdx];
       int64_t factor = sd.size.value_or(1);
+
+      // Find the loom.sym referenced in the UB of dimension iterIdx BEFORE
+      // tiling (tileAffineParallel replaces the parallel op with constant UBs
+      // on the outer loop, so we must capture symbol info here).
+      // The per-dim UB AffineExpr uses symbol positions that index into the
+      // shared allUbOps operand pool starting at ubMap.getNumDims().
+      std::optional<SymbolRefAttr> blockSym;
+      {
+        AffineMap ubMapForDim = tar_forOp.getUpperBoundMap(iterIdx);
+        AffineExpr ubExpr = ubMapForDim.getResult(0);
+        auto allUbOps = tar_forOp.getUpperBoundsOperands();
+        unsigned nd = ubMapForDim.getNumDims();
+        ubExpr.walk([&](AffineExpr e) {
+          if (!blockSym) {
+            if (auto symE = llvm::dyn_cast<AffineSymbolExpr>(e)) {
+              unsigned opIdx = nd + symE.getPosition();
+              if (opIdx < allUbOps.size())
+                blockSym = loom_affine::traceToLoomSymRef(allUbOps[opIdx]);
+            }
+          }
+        });
+      }
+
       loom_affine::TiledParallels tiled_parallels{};
       if (failed(loom_affine::tileAffineParallel(tar_forOp, factor, iterIdx,
                                                  tiled_parallels)))
@@ -198,6 +221,8 @@ static LogicalResult applyMappingToFunction(
       tiled_parallels.tiled_new_->setAttr(
           "loom.iter_type",
           loom::IterTypeAttr::get(ctx, loom::IterType::Spatial));
+      if (blockSym)
+        tiled_parallels.tiled_new_->setAttr("loom.block_sym", *blockSym);
       if (!suffix.empty())
         suffix += "_";
       suffix += "d" + std::to_string(dimIdx) + "i" + std::to_string(iterIdx);
