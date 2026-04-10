@@ -115,7 +115,12 @@ def SubviewOp : Loom_Op<"subview", [
   let hasCanonicalizer = 1;
 }
 
-
+defvar MeshBoundsArgs = (ins 
+    Index:$ul_x, 
+    Index:$ul_y, 
+    Index:$lr_x, 
+    Index:$lr_y
+);
 
 def AllocOp : Loom_Op<"alloc"> {
   let summary = "Allocate L1 buffer and return a memref";
@@ -512,13 +517,13 @@ def ReduceSumOp : Loom_Op<"reduce_sum", [
     ```
   }];
 
-  let arguments = (ins
-    AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$input,
-    AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$init,
-    Index:$ul_x,
-    Index:$ul_y,
-    Index:$lr_x,
-    Index:$lr_y
+  let arguments = !con
+  (
+    (ins
+      AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$input,
+      AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$init
+    ),
+    MeshBoundsArgs
   );
 
   let results = (outs Variadic<AnyRankedTensor>:$result);
