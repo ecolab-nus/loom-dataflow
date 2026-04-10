@@ -116,10 +116,10 @@ def SubviewOp : Loom_Op<"subview", [
 }
 
 defvar MeshBoundsArgs = (ins 
-    Index:$ul_x, 
-    Index:$ul_y, 
-    Index:$lr_x, 
-    Index:$lr_y
+    Optional<Index>:$ul_x, 
+    Optional<Index>:$ul_y, 
+    Optional<Index>:$lr_x, 
+    Optional<Index>:$lr_y
 );
 
 def AllocOp : Loom_Op<"alloc"> {
@@ -498,7 +498,8 @@ def Loom_PackToTensorOp : Loom_Op<"pack_to_tensor", [
 def ReduceSumOp : Loom_Op<"reduce_sum", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
   DestinationStyleOpInterface,
-  AllTypesMatch<["input", "init"]>
+  AllTypesMatch<["input", "init"]>,
+  AttrSizedOperandSegments
 ]> {
   let summary = "Reduce-sum a tensor over a 2D mesh with UB/LB bounds (DPS)";
   let description = [{
@@ -531,8 +532,8 @@ def ReduceSumOp : Loom_Op<"reduce_sum", [
   let assemblyFormat = [{
     `ins` `(` $input `)`
     `outs` `(` $init `)`
-    `(` `UL` `:` `[` $ul_x `,` $ul_y `]` `,`
-        `LR` `:` `[` $lr_x `,` $lr_y `]` `)` attr-dict `:`
+    ( `region` `:` `(` `UL` `:` `[` $ul_x^ `,` $ul_y `]` `,`
+        `LR` `:` `[` $lr_x `,` $lr_y `]` `)` )? attr-dict `:`
     type($input) (`->` type($result)^ )?
   }];
 
@@ -544,28 +545,41 @@ def ReduceSumOp : Loom_Op<"reduce_sum", [
 }
 
 def CopyOp : Loom_Op<"copy", [
-  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  AttrSizedOperandSegments
 ]> {
   let summary = "Copy data between memory spaces";
   let description = [{
     The `loom.copy` operation performs a physical data transfer between
     two memrefs, possibly in different memory spaces (e.g., DRAM to L1).
-    
+
+    The broadcast region is specified by UL (upper-left) and LR (lower-right)
+    mesh coordinates. When UL == LR, no broadcast occurs (unicast). When
+    they differ, the data is broadcast to all cores in the rectangular region.
+    The `broadcast` attribute is a cached summary of the broadcast factor
+    per dimension, kept for backward compatibility with LCS consumers.
+
     Example:
     ```mlir
-    loom.copy %src, %dst src_mem_space @DRAM, dst_mem_space @L1,
-              interconnect : [], broadcast : [1, 1]
+    loom.copy %src, %dst src_mem_space @DRAM dst_mem_space @L1,
+              broadcast : [1, 1]
+              (UL : [%ul_x, %ul_y], LR : [%lr_x, %lr_y])
               : memref<64x64xf32, strided<[512, 1], offset: ?>>,
                 memref<64x64xf32>
     ```
   }];
 
-  let arguments = (ins
-    AnyMemRef:$source,
-    AnyMemRef:$destination,
-    OptionalAttr<SymbolRefAttr>:$src_mem_space,
-    OptionalAttr<SymbolRefAttr>:$dst_mem_space,
-    DefaultValuedAttr<I64ArrayAttr, "{1, 1}">:$broadcast
+  let arguments = !con
+  (
+    (
+      ins
+      AnyMemRef:$source,
+      AnyMemRef:$destination,
+      OptionalAttr<SymbolRefAttr>:$src_mem_space,
+      OptionalAttr<SymbolRefAttr>:$dst_mem_space,
+      DefaultValuedAttr<I64ArrayAttr, "{1, 1}">:$broadcast
+    ),
+    MeshBoundsArgs
   );
 
   let results = (outs);
@@ -574,7 +588,9 @@ def CopyOp : Loom_Op<"copy", [
     $source `,` $destination
     (`src_mem_space` $src_mem_space^)?
     (`dst_mem_space` $dst_mem_space^)?
-    `,` `broadcast` `:` $broadcast 
+    `,` `broadcast` `:` $broadcast
+    ( `region` `:` `(` `UL` `:` `[` $ul_x^ `,` $ul_y `]` `,`
+         `LR` `:` `[` $lr_x `,` $lr_y `]` `)` )?
     attr-dict `:` type($source) `to` type($destination)
   }];
 

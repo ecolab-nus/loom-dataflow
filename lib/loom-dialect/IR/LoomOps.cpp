@@ -674,7 +674,8 @@ struct StaticizeCopy : public OpRewritePattern<CopyOp> {
 
     rewriter.replaceOpWithNewOp<CopyOp>(
         op, source, destination, op.getSrcMemSpaceAttr(),
-        op.getDstMemSpaceAttr(), op.getBroadcastAttr());
+        op.getDstMemSpaceAttr(), op.getBroadcastAttr(),
+        op.getUlX(), op.getUlY(), op.getLrX(), op.getLrY());
     return success();
   }
 };
