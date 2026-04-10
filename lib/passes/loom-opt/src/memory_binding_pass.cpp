@@ -17,6 +17,7 @@
 // Loom dialect and analysis headers
 #include "LoomDialect.h.inc"
 #include "static_memory_analyser.h"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 

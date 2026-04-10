@@ -14,6 +14,7 @@ include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.td"
 include "mlir/IR/EnumAttr.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
+include "mlir/Interfaces/DestinationStyleOpInterface.td"
 
 //===----------------------------------------------------------------------===//
 // Loom Enum Attributes
@@ -491,38 +492,50 @@ def Loom_PackToTensorOp : Loom_Op<"pack_to_tensor", [
 
 def ReduceSumOp : Loom_Op<"reduce_sum", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-  AllTypesMatch<["input", "result"]>
+  DestinationStyleOpInterface,
+  AllTypesMatch<["input", "init"]>
 ]> {
-  let summary = "Reduce-sum a tensor over a 2D mesh with UB/LB bounds";
+  let summary = "Reduce-sum a tensor over a 2D mesh with UB/LB bounds (DPS)";
   let description = [{
     The `loom.reduce_sum` operation performs a reduction sum on the input tensor
-    across a 2D mesh grid. UB and LB are each a pair of integers [x, y] that
-    specify the upper and lower mesh coordinates over which to reduce.
+    across a 2D mesh grid, writing the result into the destination (`init`)
+    operand following destination-passing style (DPS).
+
+    UB and LB are each a pair of integers [x, y] that specify the upper and
+    lower mesh coordinates over which to reduce.
 
     Example:
     ```mlir
-    %result = loom.reduce_sum %input (UB : [2, 4], LB : [0, 0])
-              : tensor<?x?xf32> -> tensor<?x?xf32>
+    %result = loom.reduce_sum ins(%input) outs(%acc)
+                              (UB : [2, 4], LB : [0, 0])
+                              : tensor<?x?xf32> -> tensor<?x?xf32>
     ```
   }];
 
   let arguments = (ins
     AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$input,
+    AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$init,
     Index:$ub_x,
     Index:$ub_y,
     Index:$lb_x,
     Index:$lb_y
   );
 
-  let results = (outs AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$result);
+  let results = (outs Variadic<AnyRankedTensor>:$result);
 
   let assemblyFormat = [{
-    $input `(` `UB` `:` `[` $ub_x `,` $ub_y `]` `,`
-               `LB` `:` `[` $lb_x `,` $lb_y `]` `)` attr-dict `:`
-    type($input) `->` type($result)
+    `ins` `(` $input `)`
+    `outs` `(` $init `)`
+    `(` `UB` `:` `[` $ub_x `,` $ub_y `]` `,`
+        `LB` `:` `[` $lb_x `,` $lb_y `]` `)` attr-dict `:`
+    type($input) (`->` type($result)^ )?
   }];
 
   let hasCanonicalizer = 1;
+
+  let extraClassDeclaration = [{
+    ::mlir::MutableOperandRange getDpsInitsMutable() { return getInitMutable(); }
+  }];
 }
 
 def CopyOp : Loom_Op<"copy", [
