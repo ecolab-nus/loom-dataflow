@@ -35,6 +35,7 @@
 #define GET_ATTRDEF_CLASSES
 #include "LoomAttributes.h.inc"
 #define GET_TYPEDEF_CLASSES
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 

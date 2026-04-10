@@ -43,6 +43,7 @@ std::unique_ptr<mlir::Pass> createFuseZeroFillMatmulPass();
 #include "ADLDialect.h.inc"
 #define GET_TYPEDEF_CLASSES
 #include "ADLTypes.h.inc"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "ADLOps.h.inc"
 #include "LoomDialect.h.inc"

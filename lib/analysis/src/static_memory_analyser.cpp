@@ -8,6 +8,7 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #include "mlir/Support/LLVM.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/Support/raw_ostream.h"
@@ -464,19 +465,18 @@ bool InterferenceGraph::checkHandoffInterference(
   if (!operandA)
     return false;
 
-  // loom.reduce_sum has DPS semantics: $input aliases $result (write-back).
-  if (auto reduceSumOp = mlir::dyn_cast<loom::ReduceSumOp>(vbB.definingOp)) {
-    if (operandA->get() == reduceSumOp.getInput())
-      return false; // Input is the DPS destination, safe to share buffer
-    return true;
+  // Check DPS semantics: if the operand is a DPS init, it aliases the result
+  // and is safe to share the buffer.  This covers loom.reduce_sum (which now
+  // implements DestinationStyleOpInterface) and all linalg ops.
+  if (auto dpsOp = mlir::dyn_cast<mlir::DestinationStyleOpInterface>(
+          vbB.definingOp)) {
+    if (dpsOp.isDpsInit(operandA))
+      return false;
   }
 
   auto linalgOp = mlir::dyn_cast<linalg::LinalgOp>(vbB.definingOp);
   if (!linalgOp)
-    return true; // Conservative for non-linalg
-
-  if (linalgOp.isDpsInit(operandA))
-    return false; // Destination passing style, safe
+    return true; // Conservative for non-linalg/non-DPS ops
 
   AffineMap mapA = linalgOp.getMatchingIndexingMap(operandA);
   OpOperand *initOperand = linalgOp.getDpsInitOperand(0);

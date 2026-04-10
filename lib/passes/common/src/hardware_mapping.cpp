@@ -28,6 +28,7 @@
 #define GET_ATTRDEF_CLASSES
 #include "LoomAttributes.h.inc"
 
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -347,9 +348,9 @@ static LogicalResult applyMappingToFunction(
               rsBuilder, loc, meshCoords.yAxis, levelIdx, hwm.hwDimSize);
         }
         auto newReduce = rsBuilder.create<loom::ReduceSumOp>(
-            loc, reduceOp.getType(), reduceOp.getInput(), ub_x, ub_y, lb_x,
-            lb_y);
-        reduceOp.replaceAllUsesWith(newReduce.getResult());
+            loc, reduceOp->getResultTypes(), reduceOp.getInput(),
+            reduceOp.getInit(), ub_x, ub_y, lb_x, lb_y);
+        reduceOp.replaceAllUsesWith(newReduce.getResults());
         reduceOp.erase();
       });
     }

@@ -7,6 +7,7 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/Pass/Pass.h"
 
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 

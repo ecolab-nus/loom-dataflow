@@ -9,6 +9,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include "LoomDialect.h.inc"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 

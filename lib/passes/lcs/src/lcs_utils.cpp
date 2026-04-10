@@ -5,6 +5,7 @@
 
 #include "lcs_utils.h"
 #include "utils.h"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"

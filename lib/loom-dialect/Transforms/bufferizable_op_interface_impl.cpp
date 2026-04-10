@@ -2,6 +2,7 @@
 
 #include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/Bufferization/IR/DstBufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -12,6 +13,7 @@
 #include "mlir/IR/SymbolTable.h"
 
 #include "LoomDialect.h.inc"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -192,6 +194,41 @@ struct BufferizeToMemrefOpInterface
   }
 };
 
+/// ReduceSumOp implements DestinationStyleOpInterface.  The base class
+/// DstBufferizableOpInterfaceExternalModel provides bufferizesToMemoryRead,
+/// bufferizesToMemoryWrite, and getAliasingValues.  We only need to supply
+/// the bufferize() method.
+struct ReduceSumOpInterface
+    : public bufferization::DstBufferizableOpInterfaceExternalModel<
+          ReduceSumOpInterface, loom::ReduceSumOp> {
+
+  LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
+                          const BufferizationOptions &options,
+                          BufferizationState &state) const {
+    auto reduceOp = cast<loom::ReduceSumOp>(op);
+
+    FailureOr<Value> inputBuffer =
+        getBuffer(rewriter, reduceOp.getInput(), options, state);
+    if (failed(inputBuffer))
+      return failure();
+
+    FailureOr<Value> initBuffer =
+        getBuffer(rewriter, reduceOp.getInit(), options, state);
+    if (failed(initBuffer))
+      return failure();
+
+    // Create memref-mode ReduceSumOp (no results — pure buffer semantics).
+    loom::ReduceSumOp::create(rewriter, op->getLoc(), /*resultTypes=*/TypeRange{},
+                              *inputBuffer, *initBuffer, reduceOp.getUbX(),
+                              reduceOp.getUbY(), reduceOp.getLbX(),
+                              reduceOp.getLbY());
+
+    // The init buffer IS the result (DPS in-place semantics).
+    replaceOpWithBufferizedValues(rewriter, op, *initBuffer);
+    return success();
+  }
+};
+
 } // namespace
 
 void loom::registerBufferizableOpInterfaceExternalModels(MLIRContext *ctx) {
@@ -202,4 +239,5 @@ void loom::registerBufferizableOpInterfaceExternalModels(MLIRContext *ctx) {
       *ctx);
   loom::BufferizeToMemrefOp::attachInterface<BufferizeToMemrefOpInterface>(
       *ctx);
+  loom::ReduceSumOp::attachInterface<ReduceSumOpInterface>(*ctx);
 }

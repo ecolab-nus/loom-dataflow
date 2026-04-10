@@ -9,6 +9,7 @@
 #include "ADLDialect.h.inc"
 #define GET_TYPEDEF_CLASSES
 #include "ADLTypes.h.inc"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "ADLOps.h.inc"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"

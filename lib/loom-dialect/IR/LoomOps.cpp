@@ -25,6 +25,7 @@
 #define GET_ATTRDEF_CLASSES
 #include "LoomAttributes.h.inc"
 
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -609,35 +610,44 @@ struct StaticizeReduceSum : public OpRewritePattern<ReduceSumOp> {
   LogicalResult matchAndRewrite(ReduceSumOp op,
                                 PatternRewriter &rewriter) const override {
     Value input = op.getInput();
-    if (auto cast = input.getDefiningOp<tensor::CastOp>()) {
+    if (auto cast = input.getDefiningOp<tensor::CastOp>())
       input = cast.getSource();
-    }
+
+    Value init = op.getInit();
+    if (auto cast = init.getDefiningOp<tensor::CastOp>())
+      init = cast.getSource();
+
+    // Only canonicalize tensor-mode ops (those with a result).
+    if (op->getNumResults() == 0)
+      return failure();
 
     auto inputType = llvm::dyn_cast<RankedTensorType>(input.getType());
     if (!inputType)
-      return failure(); // ignore memref
+      return failure();
 
-    auto resultType = llvm::dyn_cast<RankedTensorType>(op.getType());
+    auto resultType = llvm::dyn_cast<RankedTensorType>(op->getResultTypes()[0]);
     if (!resultType)
-      return failure(); // should be tensor if input is tensor
+      return failure();
 
     bool needsInputUpdate = (input != op.getInput());
-    bool needsTypeUpdate = inputType.hasStaticShape() && !resultType.hasStaticShape();
+    bool needsInitUpdate = (init != op.getInit());
+    bool needsTypeUpdate =
+        inputType.hasStaticShape() && !resultType.hasStaticShape();
 
-    if (!needsInputUpdate && !needsTypeUpdate)
+    if (!needsInputUpdate && !needsInitUpdate && !needsTypeUpdate)
       return failure();
 
     Type newResultType = needsTypeUpdate ? inputType : resultType;
 
     auto newOp = rewriter.create<ReduceSumOp>(
-        op.getLoc(), newResultType, input, op.getUbX(), op.getUbY(),
+        op.getLoc(), newResultType, input, init, op.getUbX(), op.getUbY(),
         op.getLbX(), op.getLbY());
 
     if (newResultType != resultType) {
       rewriter.replaceOpWithNewOp<tensor::CastOp>(op, resultType,
                                                   newOp.getResult());
     } else {
-      rewriter.replaceOp(op, newOp.getResult());
+      rewriter.replaceOp(op, newOp.getResults());
     }
     return success();
   }
