@@ -17,7 +17,9 @@
  */
 
 #include "Passes.h"
+#include "hw_dim_splitter.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/Attributes.h"
@@ -27,6 +29,7 @@
 #include "mlir/IR/Value.h"
 #include "mlir/Pass/Pass.h"
 #include "utils.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "ssa_utils.h"
@@ -53,8 +56,11 @@ namespace {
  * generated function names.
  */
 struct BroadcastChoice {
-  SmallVector<int64_t> values; // e.g., {1, 1}, {1, 2}, {8, 1}, {8, 8}
-  std::string label;           // "n", "dim_y_level0_bc2", etc.
+  SmallVector<int64_t> values; // broadcast factor per dim, e.g., {1, 1}, {8, 1}
+  // For each physical dim, array-indices into axis.ivs/tileSizes to override.
+  // Empty entry = no broadcast on that dim.
+  SmallVector<SmallVector<unsigned>> overrideLevelIndices;
+  std::string label; // "n", "dim_y_level0_bc2", etc.
 };
 
 /**
@@ -75,6 +81,7 @@ struct DimBroadcastResult {
   int64_t coefficient;  // product of UBs of contiguous independent levels from 0
   int64_t highestLevel; // highest contiguous independent level (-1 if none)
   bool canBroadcast;    // coefficient > 1
+  SmallVector<unsigned> independentLevelIndices; // 0-based array indices into axis.ivs
 };
 
 
@@ -188,16 +195,20 @@ computeDimBroadcastCoeff(StringRef dimName,
                          ArrayRef<Value> offsets) {
   int64_t coeff = 1;
   int64_t highestLevel = -1;
+  SmallVector<unsigned> independentLevelIndices;
 
-  for (auto &entry : levelEntries) {
+  for (unsigned idx = 0; idx < levelEntries.size(); ++idx) {
+    auto &entry = levelEntries[idx];
     bool independent = !checkOffsetDependencyOnIVs(offsets, entry.parOp.getIVs());
     if (!independent)
       break; // chain broken - stop accumulating
     coeff *= entry.upperBound;
     highestLevel = entry.logicalLevel;
+    independentLevelIndices.push_back(idx);
   }
 
-  return {dimName.str(), coeff, highestLevel, coeff > 1};
+  return {dimName.str(), coeff, highestLevel, coeff > 1,
+          std::move(independentLevelIndices)};
 }
 
 /**
@@ -238,7 +249,26 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp /*outerModule*/,
   SmallVector<BroadcastChoice> candidates;
 
   // Always include no-broadcast option
-  candidates.push_back({SmallVector<int64_t>(numDims, 1), "n"});
+  candidates.push_back(
+      {SmallVector<int64_t>(numDims, 1),
+       SmallVector<SmallVector<unsigned>>(numDims), "n"});
+
+  auto isProducedByReduceSum = [](Value v) {
+    if (!v) return false;
+    auto defOp = v.getDefiningOp();
+    if (!defOp) return false;
+    if (isa<loom::ReduceSumOp>(defOp)) return true;
+    if (auto bufToMemref = dyn_cast<loom::BufferizeToMemrefOp>(defOp)) {
+      if (auto srcOp = bufToMemref.getSource().getDefiningOp())
+         if (isa<loom::ReduceSumOp>(srcOp)) return true;
+    }
+    return false;
+  };
+
+  if (isProducedByReduceSum(copyOp.getSource()) || 
+      isProducedByReduceSum(copyOp.getDestination())) {
+    return candidates;
+  }
 
   auto subviewOp = findSubviewSource(copyOp);
   if (!subviewOp)
@@ -260,7 +290,7 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp /*outerModule*/,
       dimResults.push_back(
           computeDimBroadcastCoeff(dimName, it->second, offsets));
     else
-      dimResults.push_back({dimName, 1, -1, false});
+      dimResults.push_back({dimName, 1, -1, false, {}});
   }
 
   // Collect broadcastable dim indices
@@ -274,12 +304,14 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp /*outerModule*/,
   size_t numBroadcastable = bcDims.size();
   for (size_t mask = 1; mask < (1u << numBroadcastable); ++mask) {
     SmallVector<int64_t> values(numDims, 1);
+    SmallVector<SmallVector<unsigned>> overrides(numDims);
     std::string label;
 
     for (size_t bit = 0; bit < numBroadcastable; ++bit) {
       if (mask & (1u << bit)) {
         size_t idx = bcDims[bit];
         values[idx] = dimResults[idx].coefficient;
+        overrides[idx] = dimResults[idx].independentLevelIndices;
         if (!label.empty())
           label += "_";
         label += dimResults[idx].dimName + "_level" +
@@ -288,7 +320,7 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp /*outerModule*/,
       }
     }
 
-    candidates.push_back({values, label});
+    candidates.push_back({values, std::move(overrides), label});
   }
 
   return candidates;
@@ -405,9 +437,58 @@ private:
     if (copyOps.size() != choices.size())
       return failure();
 
-    // Apply broadcast choices to each copy operation
     for (size_t i = 0; i < copyOps.size(); ++i) {
-      setBroadcastAttribute(copyOps[i].getOperation(), choices[i].values);
+      loom::CopyOp copyOp = copyOps[i];
+      const BroadcastChoice &choice = choices[i];
+
+      // Reconstruct mesh coordinate system from enclosing loop attributes.
+      auto meshCoords = loom::MeshCoordinateSystem::fromEnclosingLoops(
+          copyOp.getOperation(), meshDimNames);
+
+      OpBuilder builder(copyOp.getOperation());
+      Location loc = copyOp.getLoc();
+
+      // Emit UL/LR values for one axis given the override level indices.
+      auto computeAxisBounds =
+          [&](const loom::AxisLinearIndex &axis,
+              unsigned dimIdx) -> std::pair<Value, Value> {
+        if (axis.ivs.empty()) {
+          Value zero =
+              arith::ConstantIndexOp::create(builder, loc, 0).getResult();
+          return {zero, zero};
+        }
+        const SmallVector<unsigned> &overrideLvls =
+            (dimIdx < choice.overrideLevelIndices.size())
+                ? choice.overrideLevelIndices[dimIdx]
+                : SmallVector<unsigned>{};
+        if (overrideLvls.empty()) {
+          // No broadcast: UL == LR == current mesh position.
+          Value pos = meshCoords.emitLinearIndex(builder, loc, axis);
+          return {pos, pos};
+        }
+        llvm::DenseMap<unsigned, int64_t> ulOvr, lrOvr;
+        for (unsigned lvlIdx : overrideLvls) {
+          ulOvr[lvlIdx] = 0;
+          lrOvr[lvlIdx] = axis.tileSizes[lvlIdx] - 1;
+        }
+        Value ul = meshCoords.emitLinearIndexWithMultiOverride(
+            builder, loc, axis, ulOvr);
+        Value lr = meshCoords.emitLinearIndexWithMultiOverride(
+            builder, loc, axis, lrOvr);
+        return {ul, lr};
+      };
+
+      auto [ul_x, lr_x] = computeAxisBounds(meshCoords.xAxis, 0);
+      auto [ul_y, lr_y] = computeAxisBounds(meshCoords.yAxis, 1);
+
+      // Create replacement CopyOp with broadcast attr and UL/LR bounds.
+      auto newBroadcastAttr = builder.getI64ArrayAttr(choice.values);
+      loom::CopyOp::create(builder, loc, copyOp.getSource(),
+                           copyOp.getDestination(),
+                           copyOp.getSrcMemSpaceAttr(),
+                           copyOp.getDstMemSpaceAttr(), newBroadcastAttr,
+                           ul_x, ul_y, lr_x, lr_y);
+      copyOp.erase();
     }
 
     return success();

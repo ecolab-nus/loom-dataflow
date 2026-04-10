@@ -96,7 +96,8 @@ struct ReadBlockLoadingLowering
     auto l1Symbol = SymbolRefAttr::get(rewriter.getContext(), "mem_L1");
     auto defaultBroadcast = rewriter.getI64ArrayAttr({1, 1});
     loom::CopyOp::create(rewriter, loc, loomSubviewOp.getResult(), semaphore,
-                         dramSymbol, l1Symbol, defaultBroadcast);
+                         dramSymbol, l1Symbol, defaultBroadcast,
+                         Value{}, Value{}, Value{}, Value{});
 
     // 4. loom.bufferize_to_tensor: pure view of the now-populated L1 buffer.
     SmallVector<int64_t, 4> staticSizes(subviewOp.getStaticSizes().begin(),
@@ -161,7 +162,8 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
     auto loomCopyOp = loom::CopyOp::create(
         rewriter, loc, bufToMemref.getResult(), loomSubviewOp.getResult(),
         l1Symbol, dramSymbol,
-        rewriter.getI64ArrayAttr({1, 1}));
+        rewriter.getI64ArrayAttr({1, 1}),
+        Value{}, Value{}, Value{}, Value{});
 
     // 4. Move semaphore_give to after the copy if it exists.
     auto vbIt = tensorToVBIdMap.find(srcTensor);
