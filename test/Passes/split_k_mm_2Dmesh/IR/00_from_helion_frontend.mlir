@@ -27,7 +27,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
         %cst_1 = arith.constant 0.000000e+00 : f32
         %result = tensor.empty(%0, %1) : tensor<?x?xf32>
         %filled = linalg.fill ins(%cst_1 : f32) outs(%result : tensor<?x?xf32>) -> tensor<?x?xf32>
-        %15 = loom.reduce_sum ins(%13) outs(%filled) (UB : [%c0, %c0], LB : [%c0, %c0]) : tensor<?x?xf32> -> tensor<?x?xf32>
+        %15 = loom.reduce_sum ins(%13) outs(%filled) (UL : [%c0, %c0], LR : [%c0, %c0]) : tensor<?x?xf32> -> tensor<?x?xf32>
         %16 = bufferization.to_buffer %15 : tensor<?x?xf32> to memref<?x?xf32, strided<[256, 1], offset: ?>>
         memref.copy %16, %subview_1 : memref<?x?xf32, strided<[256, 1], offset: ?>> to memref<?x?xf32, strided<[256, 1], offset: ?>>
       }

@@ -26,7 +26,7 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
         %subview_1 = memref.subview %arg0[%6, %9] [%0, %1] [1, 1] : memref<256x256xf32> to memref<?x?xf32, strided<[256, 1], offset: ?>>
         %15 = tensor.empty(%0, %1) : tensor<?x?xf32>
         %16 = linalg.fill ins(%cst : f32) outs(%15 : tensor<?x?xf32>) -> tensor<?x?xf32>
-        %17 = loom.reduce_sum ins(%13) outs(%16) (UB : [%c0, %c0], LB : [%c0, %c0]) : tensor<?x?xf32> -> tensor<?x?xf32>
+        %17 = loom.reduce_sum ins(%13) outs(%16) (UL : [%c0, %c0], LR : [%c0, %c0]) : tensor<?x?xf32> -> tensor<?x?xf32>
         %18 = bufferization.to_buffer %17 : tensor<?x?xf32> to memref<?x?xf32, strided<[256, 1], offset: ?>>
         memref.copy %18, %subview_1 : memref<?x?xf32, strided<[256, 1], offset: ?>> to memref<?x?xf32, strided<[256, 1], offset: ?>>
       }
