@@ -104,6 +104,14 @@ struct IndexArgData {
  */
 class CompileArgTracker {
 public:
+  struct ReduceRuntimeArgs {
+    Value readySemaphore;
+    Value tokenSemaphore;
+    Value tokenSemaphoreMcastDestStartX;
+    Value tokenSemaphoreMcastDestStartY;
+    Value tokenSemaphoreMcastDestEndX;
+    Value tokenSemaphoreMcastDestEndY;
+  };
   /**
    * @brief Process all input arguments of a function and create compile-arg values.
    *
@@ -194,6 +202,10 @@ public:
    */
   Value createTypedCompileArg(Location loc, OpBuilder &rewriter,
                               Operation *funcOp, Type resultType);
+
+  /// Get function-level reduce runtime args if available.
+  const ReduceRuntimeArgs *getReduceRuntimeArgs(Operation *funcOp) const;
+  ReduceRuntimeArgs *getReduceRuntimeArgs(Operation *funcOp);
 
   /**
    * @brief Append a value to the tracker core list.
@@ -293,6 +305,9 @@ private:
 
   /// Per-function explicit core coordinate values by mapped dim name.
   llvm::DenseMap<Operation *, CoreCoordByDim> funcToCoreCoordsByDim;
+
+  /// Optional per-function reduce_sum synchronization runtime args.
+  llvm::DenseMap<Operation *, ReduceRuntimeArgs> funcToReduceRuntimeArgs;
 };
 
 /**

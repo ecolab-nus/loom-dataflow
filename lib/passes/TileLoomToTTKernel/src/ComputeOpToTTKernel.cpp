@@ -30,8 +30,14 @@
 #include <optional>
 #include <tuple>
 
+// Loom dialect headers for loom.reduce_sum.
+#define GET_OP_CLASSES
+#include "LoomOps.h.inc"
+
 using namespace mlir;
 using namespace tt::ttkernel;
+using mlir::loom::CompileArgTracker;
+using mlir::loom::ReduceSumProtocol;
 
 namespace {
 
@@ -197,13 +203,6 @@ findNextNonViewUseInSameBlock(Value rootValue, Operation *anchorOp) {
   }
 
   return nextUse;
-}
-
-static bool isUsedAsLinalgOutput(Operation *user, Value value) {
-  auto linalgOp = dyn_cast<linalg::LinalgOp>(user);
-  if (!linalgOp)
-    return false;
-  return llvm::is_contained(linalgOp.getDpsInits(), value);
 }
 
 template <typename OpTy>
@@ -372,6 +371,276 @@ static void emitWaitFrontIfNeeded(ConversionPatternRewriter &rewriter, Location 
     return;
   CBWaitFrontOp::create(rewriter, loc, cb, i32Const(rewriter, loc, tiles));
   state[cb] = tiles;
+}
+
+struct ReduceRegionAnalysis {
+  Value ulX;
+  Value ulY;
+  Value lrX;
+  Value lrY;
+  Value participants;
+  Value inRegion;
+  Value isReducer;
+};
+
+struct ReduceRuntimeValues {
+  Value inCb;
+  Value outCb;
+  Value numTiles;
+  Value zero;
+  Value one;
+};
+
+/**
+ * @brief Supported tile-level combine operations for reduce lowering.
+ *
+ * @details Transport lowering is protocol-specific, while the tile combine
+ *          operation is selected independently via this enum.
+ */
+enum class ReduceCombineOp {
+  Sum
+};
+
+static Value toI32(ConversionPatternRewriter &rewriter, Location loc, Value value) {
+  if (!value)
+    return {};
+  Type type = value.getType();
+  if (type.isIndex())
+    return rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), value);
+
+  if (type.isInteger(32))
+    return value;
+
+  if (auto intTy = dyn_cast<IntegerType>(type)) {
+    if (intTy.getWidth() < 32)
+      return rewriter.create<arith::ExtSIOp>(loc, rewriter.getI32Type(), value);
+    if (intTy.getWidth() > 32)
+      return rewriter.create<arith::TruncIOp>(loc, rewriter.getI32Type(), value);
+  }
+
+  return {};
+}
+
+static LogicalResult validateReduceSumPlacement(::loom::ReduceSumOp op) {
+  for (Operation *parent = op->getParentOp(); parent;
+       parent = parent->getParentOp()) {
+    if (isa<scf::IfOp>(parent)) {
+      return op.emitOpError("must execute on all participating cores; "
+                            "reducer-only guarded control flow is unsupported");
+    }
+  }
+  return success();
+}
+
+static FailureOr<ReduceRegionAnalysis>
+analyzeReduceRegion(::loom::ReduceSumOp op, ConversionPatternRewriter &rewriter,
+                    std::shared_ptr<CompileArgTracker> tracker) {
+  if (!tracker)
+    return failure();
+
+  Location loc = op.getLoc();
+  auto parentFunc = op->getParentOfType<func::FuncOp>();
+  if (!parentFunc)
+    return failure();
+
+  Value coreX = tracker->getCoreCoordForDim(parentFunc.getOperation(), "x");
+  Value coreY = tracker->getCoreCoordForDim(parentFunc.getOperation(), "y");
+  if (!coreX || !coreY)
+    return failure();
+
+  Value ulX = toI32(rewriter, loc, op.getUlX());
+  Value ulY = toI32(rewriter, loc, op.getUlY());
+  Value lrX = toI32(rewriter, loc, op.getLrX());
+  Value lrY = toI32(rewriter, loc, op.getLrY());
+  coreX = toI32(rewriter, loc, coreX);
+  coreY = toI32(rewriter, loc, coreY);
+  if (!ulX || !ulY || !lrX || !lrY || !coreX || !coreY)
+    return failure();
+
+  Value one = i32Const(rewriter, loc, 1);
+  Value width =
+      arith::AddIOp::create(rewriter, loc,
+                            arith::SubIOp::create(rewriter, loc, lrX, ulX), one);
+  Value height =
+      arith::AddIOp::create(rewriter, loc,
+                            arith::SubIOp::create(rewriter, loc, lrY, ulY), one);
+  Value participants = arith::MulIOp::create(rewriter, loc, width, height);
+  Value geUlX =
+      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sge, coreX, ulX);
+  Value leLrX =
+      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sle, coreX, lrX);
+  Value geUlY =
+      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sge, coreY, ulY);
+  Value leLrY =
+      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sle, coreY, lrY);
+  Value inRegionX = arith::AndIOp::create(rewriter, loc, geUlX, leLrX);
+  Value inRegionY = arith::AndIOp::create(rewriter, loc, geUlY, leLrY);
+  Value inRegion = arith::AndIOp::create(rewriter, loc, inRegionX, inRegionY);
+
+  Value isReducerX =
+      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::eq, coreX, ulX);
+  Value isReducerY =
+      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::eq, coreY, ulY);
+  Value isReducer = arith::AndIOp::create(rewriter, loc, isReducerX, isReducerY);
+  Value isReducerInRegion = arith::AndIOp::create(rewriter, loc, inRegion, isReducer);
+  return ReduceRegionAnalysis{ulX, ulY, lrX, lrY, participants, inRegion,
+                              isReducerInRegion};
+}
+
+static FailureOr<ReduceRuntimeValues>
+materializeReduceRuntime(::loom::ReduceSumOp op, Value inCb, Value outCb,
+                         ConversionPatternRewriter &rewriter,
+                         std::shared_ptr<CompileArgTracker> tracker,
+                         const ReduceRegionAnalysis &analysis) {
+  (void)tracker;
+  (void)analysis;
+
+  if (!isa<CBType>(inCb.getType()) || !isa<CBType>(outCb.getType()))
+    return failure();
+
+  auto numTilesOpt = getNumTilesFromShapedType(op.getInput().getType());
+  if (!numTilesOpt)
+    return failure();
+
+  Location loc = op.getLoc();
+  Value zero = i32Const(rewriter, loc, 0);
+  Value one = i32Const(rewriter, loc, 1);
+  Value numTiles = i32Const(rewriter, loc, *numTilesOpt);
+  return ReduceRuntimeValues{inCb, outCb, numTiles, zero, one};
+}
+
+/**
+ * @brief Emit reducer combine op initialization for the selected operation.
+ */
+static void emitReduceCombineInit(ConversionPatternRewriter &rewriter,
+                                  Location loc, ReduceCombineOp combineOp) {
+  switch (combineOp) {
+  case ReduceCombineOp::Sum:
+    rewriter.create<AddBinaryTilesInitOp>(loc);
+    return;
+  }
+}
+
+/**
+ * @brief Emit a single tile combine operation for the selected reducer op.
+ */
+static void emitReduceCombine(ConversionPatternRewriter &rewriter, Location loc,
+                              Value lhsReg, Value rhsReg, Value dstReg,
+                              ReduceCombineOp combineOp) {
+  switch (combineOp) {
+  case ReduceCombineOp::Sum:
+    rewriter.create<AddBinaryTilesOp>(loc, lhsReg, rhsReg, dstReg);
+    return;
+  }
+}
+
+static void emitTileAccumulate(ConversionPatternRewriter &rewriter, Location loc,
+                               Value dstCb, Value srcCb, Value tiles,
+                               Value dstBase, Value srcBase,
+                               ReduceCombineOp combineOp) {
+  Value zero = i32Const(rewriter, loc, 0);
+  Value one = i32Const(rewriter, loc, 1);
+  Value reg0 = i32Const(rewriter, loc, 0);
+  Value reg1 = i32Const(rewriter, loc, 1);
+  rewriter.create<CopyTileInitOp>(loc, dstCb);
+  if (srcCb != dstCb)
+    rewriter.create<CopyTileInitOp>(loc, srcCb);
+  emitReduceCombineInit(rewriter, loc, combineOp);
+  rewriter.create<CBWaitFrontOp>(loc, srcCb, tiles);
+  scf::ForOp tileLoop = scf::ForOp::create(rewriter, loc, zero, tiles, one);
+  {
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(tileLoop.getBody());
+    Value tileIdx = tileLoop.getInductionVar();
+    Value dstIdx = arith::AddIOp::create(rewriter, loc, dstBase, tileIdx);
+    Value srcIdx = arith::AddIOp::create(rewriter, loc, srcBase, tileIdx);
+    TileRegsAcquireOp::create(rewriter, loc);
+    rewriter.create<CopyTileOp>(loc, dstCb, dstIdx, reg0);
+    rewriter.create<CopyTileOp>(loc, srcCb, srcIdx, reg1);
+    emitReduceCombine(rewriter, loc, reg0, reg1, reg0, combineOp);
+    TileRegsCommitOp::create(rewriter, loc);
+    TileRegsWaitOp::create(rewriter, loc);
+    PackTileOp::create(rewriter, loc, reg0, dstCb, dstIdx);
+    TileRegsReleaseOp::create(rewriter, loc);
+  }
+  rewriter.create<CBPopFrontOp>(loc, srcCb, tiles);
+}
+
+static void emitSeedAccumulatorFromInput(ConversionPatternRewriter &rewriter,
+                                         Location loc,
+                                         const ReduceRuntimeValues &runtime,
+                                         bool releaseInputAfterSeed) {
+  Value zero = runtime.zero;
+  Value one = runtime.one;
+  Value reg0 = i32Const(rewriter, loc, 0);
+  CBWaitFrontOp::create(rewriter, loc, runtime.inCb, runtime.numTiles);
+  CBReserveBackOp::create(rewriter, loc, runtime.outCb, runtime.numTiles);
+  rewriter.create<CopyTileInitOp>(loc, runtime.inCb);
+  scf::ForOp tileLoop =
+      scf::ForOp::create(rewriter, loc, zero, runtime.numTiles, one);
+  {
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(tileLoop.getBody());
+    Value tileIdx = tileLoop.getInductionVar();
+    TileRegsAcquireOp::create(rewriter, loc);
+    rewriter.create<CopyTileOp>(loc, runtime.inCb, tileIdx, reg0);
+    TileRegsCommitOp::create(rewriter, loc);
+    TileRegsWaitOp::create(rewriter, loc);
+    PackTileOp::create(rewriter, loc, reg0, runtime.outCb, tileIdx);
+    TileRegsReleaseOp::create(rewriter, loc);
+  }
+  if (releaseInputAfterSeed)
+    CBPopFrontOp::create(rewriter, loc, runtime.inCb, runtime.numTiles);
+}
+
+static void emitWorkerPreparePayload(ConversionPatternRewriter &rewriter,
+                                     Location loc,
+                                     const ReduceRuntimeValues &runtime) {
+  Value zero = runtime.zero;
+  Value one = runtime.one;
+  Value reg0 = i32Const(rewriter, loc, 0);
+  CBWaitFrontOp::create(rewriter, loc, runtime.inCb, runtime.numTiles);
+  CBReserveBackOp::create(rewriter, loc, runtime.outCb, runtime.numTiles);
+  rewriter.create<CopyTileInitOp>(loc, runtime.inCb);
+  scf::ForOp tileLoop =
+      scf::ForOp::create(rewriter, loc, zero, runtime.numTiles, one);
+  {
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(tileLoop.getBody());
+    Value tileIdx = tileLoop.getInductionVar();
+    TileRegsAcquireOp::create(rewriter, loc);
+    rewriter.create<CopyTileOp>(loc, runtime.inCb, tileIdx, reg0);
+    TileRegsCommitOp::create(rewriter, loc);
+    TileRegsWaitOp::create(rewriter, loc);
+    PackTileOp::create(rewriter, loc, reg0, runtime.outCb, tileIdx);
+    TileRegsReleaseOp::create(rewriter, loc);
+  }
+  CBPushBackOp::create(rewriter, loc, runtime.outCb, runtime.numTiles);
+}
+
+static void emitReducerGather(ConversionPatternRewriter &rewriter, Location loc,
+                              const ReduceRegionAnalysis &analysis,
+                              const ReduceRuntimeValues &runtime,
+                              ReduceSumProtocol protocol,
+                              ReduceCombineOp combineOp) {
+  bool singleSlot = protocol == ReduceSumProtocol::SingleSlot;
+  emitSeedAccumulatorFromInput(rewriter, loc, runtime,
+                               /*releaseInputAfterSeed=*/singleSlot);
+  scf::ForOp workerLoop = scf::ForOp::create(
+      rewriter, loc, runtime.one, analysis.participants, runtime.one);
+  {
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(workerLoop.getBody());
+    Value rank = workerLoop.getInductionVar();
+    Value srcCb = singleSlot ? runtime.inCb : runtime.outCb;
+    Value srcBase =
+        singleSlot ? runtime.zero
+                   : arith::MulIOp::create(rewriter, loc, rank, runtime.numTiles);
+    emitTileAccumulate(rewriter, loc, runtime.outCb, srcCb, runtime.numTiles,
+                       runtime.zero, srcBase, combineOp);
+  }
+
+  CBPushBackOp::create(rewriter, loc, runtime.outCb, runtime.numTiles);
 }
 
 template <typename BuilderFn>
@@ -1407,6 +1676,66 @@ public:
   }
 };
 
+class ConvertLoomReduceSumOp : public OpConversionPattern<::loom::ReduceSumOp> {
+public:
+  ConvertLoomReduceSumOp(TypeConverter &typeConverter, MLIRContext *context,
+                         std::shared_ptr<CompileArgTracker> tracker,
+                         ReduceSumProtocol protocol)
+      : OpConversionPattern<::loom::ReduceSumOp>(typeConverter, context),
+        tracker(std::move(tracker)), protocol(protocol) {}
+
+  LogicalResult
+  matchAndRewrite(::loom::ReduceSumOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (!isComputeKernel(op.getOperation()))
+      return failure();
+    if (failed(validateReduceSumPlacement(op)))
+      return failure();
+    if (adaptor.getOperands().size() < 2)
+      return failure();
+
+    auto analysis = analyzeReduceRegion(op, rewriter, tracker);
+    if (failed(analysis)) {
+      return rewriter.notifyMatchFailure(op, "failed to analyze reduce_sum region");
+    }
+
+    Value inCb = adaptor.getOperands().front();
+    Value outCb = adaptor.getOperands()[1];
+    auto runtime =
+        materializeReduceRuntime(op, inCb, outCb, rewriter, tracker, *analysis);
+    if (failed(runtime)) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to materialize reduce_sum runtime arguments");
+    }
+
+    Location loc = op.getLoc();
+    scf::IfOp inRegionIf =
+        rewriter.create<scf::IfOp>(loc, analysis->inRegion,
+                                   /*withElseRegion=*/true);
+    {
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPointToStart(&inRegionIf.getThenRegion().front());
+      scf::IfOp roleIf =
+          rewriter.create<scf::IfOp>(loc, analysis->isReducer,
+                                     /*withElseRegion=*/true);
+
+      rewriter.setInsertionPointToStart(&roleIf.getThenRegion().front());
+      emitReducerGather(rewriter, loc, *analysis, *runtime, protocol,
+                        ReduceCombineOp::Sum);
+
+      rewriter.setInsertionPointToStart(&roleIf.getElseRegion().front());
+      emitWorkerPreparePayload(rewriter, loc, *runtime);
+    }
+
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+private:
+  std::shared_ptr<CompileArgTracker> tracker;
+  ReduceSumProtocol protocol;
+};
+
 class ConvertMemrefCollapseShapeOp
     : public OpConversionPattern<memref::CollapseShapeOp> {
 public:
@@ -1484,10 +1813,13 @@ bool mlir::loom::shouldConvertComputeLinalgCopy(linalg::CopyOp op) {
 
 void mlir::loom::populateComputeOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
-    MLIRContext *context) {
+    MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker,
+    ReduceSumProtocol reduceSumProtocol) {
   patterns.add<ConvertLinalgFillOp>(typeConverter, context);
   patterns.add<ConvertLinalgCopyOp>(typeConverter, context);
   patterns.add<ConvertLinalgMatmulOp>(typeConverter, context);
+  patterns.add<ConvertLoomReduceSumOp>(typeConverter, context, std::move(tracker),
+                                       reduceSumProtocol);
   patterns.add<ConvertMemrefCollapseShapeOp>(typeConverter, context);
   patterns.add<ConvertFlashAttentionGenericOp>(typeConverter, context);
 }

@@ -6,6 +6,7 @@
 #ifndef LOOM_PASSES_TILELOOMTOTTKERNEL_MEMORYOPTOTTKERNEL_H
 #define LOOM_PASSES_TILELOOMTOTTKERNEL_MEMORYOPTOTTKERNEL_H
 
+#include "ComputeOpToTTKernel.h"
 #include "FuncOpToTTKernel.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/Value.h"
@@ -30,7 +31,8 @@ namespace loom {
  */
 void populateMemoryOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
-    MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker);
+    MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker,
+    ReduceSumProtocol reduceSumProtocol);
 
 /**
  * @brief Populate cleanup patterns that erase dead loom.alloc operations.

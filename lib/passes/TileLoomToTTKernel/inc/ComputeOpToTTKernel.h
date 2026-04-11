@@ -11,6 +11,11 @@
 
 namespace mlir::loom {
 
+enum class ReduceSumProtocol {
+  MultiSlot,
+  SingleSlot
+};
+
 /**
  * @brief Populate conversion patterns for compute ops (e.g., linalg.matmul).
  *
@@ -20,7 +25,9 @@ namespace mlir::loom {
  */
 void populateComputeOpConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &typeConverter,
-                                         mlir::MLIRContext *context);
+                                         mlir::MLIRContext *context,
+                                         std::shared_ptr<CompileArgTracker> tracker,
+                                         ReduceSumProtocol reduceSumProtocol);
 
 /// Returns true when this `linalg.generic` matches one of the supported
 /// FlashAttention compute forms handled by this pass.

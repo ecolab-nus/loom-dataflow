@@ -322,6 +322,13 @@ If you add or reorder per-memref kernel arguments, update all of:
 - any logic that assumes `kRuntimeArgsPerMemref == 11`
 - any downstream kernel source that reads those runtime args
 
+Current canonical runtime-arg order must follow `CompileArgTracker` allocation:
+
+1. per-memref 11-field tuple(s)
+2. optional reduce runtime semaphores (`ready`, `token`)
+3. core coordinates (`x`, `y`) from `scf.parallel` lowering
+4. remaining internal/runtime tail args
+
 ### 2. Core coordinate mapping
 
 If you change how spatial loops map to hardware dimensions, keep these aligned:
@@ -349,6 +356,22 @@ revisit all of:
 - `loom.host_memref_count`
 
 If host helpers stop carrying that attribute, the signature rewrite pass will fail.
+
+### 5. `reduce_sum` protocol CB roles
+
+Keep compute and transport lowering aligned for `reduce-sum-protocol`:
+
+- `single-slot`
+  - reducer seeds local partial from `inCb` into `outCb` (accumulator)
+  - worker payload transport targets reducer `inCb` receive slot
+  - reducer combines `inCb` payload into `outCb`
+- `multi-slot`
+  - worker payload transport targets rank-indexed slots in reducer `outCb`
+  - reducer combines from `outCb[rank * numTiles + tile]` into accumulator
+
+Reduction math must stay transport-independent. Transport picks source/destination
+CBs and sloting protocol; the reducer combine op is selected separately
+(currently sum via add-binary tile ops).
 
 ## Common Change Recipes
 

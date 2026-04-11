@@ -243,13 +243,15 @@ def _normalize_token(token):
     return tok
 
 
-def _parse_cb_or_int(token):
+def _parse_cb_or_int(token, semaphore_id_map=None):
     tok = _normalize_token(token)
     cb_match = re.search(r"CBIndex::c_(\d+)", tok)
     if cb_match:
         return int(cb_match.group(1))
     if re.fullmatch(r"\d+", tok):
         return int(tok)
+    if semaphore_id_map and tok in semaphore_id_map:
+        return int(semaphore_id_map[tok])
     raise ValueError(f"unsupported runtime token: {token}")
 
 
@@ -262,6 +264,14 @@ def _parse_core_coord_token(token):
     if re.fullmatch(r"\d+", tok):
         return int(tok)
     raise ValueError(f"unsupported core coord token: {token}")
+
+
+def _is_core_coord_token(token):
+    try:
+        _parse_core_coord_token(token)
+        return True
+    except ValueError:
+        return False
 
 
 def _extract_host_ttnn_metadata(lines):
@@ -461,13 +471,30 @@ def _extract_host_ttnn_metadata(lines):
             }
         )
 
-    core_coord_order = [
-        _parse_core_coord_token(runtime_tokens[runtime_prefix_count]),
-        _parse_core_coord_token(runtime_tokens[runtime_prefix_count + 1]),
+    # CompileArgTracker materializes core coordinates as two consecutive runtime
+    # args. Locate that pair and treat any tokens before/after it as additional
+    # runtime args that must keep relative order.
+    core_coord_start = None
+    for idx in range(runtime_prefix_count, len(runtime_tokens) - 1):
+        if _is_core_coord_token(runtime_tokens[idx]) and _is_core_coord_token(
+            runtime_tokens[idx + 1]
+        ):
+            core_coord_start = idx
+            break
+    if core_coord_start is None:
+        raise ValueError("failed to locate core coordinate runtime args")
+
+    runtime_pre_core = [
+        _parse_cb_or_int(token, semaphore_id_map=semaphore_id_map)
+        for token in runtime_tokens[runtime_prefix_count:core_coord_start]
     ]
-    runtime_tail = [
-        _parse_cb_or_int(token)
-        for token in runtime_tokens[runtime_prefix_count + 2 :]
+    core_coord_order = [
+        _parse_core_coord_token(runtime_tokens[core_coord_start]),
+        _parse_core_coord_token(runtime_tokens[core_coord_start + 1]),
+    ]
+    runtime_post_core = [
+        _parse_cb_or_int(token, semaphore_id_map=semaphore_id_map)
+        for token in runtime_tokens[core_coord_start + 2 :]
     ]
 
     return {
@@ -479,8 +506,9 @@ def _extract_host_ttnn_metadata(lines):
         "cb_layouts": cb_layouts,
         "semaphore_id_map": semaphore_id_map,
         "runtime_memrefs": runtime_memrefs,
+        "runtime_pre_core": runtime_pre_core,
         "core_coord_order": core_coord_order,
-        "runtime_tail": runtime_tail,
+        "runtime_post_core": runtime_post_core,
         "reader_kernel": reader_kernel,
         "writer_kernel": writer_kernel,
         "compute_kernel": compute_kernel,
@@ -514,8 +542,9 @@ def generate_host_ttnn_source(host_pybind_lines, source_cpp_filename):
     source.append(f"_SEMAPHORE_IDS = {repr(metadata['semaphore_id_map'])}\n")
     source.append("SEMAPHORE_COUNT = len(_SEMAPHORE_IDS)\n")
     source.append(f"_RUNTIME_MEMREFS = {repr(metadata['runtime_memrefs'])}\n")
+    source.append(f"_RUNTIME_PRE_CORE = {repr(metadata['runtime_pre_core'])}\n")
     source.append(f"_CORE_COORD_ORDER = {repr(metadata['core_coord_order'])}\n")
-    source.append(f"_RUNTIME_TAIL = {repr(metadata['runtime_tail'])}\n")
+    source.append(f"_RUNTIME_POST_CORE = {repr(metadata['runtime_post_core'])}\n")
     source.append(
         f"_KERNEL_SOURCES = {repr({'reader': metadata['reader_kernel'], 'writer': metadata['writer_kernel'], 'compute': metadata['compute_kernel']})}\n\n"
     )
@@ -661,6 +690,7 @@ def generate_host_ttnn_source(host_pybind_lines, source_cpp_filename):
     source.append(
         "                    runtime_args_for_core.extend([int(_SEMAPHORE_IDS[sender_sem]), int(_SEMAPHORE_IDS[receiver_sem])])\n"
     )
+    source.append("            runtime_args_for_core.extend(_RUNTIME_PRE_CORE)\n")
     source.append("            for coord_token in _CORE_COORD_ORDER:\n")
     source.append("                if coord_token == \"core_x\":\n")
     source.append("                    runtime_args_for_core.append(int(core_x))\n")
@@ -668,7 +698,7 @@ def generate_host_ttnn_source(host_pybind_lines, source_cpp_filename):
     source.append("                    runtime_args_for_core.append(int(core_y))\n")
     source.append("                else:\n")
     source.append("                    runtime_args_for_core.append(int(coord_token))\n")
-    source.append("            runtime_args_for_core.extend(_RUNTIME_TAIL)\n")
+    source.append("            runtime_args_for_core.extend(_RUNTIME_POST_CORE)\n")
     source.append("            runtime_args[core_x][core_y] = runtime_args_for_core\n")
     source.append("\n")
     source.append("    reader_kernel_descriptor = ttnn.KernelDescriptor(\n")

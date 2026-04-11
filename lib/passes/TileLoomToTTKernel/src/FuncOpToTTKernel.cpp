@@ -59,6 +59,8 @@ constexpr llvm::StringLiteral kDMProcessorAttrName =
     "loom.ttkernel.dm_processor";
 constexpr llvm::StringLiteral kMergedBIntoWriterStrategy =
     "matmul_merge_b_reader_into_writer";
+constexpr llvm::StringLiteral kHasReduceSumAttrName =
+    "loom.ttkernel.has_reduce_sum";
 constexpr llvm::StringLiteral kReaderDataMovementRole = "reader";
 constexpr llvm::StringLiteral kWriterDataMovementRole = "writer";
 constexpr llvm::StringLiteral kDMProcessorRISCV0 = "riscv0";
@@ -509,6 +511,29 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     }
   }
 
+  if (func->hasAttr(kHasReduceSumAttrName) &&
+      !funcToReduceRuntimeArgs.count(func.getOperation())) {
+    Value readySemaphore =
+        createGetArgValOp(loc, rewriter, func, rewriter.getI32Type());
+    Value tokenSemaphore =
+        createGetArgValOp(loc, rewriter, func, rewriter.getI32Type());
+    Value tokenSemaphoreMcastDestStartX =
+        createGetArgValOp(loc, rewriter, func, rewriter.getI32Type());
+    Value tokenSemaphoreMcastDestStartY =
+        createGetArgValOp(loc, rewriter, func, rewriter.getI32Type());
+    Value tokenSemaphoreMcastDestEndX =
+        createGetArgValOp(loc, rewriter, func, rewriter.getI32Type());
+    Value tokenSemaphoreMcastDestEndY =
+        createGetArgValOp(loc, rewriter, func, rewriter.getI32Type());
+    funcToReduceRuntimeArgs[func.getOperation()] =
+        ReduceRuntimeArgs{readySemaphore,
+                          tokenSemaphore,
+                          tokenSemaphoreMcastDestStartX,
+                          tokenSemaphoreMcastDestStartY,
+                          tokenSemaphoreMcastDestEndX,
+                          tokenSemaphoreMcastDestEndY};
+  }
+
   return success();
 }
 
@@ -585,6 +610,22 @@ Value mlir::loom::CompileArgTracker::createTypedCompileArg(
   if (!funcOp || !resultType)
     return nullptr;
   return createGetArgValOp(loc, rewriter, funcOp, resultType);
+}
+
+const mlir::loom::CompileArgTracker::ReduceRuntimeArgs *
+mlir::loom::CompileArgTracker::getReduceRuntimeArgs(Operation *funcOp) const {
+  auto it = funcToReduceRuntimeArgs.find(funcOp);
+  if (it == funcToReduceRuntimeArgs.end())
+    return nullptr;
+  return &it->second;
+}
+
+mlir::loom::CompileArgTracker::ReduceRuntimeArgs *
+mlir::loom::CompileArgTracker::getReduceRuntimeArgs(Operation *funcOp) {
+  auto it = funcToReduceRuntimeArgs.find(funcOp);
+  if (it == funcToReduceRuntimeArgs.end())
+    return nullptr;
+  return &it->second;
 }
 
 void mlir::loom::CompileArgTracker::appendToCoreList(Operation *funcOp, Value value) {
@@ -830,6 +871,12 @@ static bool isComputeOp(Operation *op) {
   return !isLoomDataMovementOrMetadataOp(op);
 }
 
+static bool containsReduceSumOp(func::FuncOp func) {
+  bool hasReduce = false;
+  func.walk([&](::loom::ReduceSumOp) { hasReduce = true; });
+  return hasReduce;
+}
+
 /**
  * @brief Specialize a function for compute-only execution.
  *
@@ -913,6 +960,10 @@ static func::FuncOp makeWriterFunc(func::FuncOp func) {
 
   SmallVector<Operation *, 8> opsToErase;
   writerFunc.walk([&](Operation *op) {
+    if (isa<::loom::ReduceSumOp>(op)) {
+      // Keep reduce_sum in writer kernels so transport lowering can run there.
+      return;
+    }
     if (isComputeOp(op)) {
       opsToErase.push_back(op);
     }  else if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(op)) {
@@ -948,9 +999,12 @@ public:
         builder(hostFunc.getContext()), kind(kind) {}
 
   void run() {
+    hasReduceSum = hostFunc->hasAttr(kHasReduceSumAttrName) ||
+                   containsReduceSumOp(originalFunc);
     inferCoreCoordArgOrder();
     collectDramInfos();
     collectBroadcastRegions();
+    collectReduceSumRegion();
     collectCbInfos();
     annotateHostSignatureMetadata();
     eraseNonHostOps();
@@ -1009,6 +1063,14 @@ private:
     std::string idVarName;
     std::string kernelSource;
     std::string configExpr;
+  };
+
+  struct ReduceRegionInfo {
+    bool hasRegion = false;
+    std::string ulXExpr;
+    std::string ulYExpr;
+    std::string lrXExpr;
+    std::string lrYExpr;
   };
 
   static constexpr unsigned kRuntimeArgsPerMemref = 11;
@@ -1487,6 +1549,40 @@ private:
     });
   }
 
+  void collectReduceSumRegion() {
+    reduceRegion = ReduceRegionInfo{};
+
+    if (!hasReduceSum)
+      return;
+    if (parallelIvExprByValue.empty())
+      collectParallelIvExprs();
+
+    hostFunc.walk([&](::loom::ReduceSumOp op) {
+      if (reduceRegion.hasRegion)
+        return;
+
+      Value ulX = op.getUlX();
+      Value ulY = op.getUlY();
+      Value lrX = op.getLrX();
+      Value lrY = op.getLrY();
+      if (!ulX || !ulY || !lrX || !lrY)
+        return;
+
+      auto ulXExpr = buildIndexExpr(ulX, parallelIvExprByValue);
+      auto ulYExpr = buildIndexExpr(ulY, parallelIvExprByValue);
+      auto lrXExpr = buildIndexExpr(lrX, parallelIvExprByValue);
+      auto lrYExpr = buildIndexExpr(lrY, parallelIvExprByValue);
+      if (!ulXExpr || !ulYExpr || !lrXExpr || !lrYExpr)
+        return;
+
+      reduceRegion.hasRegion = true;
+      reduceRegion.ulXExpr = *ulXExpr;
+      reduceRegion.ulYExpr = *ulYExpr;
+      reduceRegion.lrXExpr = *lrXExpr;
+      reduceRegion.lrYExpr = *lrYExpr;
+    });
+  }
+
   void collectCbInfos() {
     llvm::DenseMap<Value, SmallVector<Value, 4>> semaphoresByAlloc;
     hostFunc.walk([&](::loom::SemaphoreTakeOp sem) {
@@ -1760,6 +1856,12 @@ private:
                "_mcast_receiver_semaphore_addr = "
                "tt_metal::CreateSemaphore(program, all_cores, INVALID);");
     }
+    if (!hasReduceSum)
+      return;
+    emitLine("auto reduce_sum_ready_semaphore_addr = "
+             "tt_metal::CreateSemaphore(program, all_cores, INVALID);");
+    emitLine("auto reduce_sum_token_semaphore_addr = "
+             "tt_metal::CreateSemaphore(program, all_cores, INVALID);");
   }
 
   std::string getPybindCallbackTensorExpr(const DramBufferInfo &info) const {
@@ -1930,6 +2032,33 @@ private:
                "_lr_y - " + prefix + "_ul_y + 1)) - 1);");
     }
 
+    if (hasReduceSum && reduceRegion.hasRegion) {
+      emitLine("std::size_t reduce_sum_ul_x = static_cast<std::size_t>(" +
+               reduceRegion.ulXExpr + ");");
+      emitLine("std::size_t reduce_sum_ul_y = static_cast<std::size_t>(" +
+               reduceRegion.ulYExpr + ");");
+      emitLine("std::size_t reduce_sum_lr_x = static_cast<std::size_t>(" +
+               reduceRegion.lrXExpr + ");");
+      emitLine("std::size_t reduce_sum_lr_y = static_cast<std::size_t>(" +
+               reduceRegion.lrYExpr + ");");
+
+      emitLine("CoreCoord reduce_sum_dest_start_core = {reduce_sum_ul_x, reduce_sum_ul_y};");
+      emitLine("CoreCoord reduce_sum_dest_end_core = {reduce_sum_lr_x, reduce_sum_lr_y};");
+
+      emitLine("auto reduce_sum_dest_start_physical = device->worker_core_from_logical_core(reduce_sum_dest_start_core);");
+      emitLine("auto reduce_sum_dest_end_physical = device->worker_core_from_logical_core(reduce_sum_dest_end_core);");
+
+      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_start_x = (std::uint32_t)reduce_sum_dest_start_physical.x;");
+      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_start_y = (std::uint32_t)reduce_sum_dest_start_physical.y;");
+      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_end_x = (std::uint32_t)reduce_sum_dest_end_physical.x;");
+      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_end_y = (std::uint32_t)reduce_sum_dest_end_physical.y;");
+    } else if (hasReduceSum) {
+      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_start_x = 0;");
+      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_start_y = 0;");
+      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_end_x = 0;");
+      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_end_y = 0;");
+    }
+
     auto emitMulticastTuple = [&](const DramBufferInfo &info) {
       if (!info.isInput || !info.hasBroadcastRegion) {
         emitLine("0,");
@@ -1969,6 +2098,23 @@ private:
       emitMulticastTuple(info);
     }
 
+    // Keep runtime-arg order aligned with CompileArgTracker creation order:
+    // 1) per-memref runtime tuple(s)
+    // 2) optional reduce runtime semaphores + token mcast physical bounds
+    // 3) core coordinates from scf.parallel lowering
+    // 4) remaining CB/runtime tail
+    //
+    // This must match the indices consumed by generated reader/writer/compute
+    // kernels, which are allocated via createGetArgValOp/createTypedCompileArg.
+    if (hasReduceSum) {
+      emitLine("reduce_sum_ready_semaphore_addr,");
+      emitLine("reduce_sum_token_semaphore_addr,");
+      emitLine("reduce_sum_token_mcast_dest_noc_start_x,");
+      emitLine("reduce_sum_token_mcast_dest_noc_start_y,");
+      emitLine("reduce_sum_token_mcast_dest_noc_end_x,");
+      emitLine("reduce_sum_token_mcast_dest_noc_end_y,");
+    }
+
     emitLine(coreCoordArg0Expr + ",");
     emitLine(coreCoordArg1Expr + ",");
 
@@ -1989,7 +2135,6 @@ private:
       emitLine("static_cast<uint32_t>(CBIndex::c_" +
                std::to_string(cbIndex) + "),");
     }
-
     emitLine("};");
 
     emitLine("tt_metal::SetRuntimeArgs(program, reader_id, core, runtime_args_for_core);");
@@ -2052,6 +2197,8 @@ private:
   SmallVector<std::string, 8> emittedTilesVars;
   std::string coreCoordArg0Expr = "core.x";
   std::string coreCoordArg1Expr = "core.y";
+  bool hasReduceSum = false;
+  ReduceRegionInfo reduceRegion;
 };
 
 /**
@@ -2093,6 +2240,7 @@ class FunctionSpecializer {
 public:
   FunctionSpecializer(ModuleOp module, func::FuncOp func)
       : module(module), originalFunc(func) {
+    const bool hasReduceSum = containsReduceSumOp(func);
     // Create specialized versions
     auto computeFunc = makeComputeFunc(func);
     auto readerFunc = makeReaderFunc(func);
@@ -2124,6 +2272,14 @@ public:
         attrBuilder.getStringAttr(
             getDataMovementKernelSpec(DataMovementKernelRole::Writer)
                 .processorAttrValue));
+    if (hasReduceSum) {
+      auto reduceAttr = attrBuilder.getUnitAttr();
+      computeFunc->setAttr(kHasReduceSumAttrName, reduceAttr);
+      readerFunc->setAttr(kHasReduceSumAttrName, reduceAttr);
+      writerFunc->setAttr(kHasReduceSumAttrName, reduceAttr);
+      hostCppFunc->setAttr(kHasReduceSumAttrName, reduceAttr);
+      hostPybindFunc->setAttr(kHasReduceSumAttrName, reduceAttr);
+    }
 
     // Insert specialized functions into the module (before the original)
     module.insert(func, computeFunc);

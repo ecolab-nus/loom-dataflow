@@ -113,6 +113,272 @@ static bool isWriterKernel(Operation *op) {
   return name.ends_with("__writer");
 }
 
+static Value i32Const(ConversionPatternRewriter &rewriter, Location loc,
+                      int32_t value) {
+  return rewriter.create<arith::ConstantIntOp>(loc, value, 32);
+}
+
+struct ReduceTransportAnalysis {
+  Value ulX;
+  Value ulY;
+  Value lrX;
+  Value lrY;
+  Value participants;
+  Value workerCount;
+  Value rank;
+  Value inRegion;
+  Value isReducer;
+};
+
+struct ReduceTransportRuntimeValues {
+  Value payloadCb;
+  Value outCb;
+  Value reducerReceiveCb;
+  Value numTiles;
+  Value payloadBytes;
+  Value reducerDestNocX;
+  Value reducerDestNocY;
+  Value readySemaphorePtr;
+  Value tokenSemaphoreAddr;
+  Value tokenSemaphorePtr;
+  Value tokenSemaphoreMcastNocAddr;
+  Value reducerReadySemaphoreNocAddr;
+  Value payloadReadPtr;
+  Value reducerOutWritePtr;
+  Value reducerInWritePtr;
+  Value zero;
+  Value one;
+  Value nocId;
+};
+
+static Value toI32ForReduceTransport(ConversionPatternRewriter &rewriter,
+                                     Location loc, Value value) {
+  if (!value)
+    return {};
+  Type type = value.getType();
+  if (type.isIndex())
+    return rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), value);
+  if (type.isInteger(32))
+    return value;
+  if (auto intTy = dyn_cast<IntegerType>(type)) {
+    if (intTy.getWidth() < 32)
+      return rewriter.create<arith::ExtSIOp>(loc, rewriter.getI32Type(), value);
+    if (intTy.getWidth() > 32)
+      return rewriter.create<arith::TruncIOp>(loc, rewriter.getI32Type(), value);
+  }
+  return {};
+}
+
+static FailureOr<ReduceTransportAnalysis> analyzeReduceTransportRegion(
+    ::loom::ReduceSumOp op, ConversionPatternRewriter &rewriter,
+    std::shared_ptr<CompileArgTracker> tracker) {
+  if (!tracker)
+    return failure();
+  auto parentFunc = op->getParentOfType<func::FuncOp>();
+  if (!parentFunc)
+    return failure();
+  Location loc = op.getLoc();
+
+  Value coreX =
+      toI32ForReduceTransport(rewriter, loc,
+                              tracker->getCoreCoordForDim(parentFunc, "x"));
+  Value coreY =
+      toI32ForReduceTransport(rewriter, loc,
+                              tracker->getCoreCoordForDim(parentFunc, "y"));
+  Value ulX = toI32ForReduceTransport(rewriter, loc, op.getUlX());
+  Value ulY = toI32ForReduceTransport(rewriter, loc, op.getUlY());
+  Value lrX = toI32ForReduceTransport(rewriter, loc, op.getLrX());
+  Value lrY = toI32ForReduceTransport(rewriter, loc, op.getLrY());
+  if (!coreX || !coreY || !ulX || !ulY || !lrX || !lrY)
+    return failure();
+
+  Value one = i32Const(rewriter, loc, 1);
+  Value width =
+      arith::AddIOp::create(rewriter, loc,
+                            arith::SubIOp::create(rewriter, loc, lrX, ulX), one);
+  Value height =
+      arith::AddIOp::create(rewriter, loc,
+                            arith::SubIOp::create(rewriter, loc, lrY, ulY), one);
+  Value participants = arith::MulIOp::create(rewriter, loc, width, height);
+  Value workerCount = arith::SubIOp::create(rewriter, loc, participants, one);
+
+  Value relX = arith::SubIOp::create(rewriter, loc, coreX, ulX);
+  Value relY = arith::SubIOp::create(rewriter, loc, coreY, ulY);
+  Value rank = arith::AddIOp::create(
+      rewriter, loc, arith::MulIOp::create(rewriter, loc, relY, width), relX);
+
+  Value geUlX =
+      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sge, coreX, ulX);
+  Value leLrX =
+      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sle, coreX, lrX);
+  Value geUlY =
+      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sge, coreY, ulY);
+  Value leLrY =
+      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sle, coreY, lrY);
+  Value inRegion = arith::AndIOp::create(
+      rewriter, loc, arith::AndIOp::create(rewriter, loc, geUlX, leLrX),
+      arith::AndIOp::create(rewriter, loc, geUlY, leLrY));
+
+  Value isReducer = arith::AndIOp::create(
+      rewriter, loc,
+      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::eq, coreX, ulX),
+      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::eq, coreY, ulY));
+  return ReduceTransportAnalysis{ulX, ulY, lrX, lrY, participants, workerCount,
+                                 rank, inRegion, isReducer};
+}
+
+static FailureOr<ReduceTransportRuntimeValues> materializeReduceTransportRuntime(
+    ::loom::ReduceSumOp op, Value payloadCb, Value outCb, Value reducerReceiveCb,
+    ConversionPatternRewriter &rewriter,
+    std::shared_ptr<CompileArgTracker> tracker,
+    const ReduceTransportAnalysis &analysis) {
+  if (!tracker)
+    return failure();
+  if (!isa<CBType>(payloadCb.getType()) || !isa<CBType>(outCb.getType()) ||
+      !isa<CBType>(reducerReceiveCb.getType()))
+    return failure();
+
+  auto numTilesOpt = getNumTilesFromShapedType(op.getInput().getType());
+  if (!numTilesOpt)
+    return failure();
+  auto parentFunc = op->getParentOfType<func::FuncOp>();
+  if (!parentFunc)
+    return failure();
+  auto *reduceRuntimeArgs =
+      tracker->getReduceRuntimeArgs(parentFunc.getOperation());
+  if (!reduceRuntimeArgs)
+    return failure();
+
+  Location loc = op.getLoc();
+  Value zero = i32Const(rewriter, loc, 0);
+  Value one = i32Const(rewriter, loc, 1);
+  Value nocId = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI8Type(), 0);
+  Value numTiles = i32Const(rewriter, loc, *numTilesOpt);
+  Value payloadBytes = arith::MulIOp::create(
+      rewriter, loc, numTiles, GetTileSizeOp::create(rewriter, loc, payloadCb));
+
+  Value readySemaphoreAddr =
+      GetSemaphoreOp::create(rewriter, loc, reduceRuntimeArgs->readySemaphore);
+  Value tokenSemaphoreAddr =
+      GetSemaphoreOp::create(rewriter, loc, reduceRuntimeArgs->tokenSemaphore);
+  Value readySemaphorePtr =
+      CastToL1PtrOp::create(rewriter, loc, readySemaphoreAddr);
+  Value tokenSemaphorePtr =
+      CastToL1PtrOp::create(rewriter, loc, tokenSemaphoreAddr);
+  Value tokenSemaphoreMcastNocAddr =
+      rewriter.create<ExperimentalGetNocMulticastAddrOp>(
+                  loc, reduceRuntimeArgs->tokenSemaphoreMcastDestStartX,
+                  reduceRuntimeArgs->tokenSemaphoreMcastDestStartY,
+                  reduceRuntimeArgs->tokenSemaphoreMcastDestEndX,
+                  reduceRuntimeArgs->tokenSemaphoreMcastDestEndY,
+                  tokenSemaphoreAddr, nocId)
+          .getResult();
+  // GetNocAddrOp expects physical NOC coordinates; reuse reducer destination
+  // physical coords provided by reduce runtime args.
+  Value reducerDestNocX = reduceRuntimeArgs->tokenSemaphoreMcastDestStartX;
+  Value reducerDestNocY = reduceRuntimeArgs->tokenSemaphoreMcastDestStartY;
+  Value reducerReadySemaphoreNocAddr =
+      GetNocAddrOp::create(rewriter, loc, reducerDestNocX, reducerDestNocY,
+                           readySemaphoreAddr);
+
+  return ReduceTransportRuntimeValues{
+      payloadCb,
+      outCb,
+      reducerReceiveCb,
+      numTiles,
+      payloadBytes,
+      reducerDestNocX,
+      reducerDestNocY,
+      readySemaphorePtr,
+      tokenSemaphoreAddr,
+      tokenSemaphorePtr,
+      tokenSemaphoreMcastNocAddr,
+      reducerReadySemaphoreNocAddr,
+      GetReadPtrOp::create(rewriter, loc, payloadCb),
+      GetWritePtrOp::create(rewriter, loc, outCb),
+      GetWritePtrOp::create(rewriter, loc, reducerReceiveCb),
+      zero,
+      one,
+      nocId};
+}
+
+static void emitWorkerReduceTransport(ConversionPatternRewriter &rewriter,
+                                      Location loc,
+                                      const ReduceTransportAnalysis &analysis,
+                                      const ReduceTransportRuntimeValues &runtime,
+                                      ReduceSumProtocol protocol) {
+  CBWaitFrontOp::create(rewriter, loc, runtime.payloadCb, runtime.numTiles);
+  if (protocol == ReduceSumProtocol::MultiSlot) {
+    NocSemaphoreWaitOp::create(rewriter, loc, runtime.tokenSemaphorePtr,
+                               runtime.zero);
+  } else {
+    NocSemaphoreWaitMinOp::create(rewriter, loc, runtime.tokenSemaphorePtr,
+                               analysis.rank);
+  }
+
+  // In single-slot mode workers are token-serialized and target the reducer
+  // receive CB (inCb) slot. Multi-slot keeps rank-indexed placement in outCb.
+  Value reducerWriteBase = (protocol == ReduceSumProtocol::SingleSlot)
+                               ? runtime.reducerInWritePtr
+                               : runtime.reducerOutWritePtr;
+  Value slot =
+      (protocol == ReduceSumProtocol::SingleSlot) ? runtime.zero : analysis.rank;
+  Value slotOffsetBytes =
+      arith::MulIOp::create(rewriter, loc, slot, runtime.payloadBytes);
+  Value reducerSlotL1 = arith::AddIOp::create(
+      rewriter, loc, reducerWriteBase, slotOffsetBytes);
+  Value reducerSlotNocAddr = GetNocAddrOp::create(
+      rewriter, loc, runtime.reducerDestNocX, runtime.reducerDestNocY,
+      reducerSlotL1);
+
+  NocAsyncWriteOp::create(rewriter, loc, runtime.payloadReadPtr,
+                          reducerSlotNocAddr, runtime.payloadBytes);
+  NocAsyncWriteBarrierOp::create(rewriter, loc);
+  NocSemaphoreIncOp::create(rewriter, loc, runtime.reducerReadySemaphoreNocAddr,
+                            runtime.one, runtime.nocId);
+  CBPopFrontOp::create(rewriter, loc, runtime.payloadCb, runtime.numTiles);
+}
+
+static void emitReducerReduceTransportSync(
+    ConversionPatternRewriter &rewriter, Location loc,
+    const ReduceTransportAnalysis &analysis,
+    const ReduceTransportRuntimeValues &runtime, ReduceSumProtocol protocol) {
+  auto falseAttr = rewriter.getBoolAttr(false);
+  Value workerTiles = arith::MulIOp::create(
+      rewriter, loc, analysis.workerCount, runtime.numTiles);
+  NocSemaphoreSetOp::create(rewriter, loc, runtime.readySemaphorePtr, runtime.zero);
+  NocSemaphoreSetOp::create(rewriter, loc, runtime.tokenSemaphorePtr, runtime.zero);
+
+  if (protocol == ReduceSumProtocol::MultiSlot) {
+    NocSemaphoreWaitOp::create(rewriter, loc, runtime.readySemaphorePtr,
+                               analysis.workerCount);
+    CBPushBackOp::create(rewriter, loc, runtime.outCb, workerTiles);
+    return;
+  }
+
+  NocSemaphoreSetOp::create(rewriter, loc, runtime.tokenSemaphorePtr, runtime.one);
+  NocSemaphoreSetMulticastOp::create(
+      rewriter, loc, runtime.tokenSemaphoreAddr, runtime.tokenSemaphoreMcastNocAddr,
+      analysis.workerCount, falseAttr, falseAttr);
+
+  scf::ForOp workerLoop = scf::ForOp::create(
+      rewriter, loc, runtime.one, analysis.participants, runtime.one);
+  {
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(workerLoop.getBody());
+    Value rank = workerLoop.getInductionVar();
+    NocSemaphoreWaitMinOp::create(rewriter, loc, runtime.readySemaphorePtr, rank);
+    CBReserveBackOp::create(rewriter, loc, runtime.reducerReceiveCb, runtime.numTiles);
+    CBPushBackOp::create(rewriter, loc, runtime.reducerReceiveCb, runtime.numTiles);
+    Value nextToken = arith::AddIOp::create(rewriter, loc, rank, runtime.one);
+    NocSemaphoreSetOp::create(rewriter, loc, runtime.tokenSemaphorePtr, nextToken);
+    NocSemaphoreSetMulticastOp::create(
+        rewriter, loc, runtime.tokenSemaphoreAddr,
+        runtime.tokenSemaphoreMcastNocAddr, analysis.workerCount, falseAttr,
+        falseAttr);
+  }
+}
+
 static std::optional<std::pair<int64_t, int64_t>>
 parseBroadcastAttr(ArrayAttr broadcastAttr) {
   if (!broadcastAttr || broadcastAttr.size() < 2)
@@ -673,11 +939,21 @@ struct ConvertLoomSemaphoreTakeOp
     bool isReductionScaleCb = op->hasAttr(kReductionScaleCbAttrName);
     bool isDataMovementScaleInitTarget =
         isReductionScaleCb && isWriterKernel(op);
+    bool isWriterReduceTransportTarget = false;
+    if (isWriterKernel(op)) {
+      for (Operation *user : op.getResult().getUsers()) {
+        if (isa<::loom::ReduceSumOp>(user)) {
+          isWriterReduceTransportTarget = true;
+          break;
+        }
+      }
+    }
 
     // semaphore_take participates in CB handle materialization only for
     // compute kernels. In reader/writer/host kernels, keep the underlying
     // memref flow so loom.copy rewrites can consume it and erase the op.
-    if (!isComputeKernel(op) && !isDataMovementScaleInitTarget) {
+    if (!isComputeKernel(op) && !isDataMovementScaleInitTarget &&
+        !isWriterReduceTransportTarget) {
       rewriter.replaceOp(op, op.getSource());
       return success();
     }
@@ -887,8 +1163,6 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
     //   - x > 1, y > 1  → broadcast all
     //   - otherwise     → unicast
     bool isBroadcast = false;
-    bool isBroadcastX = false;
-    bool isBroadcastAll = false;
     auto parsedBroadcast = parseBroadcastAttr(op.getBroadcastAttr());
     if (parsedBroadcast) {
       int64_t xBroadcast = parsedBroadcast->first;
@@ -897,8 +1171,6 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
       bool hasHorizontalBroadcast = xBroadcast > 1;
       bool hasVerticalBroadcast = yBroadcast > 1;
       isBroadcast = hasHorizontalBroadcast || hasVerticalBroadcast;
-      isBroadcastX = hasHorizontalBroadcast;
-      isBroadcastAll = hasHorizontalBroadcast && hasVerticalBroadcast;
     }
 
     if (isBroadcast) {
@@ -1200,6 +1472,74 @@ private:
   std::shared_ptr<CompileArgTracker> tracker;
 };
 
+/**
+ * @brief Convert `loom.reduce_sum` transport in writer kernels.
+ *
+ * @details Writer workers send reducer payload tiles using protocol-specific
+ *          semaphore ordering. Reducer-side math remains in compute kernels.
+ */
+struct ConvertLoomReduceSumTransportOp
+    : public OpConversionPattern<::loom::ReduceSumOp> {
+  using OpConversionPattern<::loom::ReduceSumOp>::OpConversionPattern;
+
+  ConvertLoomReduceSumTransportOp(TypeConverter &typeConverter,
+                                  MLIRContext *context,
+                                  std::shared_ptr<CompileArgTracker> tracker,
+                                  ReduceSumProtocol protocol)
+      : OpConversionPattern<::loom::ReduceSumOp>(typeConverter, context),
+        tracker(std::move(tracker)), protocol(protocol) {}
+
+  LogicalResult
+  matchAndRewrite(::loom::ReduceSumOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (!isWriterKernel(op.getOperation()))
+      return failure();
+    if (adaptor.getOperands().size() < 2)
+      return failure();
+
+    // Compute stage materializes payload into the reduce_sum output CB.
+    Value reducerReceiveCb = adaptor.getOperands().front();
+    Value payloadCb = adaptor.getOperands()[1];
+    Value outCb = adaptor.getOperands()[1];
+    if (!isa<CBType>(reducerReceiveCb.getType()) ||
+        !isa<CBType>(payloadCb.getType()) || !isa<CBType>(outCb.getType()))
+      return failure();
+
+    auto analysis = analyzeReduceTransportRegion(op, rewriter, tracker);
+    if (failed(analysis))
+      return rewriter.notifyMatchFailure(
+          op, "failed to analyze reduce_sum transport region");
+    auto runtime = materializeReduceTransportRuntime(
+        op, payloadCb, outCb, reducerReceiveCb, rewriter, tracker, *analysis);
+    if (failed(runtime))
+      return rewriter.notifyMatchFailure(
+          op, "failed to materialize reduce_sum transport runtime");
+
+    Location loc = op.getLoc();
+    scf::IfOp inRegionIf =
+        rewriter.create<scf::IfOp>(loc, analysis->inRegion,
+                                   /*withElseRegion=*/false);
+    {
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPointToStart(&inRegionIf.getThenRegion().front());
+      scf::IfOp roleIf = rewriter.create<scf::IfOp>(
+          loc, analysis->isReducer, /*withElseRegion=*/true);
+      rewriter.setInsertionPointToStart(&roleIf.getThenRegion().front());
+      emitReducerReduceTransportSync(rewriter, loc, *analysis, *runtime,
+                                     protocol);
+      rewriter.setInsertionPointToStart(&roleIf.getElseRegion().front());
+      emitWorkerReduceTransport(rewriter, loc, *analysis, *runtime, protocol);
+    }
+
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+private:
+  std::shared_ptr<CompileArgTracker> tracker;
+  ReduceSumProtocol protocol;
+};
+
 //===----------------------------------------------------------------------===//
 // loom.copy Compute Kernel Patterns
 //===----------------------------------------------------------------------===//
@@ -1354,12 +1694,16 @@ private:
 
 void mlir::loom::populateMemoryOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
-    MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker) {
+    MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker,
+    ReduceSumProtocol reduceSumProtocol) {
   // loom.semaphore / loom.copy patterns.
   patterns.add<ConvertLoomSemaphoreTakeOp>(typeConverter, context, tracker);
   patterns.add<ConvertLoomSemaphoreGiveOp>(typeConverter, context);
   patterns.add<ConvertLoomLoadOp>(typeConverter, context, tracker);
   patterns.add<ConvertLoomStoreOp>(typeConverter, context, tracker);
+  patterns.add<ConvertLoomReduceSumTransportOp>(typeConverter, context,
+                                                std::move(tracker),
+                                                reduceSumProtocol);
   // Reinterpret cast erasure.
   patterns.add<ConvertReinterpretCastOp>(typeConverter, context);
 }

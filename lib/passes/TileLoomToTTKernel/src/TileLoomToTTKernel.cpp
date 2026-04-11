@@ -28,6 +28,7 @@
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOpsTypes.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Support/CommandLine.h"
+#include <string>
 
 // Loom dialect headers for ::loom::AllocOp, ::loom::CopyOp, etc.
 #include "mlir/Interfaces/ViewLikeInterface.h"
@@ -249,6 +250,24 @@ static bool isComputeKernelFunc(func::FuncOp func) {
   return func.getName().ends_with("__compute");
 }
 
+static Value stripMemrefCasts(Value value) {
+  Value current = value;
+  while (auto cast = current.getDefiningOp<memref::CastOp>())
+    current = cast.getSource();
+  return current;
+}
+
+static FailureOr<ReduceSumProtocol>
+parseReduceSumProtocolOption(StringRef optionValue) {
+  std::string lowered = optionValue.trim().lower();
+  StringRef value(lowered);
+  if (value.empty() || value == "multi-slot")
+    return ReduceSumProtocol::MultiSlot;
+  if (value == "single-slot")
+    return ReduceSumProtocol::SingleSlot;
+  return failure();
+}
+
 class InsertMMInitPass
     : public PassWrapper<InsertMMInitPass, OperationPass<ModuleOp>> {
 public:
@@ -286,6 +305,13 @@ public:
 
       Block &entry = func.front();
       SmallVector<Value, 4> memrefCBs;
+      struct MemrefArgCBInfo {
+        BlockArgument arg;
+        Value cb;
+        bool isInput = false;
+        bool isOutput = false;
+      };
+      SmallVector<MemrefArgCBInfo, 4> memrefInfos;
       Operation *lastGetArgVal = nullptr;
       for (Operation &op : entry) {
         auto getArgVal = dyn_cast<GetArgValOp>(op);
@@ -296,10 +322,59 @@ public:
           memrefCBs.push_back(getArgVal.getResult());
       }
 
-      if (memrefCBs.size() < 3) {
+      unsigned memrefCbIndex = 0;
+      for (BlockArgument arg : entry.getArguments()) {
+        if (!isa<MemRefType, UnrankedMemRefType>(arg.getType()))
+          continue;
+        if (memrefCbIndex >= memrefCBs.size())
+          break;
+        memrefInfos.push_back({arg, memrefCBs[memrefCbIndex++]});
+      }
+
+      auto markRole = [&](BlockArgument arg, bool markInput) {
+        for (MemrefArgCBInfo &info : memrefInfos) {
+          if (info.arg != arg)
+            continue;
+          if (markInput)
+            info.isInput = true;
+          else
+            info.isOutput = true;
+          break;
+        }
+      };
+
+      func.walk([&](::loom::CopyOp copyOp) {
+        if (auto sourceRC =
+                copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>()) {
+          Value source = stripMemrefCasts(sourceRC.getSource());
+          if (auto sourceArg = dyn_cast<BlockArgument>(source)) {
+            if (sourceArg.getOwner() == &entry)
+              markRole(sourceArg, /*markInput=*/true);
+          }
+        }
+
+        if (auto destRC = copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>()) {
+          Value dest = stripMemrefCasts(destRC.getSource());
+          if (auto destArg = dyn_cast<BlockArgument>(dest)) {
+            if (destArg.getOwner() == &entry)
+              markRole(destArg, /*markInput=*/false);
+          }
+        }
+      });
+
+      SmallVector<Value, 4> inputCBs;
+      Value outputCB;
+      for (const MemrefArgCBInfo &info : memrefInfos) {
+        if (info.isInput)
+          inputCBs.push_back(info.cb);
+        if (!outputCB && info.isOutput)
+          outputCB = info.cb;
+      }
+
+      if (inputCBs.size() < 2 || !outputCB) {
         func.emitError()
-            << "expected at least 3 memref-backed CB compile args for mm_init "
-               "(first two inputs and last output)";
+            << "failed to infer mm_init CB roles; expected two input DRAM "
+               "memrefs and one output DRAM memref linked by loom.copy";
         signalPassFailure();
         return;
       }
@@ -311,8 +386,8 @@ public:
         builder.setInsertionPointToStart(&entry);
 
       Value transpose = builder.create<arith::ConstantIntOp>(func.getLoc(), 0, 32);
-      builder.create<MatmulInitOp>(func.getLoc(), memrefCBs[0], memrefCBs[1],
-                                   memrefCBs.back(), transpose);
+      builder.create<MatmulInitOp>(func.getLoc(), inputCBs[0], inputCBs[1],
+                                   outputCB, transpose);
     }
   }
 };
@@ -336,7 +411,12 @@ public:
             llvm::cl::desc(
                 "For linalg.matmul, keep the A reader on RISCV_1 and merge "
                 "the B reader into the writer kernel on RISCV_0"),
-            llvm::cl::init(false)) {}
+            llvm::cl::init(false)),
+        reduceSumProtocol(
+            *this, "reduce-sum-protocol",
+            llvm::cl::desc("reduce_sum synchronization protocol "
+                           "(multi-slot|single-slot)"),
+            llvm::cl::init("single-slot")) {}
 
   TileLoomToTTKernelPass(const TileLoomToTTKernelPass &other)
       : PassWrapper(other),
@@ -345,9 +425,15 @@ public:
             llvm::cl::desc(
                 "For linalg.matmul, keep the A reader on RISCV_1 and merge "
                 "the B reader into the writer kernel on RISCV_0"),
-            llvm::cl::init(false)) {
+            llvm::cl::init(false)),
+        reduceSumProtocol(
+            *this, "reduce-sum-protocol",
+            llvm::cl::desc("reduce_sum synchronization protocol "
+                           "(multi-slot|single-slot)"),
+            llvm::cl::init("single-slot")) {
     matmulMergeBReaderIntoWriter =
         static_cast<bool>(other.matmulMergeBReaderIntoWriter);
+    reduceSumProtocol = other.reduceSumProtocol;
   }
 
   StringRef getArgument() const override {
@@ -373,6 +459,7 @@ public:
   }
 
   Option<bool> matmulMergeBReaderIntoWriter;
+  Option<std::string> reduceSumProtocol;
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
@@ -417,6 +504,15 @@ public:
 
     // Create shared compile-arg tracker for index management.
     auto compileArgTracker = std::make_shared<CompileArgTracker>();
+    FailureOr<ReduceSumProtocol> reduceProtocol =
+        parseReduceSumProtocolOption(reduceSumProtocol);
+    if (failed(reduceProtocol)) {
+      module.emitError() << "invalid reduce-sum-protocol option: '"
+                         << reduceSumProtocol
+                         << "' (expected 'multi-slot' or 'single-slot')";
+      signalPassFailure();
+      return;
+    }
 
     // Create type converter (needed for memref -> CB conversion).
     TileLoomTypeConverter typeConverter;
@@ -481,6 +577,7 @@ public:
     target.addIllegalOp<::loom::SemaphoreTakeOp>();
     target.addIllegalOp<::loom::SemaphoreGiveOp>();
     target.addIllegalOp<::loom::CopyOp>();
+    target.addIllegalOp<::loom::ReduceSumOp>();
     
     // Mark memref operations that don't need conversion as legal
     // (they will be type-converted automatically)
@@ -563,9 +660,10 @@ public:
 
     // Add memory operation conversion patterns (loom.alloc / loom.copy)
     populateMemoryOpConversionPatterns(patterns, typeConverter, context,
-                                       compileArgTracker);
+                                       compileArgTracker, *reduceProtocol);
     // Add compute operation conversion patterns (e.g., linalg.matmul)
-    populateComputeOpConversionPatterns(patterns, typeConverter, context);
+    populateComputeOpConversionPatterns(patterns, typeConverter, context,
+                                        compileArgTracker, *reduceProtocol);
 
     // Apply conversion
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
