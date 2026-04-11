@@ -54,6 +54,9 @@ SmallVector<SmallVector<int64_t>> solveCandidateBlockSizes(unsigned numVars) {
   if (numVars == 3) {
     return {{32, 32, 512}};
   }
+  else if (numVars == 6) {
+    return {{64, 32, 64, 8, 1, 4}};
+  }
   SmallVector<int64_t> fallback(numVars, 64);
   return {fallback};
 }
