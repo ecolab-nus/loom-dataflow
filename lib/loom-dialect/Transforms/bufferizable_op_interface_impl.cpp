@@ -158,7 +158,48 @@ struct BufferizeToTensorOpInterface
                           const BufferizationOptions & /*options*/,
                           BufferizationState & /*state*/) const {
     auto bufferizeOp = cast<loom::BufferizeToTensorOp>(op);
-    replaceOpWithBufferizedValues(rewriter, op, bufferizeOp.getSource());
+    Value source = bufferizeOp.getSource();
+    auto sourceType = cast<MemRefType>(source.getType());
+    auto resultType = cast<RankedTensorType>(bufferizeOp.getType());
+
+    // When the source memref has higher rank than the result tensor (rank-
+    // reducing view that dropped unit dimensions), insert a
+    // memref.collapse_shape to match ranks before replacing.
+    if (sourceType.getRank() > resultType.getRank()) {
+      // Build reassociation: group each unit dim with the next kept dim.
+      // Kept dims are the non-unit static dims (and any dynamic dims).
+      SmallVector<int64_t> srcShape(sourceType.getShape());
+      int64_t srcRank = sourceType.getRank();
+      int64_t dstRank = resultType.getRank();
+
+      SmallVector<ReassociationIndices> reassoc;
+      ReassociationIndices current;
+      int64_t keptCount = 0;
+      for (int64_t i = 0; i < srcRank; ++i) {
+        current.push_back(i);
+        bool isUnit = (srcShape[i] == 1);
+        if (!isUnit || (keptCount == dstRank - 1)) {
+          // This is a kept dimension — flush the group.
+          if (keptCount < dstRank) {
+            reassoc.push_back(current);
+            current.clear();
+            ++keptCount;
+          }
+        }
+      }
+      // Remaining trailing dims go into the last group.
+      if (!current.empty() && !reassoc.empty()) {
+        reassoc.back().insert(reassoc.back().end(), current.begin(),
+                              current.end());
+      }
+
+      auto collapsedType = MemRefType::get(resultType.getShape(),
+                                           resultType.getElementType());
+      source = memref::CollapseShapeOp::create(rewriter, op->getLoc(),
+                                               collapsedType, source, reassoc);
+    }
+
+    replaceOpWithBufferizedValues(rewriter, op, source);
     return success();
   }
 };

@@ -766,15 +766,49 @@ struct FoldBufferizeToTensorConstants
     if (!constantsFolded && !needsTypeUpdate)
       return failure();
 
-    Type newResultType = resultType;
-    if (needsTypeUpdate) {
-      newResultType = BufferizeToTensorOp::inferResultType(
-          staticSizes, resultType.getElementType());
+    // bufferize_to_tensor may be rank-reducing: the sizes list matches the
+    // source memref rank, but unit dimensions (size == 1) are dropped in
+    // the result tensor.  When all sizes are static, strip unit dimensions
+    // so that the sizes attribute, dynamic operands, and result type are all
+    // consistent at the reduced rank.
+    bool rankReducing =
+        (static_cast<int64_t>(staticSizes.size()) != resultType.getRank());
+
+    SmallVector<int64_t, 4> newStaticSizes;
+    SmallVector<Value, 4> newDynamicSizes;
+    if (rankReducing && allStatic) {
+      for (int64_t s : staticSizes) {
+        if (s != 1)
+          newStaticSizes.push_back(s);
+      }
+      if (static_cast<int64_t>(newStaticSizes.size()) != resultType.getRank())
+        return failure();
+      // All sizes are static so no dynamic operands remain.
+    } else if (rankReducing) {
+      // Some sizes are still dynamic — cannot safely strip unit dims yet
+      // because we don't know which dynamic values will resolve to 1.
+      // Only fold the constants we can without changing the sizes list.
+      newStaticSizes = staticSizes;
+      newDynamicSizes = dynamicSizes;
+    } else {
+      newStaticSizes = staticSizes;
+      newDynamicSizes = dynamicSizes;
     }
 
+    Type newResultType = resultType;
+    if (allStatic && !resultType.hasStaticShape()) {
+      auto &sizesForType = rankReducing ? newStaticSizes : staticSizes;
+      newResultType = BufferizeToTensorOp::inferResultType(
+          sizesForType, resultType.getElementType());
+    }
+
+    if (newResultType == resultType && !constantsFolded &&
+        newStaticSizes.size() == staticSizes.size())
+      return failure();
+
     auto newOp = BufferizeToTensorOp::create(
-        rewriter, op.getLoc(), newResultType, op.getSource(), dynamicSizes,
-        rewriter.getDenseI64ArrayAttr(staticSizes));
+        rewriter, op.getLoc(), newResultType, op.getSource(), newDynamicSizes,
+        rewriter.getDenseI64ArrayAttr(newStaticSizes));
 
     rewriter.replaceOp(op, newOp.getResult());
     return success();
