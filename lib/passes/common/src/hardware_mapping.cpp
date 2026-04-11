@@ -227,9 +227,6 @@ static LogicalResult applyMappingToFunction(
           loom::IterTypeAttr::get(ctx, loom::IterType::Spatial));
       if (blockSym)
         tiled_parallels.tiled_new_->setAttr("loom.block_sym", *blockSym);
-      if (!suffix.empty())
-        suffix += "_";
-      suffix += "d" + std::to_string(dimIdx) + "i" + std::to_string(iterIdx);
 
       loom::ParallelToHWMapping mapInfo;
       mapInfo.parallelIterIdx = iterIdx;
@@ -245,6 +242,17 @@ static LogicalResult applyMappingToFunction(
 
       tar_forOp = tiled_parallels.tiled_org_;
     }
+  }
+
+  // Construct suffix ordered by dimIdx (d) instead of iterIdx (i).
+  SmallVector<std::pair<unsigned, unsigned>> diPairs;
+  for (const auto &info : mappingInfo)
+    diPairs.push_back({info.hwDimIdx, info.parallelIterIdx});
+  llvm::sort(diPairs);
+  for (const auto &pair : diPairs) {
+    if (!suffix.empty())
+      suffix += "_";
+    suffix += "d" + std::to_string(pair.first) + "i" + std::to_string(pair.second);
   }
 
   OpBuilder builder(ctx);
