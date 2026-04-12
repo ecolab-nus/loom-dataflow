@@ -100,32 +100,11 @@ struct ReadBlockLoadingLowering
                          Value{}, Value{}, Value{}, Value{});
 
     // 4. loom.bufferize_to_tensor: pure view of the now-populated L1 buffer.
-    //    The upstream memref.subview may be rank-reducing (dropping unit dims),
-    //    so the result tensor rank can be smaller than the subview's full size
-    //    list.  Filter the sizes to only keep entries that correspond to
-    //    non-unit dimensions so that the sizes attribute matches the result
-    //    tensor rank.
-    ArrayRef<int64_t> fullStaticSizes = subviewOp.getStaticSizes();
-    auto fullDynSizes = subviewOp.getSizes();
-
-    SmallVector<int64_t, 4> staticSizes;
-    SmallVector<Value, 4> dynSizes;
-    unsigned dynIdx = 0;
-    for (int64_t s : fullStaticSizes) {
-      bool isDynamic = (s == ShapedType::kDynamic);
-      // Keep this dimension if it is dynamic or non-unit.
-      if (isDynamic || s != 1) {
-        staticSizes.push_back(s);
-        if (isDynamic)
-          dynSizes.push_back(fullDynSizes[dynIdx]);
-      }
-      if (isDynamic)
-        ++dynIdx;
-    }
-
+    SmallVector<int64_t, 4> staticSizes(subviewOp.getStaticSizes().begin(),
+                                        subviewOp.getStaticSizes().end());
     rewriter.replaceOp(op, loom::BufferizeToTensorOp::create(
                                rewriter, loc, op.getType(), semaphore,
-                               dynSizes,
+                               subviewOp.getSizes(),
                                rewriter.getDenseI64ArrayAttr(staticSizes)));
 
     // We can't safely remove subview yet if it has other uses.
