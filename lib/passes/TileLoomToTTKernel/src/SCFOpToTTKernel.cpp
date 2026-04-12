@@ -10,8 +10,8 @@
  * For each `scf.parallel` operation without reductions:
  * - A fresh compile-arg index is allocated for each induction variable using
  *   `CompileArgTracker::getOrCreateIndex`.
- * - A `ttkernel.get_compile_time_arg_val` is emitted (returning `i32`), which
- *   is then cast back to `index` via `arith.index_cast`.
+ * - A `ttkernel.get_compile_time_arg_val` is emitted (returning `i32`), and
+ *   index materialization is delayed until replacing the original IV.
  * - All uses of the induction variable are replaced with this cast value.
  * - The loop body is inlined into the parent block and the `scf.parallel`
  *   op is erased.
@@ -79,8 +79,9 @@ static std::string normalizeDimNameFromAttr(Attribute attr) {
  *
  * - A fresh compile-time argument index is allocated via
  *   `CompileArgTracker::getOrCreateIndex`, using the IV value as the key.
- * - A `ttkernel.get_compile_time_arg_val` is emitted (type `i32`), followed
- *   by an `arith.index_cast` to turn it into an `index`-typed SSA value.
+ * - A `ttkernel.get_compile_time_arg_val` is emitted (type `i32`). Spatial
+ *   decomposition math stays in `i32`; we cast to `index` only when replacing
+ *   the original IV SSA value.
  * - All uses of the induction variable inside the loop body are rewritten to
  *   use this cast value instead.
  *
@@ -185,7 +186,7 @@ public:
     // Materialize exactly two physical compile args (x, y) when we can map
     // logical IVs through physical dims metadata.
     if (!xComponents.empty() || !yComponents.empty()) {
-      Value one = rewriter.create<arith::ConstantIndexOp>(loc, 1);
+      Value oneI32 = rewriter.create<arith::ConstantIntOp>(loc, 1, 32);
       Value xCompileArgI32 = tracker->createTypedCompileArg(
           loc, rewriter, parentFunc, rewriter.getI32Type());
       Value yCompileArgI32 = tracker->createTypedCompileArg(
@@ -193,38 +194,62 @@ public:
       if (!xCompileArgI32 || !yCompileArgI32)
         return failure();
 
-      Value xCoord = rewriter.create<arith::IndexCastOp>(
-          loc, rewriter.getIndexType(), xCompileArgI32);
-      Value yCoord = rewriter.create<arith::IndexCastOp>(
-          loc, rewriter.getIndexType(), yCompileArgI32);
+      tracker->appendToCoreList(parentFunc, xCompileArgI32);
+      tracker->appendToCoreList(parentFunc, yCompileArgI32);
+      tracker->setCoreCoordForDim(parentFunc, "x", xCompileArgI32);
+      tracker->setCoreCoordForDim(parentFunc, "y", yCompileArgI32);
 
-      tracker->appendToCoreList(parentFunc, xCoord);
-      tracker->appendToCoreList(parentFunc, yCoord);
-      tracker->setCoreCoordForDim(parentFunc, "x", xCoord);
-      tracker->setCoreCoordForDim(parentFunc, "y", yCoord);
+      auto toI32 = [&](Value value) -> Value {
+        if (!value)
+          return {};
+        Type ty = value.getType();
+        if (ty.isInteger(32))
+          return value;
+        if (ty.isIndex())
+          return rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(),
+                                                     value);
+        if (auto intTy = dyn_cast<IntegerType>(ty)) {
+          if (intTy.getWidth() < 32)
+            return rewriter.create<arith::ExtSIOp>(loc, rewriter.getI32Type(),
+                                                   value);
+          if (intTy.getWidth() > 32)
+            return rewriter.create<arith::TruncIOp>(loc, rewriter.getI32Type(),
+                                                    value);
+        }
+        return {};
+      };
 
       // Decompose each axis coordinate into its logical components in
       // logical-level order:
       //   iv = lb + ((axis / stride) % extent) * step.
       auto materializeAxisIvs = [&](ArrayRef<AxisComponent> components,
                                     Value axisCoord) {
-        Value stride = one;
+        Value stride = oneI32;
         for (const AxisComponent &component : components) {
           size_t idx = component.idx;
-          Value span = rewriter.create<arith::SubIOp>(loc, ubs[idx], lbs[idx]);
+          Value lbI32 = toI32(lbs[idx]);
+          Value ubI32 = toI32(ubs[idx]);
+          Value stepI32 = toI32(steps[idx]);
+          if (!lbI32 || !ubI32 || !stepI32) {
+            newIvValues[idx] = {};
+            continue;
+          }
+          Value span = rewriter.create<arith::SubIOp>(loc, ubI32, lbI32);
           Value extent =
-              rewriter.create<arith::CeilDivSIOp>(loc, span, steps[idx]);
+              rewriter.create<arith::CeilDivSIOp>(loc, span, stepI32);
           Value quotient = rewriter.create<arith::DivSIOp>(loc, axisCoord, stride);
           Value digit = rewriter.create<arith::RemSIOp>(loc, quotient, extent);
-          Value scaledDigit = rewriter.create<arith::MulIOp>(loc, digit, steps[idx]);
-          Value ivVal = rewriter.create<arith::AddIOp>(loc, lbs[idx], scaledDigit);
-          newIvValues[idx] = ivVal;
+          Value scaledDigit = rewriter.create<arith::MulIOp>(loc, digit, stepI32);
+          Value ivValI32 = rewriter.create<arith::AddIOp>(loc, lbI32, scaledDigit);
+          Value ivValIndex = rewriter.create<arith::IndexCastOp>(
+              loc, rewriter.getIndexType(), ivValI32);
+          newIvValues[idx] = ivValIndex;
           stride = rewriter.create<arith::MulIOp>(loc, stride, extent);
         }
       };
 
-      materializeAxisIvs(xComponents, xCoord);
-      materializeAxisIvs(yComponents, yCoord);
+      materializeAxisIvs(xComponents, xCompileArgI32);
+      materializeAxisIvs(yComponents, yCompileArgI32);
     }
 
     // Any IV not covered by x/y physical mapping falls back to a dedicated

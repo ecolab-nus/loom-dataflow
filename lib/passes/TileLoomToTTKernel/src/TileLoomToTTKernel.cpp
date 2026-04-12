@@ -34,6 +34,8 @@
 #include "mlir/Interfaces/ViewLikeInterface.h"
 #include "LoomDialect.h.inc"
 #define GET_OP_CLASSES
+#include "LoomEnums.h.inc"
+#include "LoomAttributes.h.inc"
 #include "LoomOps.h.inc"
 
 using namespace mlir;
@@ -257,14 +259,14 @@ static Value stripMemrefCasts(Value value) {
   return current;
 }
 
-static FailureOr<ReduceSumProtocol>
-parseReduceSumProtocolOption(StringRef optionValue) {
+static FailureOr<ReduceProtocol>
+parseReduceProtocolOption(StringRef optionValue) {
   std::string lowered = optionValue.trim().lower();
   StringRef value(lowered);
   if (value.empty() || value == "multi-slot")
-    return ReduceSumProtocol::MultiSlot;
+    return ReduceProtocol::MultiSlot;
   if (value == "single-slot")
-    return ReduceSumProtocol::SingleSlot;
+    return ReduceProtocol::SingleSlot;
   return failure();
 }
 
@@ -412,11 +414,15 @@ public:
                 "For linalg.matmul, keep the A reader on RISCV_1 and merge "
                 "the B reader into the writer kernel on RISCV_0"),
             llvm::cl::init(false)),
-        reduceSumProtocol(
-            *this, "reduce-sum-protocol",
-            llvm::cl::desc("reduce_sum synchronization protocol "
+        reduceProtocolOpt(
+            *this, "reduce-protocol",
+            llvm::cl::desc("Reduce synchronization protocol "
                            "(multi-slot|single-slot)"),
-            llvm::cl::init("single-slot")) {}
+            llvm::cl::init("single-slot")),
+        reduceProtocolDeprecated(
+            *this, "reduce-sum-protocol",
+            llvm::cl::desc("[deprecated] Alias for reduce-protocol"),
+            llvm::cl::init("")) {}
 
   TileLoomToTTKernelPass(const TileLoomToTTKernelPass &other)
       : PassWrapper(other),
@@ -426,14 +432,19 @@ public:
                 "For linalg.matmul, keep the A reader on RISCV_1 and merge "
                 "the B reader into the writer kernel on RISCV_0"),
             llvm::cl::init(false)),
-        reduceSumProtocol(
-            *this, "reduce-sum-protocol",
-            llvm::cl::desc("reduce_sum synchronization protocol "
+        reduceProtocolOpt(
+            *this, "reduce-protocol",
+            llvm::cl::desc("Reduce synchronization protocol "
                            "(multi-slot|single-slot)"),
-            llvm::cl::init("single-slot")) {
+            llvm::cl::init("single-slot")),
+        reduceProtocolDeprecated(
+            *this, "reduce-sum-protocol",
+            llvm::cl::desc("[deprecated] Alias for reduce-protocol"),
+            llvm::cl::init("")) {
     matmulMergeBReaderIntoWriter =
         static_cast<bool>(other.matmulMergeBReaderIntoWriter);
-    reduceSumProtocol = other.reduceSumProtocol;
+    reduceProtocolOpt = other.reduceProtocolOpt;
+    reduceProtocolDeprecated = other.reduceProtocolDeprecated;
   }
 
   StringRef getArgument() const override {
@@ -459,7 +470,9 @@ public:
   }
 
   Option<bool> matmulMergeBReaderIntoWriter;
-  Option<std::string> reduceSumProtocol;
+  Option<std::string> reduceProtocolOpt;
+  /// @deprecated Use reduce-protocol instead.
+  Option<std::string> reduceProtocolDeprecated;
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
@@ -504,11 +517,18 @@ public:
 
     // Create shared compile-arg tracker for index management.
     auto compileArgTracker = std::make_shared<CompileArgTracker>();
-    FailureOr<ReduceSumProtocol> reduceProtocol =
-        parseReduceSumProtocolOption(reduceSumProtocol);
+
+    // Resolve reduce protocol option, preferring the deprecated alias when the
+    // primary option was left at its default and the alias was explicitly set.
+    std::string effectiveProtocolStr = reduceProtocolOpt;
+    if (!reduceProtocolDeprecated.getValue().empty())
+      effectiveProtocolStr = reduceProtocolDeprecated;
+
+    FailureOr<ReduceProtocol> reduceProtocol =
+        parseReduceProtocolOption(effectiveProtocolStr);
     if (failed(reduceProtocol)) {
-      module.emitError() << "invalid reduce-sum-protocol option: '"
-                         << reduceSumProtocol
+      module.emitError() << "invalid reduce-protocol option: '"
+                         << effectiveProtocolStr
                          << "' (expected 'multi-slot' or 'single-slot')";
       signalPassFailure();
       return;

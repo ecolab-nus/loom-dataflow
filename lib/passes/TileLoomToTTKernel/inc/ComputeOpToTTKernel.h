@@ -11,9 +11,28 @@
 
 namespace mlir::loom {
 
-enum class ReduceSumProtocol {
+/// Transport synchronization protocol for cross-core reduce operations.
+/// @deprecated Use ReduceProtocol instead.
+enum class ReduceProtocol {
   MultiSlot,
   SingleSlot
+};
+
+using ReduceSumProtocol = ReduceProtocol;
+
+/**
+ * @brief Supported tile-level combine operations for reduce lowering.
+ *
+ * @details Transport lowering is protocol-specific (single-slot vs multi-slot),
+ *          while the tile combine operation is selected independently via this
+ *          enum. Only `Sum` is currently implemented; `Max` and `Exp` are
+ *          reserved for future extension and will produce compile-time
+ *          diagnostics if used.
+ */
+enum class ReduceCombineOp {
+  Sum,
+  Max,
+  Exp
 };
 
 /**
@@ -27,7 +46,7 @@ void populateComputeOpConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &typeConverter,
                                          mlir::MLIRContext *context,
                                          std::shared_ptr<CompileArgTracker> tracker,
-                                         ReduceSumProtocol reduceSumProtocol);
+                                         ReduceProtocol reduceProtocol);
 
 /// Returns true when this `linalg.generic` matches one of the supported
 /// FlashAttention compute forms handled by this pass.

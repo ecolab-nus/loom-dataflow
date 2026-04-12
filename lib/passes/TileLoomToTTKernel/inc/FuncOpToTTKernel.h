@@ -306,7 +306,7 @@ private:
   /// Per-function explicit core coordinate values by mapped dim name.
   llvm::DenseMap<Operation *, CoreCoordByDim> funcToCoreCoordsByDim;
 
-  /// Optional per-function reduce_sum synchronization runtime args.
+  /// Optional per-function reduce synchronization runtime args.
   llvm::DenseMap<Operation *, ReduceRuntimeArgs> funcToReduceRuntimeArgs;
 };
 

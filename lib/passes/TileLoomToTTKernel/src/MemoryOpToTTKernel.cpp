@@ -32,6 +32,8 @@
 
 // Loom dialect headers for ::::loom::AllocOp, ::::loom::CopyOp
 #define GET_OP_CLASSES
+#include "LoomEnums.h.inc"
+#include "LoomAttributes.h.inc"
 #include "LoomOps.h.inc"
 
 using namespace mlir;
@@ -185,25 +187,42 @@ static FailureOr<ReduceTransportAnalysis> analyzeReduceTransportRegion(
   Value coreY =
       toI32ForReduceTransport(rewriter, loc,
                               tracker->getCoreCoordForDim(parentFunc, "y"));
-  Value ulX = toI32ForReduceTransport(rewriter, loc, op.getUlX());
-  Value ulY = toI32ForReduceTransport(rewriter, loc, op.getUlY());
-  Value lrX = toI32ForReduceTransport(rewriter, loc, op.getLrX());
-  Value lrY = toI32ForReduceTransport(rewriter, loc, op.getLrY());
+  llvm::DenseMap<Value, Value> i32Cache;
+  auto toI32Cached = [&](Value value) -> Value {
+    if (!value)
+      return {};
+    auto it = i32Cache.find(value);
+    if (it != i32Cache.end())
+      return it->second;
+    Value converted = toI32ForReduceTransport(rewriter, loc, value);
+    if (converted)
+      i32Cache.try_emplace(value, converted);
+    return converted;
+  };
+  Value ulX = toI32Cached(op.getUlX());
+  Value ulY = toI32Cached(op.getUlY());
+  Value lrX = toI32Cached(op.getLrX());
+  Value lrY = toI32Cached(op.getLrY());
   if (!coreX || !coreY || !ulX || !ulY || !lrX || !lrY)
     return failure();
 
   Value one = i32Const(rewriter, loc, 1);
-  Value width =
-      arith::AddIOp::create(rewriter, loc,
-                            arith::SubIOp::create(rewriter, loc, lrX, ulX), one);
-  Value height =
-      arith::AddIOp::create(rewriter, loc,
-                            arith::SubIOp::create(rewriter, loc, lrY, ulY), one);
+  auto subI32 = [&](Value lhs, Value rhs) -> Value {
+    if (lhs == rhs)
+      return i32Const(rewriter, loc, 0);
+    return arith::SubIOp::create(rewriter, loc, lhs, rhs);
+  };
+  auto addI32 = [&](Value lhs, Value rhs) -> Value {
+    return arith::AddIOp::create(rewriter, loc, lhs, rhs);
+  };
+
+  Value width = addI32(subI32(lrX, ulX), one);
+  Value height = addI32(subI32(lrY, ulY), one);
   Value participants = arith::MulIOp::create(rewriter, loc, width, height);
   Value workerCount = arith::SubIOp::create(rewriter, loc, participants, one);
 
-  Value relX = arith::SubIOp::create(rewriter, loc, coreX, ulX);
-  Value relY = arith::SubIOp::create(rewriter, loc, coreY, ulY);
+  Value relX = subI32(coreX, ulX);
+  Value relY = subI32(coreY, ulY);
   Value rank = arith::AddIOp::create(
       rewriter, loc, arith::MulIOp::create(rewriter, loc, relY, width), relX);
 
@@ -306,9 +325,9 @@ static void emitWorkerReduceTransport(ConversionPatternRewriter &rewriter,
                                       Location loc,
                                       const ReduceTransportAnalysis &analysis,
                                       const ReduceTransportRuntimeValues &runtime,
-                                      ReduceSumProtocol protocol) {
+                                      ReduceProtocol protocol) {
   CBWaitFrontOp::create(rewriter, loc, runtime.payloadCb, runtime.numTiles);
-  if (protocol == ReduceSumProtocol::MultiSlot) {
+  if (protocol == ReduceProtocol::MultiSlot) {
     NocSemaphoreWaitOp::create(rewriter, loc, runtime.tokenSemaphorePtr,
                                runtime.zero);
   } else {
@@ -318,11 +337,11 @@ static void emitWorkerReduceTransport(ConversionPatternRewriter &rewriter,
 
   // In single-slot mode workers are token-serialized and target the reducer
   // receive CB (inCb) slot. Multi-slot keeps rank-indexed placement in outCb.
-  Value reducerWriteBase = (protocol == ReduceSumProtocol::SingleSlot)
+  Value reducerWriteBase = (protocol == ReduceProtocol::SingleSlot)
                                ? runtime.reducerInWritePtr
                                : runtime.reducerOutWritePtr;
   Value slot =
-      (protocol == ReduceSumProtocol::SingleSlot) ? runtime.zero : analysis.rank;
+      (protocol == ReduceProtocol::SingleSlot) ? runtime.zero : analysis.rank;
   Value slotOffsetBytes =
       arith::MulIOp::create(rewriter, loc, slot, runtime.payloadBytes);
   Value reducerSlotL1 = arith::AddIOp::create(
@@ -342,14 +361,14 @@ static void emitWorkerReduceTransport(ConversionPatternRewriter &rewriter,
 static void emitReducerReduceTransportSync(
     ConversionPatternRewriter &rewriter, Location loc,
     const ReduceTransportAnalysis &analysis,
-    const ReduceTransportRuntimeValues &runtime, ReduceSumProtocol protocol) {
+    const ReduceTransportRuntimeValues &runtime, ReduceProtocol protocol) {
   auto falseAttr = rewriter.getBoolAttr(false);
   Value workerTiles = arith::MulIOp::create(
       rewriter, loc, analysis.workerCount, runtime.numTiles);
   NocSemaphoreSetOp::create(rewriter, loc, runtime.readySemaphorePtr, runtime.zero);
-  NocSemaphoreSetOp::create(rewriter, loc, runtime.tokenSemaphorePtr, runtime.zero);
+  //NocSemaphoreSetOp::create(rewriter, loc, runtime.tokenSemaphorePtr, runtime.zero);
 
-  if (protocol == ReduceSumProtocol::MultiSlot) {
+  if (protocol == ReduceProtocol::MultiSlot) {
     NocSemaphoreWaitOp::create(rewriter, loc, runtime.readySemaphorePtr,
                                analysis.workerCount);
     CBPushBackOp::create(rewriter, loc, runtime.outCb, workerTiles);
@@ -1473,19 +1492,19 @@ private:
 };
 
 /**
- * @brief Convert `loom.reduce_sum` transport in writer kernels.
+ * @brief Convert reduce transport in writer kernels.
  *
  * @details Writer workers send reducer payload tiles using protocol-specific
  *          semaphore ordering. Reducer-side math remains in compute kernels.
  */
-struct ConvertLoomReduceSumTransportOp
+struct ConvertLoomReduceTransportOp
     : public OpConversionPattern<::loom::ReduceSumOp> {
   using OpConversionPattern<::loom::ReduceSumOp>::OpConversionPattern;
 
-  ConvertLoomReduceSumTransportOp(TypeConverter &typeConverter,
+  ConvertLoomReduceTransportOp(TypeConverter &typeConverter,
                                   MLIRContext *context,
                                   std::shared_ptr<CompileArgTracker> tracker,
-                                  ReduceSumProtocol protocol)
+                                  ReduceProtocol protocol)
       : OpConversionPattern<::loom::ReduceSumOp>(typeConverter, context),
         tracker(std::move(tracker)), protocol(protocol) {}
 
@@ -1497,7 +1516,7 @@ struct ConvertLoomReduceSumTransportOp
     if (adaptor.getOperands().size() < 2)
       return failure();
 
-    // Compute stage materializes payload into the reduce_sum output CB.
+    // Compute stage materializes payload into the reduce output CB.
     Value reducerReceiveCb = adaptor.getOperands().front();
     Value payloadCb = adaptor.getOperands()[1];
     Value outCb = adaptor.getOperands()[1];
@@ -1508,12 +1527,12 @@ struct ConvertLoomReduceSumTransportOp
     auto analysis = analyzeReduceTransportRegion(op, rewriter, tracker);
     if (failed(analysis))
       return rewriter.notifyMatchFailure(
-          op, "failed to analyze reduce_sum transport region");
+          op, "failed to analyze reduce transport region");
     auto runtime = materializeReduceTransportRuntime(
         op, payloadCb, outCb, reducerReceiveCb, rewriter, tracker, *analysis);
     if (failed(runtime))
       return rewriter.notifyMatchFailure(
-          op, "failed to materialize reduce_sum transport runtime");
+          op, "failed to materialize reduce transport runtime");
 
     Location loc = op.getLoc();
     scf::IfOp inRegionIf =
@@ -1537,7 +1556,7 @@ struct ConvertLoomReduceSumTransportOp
 
 private:
   std::shared_ptr<CompileArgTracker> tracker;
-  ReduceSumProtocol protocol;
+  ReduceProtocol protocol;
 };
 
 //===----------------------------------------------------------------------===//
@@ -1695,15 +1714,15 @@ private:
 void mlir::loom::populateMemoryOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker,
-    ReduceSumProtocol reduceSumProtocol) {
+    ReduceProtocol reduceProtocol) {
   // loom.semaphore / loom.copy patterns.
   patterns.add<ConvertLoomSemaphoreTakeOp>(typeConverter, context, tracker);
   patterns.add<ConvertLoomSemaphoreGiveOp>(typeConverter, context);
   patterns.add<ConvertLoomLoadOp>(typeConverter, context, tracker);
   patterns.add<ConvertLoomStoreOp>(typeConverter, context, tracker);
-  patterns.add<ConvertLoomReduceSumTransportOp>(typeConverter, context,
-                                                std::move(tracker),
-                                                reduceSumProtocol);
+  patterns.add<ConvertLoomReduceTransportOp>(typeConverter, context,
+                                             std::move(tracker),
+                                             reduceProtocol);
   // Reinterpret cast erasure.
   patterns.add<ConvertReinterpretCastOp>(typeConverter, context);
 }

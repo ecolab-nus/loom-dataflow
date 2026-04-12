@@ -38,6 +38,8 @@
 #include "mlir/Interfaces/ViewLikeInterface.h"
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
+#include "LoomEnums.h.inc"
+#include "LoomAttributes.h.inc"
 #include "LoomOps.h.inc"
 
 // Include ADL dialect headers for adl.spatial_dim, adl.arch.scale

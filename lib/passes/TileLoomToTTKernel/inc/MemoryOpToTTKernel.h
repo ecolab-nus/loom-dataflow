@@ -32,7 +32,7 @@ namespace loom {
 void populateMemoryOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker,
-    ReduceSumProtocol reduceSumProtocol);
+    ReduceProtocol reduceProtocol);
 
 /**
  * @brief Populate cleanup patterns that erase dead loom.alloc operations.

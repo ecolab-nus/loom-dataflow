@@ -15,6 +15,8 @@
 #include "LoomDialect.h.inc"
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
+#include "LoomEnums.h.inc"
+#include "LoomAttributes.h.inc"
 #include "LoomOps.h.inc"
 
 using namespace mlir;

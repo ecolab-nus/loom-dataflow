@@ -33,6 +33,8 @@
 // Loom dialect headers for ::::loom::CopyOp, ::loom::AllocOp
 #include "mlir/Interfaces/ViewLikeInterface.h"
 #define GET_OP_CLASSES
+#include "LoomEnums.h.inc"
+#include "LoomAttributes.h.inc"
 #include "LoomOps.h.inc"
 
 // TTKernel thread type attribute and enum.
@@ -59,8 +61,8 @@ constexpr llvm::StringLiteral kDMProcessorAttrName =
     "loom.ttkernel.dm_processor";
 constexpr llvm::StringLiteral kMergedBIntoWriterStrategy =
     "matmul_merge_b_reader_into_writer";
-constexpr llvm::StringLiteral kHasReduceSumAttrName =
-    "loom.ttkernel.has_reduce_sum";
+constexpr llvm::StringLiteral kHasReduceAttrName =
+    "loom.ttkernel.has_reduce";
 constexpr llvm::StringLiteral kReaderDataMovementRole = "reader";
 constexpr llvm::StringLiteral kWriterDataMovementRole = "writer";
 constexpr llvm::StringLiteral kDMProcessorRISCV0 = "riscv0";
@@ -511,7 +513,7 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     }
   }
 
-  if (func->hasAttr(kHasReduceSumAttrName) &&
+  if (func->hasAttr(kHasReduceAttrName) &&
       !funcToReduceRuntimeArgs.count(func.getOperation())) {
     Value readySemaphore =
         createGetArgValOp(loc, rewriter, func, rewriter.getI32Type());
@@ -871,10 +873,34 @@ static bool isComputeOp(Operation *op) {
   return !isLoomDataMovementOrMetadataOp(op);
 }
 
-static bool containsReduceSumOp(func::FuncOp func) {
+static bool containsReduceOp(func::FuncOp func) {
   bool hasReduce = false;
   func.walk([&](::loom::ReduceSumOp) { hasReduce = true; });
   return hasReduce;
+}
+
+/// Returns true when @p op is a reduce op (currently only ReduceSumOp).
+static bool isReduceOp(Operation *op) {
+  return isa<::loom::ReduceSumOp>(op);
+}
+
+/**
+ * @brief Decide whether a reduce op should be kept or erased during
+ *        function specialization for a given kernel role.
+ *
+ * @details Reduce ops must survive into both the compute and writer clones
+ *          so the respective lowering patterns can match them:
+ *          - __compute: kept for ConvertLoomReduceComputeOp
+ *          - __writer:  kept for ConvertLoomReduceTransportOp
+ *          - __reader:  erased (no reduce behavior in reader kernels)
+ *          - __host_*:  kept so collectReduceRegion can analyze bounds;
+ *                       the host emitter erases them later
+ *
+ * @return true if the reduce op should be kept; false if it should be erased.
+ */
+static bool shouldKeepReduceOpInKernel(StringRef kernelSuffix) {
+  return kernelSuffix == "__compute" || kernelSuffix == "__writer" ||
+         kernelSuffix == "__host_cpp" || kernelSuffix == "__host_pybind";
 }
 
 /**
@@ -918,7 +944,9 @@ static func::FuncOp makeReaderFunc(func::FuncOp func) {
   readerFunc.setName((func.getName() + "__reader").str());
   bool useMergedBPartition = hasMatmulMergedBPartition(readerFunc);
 
-  // Collect compute ops and stores to erase.
+  // Collect compute ops (including reduce ops) and stores to erase.
+  // Reduce ops are classified as compute by isComputeOp() and are erased
+  // in reader kernels -- no reduce behavior runs on the reader.
   SmallVector<Operation *, 8> opsToErase;
   readerFunc.walk([&](Operation *op) {
     if (isComputeOp(op)) {
@@ -933,7 +961,6 @@ static func::FuncOp makeReaderFunc(func::FuncOp func) {
     }
   });
 
-  // Erase compute ops in reverse order to handle dependencies
   for (Operation *op : llvm::reverse(opsToErase))
     op->erase();
 
@@ -960,10 +987,8 @@ static func::FuncOp makeWriterFunc(func::FuncOp func) {
 
   SmallVector<Operation *, 8> opsToErase;
   writerFunc.walk([&](Operation *op) {
-    if (isa<::loom::ReduceSumOp>(op)) {
-      // Keep reduce_sum in writer kernels so transport lowering can run there.
+    if (isReduceOp(op) && shouldKeepReduceOpInKernel("__writer"))
       return;
-    }
     if (isComputeOp(op)) {
       opsToErase.push_back(op);
     }  else if (auto loomCopyOp = dyn_cast<::loom::CopyOp>(op)) {
@@ -999,12 +1024,12 @@ public:
         builder(hostFunc.getContext()), kind(kind) {}
 
   void run() {
-    hasReduceSum = hostFunc->hasAttr(kHasReduceSumAttrName) ||
-                   containsReduceSumOp(originalFunc);
+    hasReduce = hostFunc->hasAttr(kHasReduceAttrName) ||
+                   containsReduceOp(originalFunc);
     inferCoreCoordArgOrder();
     collectDramInfos();
     collectBroadcastRegions();
-    collectReduceSumRegion();
+    collectReduceRegion();
     collectCbInfos();
     annotateHostSignatureMetadata();
     eraseNonHostOps();
@@ -1549,10 +1574,10 @@ private:
     });
   }
 
-  void collectReduceSumRegion() {
+  void collectReduceRegion() {
     reduceRegion = ReduceRegionInfo{};
 
-    if (!hasReduceSum)
+    if (!hasReduce)
       return;
     if (parallelIvExprByValue.empty())
       collectParallelIvExprs();
@@ -1856,11 +1881,11 @@ private:
                "_mcast_receiver_semaphore_addr = "
                "tt_metal::CreateSemaphore(program, all_cores, INVALID);");
     }
-    if (!hasReduceSum)
+    if (!hasReduce)
       return;
-    emitLine("auto reduce_sum_ready_semaphore_addr = "
+    emitLine("auto reduce_ready_semaphore_addr = "
              "tt_metal::CreateSemaphore(program, all_cores, INVALID);");
-    emitLine("auto reduce_sum_token_semaphore_addr = "
+    emitLine("auto reduce_token_semaphore_addr = "
              "tt_metal::CreateSemaphore(program, all_cores, INVALID);");
   }
 
@@ -2032,31 +2057,31 @@ private:
                "_lr_y - " + prefix + "_ul_y + 1)) - 1);");
     }
 
-    if (hasReduceSum && reduceRegion.hasRegion) {
-      emitLine("std::size_t reduce_sum_ul_x = static_cast<std::size_t>(" +
+    if (hasReduce && reduceRegion.hasRegion) {
+      emitLine("std::size_t reduce_ul_x = static_cast<std::size_t>(" +
                reduceRegion.ulXExpr + ");");
-      emitLine("std::size_t reduce_sum_ul_y = static_cast<std::size_t>(" +
+      emitLine("std::size_t reduce_ul_y = static_cast<std::size_t>(" +
                reduceRegion.ulYExpr + ");");
-      emitLine("std::size_t reduce_sum_lr_x = static_cast<std::size_t>(" +
+      emitLine("std::size_t reduce_lr_x = static_cast<std::size_t>(" +
                reduceRegion.lrXExpr + ");");
-      emitLine("std::size_t reduce_sum_lr_y = static_cast<std::size_t>(" +
+      emitLine("std::size_t reduce_lr_y = static_cast<std::size_t>(" +
                reduceRegion.lrYExpr + ");");
 
-      emitLine("CoreCoord reduce_sum_dest_start_core = {reduce_sum_ul_x, reduce_sum_ul_y};");
-      emitLine("CoreCoord reduce_sum_dest_end_core = {reduce_sum_lr_x, reduce_sum_lr_y};");
+      emitLine("CoreCoord reduce_dest_start_core = {reduce_ul_x, reduce_ul_y};");
+      emitLine("CoreCoord reduce_dest_end_core = {reduce_lr_x, reduce_lr_y};");
 
-      emitLine("auto reduce_sum_dest_start_physical = device->worker_core_from_logical_core(reduce_sum_dest_start_core);");
-      emitLine("auto reduce_sum_dest_end_physical = device->worker_core_from_logical_core(reduce_sum_dest_end_core);");
+      emitLine("auto reduce_dest_start_physical = device->worker_core_from_logical_core(reduce_dest_start_core);");
+      emitLine("auto reduce_dest_end_physical = device->worker_core_from_logical_core(reduce_dest_end_core);");
 
-      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_start_x = (std::uint32_t)reduce_sum_dest_start_physical.x;");
-      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_start_y = (std::uint32_t)reduce_sum_dest_start_physical.y;");
-      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_end_x = (std::uint32_t)reduce_sum_dest_end_physical.x;");
-      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_end_y = (std::uint32_t)reduce_sum_dest_end_physical.y;");
-    } else if (hasReduceSum) {
-      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_start_x = 0;");
-      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_start_y = 0;");
-      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_end_x = 0;");
-      emitLine("uint32_t reduce_sum_token_mcast_dest_noc_end_y = 0;");
+      emitLine("uint32_t reduce_token_mcast_dest_noc_start_x = (std::uint32_t)reduce_dest_start_physical.x;");
+      emitLine("uint32_t reduce_token_mcast_dest_noc_start_y = (std::uint32_t)reduce_dest_start_physical.y;");
+      emitLine("uint32_t reduce_token_mcast_dest_noc_end_x = (std::uint32_t)reduce_dest_end_physical.x;");
+      emitLine("uint32_t reduce_token_mcast_dest_noc_end_y = (std::uint32_t)reduce_dest_end_physical.y;");
+    } else if (hasReduce) {
+      emitLine("uint32_t reduce_token_mcast_dest_noc_start_x = 0;");
+      emitLine("uint32_t reduce_token_mcast_dest_noc_start_y = 0;");
+      emitLine("uint32_t reduce_token_mcast_dest_noc_end_x = 0;");
+      emitLine("uint32_t reduce_token_mcast_dest_noc_end_y = 0;");
     }
 
     auto emitMulticastTuple = [&](const DramBufferInfo &info) {
@@ -2106,13 +2131,13 @@ private:
     //
     // This must match the indices consumed by generated reader/writer/compute
     // kernels, which are allocated via createGetArgValOp/createTypedCompileArg.
-    if (hasReduceSum) {
-      emitLine("reduce_sum_ready_semaphore_addr,");
-      emitLine("reduce_sum_token_semaphore_addr,");
-      emitLine("reduce_sum_token_mcast_dest_noc_start_x,");
-      emitLine("reduce_sum_token_mcast_dest_noc_start_y,");
-      emitLine("reduce_sum_token_mcast_dest_noc_end_x,");
-      emitLine("reduce_sum_token_mcast_dest_noc_end_y,");
+    if (hasReduce) {
+      emitLine("reduce_ready_semaphore_addr,");
+      emitLine("reduce_token_semaphore_addr,");
+      emitLine("reduce_token_mcast_dest_noc_start_x,");
+      emitLine("reduce_token_mcast_dest_noc_start_y,");
+      emitLine("reduce_token_mcast_dest_noc_end_x,");
+      emitLine("reduce_token_mcast_dest_noc_end_y,");
     }
 
     emitLine(coreCoordArg0Expr + ",");
@@ -2197,7 +2222,7 @@ private:
   SmallVector<std::string, 8> emittedTilesVars;
   std::string coreCoordArg0Expr = "core.x";
   std::string coreCoordArg1Expr = "core.y";
-  bool hasReduceSum = false;
+  bool hasReduce = false;
   ReduceRegionInfo reduceRegion;
 };
 
@@ -2240,7 +2265,7 @@ class FunctionSpecializer {
 public:
   FunctionSpecializer(ModuleOp module, func::FuncOp func)
       : module(module), originalFunc(func) {
-    const bool hasReduceSum = containsReduceSumOp(func);
+    const bool hasReduce = containsReduceOp(func);
     // Create specialized versions
     auto computeFunc = makeComputeFunc(func);
     auto readerFunc = makeReaderFunc(func);
@@ -2272,13 +2297,13 @@ public:
         attrBuilder.getStringAttr(
             getDataMovementKernelSpec(DataMovementKernelRole::Writer)
                 .processorAttrValue));
-    if (hasReduceSum) {
+    if (hasReduce) {
       auto reduceAttr = attrBuilder.getUnitAttr();
-      computeFunc->setAttr(kHasReduceSumAttrName, reduceAttr);
-      readerFunc->setAttr(kHasReduceSumAttrName, reduceAttr);
-      writerFunc->setAttr(kHasReduceSumAttrName, reduceAttr);
-      hostCppFunc->setAttr(kHasReduceSumAttrName, reduceAttr);
-      hostPybindFunc->setAttr(kHasReduceSumAttrName, reduceAttr);
+      computeFunc->setAttr(kHasReduceAttrName, reduceAttr);
+      readerFunc->setAttr(kHasReduceAttrName, reduceAttr);
+      writerFunc->setAttr(kHasReduceAttrName, reduceAttr);
+      hostCppFunc->setAttr(kHasReduceAttrName, reduceAttr);
+      hostPybindFunc->setAttr(kHasReduceAttrName, reduceAttr);
     }
 
     // Insert specialized functions into the module (before the original)
