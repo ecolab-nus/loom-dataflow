@@ -391,7 +391,15 @@ SmallVector<SymbolicDim, 4> traceShape(Value v) {
   else if (auto toTensor = mlir::dyn_cast<bufferization::ToTensorOp>(op)) {
     Value memref = toTensor.getOperand();
     if (auto subview = memref.getDefiningOp<memref::SubViewOp>()) {
-      rawDims = subview.getMixedSizes();
+      // For rank-reducing subviews, only keep sizes for retained (non-unit)
+      // dims so that ShapeSignature.dims matches the result tensor rank.
+      auto allSizes = subview.getMixedSizes();
+      ArrayRef<int64_t> allStaticSizes = subview.getStaticSizes();
+      for (size_t i = 0; i < allSizes.size(); ++i) {
+        int64_t s = allStaticSizes[i];
+        if (s == ShapedType::kDynamic || s != 1)
+          rawDims.push_back(allSizes[i]);
+      }
     } else {
       rawDims = getMixedSizesFromType(memref.getType());
     }

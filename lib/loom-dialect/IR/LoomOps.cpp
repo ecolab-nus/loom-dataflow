@@ -162,6 +162,36 @@ MemRefType loom::SubviewOp::inferResultType(MemRefType sourceType,
   return MemRefType::get(resultShape, elementType, layout, memorySpace);
 }
 
+MemRefType loom::SubviewOp::inferResultType(MemRefType sourceType,
+                                            ArrayRef<int64_t> staticOffsets,
+                                            ArrayRef<int64_t> staticSizes,
+                                            ArrayRef<int64_t> staticStrides,
+                                            ArrayRef<int64_t> targetShape) {
+  // Compute the full-rank result type first.
+  MemRefType fullType =
+      inferResultType(sourceType, staticOffsets, staticSizes, staticStrides);
+
+  if ((int64_t)targetShape.size() == fullType.getRank())
+    return fullType;
+
+  // Extract only the strides corresponding to retained positions.
+  // A position is dropped when its static size is exactly 1.
+  auto stridedLayout = cast<StridedLayoutAttr>(fullType.getLayout());
+  ArrayRef<int64_t> fullStrides = stridedLayout.getStrides();
+  int64_t fullOffset = stridedLayout.getOffset();
+
+  SmallVector<int64_t> retainedStrides;
+  for (size_t i = 0; i < staticSizes.size(); ++i) {
+    if (staticSizes[i] == ShapedType::kDynamic || staticSizes[i] != 1)
+      retainedStrides.push_back(fullStrides[i]);
+  }
+
+  auto layout = StridedLayoutAttr::get(sourceType.getContext(), fullOffset,
+                                       retainedStrides);
+  return MemRefType::get(targetShape, fullType.getElementType(), layout,
+                         fullType.getMemorySpace());
+}
+
 ::mlir::RankedTensorType
 loom::CopyToTensorOp::inferResultType(::mlir::MemRefType sourceType) {
   return RankedTensorType::get(sourceType.getShape(),
@@ -279,12 +309,15 @@ struct FoldSubviewConstants : public OpRewritePattern<SubviewOp> {
     dispatchIndexOpFoldResults(sizes, dynamicSizes, staticSizes);
     dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
 
+    // Preserve the original result rank (the op may be rank-reducing).
+    auto origResultType = cast<MemRefType>(op.getType());
+    auto newResultType = SubviewOp::inferResultType(
+        op.getSourceType(), staticOffsets, staticSizes, staticStrides,
+        origResultType.getShape());
+
     rewriter.replaceOpWithNewOp<SubviewOp>(
-        op,
-        SubviewOp::inferResultType(op.getSourceType(), staticOffsets,
-                                   staticSizes, staticStrides),
-        op.getSource(), dynamicOffsets, dynamicSizes, dynamicStrides,
-        rewriter.getDenseI64ArrayAttr(staticOffsets),
+        op, newResultType, op.getSource(), dynamicOffsets, dynamicSizes,
+        dynamicStrides, rewriter.getDenseI64ArrayAttr(staticOffsets),
         rewriter.getDenseI64ArrayAttr(staticSizes),
         rewriter.getDenseI64ArrayAttr(staticStrides),
         op.getSequentialReuseAttr(), op.getSpatialReuseAttr(),

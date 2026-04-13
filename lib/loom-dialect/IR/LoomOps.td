@@ -102,6 +102,15 @@ def SubviewOp : Loom_Op<"subview", [
         ::llvm::ArrayRef<int64_t> staticSizes,
         ::llvm::ArrayRef<int64_t> staticStrides);
 
+    /// Rank-reducing overload: infer a result type whose shape is targetShape
+    /// (a subset of staticSizes with unit dims dropped).
+    static ::mlir::MemRefType inferResultType(
+        ::mlir::MemRefType sourceType,
+        ::llvm::ArrayRef<int64_t> staticOffsets,
+        ::llvm::ArrayRef<int64_t> staticSizes,
+        ::llvm::ArrayRef<int64_t> staticStrides,
+        ::llvm::ArrayRef<int64_t> targetShape);
+
     /// Return the number of leading operands before offsets, sizes, strides.
     static unsigned getOffsetSizeAndStrideStartOperandIndex() { return 1; }
 
