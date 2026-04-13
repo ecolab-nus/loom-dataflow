@@ -99,10 +99,16 @@ public:
           affine::AffineApplyOp::create(builder, loc, offsetMap, mapOperands);
 
       // 2. Compute result strides: Strides_rc[i] = Strides_view[i] *
-      // Strides_org[i]
+      // Strides_org[i].  For rank-reducing subviews, only keep entries
+      // corresponding to retained (non-unit static size) positions so that
+      // the strides list length matches the result type rank.
       SmallVector<OpFoldResult, 4> viewStrides = subviewOp.getMixedStrides();
+      ArrayRef<int64_t> staticSizes = subviewOp.getStaticSizes();
       SmallVector<OpFoldResult, 4> rcStrides;
       for (size_t i = 0; i < viewStrides.size(); ++i) {
+        // Skip positions that were dropped by rank reduction (static size == 1).
+        if (staticSizes[i] != ShapedType::kDynamic && staticSizes[i] == 1)
+          continue;
         if (auto attr = viewStrides[i].dyn_cast<Attribute>()) {
           int64_t viewStride = cast<IntegerAttr>(attr).getInt();
           if (viewStride != ShapedType::kDynamic &&
@@ -117,12 +123,21 @@ public:
         }
       }
 
-      // 3. Create memref.reinterpret_cast
+      // 3. For rank-reducing subviews, filter the sizes list to only the
+      // retained positions (those with static size != 1) so that sizes.size()
+      // matches resultType.getRank() as required by memref.reinterpret_cast.
+      SmallVector<OpFoldResult, 4> rcSizes;
+      for (size_t i = 0; i < staticSizes.size(); ++i) {
+        if (staticSizes[i] == ShapedType::kDynamic || staticSizes[i] != 1)
+          rcSizes.push_back(subviewOp.getMixedSizes()[i]);
+      }
+
+      // 4. Create memref.reinterpret_cast
       MemRefType resultType = cast<MemRefType>(subviewOp.getResult().getType());
 
       auto rcOp = memref::ReinterpretCastOp::create(
           builder, loc, resultType, subviewOp.getSource(), linearizedOffset,
-          subviewOp.getMixedSizes(), rcStrides);
+          rcSizes, rcStrides);
 
       subviewOp.getResult().replaceAllUsesWith(rcOp.getResult());
       subviewOp.erase();
