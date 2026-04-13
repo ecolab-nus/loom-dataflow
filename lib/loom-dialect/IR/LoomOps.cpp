@@ -181,14 +181,17 @@ MemRefType loom::SubviewOp::inferResultType(MemRefType sourceType,
   int64_t fullOffset = stridedLayout.getOffset();
 
   SmallVector<int64_t> retainedStrides;
+  SmallVector<int64_t> retainedShape;
   for (size_t i = 0; i < staticSizes.size(); ++i) {
-    if (staticSizes[i] == ShapedType::kDynamic || staticSizes[i] != 1)
+    if (staticSizes[i] == ShapedType::kDynamic || staticSizes[i] != 1) {
       retainedStrides.push_back(fullStrides[i]);
+      retainedShape.push_back(staticSizes[i]);
+    }
   }
 
   auto layout = StridedLayoutAttr::get(sourceType.getContext(), fullOffset,
                                        retainedStrides);
-  return MemRefType::get(targetShape, fullType.getElementType(), layout,
+  return MemRefType::get(retainedShape, fullType.getElementType(), layout,
                          fullType.getMemorySpace());
 }
 
