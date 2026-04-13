@@ -91,6 +91,7 @@ def process_source_content(lines, section_name=None):
         line.replace("::tt::CB", "uint32_t")
         .replace('uint32_t', 'int32_t')
         .replace('int32_t', 'uint32_t')
+        .replace('pack_tile<false>', 'pack_tile<true>')
         for line in lines
     ]
 

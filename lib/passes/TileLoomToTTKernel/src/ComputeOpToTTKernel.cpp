@@ -612,6 +612,8 @@ static void copyTile(ConversionPatternRewriter &rewriter,
     PackTileOp::create(rewriter, loc, zero, outputCb, tileIdx);
     TileRegsReleaseOp::create(rewriter, loc);
   }
+  //TODO: tmp use for split_k first, CBPopFront should only be controlled by semaphore.give
+  CBPopFrontOp::create(rewriter, loc, inputCb, tiles);
 }
 
 static void emitWorkerPreparePayload(ConversionPatternRewriter &rewriter,

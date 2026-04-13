@@ -376,27 +376,20 @@ static void emitReducerReduceTransportSync(
     CBPushBackOp::create(rewriter, loc, runtime.outCb, workerTiles);
     return;
   }
-
-  NocSemaphoreSetOp::create(rewriter, loc, runtime.tokenSemaphorePtr, runtime.one);
-  NocSemaphoreSetMulticastOp::create(
-      rewriter, loc, runtime.tokenSemaphoreAddr, runtime.tokenSemaphoreMcastNocAddr,
-      analysis.workerCount, falseAttr, falseAttr);
-
+  //IMPORTANT: the order is that reducer wait until computation is done and release output cb, then ask worker to fill the output cb
   scf::ForOp workerLoop = scf::ForOp::create(
       rewriter, loc, runtime.one, analysis.participants, runtime.one);
   {
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(workerLoop.getBody());
     Value rank = workerLoop.getInductionVar();
-    NocSemaphoreWaitOp::create(rewriter, loc, runtime.readySemaphorePtr, rank);
     CBReserveBackOp::create(rewriter, loc, runtime.reducerReceiveCb, runtime.numTiles);
-    CBPushBackOp::create(rewriter, loc, runtime.reducerReceiveCb, runtime.numTiles);
-    Value nextToken = arith::AddIOp::create(rewriter, loc, rank, runtime.one);
-    NocSemaphoreSetOp::create(rewriter, loc, runtime.tokenSemaphorePtr, nextToken);
+    NocSemaphoreSetOp::create(rewriter, loc, runtime.tokenSemaphorePtr, rank);
     NocSemaphoreSetMulticastOp::create(
-        rewriter, loc, runtime.tokenSemaphoreAddr,
-        runtime.tokenSemaphoreMcastNocAddr, analysis.workerCount, falseAttr,
-        falseAttr);
+      rewriter, loc, runtime.tokenSemaphoreAddr, runtime.tokenSemaphoreMcastNocAddr,
+      analysis.workerCount, falseAttr, falseAttr);
+    NocSemaphoreWaitOp::create(rewriter, loc, runtime.readySemaphorePtr, rank);
+    CBPushBackOp::create(rewriter, loc, runtime.reducerReceiveCb, runtime.numTiles);
   }
 }
 
