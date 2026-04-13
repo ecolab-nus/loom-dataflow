@@ -331,7 +331,7 @@ static void emitWorkerReduceTransport(ConversionPatternRewriter &rewriter,
     NocSemaphoreWaitOp::create(rewriter, loc, runtime.tokenSemaphorePtr,
                                runtime.zero);
   } else {
-    NocSemaphoreWaitMinOp::create(rewriter, loc, runtime.tokenSemaphorePtr,
+    NocSemaphoreWaitOp::create(rewriter, loc, runtime.tokenSemaphorePtr,
                                analysis.rank);
   }
 
@@ -353,6 +353,8 @@ static void emitWorkerReduceTransport(ConversionPatternRewriter &rewriter,
   NocAsyncWriteOp::create(rewriter, loc, runtime.payloadReadPtr,
                           reducerSlotNocAddr, runtime.payloadBytes);
   NocAsyncWriteBarrierOp::create(rewriter, loc);
+  //reset the token semaphore to 1
+  NocSemaphoreSetOp::create(rewriter, loc, runtime.tokenSemaphorePtr, runtime.one);
   NocSemaphoreIncOp::create(rewriter, loc, runtime.reducerReadySemaphoreNocAddr,
                             runtime.one, runtime.nocId);
   CBPopFrontOp::create(rewriter, loc, runtime.payloadCb, runtime.numTiles);
