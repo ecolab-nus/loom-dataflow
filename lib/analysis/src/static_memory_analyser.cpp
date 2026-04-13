@@ -704,7 +704,8 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
           continue;
 
         auto sig = utils::traceShape(res);
-        if (sig.empty())
+        // Allow empty sig (rank-0 tensor) through — still a valid signature.
+        if (sig.empty() && tensorType.getRank() != 0)
           continue;
 
         ShapeSignature signature{sig, tensorType.getElementType()};
@@ -717,7 +718,7 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
       for (auto arg : forOp.getRegionIterArgs()) {
         if (auto tensorType = mlir::dyn_cast<RankedTensorType>(arg.getType())) {
           auto sig = utils::traceShape(arg);
-          if (sig.empty())
+          if (sig.empty() && tensorType.getRank() != 0)
             continue;
 
           ShapeSignature signature{sig, tensorType.getElementType()};

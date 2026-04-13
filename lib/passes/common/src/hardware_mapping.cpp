@@ -227,9 +227,6 @@ static LogicalResult applyMappingToFunction(
           loom::IterTypeAttr::get(ctx, loom::IterType::Spatial));
       if (blockSym)
         tiled_parallels.tiled_new_->setAttr("loom.block_sym", *blockSym);
-      if (!suffix.empty())
-        suffix += "_";
-      suffix += "d" + std::to_string(dimIdx) + "i" + std::to_string(iterIdx);
 
       loom::ParallelToHWMapping mapInfo;
       mapInfo.parallelIterIdx = iterIdx;
@@ -245,6 +242,17 @@ static LogicalResult applyMappingToFunction(
 
       tar_forOp = tiled_parallels.tiled_org_;
     }
+  }
+
+  // Construct suffix ordered by dimIdx (d) instead of iterIdx (i).
+  SmallVector<std::pair<unsigned, unsigned>> diPairs;
+  for (const auto &info : mappingInfo)
+    diPairs.push_back({info.hwDimIdx, info.parallelIterIdx});
+  llvm::sort(diPairs);
+  for (const auto &pair : diPairs) {
+    if (!suffix.empty())
+      suffix += "_";
+    suffix += "d" + std::to_string(pair.first) + "i" + std::to_string(pair.second);
   }
 
   OpBuilder builder(ctx);
@@ -299,6 +307,32 @@ static LogicalResult applyMappingToFunction(
         axis.logicalDimIndices.push_back(hwm.hwDimIdx);
       }
     }
+
+    // Sort each axis by logical level (innermost first) to match
+    // fromEnclosingLoops ordering and emitLinearIndex assumptions.
+    auto sortAxis = [&](loom::AxisLinearIndex &axis) {
+      if (axis.ivs.size() <= 1)
+        return;
+      SmallVector<unsigned> indices(axis.ivs.size());
+      std::iota(indices.begin(), indices.end(), 0);
+      std::sort(indices.begin(), indices.end(), [&](unsigned a, unsigned b) {
+        return dims[axis.logicalDimIndices[a]].level <
+               dims[axis.logicalDimIndices[b]].level;
+      });
+      SmallVector<Value> sortedIVs;
+      SmallVector<int64_t> sortedTileSizes;
+      SmallVector<unsigned> sortedLogicalDimIndices;
+      for (unsigned idx : indices) {
+        sortedIVs.push_back(axis.ivs[idx]);
+        sortedTileSizes.push_back(axis.tileSizes[idx]);
+        sortedLogicalDimIndices.push_back(axis.logicalDimIndices[idx]);
+      }
+      axis.ivs = std::move(sortedIVs);
+      axis.tileSizes = std::move(sortedTileSizes);
+      axis.logicalDimIndices = std::move(sortedLogicalDimIndices);
+    };
+    sortAxis(meshCoords.xAxis);
+    sortAxis(meshCoords.yAxis);
 
     // Identfy reduction axis in the mesh coordinate system
     // Based on Enhancement 1, it must be at logicalDimIndices[0]

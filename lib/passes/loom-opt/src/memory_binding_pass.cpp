@@ -64,11 +64,9 @@ struct ReadBlockLoadingLowering
 
     Location loc = op.getLoc();
 
-    // 2. Create loom.subview
-    auto subviewResultType = loom::SubviewOp::inferResultType(
-        cast<MemRefType>(subviewOp.getSource().getType()),
-        subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
-        subviewOp.getStaticStrides());
+    // 2. Create loom.subview — reuse the upstream memref.subview's result type
+    //    verbatim (it is already rank-reduced when the subview is rank-reducing).
+    auto subviewResultType = cast<MemRefType>(subviewOp.getResult().getType());
     auto loomSubviewOp = loom::SubviewOp::create(
         rewriter, loc, subviewResultType, subviewOp.getSource(),
         subviewOp.getOffsets(), subviewOp.getSizes(), subviewOp.getStrides(),
@@ -100,11 +98,25 @@ struct ReadBlockLoadingLowering
                          Value{}, Value{}, Value{}, Value{});
 
     // 4. loom.bufferize_to_tensor: pure view of the now-populated L1 buffer.
-    SmallVector<int64_t, 4> staticSizes(subviewOp.getStaticSizes().begin(),
-                                        subviewOp.getStaticSizes().end());
+    //    Filter sizes to match the result tensor rank (drop unit-size dims).
+    ArrayRef<int64_t> fullStaticSizes = subviewOp.getStaticSizes();
+    auto fullDynSizes = subviewOp.getSizes();
+    SmallVector<int64_t, 4> staticSizes;
+    SmallVector<Value, 4> dynSizes;
+    unsigned dynIdx = 0;
+    for (int64_t s : fullStaticSizes) {
+      bool isDynamic = (s == ShapedType::kDynamic);
+      if (isDynamic || s != 1) {
+        staticSizes.push_back(s);
+        if (isDynamic)
+          dynSizes.push_back(fullDynSizes[dynIdx]);
+      }
+      if (isDynamic)
+        ++dynIdx;
+    }
     rewriter.replaceOp(op, loom::BufferizeToTensorOp::create(
                                rewriter, loc, op.getType(), semaphore,
-                               subviewOp.getSizes(),
+                               dynSizes,
                                rewriter.getDenseI64ArrayAttr(staticSizes)));
 
     // We can't safely remove subview yet if it has other uses.
@@ -137,11 +149,9 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
 
     Location loc = subviewOp.getLoc();
 
-    // 1. Create loom.subview
-    auto subviewResultType = loom::SubviewOp::inferResultType(
-        cast<MemRefType>(subviewOp.getSource().getType()),
-        subviewOp.getStaticOffsets(), subviewOp.getStaticSizes(),
-        subviewOp.getStaticStrides());
+    // 1. Create loom.subview — reuse the upstream memref.subview's result type
+    //    verbatim (already rank-reduced when the subview is rank-reducing).
+    auto subviewResultType = cast<MemRefType>(subviewOp.getResult().getType());
     auto loomSubviewOp = loom::SubviewOp::create(
         rewriter, loc, subviewResultType, subviewOp.getSource(),
         subviewOp.getOffsets(), subviewOp.getSizes(), subviewOp.getStrides(),
@@ -455,10 +465,17 @@ private:
         }
         if (hasUnresolvableDim)
           continue;
+        // For 0-rank tensors (scalars), the result memref stays 0-rank so that
+        // downstream ops (semaphore_take, copy, bufferize_to_tensor) are
+        // unchanged. The static_sizes attribute records [1] so that
+        // formatAllocDims produces a correct 1-element footprint in the ETG.
+        SmallVector<int64_t> allocAttrSizes = staticSizes;
+        if (allocAttrSizes.empty() && dynamicSizes.empty())
+          allocAttrSizes.push_back(1);
         auto allocType = MemRefType::get(staticSizes, sig.elementType);
         auto allocOp = loom::AllocOp::create(
             builder, bucket.scopeOp->getLoc(), allocType, dynamicSizes,
-            builder.getDenseI64ArrayAttr(staticSizes), nullptr,
+            builder.getDenseI64ArrayAttr(allocAttrSizes), nullptr,
             builder.getI64IntegerAttr(1), SymbolRefAttr::get(context, "L1"));
         colorToAlloc[{sig, c}] = allocOp.getResult();
       }

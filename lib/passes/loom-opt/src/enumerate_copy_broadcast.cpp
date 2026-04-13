@@ -295,35 +295,30 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp /*outerModule*/,
       dimResults.push_back({dimName, 1, -1, false, {}});
   }
 
-  // Collect broadcastable dim indices
-  SmallVector<size_t> bcDims;
+  // Build the single best broadcast choice: enable all broadcastable dims.
+  // This avoids combinatorial explosion from enumerating subsets.
+  SmallVector<int64_t> bestValues(numDims, 1);
+  SmallVector<SmallVector<unsigned>> bestOverrides(numDims);
+  std::string bestLabel;
+
   for (size_t i = 0; i < dimResults.size(); ++i) {
-    if (dimResults[i].canBroadcast)
-      bcDims.push_back(i);
+    if (!dimResults[i].canBroadcast)
+      continue;
+    bestValues[i] = dimResults[i].coefficient;
+    bestOverrides[i] = dimResults[i].independentLevelIndices;
+    if (!bestLabel.empty())
+      bestLabel += "_";
+    bestLabel += dimResults[i].dimName + "_level" +
+                 std::to_string(dimResults[i].highestLevel) + "_bc" +
+                 std::to_string(dimResults[i].coefficient);
   }
 
-  // Enumerate all non-empty subsets of broadcastable dims
-  size_t numBroadcastable = bcDims.size();
-  for (size_t mask = 1; mask < (1u << numBroadcastable); ++mask) {
-    SmallVector<int64_t> values(numDims, 1);
-    SmallVector<SmallVector<unsigned>> overrides(numDims);
-    std::string label;
-
-    for (size_t bit = 0; bit < numBroadcastable; ++bit) {
-      if (mask & (1u << bit)) {
-        size_t idx = bcDims[bit];
-        values[idx] = dimResults[idx].coefficient;
-        overrides[idx] = dimResults[idx].independentLevelIndices;
-        if (!label.empty())
-          label += "_";
-        label += dimResults[idx].dimName + "_level" +
-                 std::to_string(dimResults[idx].highestLevel) + "_bc" +
-                 std::to_string(dimResults[idx].coefficient);
-      }
-    }
-
-    candidates.push_back({values, std::move(overrides), label});
+  if (!bestLabel.empty()) {
+    // At least one dim is broadcastable: return the best choice only.
+    candidates.clear();
+    candidates.push_back({bestValues, std::move(bestOverrides), bestLabel});
   }
+  // Otherwise candidates already holds the single no-broadcast option.
 
   return candidates;
 }

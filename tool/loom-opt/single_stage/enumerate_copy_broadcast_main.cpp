@@ -6,6 +6,7 @@
 #include "Passes.h"
 #include "driver_utils.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Transforms/Passes.h"
 #include "llvm/Support/CommandLine.h"
 
 using namespace mlir;
@@ -26,6 +27,8 @@ int main(int argc, char **argv) {
 
   PassManager pm(&context);
   pm.addPass(loom::passes::createEnumerateCopyBroadcastPass());
+  pm.addPass(mlir::createCSEPass());
+  pm.addPass(mlir::createCanonicalizerPass());
   if (failed(pm.run(*module))) {
     llvm::errs() << "LOOM copy-broadcast enumeration pass failed\n";
     return 2;

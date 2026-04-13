@@ -160,7 +160,25 @@ struct BufferizeToTensorOpInterface
                           const BufferizationOptions & /*options*/,
                           BufferizationState & /*state*/) const {
     auto bufferizeOp = cast<loom::BufferizeToTensorOp>(op);
-    replaceOpWithBufferizedValues(rewriter, op, bufferizeOp.getSource());
+    Value source = bufferizeOp.getSource();
+    auto srcMemrefType = cast<MemRefType>(source.getType());
+    auto resultTensorType =
+        cast<RankedTensorType>(bufferizeOp.getResult().getType());
+
+    // If the source memref rank exceeds the result tensor rank, insert a
+    // collapse_shape to match ranks.  This occurs for the scalar (rank-0)
+    // tensor case where the L1 alloc carries a unit dim (e.g. memref<1xf16>
+    // backing tensor<f16>).  All static dims in the source must be 1 for this
+    // to be valid, which is guaranteed by the unit-dim-only rank difference.
+    if (srcMemrefType.getRank() > resultTensorType.getRank()) {
+      SmallVector<ReassociationIndices> reassoc;
+      auto targetType = MemRefType::get(resultTensorType.getShape(),
+                                        srcMemrefType.getElementType());
+      source = memref::CollapseShapeOp::create(rewriter, op->getLoc(),
+                                               targetType, source, reassoc);
+    }
+
+    replaceOpWithBufferizedValues(rewriter, op, source);
     return success();
   }
 };
