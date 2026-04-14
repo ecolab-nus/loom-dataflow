@@ -207,6 +207,9 @@ public:
   const ReduceRuntimeArgs *getReduceRuntimeArgs(Operation *funcOp) const;
   ReduceRuntimeArgs *getReduceRuntimeArgs(Operation *funcOp);
 
+  /// Get a per-function scalar runtime arg (packed scalar word) by site id.
+  Value getScalarRuntimeArg(Operation *funcOp, int64_t siteId) const;
+
   /**
    * @brief Append a value to the tracker core list.
    *
@@ -308,6 +311,10 @@ private:
 
   /// Optional per-function reduce synchronization runtime args.
   llvm::DenseMap<Operation *, ReduceRuntimeArgs> funcToReduceRuntimeArgs;
+
+  /// Per-function scalar runtime args in scalar-site order.
+  llvm::DenseMap<Operation *, llvm::SmallVector<Value, 4>>
+      funcToScalarRuntimeArgs;
 };
 
 /**

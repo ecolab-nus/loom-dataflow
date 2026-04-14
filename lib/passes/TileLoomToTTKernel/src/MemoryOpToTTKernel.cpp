@@ -47,6 +47,8 @@ using namespace tt::ttcore;
 
 constexpr llvm::StringLiteral kReductionScaleCbAttrName =
     "loom.reduction_scale_cb";
+constexpr llvm::StringLiteral kScalarSiteIdAttrName =
+    "loom.ttkernel.scalar_site_id";
 
 /**
  * @brief Compute ceiling division of a dimension by the tile size (32).
@@ -1046,6 +1048,16 @@ struct ConvertLoomSemaphoreGiveOp
       return success();
     }
 
+    // Scalar runtime-site buffers are replaced by per-core runtime scalar
+    // arguments. Their semaphore-give is a no-op marker.
+    Value sourceMemref = stripMemrefCasts(op.getSource());
+    if (auto semTake = sourceMemref.getDefiningOp<::loom::SemaphoreTakeOp>()) {
+      if (semTake->hasAttr(kScalarSiteIdAttrName)) {
+        rewriter.eraseOp(op);
+        return success();
+      }
+    }
+
     // semaphore_give maps to CB release only for compute kernels.
     // In reader/writer/host kernels, it is a liveness marker only.
     if (!isComputeKernel(op)) {
@@ -1139,6 +1151,14 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
       llvm::errs() << "inputMemref: " << inputMemref << "\n";
       return failure();
     }
+
+    // Scalar load-sites are replaced by per-core runtime scalar args.
+    // No reader-side DRAM->CB movement is emitted for these copies.
+    if (op->hasAttr(kScalarSiteIdAttrName)) {
+      rewriter.eraseOp(op);
+      return success();
+    }
+
     Value cb = tracker->getCB(inputMemref);
     if (!cb) {
       llvm::errs() << "Error: CB not found for memref " << inputMemref << "\n";

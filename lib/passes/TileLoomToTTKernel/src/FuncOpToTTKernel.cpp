@@ -63,6 +63,12 @@ constexpr llvm::StringLiteral kMergedBIntoWriterStrategy =
     "matmul_merge_b_reader_into_writer";
 constexpr llvm::StringLiteral kHasReduceAttrName =
     "loom.ttkernel.has_reduce";
+constexpr llvm::StringLiteral kScalarPreprocessTmpAttrName =
+    "loom.ttkernel.scalar_preprocess_tmp";
+constexpr llvm::StringLiteral kScalarSiteIdAttrName =
+    "loom.ttkernel.scalar_site_id";
+constexpr llvm::StringLiteral kScalarSiteCountAttrName =
+    "loom.ttkernel.scalar_site_count";
 constexpr llvm::StringLiteral kReaderDataMovementRole = "reader";
 constexpr llvm::StringLiteral kWriterDataMovementRole = "writer";
 constexpr llvm::StringLiteral kDMProcessorRISCV0 = "riscv0";
@@ -342,6 +348,116 @@ static void ensureReductionScaleInputs(func::FuncOp func) {
   }
 }
 
+static void annotateScalarRuntimeSites(func::FuncOp func) {
+  int64_t nextSiteId = 0;
+  func.walk([&](::loom::CopyOp copyOp) {
+    auto sourceRC = copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>();
+    if (!sourceRC)
+      return;
+
+    auto dstType = dyn_cast<MemRefType>(copyOp.getDestination().getType());
+    if (!dstType || !dstType.hasStaticShape() || dstType.getNumElements() != 1)
+      return;
+
+    Value dstBase = stripLoomSemaphores(stripMemrefCasts(copyOp.getDestination()));
+    if (!dstBase.getDefiningOp<::loom::AllocOp>())
+      return;
+
+    IntegerAttr siteAttr = IntegerAttr::get(IntegerType::get(func.getContext(), 64),
+                                            nextSiteId);
+    copyOp->setAttr(kScalarSiteIdAttrName, siteAttr);
+
+    Value dst = stripMemrefCasts(copyOp.getDestination());
+    if (auto sem = dst.getDefiningOp<::loom::SemaphoreTakeOp>())
+      sem->setAttr(kScalarSiteIdAttrName, siteAttr);
+
+    ++nextSiteId;
+  });
+
+  if (nextSiteId > 0) {
+    func->setAttr(kScalarSiteCountAttrName,
+                  IntegerAttr::get(IntegerType::get(func.getContext(), 64),
+                                   nextSiteId));
+  } else {
+    func->removeAttr(kScalarSiteCountAttrName);
+  }
+}
+
+static bool isScalarMemRefType(Type type) {
+  auto memrefType = dyn_cast<MemRefType>(type);
+  if (!memrefType || !memrefType.hasStaticShape())
+    return false;
+  return memrefType.getNumElements() == 1;
+}
+
+// TODO(tmp): This is a temporary scalar-only preprocessing rewrite.
+// It removes scalar alloc/semaphore memory scaffolding and forwards scalar
+// sites via function arguments. We may replace this with a dedicated scalar
+// ABI/lowering path in follow-up work.
+static bool preprocessScalarMemoryOpsTmp(func::FuncOp func) {
+  SmallVector<::loom::SemaphoreTakeOp, 8> scalarSemaphores;
+  func.walk([&](::loom::SemaphoreTakeOp sem) {
+    auto semType = dyn_cast<MemRefType>(sem.getResult().getType());
+    auto allocOp = sem.getSource().getDefiningOp<::loom::AllocOp>();
+    if (!semType || !allocOp || !isScalarMemRefType(semType) ||
+        !isScalarMemRefType(allocOp.getType()))
+      return;
+
+    for (Operation *user : sem.getResult().getUsers()) {
+      // Keep scalar buffers tied to loom.copy on the memory path for now.
+      if (isa<::loom::CopyOp>(user))
+        return;
+    }
+    scalarSemaphores.push_back(sem);
+  });
+
+  if (scalarSemaphores.empty()) {
+    func->removeAttr(kScalarPreprocessTmpAttrName);
+    return false;
+  }
+
+  Block &entry = func.front();
+  auto oldType = func.getFunctionType();
+  SmallVector<Type, 8> newInputs(oldType.getInputs().begin(),
+                                 oldType.getInputs().end());
+  SmallVector<MemRefType, 8> scalarTypes;
+  scalarTypes.reserve(scalarSemaphores.size());
+  for (::loom::SemaphoreTakeOp sem : scalarSemaphores) {
+    auto semType = cast<MemRefType>(sem.getResult().getType());
+    scalarTypes.push_back(semType);
+    newInputs.push_back(semType);
+  }
+
+  func.setType(
+      FunctionType::get(func.getContext(), newInputs, oldType.getResults()));
+
+  SmallVector<BlockArgument, 8> scalarArgs;
+  scalarArgs.reserve(scalarTypes.size());
+  for (MemRefType semType : scalarTypes)
+    scalarArgs.push_back(entry.addArgument(semType, func.getLoc()));
+
+  for (auto [sem, scalarArg] : llvm::zip(scalarSemaphores, scalarArgs)) {
+    SmallVector<::loom::SemaphoreGiveOp, 4> giveOps;
+    for (Operation *user : sem.getResult().getUsers())
+      if (auto giveOp = dyn_cast<::loom::SemaphoreGiveOp>(user))
+        giveOps.push_back(giveOp);
+
+    auto allocOp = sem.getSource().getDefiningOp<::loom::AllocOp>();
+    sem.getResult().replaceAllUsesWith(scalarArg);
+
+    for (::loom::SemaphoreGiveOp giveOp : giveOps)
+      giveOp.erase();
+
+    sem.erase();
+    if (allocOp && allocOp.getResult().use_empty())
+      allocOp.erase();
+  }
+
+  func->setAttr(kScalarPreprocessTmpAttrName,
+                UnitAttr::get(func.getContext()));
+  return true;
+}
+
 } // namespace
 
 LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
@@ -536,6 +652,22 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
                           tokenSemaphoreMcastDestEndY};
   }
 
+  funcToScalarRuntimeArgs.erase(func.getOperation());
+  if (auto scalarSiteCountAttr =
+          func->getAttrOfType<IntegerAttr>(kScalarSiteCountAttrName)) {
+    int64_t scalarSiteCount = scalarSiteCountAttr.getInt();
+    if (scalarSiteCount < 0) {
+      return func.emitError() << "invalid negative scalar site count: "
+                              << scalarSiteCount;
+    }
+    auto &runtimeArgs = funcToScalarRuntimeArgs[func.getOperation()];
+    runtimeArgs.reserve(static_cast<size_t>(scalarSiteCount));
+    for (int64_t siteId = 0; siteId < scalarSiteCount; ++siteId) {
+      runtimeArgs.push_back(
+          createGetArgValOp(loc, rewriter, func, rewriter.getI32Type()));
+    }
+  }
+
   return success();
 }
 
@@ -628,6 +760,19 @@ mlir::loom::CompileArgTracker::getReduceRuntimeArgs(Operation *funcOp) {
   if (it == funcToReduceRuntimeArgs.end())
     return nullptr;
   return &it->second;
+}
+
+Value mlir::loom::CompileArgTracker::getScalarRuntimeArg(Operation *funcOp,
+                                                         int64_t siteId) const {
+  if (!funcOp || siteId < 0)
+    return {};
+  auto it = funcToScalarRuntimeArgs.find(funcOp);
+  if (it == funcToScalarRuntimeArgs.end())
+    return {};
+  auto &runtimeArgs = it->second;
+  if (siteId >= static_cast<int64_t>(runtimeArgs.size()))
+    return {};
+  return runtimeArgs[siteId];
 }
 
 void mlir::loom::CompileArgTracker::appendToCoreList(Operation *funcOp, Value value) {
@@ -1029,6 +1174,7 @@ public:
     inferCoreCoordArgOrder();
     collectDramInfos();
     collectBroadcastRegions();
+    collectScalarRuntimeSites();
     collectReduceRegion();
     collectCbInfos();
     annotateHostSignatureMetadata();
@@ -1096,6 +1242,13 @@ private:
     std::string ulYExpr;
     std::string lrXExpr;
     std::string lrYExpr;
+  };
+
+  struct ScalarRuntimeSiteInfo {
+    int64_t siteId = -1;
+    unsigned sourceArgIndex = 0;
+    std::string offsetExpr;
+    std::string inputName;
   };
 
   static constexpr unsigned kRuntimeArgsPerMemref = 11;
@@ -1572,6 +1725,55 @@ private:
       dramInfo->lrXExpr = *lrXExpr;
       dramInfo->lrYExpr = *lrYExpr;
     });
+  }
+
+  void collectScalarRuntimeSites() {
+    scalarRuntimeSites.clear();
+    if (parallelIvExprByValue.empty())
+      collectParallelIvExprs();
+
+    hostFunc.walk([&](::loom::CopyOp op) {
+      auto siteAttr = op->getAttrOfType<IntegerAttr>(kScalarSiteIdAttrName);
+      if (!siteAttr)
+        return;
+
+      auto sourceRC = op.getSource().getDefiningOp<memref::ReinterpretCastOp>();
+      if (!sourceRC)
+        return;
+
+      Value memrefArg = stripCasts(sourceRC.getSource());
+      DramBufferInfo *dramInfo = findDramInfoMutable(memrefArg);
+      if (!dramInfo || !dramInfo->isInput)
+        return;
+
+      std::optional<std::string> offsetExpr;
+      auto offsets = sourceRC.getOffsets();
+      if (!offsets.empty()) {
+        offsetExpr = buildIndexExpr(offsets.front(), parallelIvExprByValue);
+      } else {
+        auto mixedOffsets = sourceRC.getMixedOffsets();
+        if (!mixedOffsets.empty() && isa<Attribute>(mixedOffsets.front())) {
+          auto intAttr =
+              dyn_cast<IntegerAttr>(cast<Attribute>(mixedOffsets.front()));
+          if (intAttr)
+            offsetExpr = std::to_string(intAttr.getInt());
+        }
+      }
+      if (!offsetExpr)
+        offsetExpr = "0";
+
+      scalarRuntimeSites.push_back(ScalarRuntimeSiteInfo{
+          siteAttr.getInt(),
+          dramInfo->argIndex,
+          *offsetExpr,
+          dramInfo->inputName});
+    });
+
+    std::stable_sort(scalarRuntimeSites.begin(), scalarRuntimeSites.end(),
+                     [](const ScalarRuntimeSiteInfo &a,
+                        const ScalarRuntimeSiteInfo &b) {
+                       return a.siteId < b.siteId;
+                     });
   }
 
   void collectReduceRegion() {
@@ -2111,6 +2313,22 @@ private:
       emitLine(info.inputName + "_mcast_receiver_semaphore_addr,");
     };
 
+    for (const ScalarRuntimeSiteInfo &site : scalarRuntimeSites) {
+      std::string sitePrefix = "scalar_site_" + std::to_string(site.siteId);
+      emitLine("std::size_t " + sitePrefix +
+               "_index = static_cast<std::size_t>(" + site.offsetExpr + ");");
+      if (kind == HostProgramKind::Cpp) {
+        emitLine("bfloat16 " + sitePrefix + "_value = v" +
+                 std::to_string(site.sourceArgIndex + 1) + "[" + sitePrefix +
+                 "_index];");
+        emitLine("uint32_t " + sitePrefix +
+                 "_packed = pack_two_bfloat16_into_uint32({" + sitePrefix +
+                 "_value, " + sitePrefix + "_value});");
+      } else {
+        emitLine("uint32_t " + sitePrefix + "_packed = 0;");
+      }
+    }
+
     emitLine("std::vector<uint32_t> runtime_args_for_core = {");
 
     for (const DramBufferInfo &info : dramInfos) {
@@ -2126,8 +2344,9 @@ private:
     // Keep runtime-arg order aligned with CompileArgTracker creation order:
     // 1) per-memref runtime tuple(s)
     // 2) optional reduce runtime semaphores + token mcast physical bounds
-    // 3) core coordinates from scf.parallel lowering
-    // 4) remaining CB/runtime tail
+    // 3) per-scalar-site packed scalar runtime words
+    // 4) core coordinates from scf.parallel lowering
+    // 5) remaining CB/runtime tail
     //
     // This must match the indices consumed by generated reader/writer/compute
     // kernels, which are allocated via createGetArgValOp/createTypedCompileArg.
@@ -2138,6 +2357,10 @@ private:
       emitLine("reduce_token_mcast_dest_noc_start_y,");
       emitLine("reduce_token_mcast_dest_noc_end_x,");
       emitLine("reduce_token_mcast_dest_noc_end_y,");
+    }
+
+    for (const ScalarRuntimeSiteInfo &site : scalarRuntimeSites) {
+      emitLine("scalar_site_" + std::to_string(site.siteId) + "_packed,");
     }
 
     emitLine(coreCoordArg0Expr + ",");
@@ -2214,6 +2437,7 @@ private:
   HostProgramKind kind;
   SmallVector<DramBufferInfo, 8> dramInfos;
   SmallVector<CircularBufferInfo, 8> cbInfos;
+  SmallVector<ScalarRuntimeSiteInfo, 4> scalarRuntimeSites;
   IndexExprMap parallelIvExprByValue;
   SmallVector<unsigned, 8> internalCbRuntimeArgOrder;
   llvm::DenseMap<Value, unsigned> semaphoreToCbIndex;
@@ -2356,9 +2580,17 @@ void mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
     if (func.isExternal())
       continue;
 
+    // Mark scalar load-copy sites so host/device scalar runtime-arg
+    // extraction remains in per-copy-site order.
+    annotateScalarRuntimeSites(func);
+
     // Ensure every reduction generic has a dedicated scaler semaphore input.
     // This avoids reusing reduction outputs as scaler CBs during compute lowering.
     ensureReductionScaleInputs(func);
+
+    // Temporary scalar path: replace scalar alloc/semaphore memory chains with
+    // direct function inputs before function specialization.
+    preprocessScalarMemoryOpsTmp(func);
 
     // Create specialized versions
     FunctionSpecializer specializer(module, func);
