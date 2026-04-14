@@ -1180,6 +1180,7 @@ public:
     annotateHostSignatureMetadata();
     eraseNonHostOps();
     eraseDeadReinterpretCasts();
+    eraseHostSpatialMesh();
 
     builder.setInsertionPointToStart(&hostFunc.getBody().front());
     emitPreamble();
@@ -1952,6 +1953,35 @@ private:
     });
     for (Operation *op : unusedRcOps)
       op->erase();
+  }
+
+  /**
+   * @brief Remove cloned mesh `scf.parallel` trees from the host clone.
+   *
+   * @details Host helpers are filled in with `emitc.verbatim` Metal bootstrap;
+   *          the cloned spatial IR must not reach the main TileLoom→TTKernel
+   *          conversion, or `ConvertSCFParallelOp` will emit
+   *          `ttkernel.get_arg_val` (device runtime slots) into `__host_*`
+   *          functions. Erasing the mesh shell keeps host IR host-only.
+   */
+  void eraseHostSpatialMesh() {
+    SmallVector<scf::ParallelOp, 8> parallels;
+    hostFunc.walk([&](scf::ParallelOp p) { parallels.push_back(p); });
+    auto depthFromFuncRoot = [&](Operation *op) -> unsigned {
+      unsigned depth = 0;
+      for (Operation *parent = op->getParentOp();
+           parent && !isa<func::FuncOp>(parent); parent = parent->getParentOp())
+        ++depth;
+      return depth;
+    };
+    llvm::sort(parallels, [&](scf::ParallelOp a, scf::ParallelOp b) {
+      return depthFromFuncRoot(a) > depthFromFuncRoot(b);
+    });
+    for (scf::ParallelOp p : parallels) {
+      if (!p->getBlock())
+        continue;
+      p.erase();
+    }
   }
 
   void emitLine(const std::string &line) {

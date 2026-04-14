@@ -436,7 +436,7 @@ public:
             *this, "reduce-protocol",
             llvm::cl::desc("Reduce synchronization protocol "
                            "(multi-slot|single-slot)"),
-            llvm::cl::init("single-slot")),
+            llvm::cl::init("multi-slot")),
         reduceProtocolDeprecated(
             *this, "reduce-sum-protocol",
             llvm::cl::desc("[deprecated] Alias for reduce-protocol"),
