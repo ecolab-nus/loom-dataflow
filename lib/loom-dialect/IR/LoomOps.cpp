@@ -181,14 +181,17 @@ MemRefType loom::SubviewOp::inferResultType(MemRefType sourceType,
   int64_t fullOffset = stridedLayout.getOffset();
 
   SmallVector<int64_t> retainedStrides;
+  SmallVector<int64_t> retainedShape;
   for (size_t i = 0; i < staticSizes.size(); ++i) {
-    if (staticSizes[i] == ShapedType::kDynamic || staticSizes[i] != 1)
+    if (staticSizes[i] == ShapedType::kDynamic || staticSizes[i] != 1) {
       retainedStrides.push_back(fullStrides[i]);
+      retainedShape.push_back(staticSizes[i]);
+    }
   }
 
   auto layout = StridedLayoutAttr::get(sourceType.getContext(), fullOffset,
                                        retainedStrides);
-  return MemRefType::get(targetShape, fullType.getElementType(), layout,
+  return MemRefType::get(retainedShape, fullType.getElementType(), layout,
                          fullType.getMemorySpace());
 }
 
@@ -211,6 +214,13 @@ loom::AllocOp::inferResultType(::llvm::ArrayRef<int64_t> staticSizes,
 }
 
 void loom::ReduceSumOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(MemoryEffects::Read::get());
+  effects.emplace_back(MemoryEffects::Write::get());
+}
+
+void loom::GatherOp::getEffects(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects) {
   effects.emplace_back(MemoryEffects::Read::get());
@@ -637,6 +647,59 @@ struct FoldSemaphoreTakeType : public OpRewritePattern<SemaphoreTakeOp> {
   }
 };
 
+/// Peek through tensor.cast on ins/init and update the result type to a
+/// fully-static shape once the init tensor's shape becomes known.  Mirrors
+/// StaticizeReduceSum but accounts for the fact that ins and init have
+/// different ranks (init has an extra leading trip-count dimension).
+struct StaticizeGather : public OpRewritePattern<GatherOp> {
+  using OpRewritePattern<GatherOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(GatherOp op,
+                                PatternRewriter &rewriter) const override {
+    Value ins = op.getIns();
+    if (auto cast = ins.getDefiningOp<tensor::CastOp>())
+      ins = cast.getSource();
+
+    Value init = op.getInit();
+    if (auto cast = init.getDefiningOp<tensor::CastOp>())
+      init = cast.getSource();
+
+    if (op->getNumResults() == 0)
+      return failure();
+
+    auto initType = llvm::dyn_cast<RankedTensorType>(init.getType());
+    if (!initType)
+      return failure();
+
+    auto resultType =
+        llvm::dyn_cast<RankedTensorType>(op->getResultTypes()[0]);
+    if (!resultType)
+      return failure();
+
+    bool needsInsUpdate  = (ins  != op.getIns());
+    bool needsInitUpdate = (init != op.getInit());
+    bool needsTypeUpdate =
+        initType.hasStaticShape() && !resultType.hasStaticShape();
+
+    if (!needsInsUpdate && !needsInitUpdate && !needsTypeUpdate)
+      return failure();
+
+    Type newResultType = needsTypeUpdate ? Type(initType) : Type(resultType);
+
+    auto newOp = GatherOp::create(
+        rewriter, op.getLoc(), newResultType, ins, init, op.getAcross(),
+        op.getUlX(), op.getUlY(), op.getLrX(), op.getLrY());
+
+    if (newResultType != resultType) {
+      rewriter.replaceOpWithNewOp<tensor::CastOp>(op, resultType,
+                                                  newOp.getResult());
+    } else {
+      rewriter.replaceOp(op, newOp.getResult());
+    }
+    return success();
+  }
+};
+
 struct StaticizeReduceSum : public OpRewritePattern<ReduceSumOp> {
   using OpRewritePattern<ReduceSumOp>::OpRewritePattern;
 
@@ -753,6 +816,11 @@ void CopyOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void ReduceSumOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                               MLIRContext *context) {
   results.add<StaticizeReduceSum>(context);
+}
+
+void GatherOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                           MLIRContext *context) {
+  results.add<StaticizeGather>(context);
 }
 
 //===----------------------------------------------------------------------===//

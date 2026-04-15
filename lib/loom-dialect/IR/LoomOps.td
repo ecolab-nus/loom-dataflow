@@ -759,6 +759,63 @@ def MatmulOp : Loom_Op<"matmul", [
   }];
 }
 
+def GatherOp : Loom_Op<"gather", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  DestinationStyleOpInterface,
+  AttrSizedOperandSegments
+]> {
+  let summary = "Gather a tile tensor across all iterations of a loop axis (DPS)";
+  let description = [{
+    The `loom.gather` operation collects a tile tensor `ins` from every
+    iteration of the loop axis identified by `across`, writing the stacked
+    result into the destination buffer `outs`.
+
+    Operand convention (mirrors linalg DPS):
+    - ins:    source tile tensor of shape S
+    - outs:   destination buffer of shape [N, *S] where N = trip-count
+    - across: loop IV index of the gathered axis
+
+    The optional `region` bounds (UL/LR) follow the same mesh-broadcast
+    convention as `loom.reduce_sum`.
+
+    Example:
+    ```mlir
+    %empty = tensor.empty(%n, %m, %k) : tensor<?x?x?xf16>
+    %gathered = loom.gather
+        ins(%src : tensor<?x?xf16>)
+        outs(%empty : tensor<?x?x?xf16>)
+        across(%iv : index)
+        -> tensor<?x?x?xf16>
+    ```
+  }];
+
+  let arguments = !con(
+    (ins
+      AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$ins,
+      AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$init,
+      Index:$across
+    ),
+    MeshBoundsArgs
+  );
+
+  let results = (outs Variadic<AnyRankedTensor>:$result);
+
+  let assemblyFormat = [{
+    `ins` `(` $ins `:` type($ins) `)`
+    `outs` `(` $init `:` type($init) `)`
+    `across` `(` $across `:` type($across) `)`
+    ( `region` `:` `(` `UL` `:` `[` $ul_x^ `,` $ul_y `]` `,`
+        `LR` `:` `[` $lr_x `,` $lr_y `]` `)` )?
+    attr-dict (`->` type($result)^ )?
+  }];
+
+  let hasCanonicalizer = 1;
+
+  let extraClassDeclaration = [{
+    ::mlir::MutableOperandRange getDpsInitsMutable() { return getInitMutable(); }
+  }];
+}
+
 def BatchMatmulOp : Loom_Op<"batch_matmul", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
 ]> {

@@ -425,9 +425,11 @@ SmallVector<SymbolicDim, 4> traceShape(Value v) {
   else if (auto extractSlice = mlir::dyn_cast<tensor::ExtractSliceOp>(op)) {
     rawDims = extractSlice.getMixedSizes();
   }
-  // Case F: loom.reduce_sum (output has same shape as input)
-  else if (auto reduceSumOp = mlir::dyn_cast<loom::ReduceSumOp>(op)) {
-    return traceShape(reduceSumOp.getInput());
+  // Case G: loom.gather — output shape equals init (outs) operand shape.
+  // loom.gather is a DPS op: output rank = 1 + input rank (N stacked slices),
+  // so we must trace through the init (outs) tensor, not ins.
+  else if (auto gatherOp = mlir::dyn_cast<loom::GatherOp>(op)) {
+    return traceShape(gatherOp.getInit());
   }
   // Fallback
   else {

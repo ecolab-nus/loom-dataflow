@@ -255,20 +255,27 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp /*outerModule*/,
       {SmallVector<int64_t>(numDims, 1),
        SmallVector<SmallVector<unsigned>>(numDims), "n"});
 
-  auto isProducedByReduceSum = [](Value v) {
+  // Skip broadcast enumeration for copies that write out gather+reduce results.
+  // The chain is: copy-src = bufferize_to_memref(linalg.generic(ins=[gather_result]))
+  auto isProducedByGather = [](Value v) {
     if (!v) return false;
-    auto defOp = v.getDefiningOp();
-    if (!defOp) return false;
-    if (isa<loom::ReduceSumOp>(defOp)) return true;
-    if (auto bufToMemref = dyn_cast<loom::BufferizeToMemrefOp>(defOp)) {
-      if (auto srcOp = bufToMemref.getSource().getDefiningOp())
-         if (isa<loom::ReduceSumOp>(srcOp)) return true;
+    Operation *op = v.getDefiningOp();
+    if (!op) return false;
+    if (isa<loom::GatherOp>(op)) return true;
+    if (auto b = dyn_cast<loom::BufferizeToMemrefOp>(op)) {
+      Operation *srcOp = b.getSource().getDefiningOp();
+      if (!srcOp) return false;
+      if (isa<loom::GatherOp>(srcOp)) return true;
+      // One more level: through linalg.generic consuming a gather result
+      for (Value operand : srcOp->getOperands())
+        if (operand.getDefiningOp() && isa<loom::GatherOp>(operand.getDefiningOp()))
+          return true;
     }
     return false;
   };
 
-  if (isProducedByReduceSum(copyOp.getSource()) || 
-      isProducedByReduceSum(copyOp.getDestination())) {
+  if (isProducedByGather(copyOp.getSource()) ||
+      isProducedByGather(copyOp.getDestination())) {
     return candidates;
   }
 
