@@ -364,7 +364,10 @@ static void emitReducerReduceTransportSync(
   //reserve space for remote workers
   CBReserveBackOp::create(rewriter, loc, runtime.outCb, allParticipantTiles);
   //reducer ready to receive payload
-  NocSemaphoreSetOp::create(rewriter, loc, runtime.readySemaphorePtr, runtime.one);
+  NocSemaphoreSetOp::create(rewriter, loc, runtime.tokenSemaphorePtr, runtime.one);
+  NocSemaphoreSetMulticastOp::create(
+    rewriter, loc, runtime.tokenSemaphoreAddr, runtime.tokenSemaphoreMcastNocAddr,
+    analysis.workerCount, falseAttr, falseAttr);
 
   // Place reducer-local payload at rank-0 slot of outCb.
   CBWaitFrontOp::create(rewriter, loc, runtime.payloadCb, runtime.numTiles);
@@ -379,6 +382,7 @@ static void emitReducerReduceTransportSync(
   if (protocol == ReduceProtocol::MultiSlot) {
     NocSemaphoreWaitOp::create(rewriter, loc, runtime.readySemaphorePtr,
                                analysis.workerCount);
+    NocSemaphoreSetOp::create(rewriter, loc, runtime.readySemaphorePtr, runtime.zero);
     CBPushBackOp::create(rewriter, loc, runtime.outCb, allParticipantTiles);
     return;
   }
