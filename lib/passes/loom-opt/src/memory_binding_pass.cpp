@@ -433,20 +433,7 @@ private:
           earliestBirthOp = analysisCtx.getOpFromIndex(minBirthIdx);
         }
 
-        OpBuilder builder(context);
-        builder.setInsertionPointToStart(&bucket.scopeOp->getRegion(0).front());
-
-        if (earliestBirthOp) {
-          // Trace up to immediate child of scopeOp to ensure we stay in the same block
-          Operation *insertPt = earliestBirthOp;
-          while (insertPt && insertPt->getParentOp() != bucket.scopeOp) {
-            insertPt = insertPt->getParentOp();
-          }
-          if (insertPt) {
-            builder.setInsertionPoint(insertPt);
-          }
-        }
-
+        // Compute dynamic/static sizes first so we can check dominance below.
         SmallVector<Value> dynamicSizes;
         SmallVector<int64_t> staticSizes;
         bool hasUnresolvableDim = false;
@@ -465,6 +452,32 @@ private:
         }
         if (hasUnresolvableDim)
           continue;
+
+        OpBuilder builder(context);
+        builder.setInsertionPointToStart(&bucket.scopeOp->getRegion(0).front());
+
+        if (earliestBirthOp) {
+          // Trace up to immediate child of scopeOp to ensure we stay in the same block
+          Operation *insertPt = earliestBirthOp;
+          while (insertPt && insertPt->getParentOp() != bucket.scopeOp) {
+            insertPt = insertPt->getParentOp();
+          }
+          if (insertPt) {
+            // If any dynamic size is defined *inside* insertPt, placing the
+            // alloc before insertPt would violate SSA dominance. Instead,
+            // insert just before the birth op itself — all dynamic sizes are
+            // guaranteed available there (e.g. gather inside scf.if).
+            bool sizeInsideInsertPt = llvm::any_of(dynamicSizes, [&](Value dynSize) {
+              return dynSize.getDefiningOp() &&
+                     insertPt->isProperAncestor(dynSize.getDefiningOp());
+            });
+            if (sizeInsideInsertPt) {
+              builder.setInsertionPoint(earliestBirthOp);
+            } else {
+              builder.setInsertionPoint(insertPt);
+            }
+          }
+        }
         // For 0-rank tensors (scalars), the result memref stays 0-rank so that
         // downstream ops (semaphore_take, copy, bufferize_to_tensor) are
         // unchanged. The static_sizes attribute records [1] so that
@@ -513,16 +526,17 @@ private:
           continue;
 
         for (TensorNode *member : vb->members) {
-          auto linalgOp =
-              dyn_cast_or_null<linalg::LinalgOp>(member->definingOp);
-          if (!linalgOp)
+          // Handle any DPS op (linalg AND loom ops like loom.gather).
+          auto dpsOp =
+              dyn_cast_or_null<mlir::DestinationStyleOpInterface>(member->definingOp);
+          if (!dpsOp)
             continue;
 
-          for (OpOperand &outsOp : linalgOp.getDpsInitsMutable()) {
+          for (OpOperand &outsOp : dpsOp.getDpsInitsMutable()) {
             if (outsOp.get().getDefiningOp<tensor::EmptyOp>()) {
               // If this VB has an iterarg AND the op is inside the loop,
               // use iterarg as the outs to preserve SSA chain.
-              if (iterArg && loopOp->isProperAncestor(linalgOp)) {
+              if (iterArg && loopOp && loopOp->isProperAncestor(member->definingOp)) {
                 outsOp.set(iterArg);
               } else {
                 outsOp.set(getOrCreateInitTensor(allocVal, semaphore));

@@ -466,8 +466,8 @@ bool InterferenceGraph::checkHandoffInterference(
     return false;
 
   // Check DPS semantics: if the operand is a DPS init, it aliases the result
-  // and is safe to share the buffer.  This covers loom.reduce_sum (which now
-  // implements DestinationStyleOpInterface) and all linalg ops.
+  // and is safe to share the buffer. Covers loom.gather, all linalg ops, and
+  // any other op implementing DestinationStyleOpInterface.
   if (auto dpsOp = mlir::dyn_cast<mlir::DestinationStyleOpInterface>(
           vbB.definingOp)) {
     if (dpsOp.isDpsInit(operandA))
