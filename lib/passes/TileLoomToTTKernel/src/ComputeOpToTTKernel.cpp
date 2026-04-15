@@ -30,7 +30,7 @@
 #include <optional>
 #include <tuple>
 
-// Loom dialect headers for loom.reduce_sum.
+// Loom dialect headers for Loom ops used in compute lowering.
 #define GET_OP_CLASSES
 #include "LoomEnums.h.inc"
 #include "LoomAttributes.h.inc"
@@ -66,6 +66,12 @@ struct ElementwiseAnalysis {
   bool needsPowBinary = false;
   bool needsRecip = false;
 };
+
+static std::optional<int64_t> ceilDiv32(int64_t value) {
+  if (value <= 0)
+    return std::nullopt;
+  return (value + 31) / 32;
+}
 
 static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
                                                ElementwiseAnalysis &analysis);
@@ -232,6 +238,200 @@ classifyFlashAttentionGeneric(linalg::GenericOp op) {
   return std::nullopt;
 }
 
+static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
+                                          linalg::GenericOp::Adaptor adaptor,
+                                          ConversionPatternRewriter &rewriter,
+                                          llvm::DenseMap<Value, int64_t> &waitState);
+
+/**
+ * @brief Captures TTKernel init-op requirements for one tile-generic body.
+ */
+struct TileGenericExprAnalysis {
+  Value yieldValue;
+  bool needsAccumulatorCopy = false;
+  bool needsBinopWithScalar = false;
+  bool needsFill = false;
+  bool needsSubBinary = false;
+  bool needsAddBinary = false;
+  bool needsMulBinary = false;
+  bool needsBinaryMax = false;
+  bool needsPowBinary = false;
+  bool needsRecip = false;
+};
+
+/**
+ * @brief Distinguishes tile-generic body block arguments by semantic role.
+ */
+enum class TileGenericBodyOperand {
+  Input,
+  Accumulator
+};
+
+/**
+ * @brief Analyze whether a tile generic body expression is lowerable.
+ */
+static LogicalResult analyzeTileGeneric(linalg::GenericOp op,
+                                        TileGenericExprAnalysis &analysis);
+
+/**
+ * @brief Emit one tile generic body expression into a destination register.
+ */
+static LogicalResult emitTileGenericExprToReg(
+    Value exprValue, int dstReg, int tmpRegA, int tmpRegB, linalg::GenericOp op,
+    linalg::GenericOp::Adaptor adaptor, ConversionPatternRewriter &rewriter,
+    Location loc, Value inputTileIdx, Value accumulatorTileIdx,
+    bool emitInlineInitOps);
+
+/**
+ * @brief Check for the [reduction, parallel, parallel] iterator pattern.
+ */
+static bool isTileGenericOp(linalg::GenericOp op) {
+  auto iteratorTypes = op.getIteratorTypesArray();
+  if (iteratorTypes.size() != 3)
+    return false;
+  return iteratorTypes[0] == utils::IteratorType::reduction &&
+         iteratorTypes[1] == utils::IteratorType::parallel &&
+         iteratorTypes[2] == utils::IteratorType::parallel;
+}
+
+/**
+ * @brief Entry-point for [reduction, parallel, parallel] generic lowering.
+ *
+ * @details The first reduction slice seeds the output tile, then each
+ *          subsequent slice evaluates the generic body expression using the
+ *          current input tile and accumulated output tile.
+ */
+static LogicalResult tileGenericOp(
+    linalg::GenericOp op, linalg::GenericOp::Adaptor adaptor,
+    ConversionPatternRewriter &rewriter,
+    llvm::DenseMap<Value, int64_t> &waitState) {
+  auto fallbackToReduce = [&]() -> LogicalResult {
+    return rewriteReduceGeneric(op, adaptor, rewriter, waitState);
+  };
+  if (adaptor.getInputs().size() != 1 || adaptor.getOutputs().size() != 1)
+    return fallbackToReduce();
+
+  Value inCb = adaptor.getInputs().front();
+  Value outCb = adaptor.getOutputs().front();
+  if (!isa<CBType>(inCb.getType()) || !isa<CBType>(outCb.getType()))
+    return fallbackToReduce();
+
+  TileGenericExprAnalysis analysis;
+  if (failed(analyzeTileGeneric(op, analysis)))
+    return fallbackToReduce();
+
+  auto inType = dyn_cast<ShapedType>(op.getDpsInputs()[0].getType());
+  auto outType = dyn_cast<ShapedType>(op.getDpsInits()[0].getType());
+  if (!inType || !outType || !inType.hasStaticShape() || !outType.hasStaticShape() ||
+      inType.getRank() != 3 || outType.getRank() != 2)
+    return fallbackToReduce();
+
+  ArrayRef<int64_t> inShape = inType.getShape();
+  ArrayRef<int64_t> outShape = outType.getShape();
+  if (inShape[0] <= 0 || inShape[1] != outShape[0] || inShape[2] != outShape[1])
+    return fallbackToReduce();
+
+  auto rowTiles = ceilDiv32(outShape[0]);
+  auto colTiles = ceilDiv32(outShape[1]);
+  if (!rowTiles || !colTiles)
+    return fallbackToReduce();
+
+  int64_t outTiles = (*rowTiles) * (*colTiles);
+  int64_t reduceSlices = inShape[0];
+  int64_t inputTiles = reduceSlices * outTiles;
+
+  Location loc = op.getLoc();
+  auto i32 = [&](int64_t value) -> Value {
+    return rewriter.create<arith::ConstantIntOp>(loc, value, 32);
+  };
+  Value zeroI32 = i32(0);
+  Value oneI32 = i32(1);
+  Value outTilesV = i32(outTiles);
+  Value reduceSlicesV = i32(reduceSlices);
+  Value inputTilesV = i32(inputTiles);
+
+  auto emitWaitFront = [&](Value cb, int64_t tiles) {
+    if (tiles <= 0)
+      return;
+    int64_t outstanding = 0;
+    auto it = waitState.find(cb);
+    if (it != waitState.end())
+      outstanding = it->second;
+    if (outstanding >= tiles)
+      return;
+    CBWaitFrontOp::create(rewriter, loc, cb, i32(tiles));
+    waitState[cb] = tiles;
+  };
+
+  emitWaitFront(inCb, inputTiles);
+
+  CBReserveBackOp::create(rewriter, loc, outCb, outTilesV);
+  rewriter.create<CopyTileInitOp>(loc, inCb);
+  if (analysis.needsAccumulatorCopy && outCb != inCb)
+    rewriter.create<CopyTileInitOp>(loc, outCb);
+  if (analysis.needsBinopWithScalar)
+    rewriter.create<BinopWithScalarTileInitOp>(loc);
+  if (analysis.needsSubBinary)
+    rewriter.create<SubBinaryTilesInitOp>(loc);
+  if (analysis.needsAddBinary)
+    rewriter.create<AddBinaryTilesInitOp>(loc);
+  if (analysis.needsMulBinary)
+    rewriter.create<MulBinaryTilesInitOp>(loc);
+  if (analysis.needsBinaryMax)
+    rewriter.create<BinaryMaxTileInitOp>(loc);
+  if (analysis.needsFill)
+    rewriter.create<FillTileInitOp>(loc);
+  if (analysis.needsPowBinary)
+    rewriter.create<PowBinaryTilesInitOp>(loc);
+  if (analysis.needsRecip)
+    rewriter.create<RecipTileInitOp>(loc);
+
+  scf::ForOp outTileLoop =
+      scf::ForOp::create(rewriter, loc, zeroI32, outTilesV, oneI32);
+  {
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(outTileLoop.getBody());
+    Value outTileIdx = outTileLoop.getInductionVar();
+
+    TileRegsAcquireOp::create(rewriter, loc);
+    rewriter.create<CopyTileOp>(loc, inCb, outTileIdx, zeroI32);
+    TileRegsCommitOp::create(rewriter, loc);
+    TileRegsWaitOp::create(rewriter, loc);
+    PackTileOp::create(rewriter, loc, zeroI32, outCb, outTileIdx);
+    TileRegsReleaseOp::create(rewriter, loc);
+
+    scf::ForOp reduceLoop =
+        scf::ForOp::create(rewriter, loc, oneI32, reduceSlicesV, oneI32);
+    {
+      OpBuilder::InsertionGuard reduceGuard(rewriter);
+      rewriter.setInsertionPointToStart(reduceLoop.getBody());
+      Value reduceIdx = reduceLoop.getInductionVar();
+      Value sliceOffset = arith::MulIOp::create(rewriter, loc, reduceIdx, outTilesV);
+      Value inTileIdx =
+          arith::AddIOp::create(rewriter, loc, sliceOffset, outTileIdx);
+      TileRegsAcquireOp::create(rewriter, loc);
+      if (failed(emitTileGenericExprToReg(analysis.yieldValue, /*dstReg=*/0,
+                                          /*tmpRegA=*/1, /*tmpRegB=*/2, op,
+                                          adaptor, rewriter, loc, inTileIdx,
+                                          outTileIdx,
+                                          /*emitInlineInitOps=*/false)))
+        return failure();
+      TileRegsCommitOp::create(rewriter, loc);
+      TileRegsWaitOp::create(rewriter, loc);
+      PackTileOp::create(rewriter, loc, zeroI32, outCb, outTileIdx);
+      TileRegsReleaseOp::create(rewriter, loc);
+    }
+    rewriter.setInsertionPointAfter(reduceLoop);
+  }
+  CBPushBackOp::create(rewriter, loc, outCb, outTilesV);
+  waitState[outCb] = 0;
+  CBPopFrontOp::create(rewriter, loc, inCb, inputTilesV);
+  waitState[inCb] = 0;
+
+  rewriter.eraseOp(op);
+  return success();
+}
+
 static bool isIdentityMapForRank(AffineMap map, unsigned rank) {
   if (!map || map.getNumDims() != rank || map.getNumSymbols() != 0 ||
       map.getNumResults() != rank)
@@ -312,13 +512,6 @@ static std::optional<float> getConstFloatValue(Value value) {
     return getConstFloatValue(ext.getIn());
 
   return std::nullopt;
-}
-
-
-static std::optional<int64_t> ceilDiv32(int64_t value) {
-  if (value <= 0)
-    return std::nullopt;
-  return (value + 31) / 32;
 }
 
 static std::optional<int64_t> getNumTilesFromShapedType(Type type) {
@@ -734,78 +927,481 @@ static bool matchMaxSelect(arith::SelectOp selectOp, Value &lhs, Value &rhs) {
   return false;
 }
 
-static LogicalResult analyzeElementwiseExpr(Value exprValue, linalg::GenericOp op,
-                                            ElementwiseAnalysis &analysis) {
-  if (auto inputIdx = getBodyInputIndex(op, exprValue)) {
-    analysis.usedInputs.set(*inputIdx);
-    return success();
-  }
+enum class GenericExprFeature {
+  BinopWithScalar,
+  SubBinary,
+  AddBinary,
+  MulBinary,
+  BinaryMax,
+  PowBinary,
+  Recip,
+  Fill
+};
 
-  if (getConstFloatValue(exprValue).has_value())
-    return success();
+/**
+ * @brief Recursively analyze a generic expression tree.
+ *
+ * @details This helper is shared by FlashAttention elementwise analysis and
+ *          tile-generic analysis. Callers provide leaf handling and feature
+ *          flag plumbing while this function walks the op tree.
+ */
+template <typename LeafHandlerT, typename ConstHandlerT,
+          typename PowBaseConstHandlerT, typename FlagHandlerT>
+static LogicalResult analyzeGenericExprTree(
+    Value exprValue, linalg::GenericOp op, LeafHandlerT &&handleLeaf,
+    ConstHandlerT &&handleConst, PowBaseConstHandlerT &&handlePowBaseConst,
+    FlagHandlerT &&setFlag, bool allowMaximumFOp) {
+  auto recurse = [&](auto &&self, Value value) -> LogicalResult {
+    if (handleLeaf(value))
+      return success();
 
-  Operation *defOp = exprValue.getDefiningOp();
-  if (!defOp || defOp->getBlock() != &op.getRegion().front())
+    if (getConstFloatValue(value).has_value()) {
+      handleConst();
+      return success();
+    }
+
+    Operation *defOp = value.getDefiningOp();
+    if (!defOp || defOp->getBlock() != &op.getRegion().front())
+      return failure();
+
+    if (auto mulOp = dyn_cast<arith::MulFOp>(defOp)) {
+      auto lhsConst = getConstFloatValue(mulOp.getLhs());
+      auto rhsConst = getConstFloatValue(mulOp.getRhs());
+      if (lhsConst && !rhsConst) {
+        setFlag(GenericExprFeature::BinopWithScalar);
+        return self(self, mulOp.getRhs());
+      }
+      if (rhsConst && !lhsConst) {
+        setFlag(GenericExprFeature::BinopWithScalar);
+        return self(self, mulOp.getLhs());
+      }
+      setFlag(GenericExprFeature::MulBinary);
+      if (failed(self(self, mulOp.getLhs())))
+        return failure();
+      return self(self, mulOp.getRhs());
+    }
+
+    if (auto addOp = dyn_cast<arith::AddFOp>(defOp)) {
+      setFlag(GenericExprFeature::AddBinary);
+      if (failed(self(self, addOp.getLhs())))
+        return failure();
+      return self(self, addOp.getRhs());
+    }
+
+    if (auto subOp = dyn_cast<arith::SubFOp>(defOp)) {
+      setFlag(GenericExprFeature::SubBinary);
+      if (failed(self(self, subOp.getLhs())))
+        return failure();
+      return self(self, subOp.getRhs());
+    }
+
+    if (auto divOp = dyn_cast<arith::DivFOp>(defOp)) {
+      setFlag(GenericExprFeature::Recip);
+      setFlag(GenericExprFeature::MulBinary);
+      if (failed(self(self, divOp.getLhs())))
+        return failure();
+      return self(self, divOp.getRhs());
+    }
+
+    if (auto powOp = dyn_cast<math::PowFOp>(defOp)) {
+      if (!getConstFloatValue(powOp.getLhs()).has_value())
+        return failure();
+      handlePowBaseConst();
+      setFlag(GenericExprFeature::PowBinary);
+      return self(self, powOp.getRhs());
+    }
+
+    if (auto maxOp = dyn_cast<arith::MaximumFOp>(defOp)) {
+      if (!allowMaximumFOp)
+        return failure();
+      setFlag(GenericExprFeature::BinaryMax);
+      if (failed(self(self, maxOp.getLhs())))
+        return failure();
+      return self(self, maxOp.getRhs());
+    }
+
+    if (auto selectOp = dyn_cast<arith::SelectOp>(defOp)) {
+      Value lhs;
+      Value rhs;
+      if (!matchMaxSelect(selectOp, lhs, rhs))
+        return failure();
+      setFlag(GenericExprFeature::BinaryMax);
+      if (failed(self(self, lhs)))
+        return failure();
+      return self(self, rhs);
+    }
+
+    return failure();
+  };
+
+  return recurse(recurse, exprValue);
+}
+
+/**
+ * @brief Resolve tile-generic body values to input or accumulator operands.
+ */
+static std::optional<TileGenericBodyOperand>
+getTileGenericBodyOperand(linalg::GenericOp op, Value value) {
+  auto blockArg = dyn_cast<BlockArgument>(value);
+  if (!blockArg || blockArg.getOwner() != &op.getRegion().front())
+    return std::nullopt;
+
+  unsigned argNumber = blockArg.getArgNumber();
+  if (argNumber == 0)
+    return TileGenericBodyOperand::Input;
+
+  if (argNumber == op.getNumDpsInputs())
+    return TileGenericBodyOperand::Accumulator;
+
+  return std::nullopt;
+}
+
+/**
+ * @brief Collect init-op requirements for tile-generic body expressions.
+ */
+static LogicalResult analyzeTileGenericExpr(Value exprValue, linalg::GenericOp op,
+                                            TileGenericExprAnalysis &analysis) {
+  auto handleLeaf = [&](Value value) -> bool {
+    auto operand = getTileGenericBodyOperand(op, value);
+    if (!operand)
+      return false;
+    if (*operand == TileGenericBodyOperand::Accumulator)
+      analysis.needsAccumulatorCopy = true;
+    return true;
+  };
+  auto handleConst = [&]() { analysis.needsFill = true; };
+  auto handlePowBaseConst = [&]() { analysis.needsFill = true; };
+  auto setFlag = [&](GenericExprFeature feature) {
+    switch (feature) {
+    case GenericExprFeature::BinopWithScalar:
+      analysis.needsBinopWithScalar = true;
+      return;
+    case GenericExprFeature::SubBinary:
+      analysis.needsSubBinary = true;
+      return;
+    case GenericExprFeature::AddBinary:
+      analysis.needsAddBinary = true;
+      return;
+    case GenericExprFeature::MulBinary:
+      analysis.needsMulBinary = true;
+      return;
+    case GenericExprFeature::BinaryMax:
+      analysis.needsBinaryMax = true;
+      return;
+    case GenericExprFeature::PowBinary:
+      analysis.needsPowBinary = true;
+      return;
+    case GenericExprFeature::Recip:
+      analysis.needsRecip = true;
+      return;
+    case GenericExprFeature::Fill:
+      analysis.needsFill = true;
+      return;
+    }
+  };
+  return analyzeGenericExprTree(
+      exprValue, op, handleLeaf, handleConst, handlePowBaseConst, setFlag,
+      /*allowMaximumFOp=*/true);
+}
+
+/**
+ * @brief Validate tile generic shape and record body-expression requirements.
+ */
+static LogicalResult analyzeTileGeneric(linalg::GenericOp op,
+                                        TileGenericExprAnalysis &analysis) {
+  if (op.getNumDpsInputs() != 1 || op.getNumDpsInits() != 1)
     return failure();
 
-  if (auto mulOp = dyn_cast<arith::MulFOp>(defOp)) {
-    auto lhsConst = getConstFloatValue(mulOp.getLhs());
-    auto rhsConst = getConstFloatValue(mulOp.getRhs());
-    if (lhsConst && !rhsConst) {
-      analysis.needsBinopWithScalar = true;
-      return analyzeElementwiseExpr(mulOp.getRhs(), op, analysis);
+  auto yieldOp = dyn_cast<linalg::YieldOp>(op.getRegion().front().getTerminator());
+  if (!yieldOp || yieldOp.getValues().size() != 1)
+    return failure();
+
+  analysis.yieldValue = yieldOp.getValues().front();
+  return analyzeTileGenericExpr(analysis.yieldValue, op, analysis);
+}
+
+/**
+ * @brief Shared recursive emission for generic expression trees.
+ *
+ * @details This helper emits all non-leaf expression operators shared by
+ *          FlashAttention elementwise and tile-generic lowering. Callers
+ *          provide leaf materialization and operand-order policy.
+ */
+template <typename LeafEmitterT, typename RhsFirstPolicyT>
+static LogicalResult emitGenericExprToRegImpl(
+    Value exprValue, int dstReg, int tmpRegA, int tmpRegB, linalg::GenericOp op,
+    linalg::GenericOp::Adaptor adaptor, ConversionPatternRewriter &rewriter,
+    Location loc, bool emitInlineInitOps, bool allowMaximumFOp,
+    LeafEmitterT &&emitLeafToReg, RhsFirstPolicyT &&emitRhsFirstForOperands) {
+  auto recurse =
+      [&](auto &&self, Value value, int curDstReg, int curTmpRegA,
+          int curTmpRegB) -> LogicalResult {
+    Value curDstRegVal = i32Const(rewriter, loc, curDstReg);
+    Value curTmpRegAVal = i32Const(rewriter, loc, curTmpRegA);
+
+    bool handledLeaf = false;
+    if (failed(emitLeafToReg(value, curDstReg, handledLeaf)))
+      return failure();
+    if (handledLeaf)
+      return success();
+
+    if (auto constFloat = getConstFloatValue(value)) {
+      if (emitInlineInitOps)
+        rewriter.create<FillTileInitOp>(loc);
+      Value constVal = rewriter.create<arith::ConstantFloatOp>(
+          loc, rewriter.getF32Type(), llvm::APFloat(*constFloat));
+      rewriter.create<FillTileOp>(loc, curDstRegVal, constVal);
+      return success();
     }
-    if (rhsConst && !lhsConst) {
-      analysis.needsBinopWithScalar = true;
-      return analyzeElementwiseExpr(mulOp.getLhs(), op, analysis);
+
+    Operation *defOp = value.getDefiningOp();
+    if (!defOp || defOp->getBlock() != &op.getRegion().front())
+      return failure();
+
+    if (auto mulOp = dyn_cast<arith::MulFOp>(defOp)) {
+      auto lhsConst = getConstFloatValue(mulOp.getLhs());
+      auto rhsConst = getConstFloatValue(mulOp.getRhs());
+      if (lhsConst && !rhsConst) {
+        if (failed(self(self, mulOp.getRhs(), curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+        if (emitInlineInitOps)
+          rewriter.create<BinopWithScalarTileInitOp>(loc);
+        rewriter.create<MulUnaryTileOp>(
+            loc, curDstRegVal, getScalarBitsFromFloat(rewriter, loc, *lhsConst));
+        return success();
+      }
+      if (rhsConst && !lhsConst) {
+        if (failed(self(self, mulOp.getLhs(), curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+        if (emitInlineInitOps)
+          rewriter.create<BinopWithScalarTileInitOp>(loc);
+        rewriter.create<MulUnaryTileOp>(
+            loc, curDstRegVal, getScalarBitsFromFloat(rewriter, loc, *rhsConst));
+        return success();
+      }
+
+      bool emitRhsFirst = emitRhsFirstForOperands(mulOp.getLhs(), mulOp.getRhs());
+      if (emitRhsFirst) {
+        if (failed(self(self, mulOp.getRhs(), curTmpRegA, curTmpRegB, curDstReg)))
+          return failure();
+        if (failed(self(self, mulOp.getLhs(), curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+      } else {
+        if (failed(self(self, mulOp.getLhs(), curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+        if (failed(self(self, mulOp.getRhs(), curTmpRegA, curTmpRegB, curDstReg)))
+          return failure();
+      }
+      if (emitInlineInitOps)
+        rewriter.create<MulBinaryTilesInitOp>(loc);
+      rewriter.create<MulBinaryTilesOp>(loc, curDstRegVal, curTmpRegAVal,
+                                        curDstRegVal);
+      return success();
     }
-    analysis.needsMulBinary = true;
-    if (failed(analyzeElementwiseExpr(mulOp.getLhs(), op, analysis)))
-      return failure();
-    return analyzeElementwiseExpr(mulOp.getRhs(), op, analysis);
-  }
 
-  if (auto addOp = dyn_cast<arith::AddFOp>(defOp)) {
-    analysis.needsAddBinary = true;
-    if (failed(analyzeElementwiseExpr(addOp.getLhs(), op, analysis)))
-      return failure();
-    return analyzeElementwiseExpr(addOp.getRhs(), op, analysis);
-  }
+    if (auto addOp = dyn_cast<arith::AddFOp>(defOp)) {
+      bool emitRhsFirst = emitRhsFirstForOperands(addOp.getLhs(), addOp.getRhs());
+      if (emitRhsFirst) {
+        if (failed(self(self, addOp.getRhs(), curTmpRegA, curTmpRegB, curDstReg)))
+          return failure();
+        if (failed(self(self, addOp.getLhs(), curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+      } else {
+        if (failed(self(self, addOp.getLhs(), curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+        if (failed(self(self, addOp.getRhs(), curTmpRegA, curTmpRegB, curDstReg)))
+          return failure();
+      }
+      if (emitInlineInitOps)
+        rewriter.create<AddBinaryTilesInitOp>(loc);
+      rewriter.create<AddBinaryTilesOp>(loc, curDstRegVal, curTmpRegAVal,
+                                        curDstRegVal);
+      return success();
+    }
 
-  if (auto subOp = dyn_cast<arith::SubFOp>(defOp)) {
-    analysis.needsSubBinary = true;
-    if (failed(analyzeElementwiseExpr(subOp.getLhs(), op, analysis)))
-      return failure();
-    return analyzeElementwiseExpr(subOp.getRhs(), op, analysis);
-  }
+    if (auto subOp = dyn_cast<arith::SubFOp>(defOp)) {
+      bool emitRhsFirst = emitRhsFirstForOperands(subOp.getLhs(), subOp.getRhs());
+      if (emitRhsFirst) {
+        if (failed(self(self, subOp.getRhs(), curTmpRegA, curTmpRegB, curDstReg)))
+          return failure();
+        if (failed(self(self, subOp.getLhs(), curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+      } else {
+        if (failed(self(self, subOp.getLhs(), curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+        if (failed(self(self, subOp.getRhs(), curTmpRegA, curTmpRegB, curDstReg)))
+          return failure();
+      }
+      if (emitInlineInitOps)
+        rewriter.create<SubBinaryTilesInitOp>(loc);
+      rewriter.create<SubBinaryTilesOp>(loc, curDstRegVal, curTmpRegAVal,
+                                        curDstRegVal);
+      return success();
+    }
 
-  if (auto divOp = dyn_cast<arith::DivFOp>(defOp)) {
-    analysis.needsRecip = true;
-    analysis.needsMulBinary = true;
-    if (failed(analyzeElementwiseExpr(divOp.getLhs(), op, analysis)))
-      return failure();
-    return analyzeElementwiseExpr(divOp.getRhs(), op, analysis);
-  }
+    if (auto divOp = dyn_cast<arith::DivFOp>(defOp)) {
+      bool emitRhsFirst = emitRhsFirstForOperands(divOp.getLhs(), divOp.getRhs());
+      if (emitRhsFirst) {
+        if (failed(self(self, divOp.getRhs(), curTmpRegA, curTmpRegB, curDstReg)))
+          return failure();
+        if (failed(self(self, divOp.getLhs(), curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+      } else {
+        if (failed(self(self, divOp.getLhs(), curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+        if (failed(self(self, divOp.getRhs(), curTmpRegA, curTmpRegB, curDstReg)))
+          return failure();
+      }
+      if (emitInlineInitOps)
+        rewriter.create<RecipTileInitOp>(loc);
+      rewriter.create<RecipTileOp>(loc, curTmpRegAVal);
+      if (emitInlineInitOps)
+        rewriter.create<MulBinaryTilesInitOp>(loc);
+      rewriter.create<MulBinaryTilesOp>(loc, curDstRegVal, curTmpRegAVal,
+                                        curDstRegVal);
+      return success();
+    }
 
-  if (auto powOp = dyn_cast<math::PowFOp>(defOp)) {
-    if (!getConstFloatValue(powOp.getLhs()).has_value())
-      return failure();
-    analysis.needsPowBinary = true;
-    return analyzeElementwiseExpr(powOp.getRhs(), op, analysis);
-  }
+    if (auto powOp = dyn_cast<math::PowFOp>(defOp)) {
+      auto lhsConst = getConstFloatValue(powOp.getLhs());
+      if (!lhsConst)
+        return failure();
+      if (failed(self(self, powOp.getRhs(), curDstReg, curTmpRegA, curTmpRegB)))
+        return failure();
+      Value lhsConstVal = rewriter.create<arith::ConstantFloatOp>(
+          loc, rewriter.getF32Type(), llvm::APFloat(*lhsConst));
+      if (emitInlineInitOps)
+        rewriter.create<FillTileInitOp>(loc);
+      rewriter.create<FillTileOp>(loc, curTmpRegAVal, lhsConstVal);
+      if (emitInlineInitOps)
+        rewriter.create<PowBinaryTilesInitOp>(loc);
+      rewriter.create<PowBinaryTilesOp>(loc, curTmpRegAVal, curDstRegVal,
+                                        curDstRegVal);
+      return success();
+    }
 
-  if (auto selectOp = dyn_cast<arith::SelectOp>(defOp)) {
-    Value lhs;
-    Value rhs;
-    if (!matchMaxSelect(selectOp, lhs, rhs))
-      return failure();
-    analysis.needsBinaryMax = true;
-    if (failed(analyzeElementwiseExpr(lhs, op, analysis)))
-      return failure();
-    return analyzeElementwiseExpr(rhs, op, analysis);
-  }
+    auto emitBinaryMax = [&](Value lhs, Value rhs) -> LogicalResult {
+      bool emitRhsFirst = emitRhsFirstForOperands(lhs, rhs);
+      if (emitRhsFirst) {
+        if (failed(self(self, rhs, curTmpRegA, curTmpRegB, curDstReg)))
+          return failure();
+        if (failed(self(self, lhs, curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+      } else {
+        if (failed(self(self, lhs, curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+        if (failed(self(self, rhs, curTmpRegA, curTmpRegB, curDstReg)))
+          return failure();
+      }
+      if (emitInlineInitOps)
+        rewriter.create<BinaryMaxTileInitOp>(loc);
+      rewriter.create<BinaryMaxTileOp>(loc, curDstRegVal, curTmpRegAVal,
+                                       curDstRegVal);
+      return success();
+    };
 
-  return failure();
+    if (auto maxOp = dyn_cast<arith::MaximumFOp>(defOp)) {
+      if (!allowMaximumFOp)
+        return failure();
+      return emitBinaryMax(maxOp.getLhs(), maxOp.getRhs());
+    }
+
+    if (auto selectOp = dyn_cast<arith::SelectOp>(defOp)) {
+      Value lhs;
+      Value rhs;
+      if (!matchMaxSelect(selectOp, lhs, rhs))
+        return failure();
+      return emitBinaryMax(lhs, rhs);
+    }
+
+    return failure();
+  };
+
+  return recurse(recurse, exprValue, dstReg, tmpRegA, tmpRegB);
+}
+
+/**
+ * @brief Emit tile-generic body expressions using TTKernel tile ops.
+ */
+static LogicalResult emitTileGenericExprToReg(
+    Value exprValue, int dstReg, int tmpRegA, int tmpRegB, linalg::GenericOp op,
+    linalg::GenericOp::Adaptor adaptor, ConversionPatternRewriter &rewriter,
+    Location loc, Value inputTileIdx, Value accumulatorTileIdx,
+    bool emitInlineInitOps) {
+  auto emitLeaf = [&](Value value, int reg, bool &handled) -> LogicalResult {
+    auto operand = getTileGenericBodyOperand(op, value);
+    if (!operand) {
+      handled = false;
+      return success();
+    }
+
+    handled = true;
+    Value regVal = i32Const(rewriter, loc, reg);
+    Value sourceCb = *operand == TileGenericBodyOperand::Input
+                         ? adaptor.getInputs()[0]
+                         : adaptor.getOutputs()[0];
+    Value sourceTileIdx = *operand == TileGenericBodyOperand::Input
+                              ? inputTileIdx
+                              : accumulatorTileIdx;
+    if (emitInlineInitOps)
+      rewriter.create<CopyTileInitOp>(loc, sourceCb);
+    rewriter.create<CopyTileOp>(loc, sourceCb, sourceTileIdx, regVal);
+    return success();
+  };
+
+  auto emitRhsFirstForOperands = [&](Value lhs, Value rhs) -> bool {
+    (void)lhs;
+    (void)rhs;
+    return false;
+  };
+
+  return emitGenericExprToRegImpl(
+      exprValue, dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter, loc,
+      emitInlineInitOps, /*allowMaximumFOp=*/true, emitLeaf,
+      emitRhsFirstForOperands);
+}
+
+static LogicalResult analyzeElementwiseExpr(Value exprValue, linalg::GenericOp op,
+                                            ElementwiseAnalysis &analysis) {
+  auto handleLeaf = [&](Value value) -> bool {
+    auto inputIdx = getBodyInputIndex(op, value);
+    if (!inputIdx)
+      return false;
+    analysis.usedInputs.set(*inputIdx);
+    return true;
+  };
+  auto handleConst = [&]() {};
+  auto handlePowBaseConst = [&]() {};
+  auto setFlag = [&](GenericExprFeature feature) {
+    switch (feature) {
+    case GenericExprFeature::BinopWithScalar:
+      analysis.needsBinopWithScalar = true;
+      return;
+    case GenericExprFeature::SubBinary:
+      analysis.needsSubBinary = true;
+      return;
+    case GenericExprFeature::AddBinary:
+      analysis.needsAddBinary = true;
+      return;
+    case GenericExprFeature::MulBinary:
+      analysis.needsMulBinary = true;
+      return;
+    case GenericExprFeature::BinaryMax:
+      analysis.needsBinaryMax = true;
+      return;
+    case GenericExprFeature::PowBinary:
+      analysis.needsPowBinary = true;
+      return;
+    case GenericExprFeature::Recip:
+      analysis.needsRecip = true;
+      return;
+    case GenericExprFeature::Fill:
+      return;
+    }
+  };
+  return analyzeGenericExprTree(
+      exprValue, op, handleLeaf, handleConst, handlePowBaseConst, setFlag,
+      /*allowMaximumFOp=*/false);
 }
 
 static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
@@ -923,10 +1519,15 @@ static LogicalResult emitElementwiseExprToReg(
     Location loc, Value tileIdx, std::optional<Value> rowIdx,
     std::optional<unsigned> rowBcastInput, bool emitInlineInitOps,
     std::optional<unsigned> rowBcastRefInput) {
-  Value dstRegVal = i32Const(rewriter, loc, dstReg);
-  Value tmpRegAVal = i32Const(rewriter, loc, tmpRegA);
+  auto emitLeaf = [&](Value value, int reg, bool &handled) -> LogicalResult {
+    auto inputIdx = getBodyInputIndex(op, value);
+    if (!inputIdx) {
+      handled = false;
+      return success();
+    }
 
-  if (auto inputIdx = getBodyInputIndex(op, exprValue)) {
+    handled = true;
+    Value regVal = i32Const(rewriter, loc, reg);
     if (rowBcastInput && *inputIdx == *rowBcastInput) {
       if (!rowIdx)
         return failure();
@@ -938,231 +1539,26 @@ static LogicalResult emitElementwiseExprToReg(
             adaptor.getInputs()[*rowBcastRefInput], BcastType::Col);
       }
       rewriter.create<UnaryBcastTileOp>(loc, adaptor.getInputs()[*inputIdx],
-                                        *rowIdx, dstRegVal, BcastType::Col);
-    } else {
-      if (emitInlineInitOps)
-        rewriter.create<CopyTileInitOp>(loc, adaptor.getInputs()[*inputIdx]);
-      rewriter.create<CopyTileOp>(loc, adaptor.getInputs()[*inputIdx], tileIdx,
-                                  dstRegVal);
-    }
-    return success();
-  }
-
-  Operation *defOp = exprValue.getDefiningOp();
-  if (!defOp || defOp->getBlock() != &op.getRegion().front())
-    return failure();
-
-  if (auto mulOp = dyn_cast<arith::MulFOp>(defOp)) {
-    auto lhsConst = getConstFloatValue(mulOp.getLhs());
-    auto rhsConst = getConstFloatValue(mulOp.getRhs());
-    if (lhsConst && !rhsConst) {
-      if (failed(emitElementwiseExprToReg(
-              mulOp.getRhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-      if (emitInlineInitOps)
-        rewriter.create<BinopWithScalarTileInitOp>(loc);
-      rewriter.create<MulUnaryTileOp>(loc, dstRegVal,
-                                      getScalarBitsFromFloat(rewriter, loc, *lhsConst));
-      return success();
-    }
-    if (rhsConst && !lhsConst) {
-      if (failed(emitElementwiseExprToReg(
-              mulOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-      if (emitInlineInitOps)
-        rewriter.create<BinopWithScalarTileInitOp>(loc);
-      rewriter.create<MulUnaryTileOp>(loc, dstRegVal,
-                                      getScalarBitsFromFloat(rewriter, loc, *rhsConst));
+                                        *rowIdx, regVal, BcastType::Col);
       return success();
     }
 
-    bool emitRhsFirst = shouldEmitRhsFirstForRowBcast(
-        mulOp.getLhs(), mulOp.getRhs(), op, rowBcastInput, emitInlineInitOps);
-    if (emitRhsFirst) {
-      if (failed(emitElementwiseExprToReg(
-              mulOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-      if (failed(emitElementwiseExprToReg(
-              mulOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-    } else {
-      if (failed(emitElementwiseExprToReg(
-              mulOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-      if (failed(emitElementwiseExprToReg(
-              mulOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-    }
     if (emitInlineInitOps)
-      rewriter.create<MulBinaryTilesInitOp>(loc);
-    rewriter.create<MulBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
+      rewriter.create<CopyTileInitOp>(loc, adaptor.getInputs()[*inputIdx]);
+    rewriter.create<CopyTileOp>(loc, adaptor.getInputs()[*inputIdx], tileIdx,
+                                regVal);
     return success();
-  }
+  };
 
-  if (auto addOp = dyn_cast<arith::AddFOp>(defOp)) {
-    bool emitRhsFirst = shouldEmitRhsFirstForRowBcast(
-        addOp.getLhs(), addOp.getRhs(), op, rowBcastInput, emitInlineInitOps);
-    if (emitRhsFirst) {
-      if (failed(emitElementwiseExprToReg(
-              addOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-      if (failed(emitElementwiseExprToReg(
-              addOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-    } else {
-      if (failed(emitElementwiseExprToReg(
-              addOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-      if (failed(emitElementwiseExprToReg(
-              addOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-    }
-    if (emitInlineInitOps)
-      rewriter.create<AddBinaryTilesInitOp>(loc);
-    rewriter.create<AddBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
-    return success();
-  }
+  auto emitRhsFirstForOperands = [&](Value lhs, Value rhs) -> bool {
+    return shouldEmitRhsFirstForRowBcast(lhs, rhs, op, rowBcastInput,
+                                         emitInlineInitOps);
+  };
 
-  if (auto subOp = dyn_cast<arith::SubFOp>(defOp)) {
-    bool emitRhsFirst = shouldEmitRhsFirstForRowBcast(
-        subOp.getLhs(), subOp.getRhs(), op, rowBcastInput, emitInlineInitOps);
-    if (emitRhsFirst) {
-      if (failed(emitElementwiseExprToReg(
-              subOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-      if (failed(emitElementwiseExprToReg(
-              subOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-    } else {
-      if (failed(emitElementwiseExprToReg(
-              subOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-      if (failed(emitElementwiseExprToReg(
-              subOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-    }
-    if (emitInlineInitOps)
-      rewriter.create<SubBinaryTilesInitOp>(loc);
-    rewriter.create<SubBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
-    return success();
-  }
-
-  if (auto divOp = dyn_cast<arith::DivFOp>(defOp)) {
-    bool emitRhsFirst = shouldEmitRhsFirstForRowBcast(
-        divOp.getLhs(), divOp.getRhs(), op, rowBcastInput, emitInlineInitOps);
-    if (emitRhsFirst) {
-      if (failed(emitElementwiseExprToReg(
-              divOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-      if (failed(emitElementwiseExprToReg(
-              divOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-    } else {
-      if (failed(emitElementwiseExprToReg(
-              divOp.getLhs(), dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-      if (failed(emitElementwiseExprToReg(
-              divOp.getRhs(), tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter,
-              loc, tileIdx, rowIdx, rowBcastInput, emitInlineInitOps,
-              rowBcastRefInput)))
-        return failure();
-    }
-    if (emitInlineInitOps)
-      rewriter.create<RecipTileInitOp>(loc);
-    rewriter.create<RecipTileOp>(loc, tmpRegAVal);
-    if (emitInlineInitOps)
-      rewriter.create<MulBinaryTilesInitOp>(loc);
-    rewriter.create<MulBinaryTilesOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
-    return success();
-  }
-
-  if (auto powOp = dyn_cast<math::PowFOp>(defOp)) {
-    auto lhsConst = getConstFloatValue(powOp.getLhs());
-    if (!lhsConst)
-      return failure();
-    if (failed(emitElementwiseExprToReg(powOp.getRhs(), dstReg, tmpRegA, tmpRegB,
-                                        op, adaptor, rewriter, loc, tileIdx, rowIdx,
-                                        rowBcastInput, emitInlineInitOps,
-                                        rowBcastRefInput)))
-      return failure();
-    Value lhsConstVal = rewriter.create<arith::ConstantFloatOp>(
-        loc, rewriter.getF32Type(), llvm::APFloat(*lhsConst));
-    if (emitInlineInitOps)
-      rewriter.create<FillTileInitOp>(loc);
-    rewriter.create<FillTileOp>(loc, tmpRegAVal, lhsConstVal);
-    if (emitInlineInitOps)
-      rewriter.create<PowBinaryTilesInitOp>(loc);
-    rewriter.create<PowBinaryTilesOp>(loc, tmpRegAVal, dstRegVal, dstRegVal);
-    return success();
-  }
-
-  if (auto selectOp = dyn_cast<arith::SelectOp>(defOp)) {
-    Value lhs;
-    Value rhs;
-    if (!matchMaxSelect(selectOp, lhs, rhs))
-      return failure();
-    bool emitRhsFirst = shouldEmitRhsFirstForRowBcast(
-        lhs, rhs, op, rowBcastInput, emitInlineInitOps);
-    if (emitRhsFirst) {
-      if (failed(emitElementwiseExprToReg(
-              rhs, tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter, loc, tileIdx,
-              rowIdx, rowBcastInput, emitInlineInitOps, rowBcastRefInput)))
-        return failure();
-      if (failed(emitElementwiseExprToReg(
-              lhs, dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter, loc, tileIdx,
-              rowIdx, rowBcastInput, emitInlineInitOps, rowBcastRefInput)))
-        return failure();
-    } else {
-      if (failed(emitElementwiseExprToReg(
-              lhs, dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter, loc, tileIdx,
-              rowIdx, rowBcastInput, emitInlineInitOps, rowBcastRefInput)))
-        return failure();
-      if (failed(emitElementwiseExprToReg(
-              rhs, tmpRegA, tmpRegB, dstReg, op, adaptor, rewriter, loc, tileIdx,
-              rowIdx, rowBcastInput, emitInlineInitOps, rowBcastRefInput)))
-        return failure();
-    }
-    if (emitInlineInitOps)
-      rewriter.create<BinaryMaxTileInitOp>(loc);
-    rewriter.create<BinaryMaxTileOp>(loc, dstRegVal, tmpRegAVal, dstRegVal);
-    return success();
-  }
-
-  return failure();
+  return emitGenericExprToRegImpl(
+      exprValue, dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter, loc,
+      emitInlineInitOps, /*allowMaximumFOp=*/false, emitLeaf,
+      emitRhsFirstForOperands);
 }
 
 static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
@@ -1812,6 +2208,10 @@ public:
       activeFunc = parentFunc;
     }
 
+    // Route [reduction, parallel, parallel] through tileGenericOp first.
+    if (isTileGenericOp(op))
+      return tileGenericOp(op, adaptor, rewriter, waitState);
+
     if (!mlir::loom::isSupportedFlashAttentionGeneric(op))
       return failure();
 
@@ -1857,11 +2257,11 @@ void mlir::loom::populateComputeOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker,
     ReduceProtocol reduceProtocol) {
+  (void)tracker;
+  (void)reduceProtocol;
   patterns.add<ConvertLinalgFillOp>(typeConverter, context);
   patterns.add<ConvertLinalgCopyOp>(typeConverter, context);
   patterns.add<ConvertLinalgMatmulOp>(typeConverter, context);
-  patterns.add<ConvertLoomReduceComputeOp>(typeConverter, context,
-                                           std::move(tracker), reduceProtocol);
   patterns.add<ConvertMemrefCollapseShapeOp>(typeConverter, context);
   patterns.add<ConvertFlashAttentionGenericOp>(typeConverter, context);
 }

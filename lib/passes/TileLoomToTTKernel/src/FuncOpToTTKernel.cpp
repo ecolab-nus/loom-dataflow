@@ -229,9 +229,13 @@ static LogicalResult inferArgToCBMemrefType(
 static bool isReductionGenericWithoutScaleInput(linalg::GenericOp op) {
   if (op.getNumDpsInputs() != 1 || op.getNumDpsInits() != 1)
     return false;
-  return llvm::any_of(op.getIteratorTypesArray(), [](utils::IteratorType type) {
-    return type == utils::IteratorType::reduction;
-  });
+  auto iteratorTypes = op.getIteratorTypesArray();
+  if (iteratorTypes.size() < 2)
+    return false;
+  return iteratorTypes[iteratorTypes.size() - 1] ==
+             utils::IteratorType::reduction &&
+         iteratorTypes[iteratorTypes.size() - 2] ==
+             utils::IteratorType::reduction;
 }
 
 static SymbolRefAttr findL1MemorySymbol(func::FuncOp func) {
@@ -1018,33 +1022,33 @@ static bool isComputeOp(Operation *op) {
   return !isLoomDataMovementOrMetadataOp(op);
 }
 
-static bool containsReduceOp(func::FuncOp func) {
+static bool containsGatherOp(func::FuncOp func) {
   bool hasReduce = false;
-  func.walk([&](::loom::ReduceSumOp) { hasReduce = true; });
+  func.walk([&](::loom::GatherOp) { hasReduce = true; });
   return hasReduce;
 }
 
-/// Returns true when @p op is a reduce op (currently only ReduceSumOp).
-static bool isReduceOp(Operation *op) {
-  return isa<::loom::ReduceSumOp>(op);
+/// Returns true when @p op is a gather transport op.
+static bool isGatherTransportOp(Operation *op) {
+  return isa<::loom::GatherOp>(op);
 }
 
 /**
- * @brief Decide whether a reduce op should be kept or erased during
+ * @brief Decide whether a gather transport op should be kept or erased during
  *        function specialization for a given kernel role.
  *
- * @details Reduce ops must survive into both the compute and writer clones
- *          so the respective lowering patterns can match them:
- *          - __compute: kept for ConvertLoomReduceComputeOp
- *          - __writer:  kept for ConvertLoomReduceTransportOp
- *          - __reader:  erased (no reduce behavior in reader kernels)
+ * @details Gather transport ops must survive into writer clones so the
+ *          transport lowering pattern can match them:
+ *          - __compute: erased (sum math stays in linalg.generic)
+ *          - __writer:  kept for ConvertLoomGatherTransportOp
+ *          - __reader:  erased (no gather transport in reader kernels)
  *          - __host_*:  kept so collectReduceRegion can analyze bounds;
  *                       the host emitter erases them later
  *
- * @return true if the reduce op should be kept; false if it should be erased.
+ * @return true if the gather op should be kept; false if it should be erased.
  */
-static bool shouldKeepReduceOpInKernel(StringRef kernelSuffix) {
-  return kernelSuffix == "__compute" || kernelSuffix == "__writer" ||
+static bool shouldKeepGatherOpInKernel(StringRef kernelSuffix) {
+  return kernelSuffix == "__writer" ||
          kernelSuffix == "__host_cpp" || kernelSuffix == "__host_pybind";
 }
 
@@ -1067,6 +1071,12 @@ static func::FuncOp makeComputeFunc(func::FuncOp func) {
   // Compute kernels keep both loads and stores - they will be lowered to
   // CB synchronization operations (cb_wait_front/cb_push_back) by the
   // ConvertComputeLoadOp and ConvertComputeStoreOp patterns.
+  // Gather transport is writer-only and should not remain in compute clones.
+  SmallVector<Operation *, 4> gatherOpsToErase;
+  computeFunc.walk(
+      [&](::loom::GatherOp op) { gatherOpsToErase.push_back(op.getOperation()); });
+  for (Operation *op : llvm::reverse(gatherOpsToErase))
+    op->erase();
 
   clearMatmulBReaderMergeAttrs(computeFunc);
   return computeFunc;
@@ -1089,9 +1099,9 @@ static func::FuncOp makeReaderFunc(func::FuncOp func) {
   readerFunc.setName((func.getName() + "__reader").str());
   bool useMergedBPartition = hasMatmulMergedBPartition(readerFunc);
 
-  // Collect compute ops (including reduce ops) and stores to erase.
-  // Reduce ops are classified as compute by isComputeOp() and are erased
-  // in reader kernels -- no reduce behavior runs on the reader.
+  // Collect compute ops (including gather transport ops) and stores to erase.
+  // Gather ops are classified as compute by isComputeOp() and are erased
+  // in reader kernels -- no gather transport runs on the reader.
   SmallVector<Operation *, 8> opsToErase;
   readerFunc.walk([&](Operation *op) {
     if (isComputeOp(op)) {
@@ -1132,7 +1142,7 @@ static func::FuncOp makeWriterFunc(func::FuncOp func) {
 
   SmallVector<Operation *, 8> opsToErase;
   writerFunc.walk([&](Operation *op) {
-    if (isReduceOp(op) && shouldKeepReduceOpInKernel("__writer"))
+    if (isGatherTransportOp(op) && shouldKeepGatherOpInKernel("__writer"))
       return;
     if (isComputeOp(op)) {
       opsToErase.push_back(op);
@@ -1170,7 +1180,7 @@ public:
 
   void run() {
     hasReduce = hostFunc->hasAttr(kHasReduceAttrName) ||
-                   containsReduceOp(originalFunc);
+                   containsGatherOp(originalFunc);
     inferCoreCoordArgOrder();
     collectDramInfos();
     collectBroadcastRegions();
@@ -1785,7 +1795,7 @@ private:
     if (parallelIvExprByValue.empty())
       collectParallelIvExprs();
 
-    hostFunc.walk([&](::loom::ReduceSumOp op) {
+    hostFunc.walk([&](::loom::GatherOp op) {
       if (reduceRegion.hasRegion)
         return;
 
@@ -2519,7 +2529,7 @@ class FunctionSpecializer {
 public:
   FunctionSpecializer(ModuleOp module, func::FuncOp func)
       : module(module), originalFunc(func) {
-    const bool hasReduce = containsReduceOp(func);
+    const bool hasReduce = containsGatherOp(func);
     // Create specialized versions
     auto computeFunc = makeComputeFunc(func);
     auto readerFunc = makeReaderFunc(func);

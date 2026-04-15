@@ -87,9 +87,9 @@ The main pass lives in `src/TileLoomToTTKernel.cpp`. The real execution order is
    - `loom.semaphore_take`
    - `loom.semaphore_give`
    - `loom.copy`
-   - `loom.reduce_sum` (split into compute-side combine and writer-side transport)
+   - `loom.gather` (writer-side cross-core transport)
    - `linalg.matmul`
-   - selected `linalg.generic`
+   - selected `linalg.generic` (including reduction-style sum)
    - `linalg.fill`
    - selected `linalg.copy`
    - `memref.reinterpret_cast`
@@ -115,9 +115,9 @@ types.
 | `inc/SCFOpToTTKernel.h` | SCF conversion API | extending SCF lowering surface |
 | `src/SCFOpToTTKernel.cpp` | `scf.parallel` lowering into compile-time core coords | changing how spatial loops map to core args |
 | `inc/MemoryOpToTTKernel.h` | memory conversion API and alloc cleanup API | adding memory patterns or cleanup phases |
-| `src/MemoryOpToTTKernel.cpp` | `loom.semaphore*`, `loom.copy`, NOC read/write, multicast, reduce transport, reinterpret-cast cleanup | changing DRAM/L1 semantics, broadcast logic, semaphore behavior, reduce transport protocol |
+| `src/MemoryOpToTTKernel.cpp` | `loom.semaphore*`, `loom.copy`, NOC read/write, multicast, gather transport, reinterpret-cast cleanup | changing DRAM/L1 semantics, broadcast logic, semaphore behavior, gather transport protocol |
 | `inc/ComputeOpToTTKernel.h` | `ReduceProtocol`, `ReduceCombineOp` enums, compute conversion API and legality predicates | exposing new compute rewrite helpers, adding combine kinds, or changing reduce protocol |
-| `src/ComputeOpToTTKernel.cpp` | matmul/fill/generic/copy/reduce-compute lowering into TTKernel ops | adding a new compute op, extending supported generic expressions, or adding a combine kind |
+| `src/ComputeOpToTTKernel.cpp` | matmul/fill/generic/copy lowering into TTKernel ops | adding a new compute op, extending supported generic expressions, or adding a combine kind |
 | `tool/tileloom-to-ttkernel/tileloom_to_ttkernel_opt.cpp` | standalone `mlir-opt`-style driver | changing CLI entrypoint or dialect registration |
 | `test/Passes/tileloom_to_ttkernel_noc.mlir` | regression coverage for NOC IDs and the merge option | validating reader/writer split changes |
 | `lower.sh` | local end-to-end lowering example | checking the current manual workflow |
@@ -219,9 +219,9 @@ This section lists the most important functions to inspect before editing code.
   writer kernel.
 - `makeComputeFunc`, `makeReaderFunc`, `makeWriterFunc`, `makeHostFunc`
   Define the specialization policy for each clone.
-- `isReduceOp(Operation *)` / `shouldKeepReduceOpInKernel(StringRef)`
-  Explicit reduce-op classification during specialization. `makeWriterFunc`
-  uses this to keep reduce ops in the writer clone for transport lowering.
+- `isGatherTransportOp(Operation *)` / `shouldKeepGatherOpInKernel(StringRef)`
+  Explicit gather-op classification during specialization. `makeWriterFunc`
+  uses this to keep gather ops in the writer clone for transport lowering.
 - `TTMetalHostProgramEmitter::run()`
   Central host helper generator. If generated host code is wrong, start here.
 - `TTMetalHostProgramEmitter::emitReaderRuntimeArgsForCore()`
@@ -260,10 +260,10 @@ This section lists the most important functions to inspect before editing code.
 - `ConvertLoomComputeStoreOp::matchAndRewrite(...)`
   Erases compute-side store copies; matmul lowering itself materializes packed
   output into the destination CB.
-- `ConvertLoomReduceTransportOp::matchAndRewrite(...)`
-  Writer-only reduce transport lowering. Emits cross-core NOC payload sends
-  (worker side) and semaphore-based receive synchronization (reducer side)
-  using the selected protocol. Combine-agnostic.
+- `ConvertLoomGatherTransportOp::matchAndRewrite(...)`
+  Writer-only gather transport lowering. Emits cross-core NOC payload sends
+  (worker side) and semaphore-based reducer synchronization using the selected
+  protocol.
 - `emitWorkerReduceTransport(...)`
   Worker-side payload send with protocol-specific token/slot handling.
 - `emitReducerReduceTransportSync(...)`
@@ -299,17 +299,9 @@ This section lists the most important functions to inspect before editing code.
 - `analyzeElementwiseGeneric(...)` and `emitElementwiseExprToReg(...)`
   These are the main extension points when adding new supported expression
   shapes inside FlashAttention-style generics.
-- `ConvertLoomReduceComputeOp::matchAndRewrite(...)`
-  Compute-only reduce lowering. Analyzes the reduce region, materializes
-  runtime values, and dispatches to `emitReducerGather` (reducer core) or
-  `emitWorkerPreparePayload` (worker core). Combine kind is determined by
-  `getReduceCombineOp(op)`.
-- `getReduceCombineOp(Operation *)`
-  Maps source reduce op type to `ReduceCombineOp`. Today `ReduceSumOp` → `Sum`.
-  Extension point for future `loom.reduce` with `combine_kind` attribute.
-- `emitReduceCombineInit(...)` / `emitReduceCombine(...)`
-  Per-combine-kind init and tile math emission. `Sum` is wired; `Max` and `Exp`
-  produce compile-time diagnostics.
+- `rewriteReduceGeneric(...)`
+  Lowers reduction-style `linalg.generic` (including gather-fed sum) using
+  TTKernel reduce ops.
 
 ## Supported IR Contracts
 
@@ -370,7 +362,8 @@ revisit all of:
 - `makeReaderFunc`
 - `makeWriterFunc`
 - `makeHostFunc`
-- `isReduceOp` / `shouldKeepReduceOpInKernel` (reduce-specific classification)
+- `isGatherTransportOp` / `shouldKeepGatherOpInKernel`
+  (gather-transport classification)
 - the dynamic legality rules in `TileLoomToTTKernelPass::runOnOperation`
 
 ### 4. Post-EmitC host signature rewrite
@@ -381,51 +374,19 @@ revisit all of:
 
 If host helpers stop carrying that attribute, the signature rewrite pass will fail.
 
-### 5. Reduce protocol CB roles and transport/compute split
+### 5. Gather transport protocol and split
 
-`loom.reduce_sum` (the current user-facing op) is lowered via an explicit
-transport/compute split. Both the `__compute` and `__writer` clones retain
-the source `ReduceSumOp`; the `__reader` clone erases it. Two independent
-patterns match the op:
+`loom.gather` is the transport op. It is retained in `__writer` kernels and
+erased in `__compute` / `__reader` kernels. Sum math is lowered from
+`linalg.generic` in compute kernels.
 
-- `ConvertLoomReduceComputeOp` (in `ComputeOpToTTKernel.cpp`) — matches only
-  in `__compute` kernels; dispatches tile combine math via `ReduceCombineOp`
-- `ConvertLoomReduceTransportOp` (in `MemoryOpToTTKernel.cpp`) — matches only
-  in `__writer` kernels; handles cross-core NOC payload movement and semaphore
-  synchronization; entirely combine-agnostic
+The writer-side gather transport lowering is handled by
+`ConvertLoomGatherTransportOp` in `MemoryOpToTTKernel.cpp`.
+`reduce-protocol` controls worker/reducer synchronization (`single-slot` vs
+`multi-slot`) during gather payload transport.
 
-The specialization decision is made by `shouldKeepReduceOpInKernel()` in
-`FuncOpToTTKernel.cpp`, which is called by `makeWriterFunc`.
-
-Keep compute and transport lowering aligned for `reduce-protocol`:
-
-- `single-slot`
-  - reducer seeds local partial from `inCb` into `outCb` (accumulator)
-  - worker payload transport targets reducer `inCb` receive slot
-  - reducer combines `inCb` payload into `outCb`
-- `multi-slot`
-  - worker payload transport targets rank-indexed slots in reducer `outCb`
-  - reducer combines from `outCb[rank * numTiles + tile]` into accumulator
-
-Reduction math must stay transport-independent. Transport picks source/destination
-CBs and sloting protocol; the reducer combine op is selected separately via the
-`ReduceCombineOp` enum (currently `Sum`; `Max` and `Exp` reserved for future use).
-
-### 6. Reduce combine extensibility
-
-The combine dispatcher lives in `ComputeOpToTTKernel.cpp`:
-
-- `ReduceCombineOp` enum (defined in `inc/ComputeOpToTTKernel.h`):
-  `Sum`, `Max` (reserved), `Exp` (reserved)
-- `emitReduceCombineInit(...)`: per-combine-kind init op emission
-- `emitReduceCombine(...)`: per-combine-kind tile combine op emission
-- `getReduceCombineOp(Operation *)`: maps source op type to combine kind;
-  today `ReduceSumOp` → `Sum`. When the dialect gains a generic
-  `loom.reduce` with `combine_kind` attribute, this function should read
-  that attribute instead.
-
-Unsupported combine kinds (`Max`, `Exp`) produce compile-time error
-diagnostics. No transport changes are needed to add a new combine kind.
+Legacy `loom.reduce_sum` is rejected with a migration diagnostic
+(`use loom.gather + linalg.generic sum`).
 
 ## Common Change Recipes
 
@@ -457,18 +418,12 @@ diagnostics. No transport changes are needed to add a new combine kind.
 3. Re-check `PostEmitCHostSignaturePass`.
 4. Re-run the `lower.sh` flow to ensure EmitC/C++ translation still succeeds.
 
-### Add a new reduce combine kind
+### Tune gather transport protocol
 
-1. Add the new value to the `ReduceCombineOp` enum in `inc/ComputeOpToTTKernel.h`.
-2. Add a case to `emitReduceCombineInit(...)` with the appropriate init op.
-3. Add a case to `emitReduceCombine(...)` with the appropriate tile math op.
-4. If the new kind comes from a new dialect op (e.g., `loom.reduce_max`), update
-   `getReduceCombineOp(Operation *)` to map that op to the new enum value.
-5. If the new kind comes from a `combine_kind` attribute on `loom.reduce`, update
-   `getReduceCombineOp(Operation *)` to read the attribute.
-6. No transport changes are needed — `ConvertLoomReduceTransportOp` is
-   combine-agnostic.
-7. Add a focused regression test for the new combine behavior.
+1. Inspect `ConvertLoomGatherTransportOp` in `MemoryOpToTTKernel.cpp`.
+2. Keep runtime-arg plumbing aligned with `CompileArgTracker::processInputArgs`.
+3. Validate both `single-slot` and `multi-slot` behavior with focused tests.
+4. Ensure reducer-only sum/store control flow remains outside gather transport.
 
 ### Change the matmul reader/writer partition option
 
@@ -528,7 +483,7 @@ rg -n "ConvertLoomMemoryLoadOp|ConvertLoomMemoryStoreOp|multicast_" \
   lib/passes/TileLoomToTTKernel/src/MemoryOpToTTKernel.cpp
 rg -n "ConvertLinalgMatmulOp|rewriteElementwiseGeneric|rewriteReduceGeneric" \
   lib/passes/TileLoomToTTKernel/src/ComputeOpToTTKernel.cpp
-rg -n "ReduceCombineOp|ReduceProtocol|ConvertLoomReduce" \
+rg -n "ReduceProtocol|ConvertLoomGather" \
   lib/passes/TileLoomToTTKernel/src/ lib/passes/TileLoomToTTKernel/inc/
 ```
 

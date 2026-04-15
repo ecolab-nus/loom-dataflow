@@ -137,7 +137,6 @@ struct ReduceTransportAnalysis {
 struct ReduceTransportRuntimeValues {
   Value payloadCb;
   Value outCb;
-  Value reducerReceiveCb;
   Value numTiles;
   Value payloadBytes;
   Value reducerDestNocX;
@@ -149,7 +148,6 @@ struct ReduceTransportRuntimeValues {
   Value reducerReadySemaphoreNocAddr;
   Value payloadReadPtr;
   Value reducerOutWritePtr;
-  Value reducerInWritePtr;
   Value zero;
   Value one;
   Value nocId;
@@ -174,7 +172,7 @@ static Value toI32ForReduceTransport(ConversionPatternRewriter &rewriter,
 }
 
 static FailureOr<ReduceTransportAnalysis> analyzeReduceTransportRegion(
-    ::loom::ReduceSumOp op, ConversionPatternRewriter &rewriter,
+    ::loom::GatherOp op, ConversionPatternRewriter &rewriter,
     std::shared_ptr<CompileArgTracker> tracker) {
   if (!tracker)
     return failure();
@@ -249,17 +247,16 @@ static FailureOr<ReduceTransportAnalysis> analyzeReduceTransportRegion(
 }
 
 static FailureOr<ReduceTransportRuntimeValues> materializeReduceTransportRuntime(
-    ::loom::ReduceSumOp op, Value payloadCb, Value outCb, Value reducerReceiveCb,
+    ::loom::GatherOp op, Value payloadCb, Value outCb,
     ConversionPatternRewriter &rewriter,
     std::shared_ptr<CompileArgTracker> tracker,
     const ReduceTransportAnalysis &analysis) {
   if (!tracker)
     return failure();
-  if (!isa<CBType>(payloadCb.getType()) || !isa<CBType>(outCb.getType()) ||
-      !isa<CBType>(reducerReceiveCb.getType()))
+  if (!isa<CBType>(payloadCb.getType()) || !isa<CBType>(outCb.getType()))
     return failure();
 
-  auto numTilesOpt = getNumTilesFromShapedType(op.getInput().getType());
+  auto numTilesOpt = getNumTilesFromShapedType(op.getIns().getType());
   if (!numTilesOpt)
     return failure();
   auto parentFunc = op->getParentOfType<func::FuncOp>();
@@ -305,7 +302,6 @@ static FailureOr<ReduceTransportRuntimeValues> materializeReduceTransportRuntime
   return ReduceTransportRuntimeValues{
       payloadCb,
       outCb,
-      reducerReceiveCb,
       numTiles,
       payloadBytes,
       reducerDestNocX,
@@ -317,7 +313,6 @@ static FailureOr<ReduceTransportRuntimeValues> materializeReduceTransportRuntime
       reducerReadySemaphoreNocAddr,
       GetReadPtrOp::create(rewriter, loc, payloadCb),
       GetWritePtrOp::create(rewriter, loc, outCb),
-      GetWritePtrOp::create(rewriter, loc, reducerReceiveCb),
       zero,
       one,
       nocId};
@@ -331,19 +326,16 @@ static void emitWorkerReduceTransport(ConversionPatternRewriter &rewriter,
   CBWaitFrontOp::create(rewriter, loc, runtime.payloadCb, runtime.numTiles);
   if (protocol == ReduceProtocol::MultiSlot) {
     NocSemaphoreWaitOp::create(rewriter, loc, runtime.tokenSemaphorePtr,
-                               runtime.zero);
+                               runtime.one);
   } else {
     NocSemaphoreWaitOp::create(rewriter, loc, runtime.tokenSemaphorePtr,
                                analysis.rank);
   }
 
-  // In single-slot mode workers are token-serialized and target the reducer
-  // receive CB (inCb) slot. Multi-slot keeps rank-indexed placement in outCb.
-  Value reducerWriteBase = (protocol == ReduceProtocol::SingleSlot)
-                               ? runtime.reducerInWritePtr
-                               : runtime.reducerOutWritePtr;
-  Value slot =
-      (protocol == ReduceProtocol::SingleSlot) ? runtime.zero : analysis.rank;
+  // Gather always writes rank-indexed slots in outCb. Single-slot only
+  // changes token synchronization ordering.
+  Value reducerWriteBase = runtime.reducerOutWritePtr;
+  Value slot = analysis.rank;
   Value slotOffsetBytes =
       arith::MulIOp::create(rewriter, loc, slot, runtime.payloadBytes);
   Value reducerSlotL1 = arith::AddIOp::create(
@@ -355,7 +347,7 @@ static void emitWorkerReduceTransport(ConversionPatternRewriter &rewriter,
   NocAsyncWriteOp::create(rewriter, loc, runtime.payloadReadPtr,
                           reducerSlotNocAddr, runtime.payloadBytes);
   NocAsyncWriteBarrierOp::create(rewriter, loc);
-  //reset the token semaphore to 1
+  //reset the token semaphore to 0
   NocSemaphoreSetOp::create(rewriter, loc, runtime.tokenSemaphorePtr, runtime.zero);
   NocSemaphoreIncOp::create(rewriter, loc, runtime.reducerReadySemaphoreNocAddr,
                             runtime.one, runtime.nocId);
@@ -367,32 +359,43 @@ static void emitReducerReduceTransportSync(
     const ReduceTransportAnalysis &analysis,
     const ReduceTransportRuntimeValues &runtime, ReduceProtocol protocol) {
   auto falseAttr = rewriter.getBoolAttr(false);
-  Value workerTiles = arith::MulIOp::create(
-      rewriter, loc, analysis.workerCount, runtime.numTiles);
-  NocSemaphoreSetOp::create(rewriter, loc, runtime.readySemaphorePtr, runtime.zero);
-  //NocSemaphoreSetOp::create(rewriter, loc, runtime.tokenSemaphorePtr, runtime.zero);
+  Value allParticipantTiles = arith::MulIOp::create(
+      rewriter, loc, analysis.participants, runtime.numTiles);
+  //reserve space for remote workers
+  CBReserveBackOp::create(rewriter, loc, runtime.outCb, allParticipantTiles);
+  //reducer ready to receive payload
+  NocSemaphoreSetOp::create(rewriter, loc, runtime.readySemaphorePtr, runtime.one);
+
+  // Place reducer-local payload at rank-0 slot of outCb.
+  CBWaitFrontOp::create(rewriter, loc, runtime.payloadCb, runtime.numTiles);
+  Value reducerSlotNocAddr = GetNocAddrOp::create(
+      rewriter, loc, runtime.reducerDestNocX, runtime.reducerDestNocY,
+      runtime.reducerOutWritePtr);
+  NocAsyncWriteOp::create(rewriter, loc, runtime.payloadReadPtr, reducerSlotNocAddr,
+                          runtime.payloadBytes);
+  NocAsyncWriteBarrierOp::create(rewriter, loc);
+  CBPopFrontOp::create(rewriter, loc, runtime.payloadCb, runtime.numTiles);
 
   if (protocol == ReduceProtocol::MultiSlot) {
     NocSemaphoreWaitOp::create(rewriter, loc, runtime.readySemaphorePtr,
                                analysis.workerCount);
-    CBPushBackOp::create(rewriter, loc, runtime.outCb, workerTiles);
+    CBPushBackOp::create(rewriter, loc, runtime.outCb, allParticipantTiles);
     return;
   }
-  //IMPORTANT: the order is that reducer wait until computation is done and release output cb, then ask worker to fill the output cb
+  // In single-slot mode, reducer token-serializes workers by rank.
   scf::ForOp workerLoop = scf::ForOp::create(
       rewriter, loc, runtime.one, analysis.participants, runtime.one);
   {
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(workerLoop.getBody());
     Value rank = workerLoop.getInductionVar();
-    CBReserveBackOp::create(rewriter, loc, runtime.reducerReceiveCb, runtime.numTiles);
     NocSemaphoreSetOp::create(rewriter, loc, runtime.tokenSemaphorePtr, rank);
     NocSemaphoreSetMulticastOp::create(
       rewriter, loc, runtime.tokenSemaphoreAddr, runtime.tokenSemaphoreMcastNocAddr,
       analysis.workerCount, falseAttr, falseAttr);
     NocSemaphoreWaitOp::create(rewriter, loc, runtime.readySemaphorePtr, rank);
-    CBPushBackOp::create(rewriter, loc, runtime.reducerReceiveCb, runtime.numTiles);
   }
+  CBPushBackOp::create(rewriter, loc, runtime.outCb, allParticipantTiles);
 }
 
 static std::optional<std::pair<int64_t, int64_t>>
@@ -955,11 +958,11 @@ struct ConvertLoomSemaphoreTakeOp
     bool isReductionScaleCb = op->hasAttr(kReductionScaleCbAttrName);
     bool isDataMovementScaleInitTarget =
         isReductionScaleCb && isWriterKernel(op);
-    bool isWriterReduceTransportTarget = false;
+    bool isWriterGatherTransportTarget = false;
     if (isWriterKernel(op)) {
       for (Operation *user : op.getResult().getUsers()) {
-        if (isa<::loom::ReduceSumOp>(user)) {
-          isWriterReduceTransportTarget = true;
+        if (isa<::loom::GatherOp>(user)) {
+          isWriterGatherTransportTarget = true;
           break;
         }
       }
@@ -969,7 +972,7 @@ struct ConvertLoomSemaphoreTakeOp
     // compute kernels. In reader/writer/host kernels, keep the underlying
     // memref flow so loom.copy rewrites can consume it and erase the op.
     if (!isComputeKernel(op) && !isDataMovementScaleInitTarget &&
-        !isWriterReduceTransportTarget) {
+        !isWriterGatherTransportTarget) {
       rewriter.replaceOp(op, op.getSource());
       return success();
     }
@@ -1507,47 +1510,58 @@ private:
 };
 
 /**
- * @brief Convert reduce transport in writer kernels.
+ * @brief Convert gather transport in writer kernels.
  *
- * @details Writer workers send reducer payload tiles using protocol-specific
- *          semaphore ordering. Reducer-side math remains in compute kernels.
+ * @details Writer workers send gathered payload tiles using protocol-specific
+ *          semaphore ordering.
  */
-struct ConvertLoomReduceTransportOp
-    : public OpConversionPattern<::loom::ReduceSumOp> {
-  using OpConversionPattern<::loom::ReduceSumOp>::OpConversionPattern;
+struct ConvertLoomGatherTransportOp : public OpConversionPattern<::loom::GatherOp> {
+  using OpConversionPattern<::loom::GatherOp>::OpConversionPattern;
 
-  ConvertLoomReduceTransportOp(TypeConverter &typeConverter,
-                                  MLIRContext *context,
-                                  std::shared_ptr<CompileArgTracker> tracker,
-                                  ReduceProtocol protocol)
-      : OpConversionPattern<::loom::ReduceSumOp>(typeConverter, context),
+  ConvertLoomGatherTransportOp(TypeConverter &typeConverter,
+                               MLIRContext *context,
+                               std::shared_ptr<CompileArgTracker> tracker,
+                               ReduceProtocol protocol)
+      : OpConversionPattern<::loom::GatherOp>(typeConverter, context),
         tracker(std::move(tracker)), protocol(protocol) {}
 
+  static LogicalResult validateGatherPlacement(::loom::GatherOp op) {
+    for (Operation *parent = op->getParentOp(); parent;
+         parent = parent->getParentOp()) {
+      if (isa<scf::IfOp>(parent)) {
+        return op.emitOpError(
+            "must be placed outside scf.if so gather transport executes on all "
+            "participating cores");
+      }
+    }
+    return success();
+  }
+
   LogicalResult
-  matchAndRewrite(::loom::ReduceSumOp op, OpAdaptor adaptor,
+  matchAndRewrite(::loom::GatherOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     if (!isWriterKernel(op.getOperation()))
+      return failure();
+    if (failed(validateGatherPlacement(op)))
       return failure();
     if (adaptor.getOperands().size() < 2)
       return failure();
 
-    // Compute stage materializes payload into the reduce output CB.
-    Value reducerReceiveCb = adaptor.getOperands().front();
-    Value payloadCb = adaptor.getOperands()[1];
+    // Gather source is payload, gather init is stacked output.
+    Value payloadCb = adaptor.getOperands().front();
     Value outCb = adaptor.getOperands()[1];
-    if (!isa<CBType>(reducerReceiveCb.getType()) ||
-        !isa<CBType>(payloadCb.getType()) || !isa<CBType>(outCb.getType()))
+    if (!isa<CBType>(payloadCb.getType()) || !isa<CBType>(outCb.getType()))
       return failure();
 
     auto analysis = analyzeReduceTransportRegion(op, rewriter, tracker);
     if (failed(analysis))
       return rewriter.notifyMatchFailure(
-          op, "failed to analyze reduce transport region");
+          op, "failed to analyze gather transport region");
     auto runtime = materializeReduceTransportRuntime(
-        op, payloadCb, outCb, reducerReceiveCb, rewriter, tracker, *analysis);
+        op, payloadCb, outCb, rewriter, tracker, *analysis);
     if (failed(runtime))
       return rewriter.notifyMatchFailure(
-          op, "failed to materialize reduce transport runtime");
+          op, "failed to materialize gather transport runtime");
 
     Location loc = op.getLoc();
     scf::IfOp inRegionIf =
@@ -1735,9 +1749,8 @@ void mlir::loom::populateMemoryOpConversionPatterns(
   patterns.add<ConvertLoomSemaphoreGiveOp>(typeConverter, context);
   patterns.add<ConvertLoomLoadOp>(typeConverter, context, tracker);
   patterns.add<ConvertLoomStoreOp>(typeConverter, context, tracker);
-  patterns.add<ConvertLoomReduceTransportOp>(typeConverter, context,
-                                             std::move(tracker),
-                                             reduceProtocol);
+  patterns.add<ConvertLoomGatherTransportOp>(typeConverter, context,
+                                             std::move(tracker), reduceProtocol);
   // Reinterpret cast erasure.
   patterns.add<ConvertReinterpretCastOp>(typeConverter, context);
 }

@@ -418,7 +418,7 @@ public:
             *this, "reduce-protocol",
             llvm::cl::desc("Reduce synchronization protocol "
                            "(multi-slot|single-slot)"),
-            llvm::cl::init("single-slot")),
+            llvm::cl::init("multi-slot")),
         reduceProtocolDeprecated(
             *this, "reduce-sum-protocol",
             llvm::cl::desc("[deprecated] Alias for reduce-protocol"),
@@ -495,6 +495,21 @@ public:
     }
 
     if (failed(rewriteLoomLinearAlgebraToLinalg(module))) {
+      signalPassFailure();
+      return;
+    }
+
+    // Legacy reduce_sum is no longer supported in this lowering. The transport
+    // path is now gather-only and sum math is handled by linalg.generic.
+    bool sawLegacyReduceSum = false;
+    module.walk([&](::loom::ReduceSumOp op) {
+      if (sawLegacyReduceSum)
+        return;
+      sawLegacyReduceSum = true;
+      op.emitOpError("is unsupported by loom-tileloom-to-ttkernel; migrate to "
+                     "loom.gather + linalg.generic sum");
+    });
+    if (sawLegacyReduceSum) {
       signalPassFailure();
       return;
     }
@@ -597,6 +612,7 @@ public:
     target.addIllegalOp<::loom::SemaphoreTakeOp>();
     target.addIllegalOp<::loom::SemaphoreGiveOp>();
     target.addIllegalOp<::loom::CopyOp>();
+    target.addIllegalOp<::loom::GatherOp>();
     target.addIllegalOp<::loom::ReduceSumOp>();
     
     // Mark memref operations that don't need conversion as legal
