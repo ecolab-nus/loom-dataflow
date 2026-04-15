@@ -52,43 +52,22 @@ struct ReductionAxisInfo {
   Value conditionSSA;       // The arith.cmpi result
 };
 
-static void collectDependentBlockArgs(Value val,
-                                      SmallPtrSetImpl<Value> &blockArgs) {
-  if (!val)
-    return;
-  if (auto arg = mlir::dyn_cast<BlockArgument>(val)) {
-    blockArgs.insert(arg);
-    return;
-  }
-  Operation *op = val.getDefiningOp();
-  if (!op)
-    return;
-  for (Value operand : op->getOperands()) {
-    collectDependentBlockArgs(operand, blockArgs);
-  }
-}
-
 static std::optional<ReductionAxisInfo>
 detectReductionAxis(affine::AffineParallelOp root) {
   std::optional<ReductionAxisInfo> result;
-  root.walk([&](scf::IfOp ifOp) {
+  root.walk([&](loom::GatherOp gatherOp) {
     if (result)
       return;
-    Value cond = ifOp.getCondition();
-    SmallPtrSet<Value, 4> deps;
-    collectDependentBlockArgs(cond, deps);
-
-    SmallVector<unsigned, 4> parallelDeps;
+    Value across = gatherOp.getAcross();
     auto ivs = root.getIVs();
     for (unsigned i = 0; i < ivs.size(); ++i) {
-      if (deps.count(ivs[i])) {
-        parallelDeps.push_back(i);
+      if (ivs[i] == across) {
+        // Find the enclosing scf.if so its condition can be rewritten later.
+        scf::IfOp ifOp = gatherOp->getParentOfType<scf::IfOp>();
+        Value cond = ifOp ? ifOp.getCondition() : Value{};
+        result = {i, ivs[i], ifOp, cond};
+        return;
       }
-    }
-
-    if (parallelDeps.size() == 1) {
-      unsigned idx = parallelDeps[0];
-      result = {idx, ivs[idx], ifOp, cond};
     }
   });
   return result;
@@ -363,32 +342,37 @@ static LogicalResult applyMappingToFunction(
         ifOp.getConditionMutable().assign(newCond);
       });
 
-      // Update reduce_sum
-      func.walk([&](loom::ReduceSumOp reduceOp) {
-        OpBuilder rsBuilder(reduceOp);
+      // Update loom.gather mesh bounds.
+      // Note: by the time this runs, IV reconstruction has already replaced
+      // gatherOp.getAcross() with the full reconstructed IV. We use hwm.iv
+      // (the K-spatial HW IV) as the new `across` instead, since gather
+      // semantically gathers across the spatial dimension only.
+      func.walk([&](loom::GatherOp gatherOp) {
+        OpBuilder gBuilder(gatherOp);
         Value ul_x, ul_y, lr_x, lr_y;
         if (srcIdx == 0) { // reduction on x
-          ul_x = meshCoords.emitLinearIndexWithOverride(rsBuilder, loc,
+          ul_x = meshCoords.emitLinearIndexWithOverride(gBuilder, loc,
                                                         meshCoords.xAxis,
                                                         levelIdx, 0);
-          ul_y = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.yAxis);
+          ul_y = meshCoords.emitLinearIndex(gBuilder, loc, meshCoords.yAxis);
           lr_x = meshCoords.emitLinearIndexWithOverride(
-              rsBuilder, loc, meshCoords.xAxis, levelIdx, hwm.hwDimSize - 1);
-          lr_y = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.yAxis);
+              gBuilder, loc, meshCoords.xAxis, levelIdx, hwm.hwDimSize - 1);
+          lr_y = meshCoords.emitLinearIndex(gBuilder, loc, meshCoords.yAxis);
         } else { // reduction on y
-          ul_x = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.xAxis);
-          ul_y = meshCoords.emitLinearIndexWithOverride(rsBuilder, loc,
+          ul_x = meshCoords.emitLinearIndex(gBuilder, loc, meshCoords.xAxis);
+          ul_y = meshCoords.emitLinearIndexWithOverride(gBuilder, loc,
                                                         meshCoords.yAxis,
                                                         levelIdx, 0);
-          lr_x = meshCoords.emitLinearIndex(rsBuilder, loc, meshCoords.xAxis);
+          lr_x = meshCoords.emitLinearIndex(gBuilder, loc, meshCoords.xAxis);
           lr_y = meshCoords.emitLinearIndexWithOverride(
-              rsBuilder, loc, meshCoords.yAxis, levelIdx, hwm.hwDimSize - 1);
+              gBuilder, loc, meshCoords.yAxis, levelIdx, hwm.hwDimSize - 1);
         }
-        auto newReduce = rsBuilder.create<loom::ReduceSumOp>(
-            loc, reduceOp->getResultTypes(), reduceOp.getInput(),
-            reduceOp.getInit(), ul_x, ul_y, lr_x, lr_y);
-        reduceOp.replaceAllUsesWith(newReduce.getResults());
-        reduceOp.erase();
+        auto newGather = loom::GatherOp::create(
+            gBuilder, loc, gatherOp->getResultTypes(), gatherOp.getIns(),
+            gatherOp.getInit(), hwm.iv,
+            ul_x, ul_y, lr_x, lr_y);
+        gatherOp->replaceAllUsesWith(newGather->getResults());
+        gatherOp.erase();
       });
     }
   }
