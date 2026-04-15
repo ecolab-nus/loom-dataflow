@@ -215,34 +215,34 @@ struct BufferizeToMemrefOpInterface
   }
 };
 
-/// ReduceSumOp implements DestinationStyleOpInterface.  The base class
+/// GatherOp implements DestinationStyleOpInterface.  The base class
 /// DstBufferizableOpInterfaceExternalModel provides bufferizesToMemoryRead,
 /// bufferizesToMemoryWrite, and getAliasingValues.  We only need to supply
 /// the bufferize() method.
-struct ReduceSumOpInterface
+struct GatherOpInterface
     : public bufferization::DstBufferizableOpInterfaceExternalModel<
-          ReduceSumOpInterface, loom::ReduceSumOp> {
+          GatherOpInterface, loom::GatherOp> {
 
   LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
                           const BufferizationOptions &options,
                           BufferizationState &state) const {
-    auto reduceOp = cast<loom::ReduceSumOp>(op);
+    auto gatherOp = cast<loom::GatherOp>(op);
 
-    FailureOr<Value> inputBuffer =
-        getBuffer(rewriter, reduceOp.getInput(), options, state);
-    if (failed(inputBuffer))
+    FailureOr<Value> insBuffer =
+        getBuffer(rewriter, gatherOp.getIns(), options, state);
+    if (failed(insBuffer))
       return failure();
 
     FailureOr<Value> initBuffer =
-        getBuffer(rewriter, reduceOp.getInit(), options, state);
+        getBuffer(rewriter, gatherOp.getInit(), options, state);
     if (failed(initBuffer))
       return failure();
 
-    // Create memref-mode ReduceSumOp (no results — pure buffer semantics).
-    loom::ReduceSumOp::create(rewriter, op->getLoc(), /*resultTypes=*/TypeRange{},
-                              *inputBuffer, *initBuffer, reduceOp.getUlX(),
-                              reduceOp.getUlY(), reduceOp.getLrX(),
-                              reduceOp.getLrY());
+    // Create memref-mode GatherOp (no results — pure buffer semantics).
+    loom::GatherOp::create(rewriter, op->getLoc(), /*resultTypes=*/TypeRange{},
+                           *insBuffer, *initBuffer, gatherOp.getAcross(),
+                           gatherOp.getUlX(), gatherOp.getUlY(),
+                           gatherOp.getLrX(), gatherOp.getLrY());
 
     // The init buffer IS the result (DPS in-place semantics).
     replaceOpWithBufferizedValues(rewriter, op, *initBuffer);
@@ -260,5 +260,5 @@ void loom::registerBufferizableOpInterfaceExternalModels(MLIRContext *ctx) {
       *ctx);
   loom::BufferizeToMemrefOp::attachInterface<BufferizeToMemrefOpInterface>(
       *ctx);
-  loom::ReduceSumOp::attachInterface<ReduceSumOpInterface>(*ctx);
+  loom::GatherOp::attachInterface<GatherOpInterface>(*ctx);
 }
