@@ -44,6 +44,8 @@ set(LOOM_PIPELINE_LIBS
     MLIRMemRefDialect
     MLIRArithDialect
     MLIRTensorDialect
+    MLIRTensorInferTypeOpInterfaceImpl
+    MLIRTensorTilingInterfaceImpl
     MLIRLinalgDialect
     MLIRSCFDialect
     MLIRBufferizationDialect

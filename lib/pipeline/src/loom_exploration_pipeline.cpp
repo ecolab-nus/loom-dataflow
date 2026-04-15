@@ -26,6 +26,8 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/Dialect/Tensor/IR/TensorInferTypeOpInterfaceImpl.h"
+#include "mlir/Dialect/Tensor/IR/TensorTilingInterfaceImpl.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -180,6 +182,11 @@ runExplorationPipeline(const std::string &input_mlir_text,
                   scf::SCFDialect, bufferization::BufferizationDialect,
                   cf::ControlFlowDialect, math::MathDialect,
                   adl::ADLDialect, loom::LoomDialect>();
+
+  // Explicitly register missing tensor op external models
+  mlir::tensor::registerInferTypeOpInterfaceExternalModels(registry);
+  mlir::tensor::registerTilingInterfaceExternalModels(registry);
+
   MLIRContext context(registry);
   context.loadAllAvailableDialects();
 

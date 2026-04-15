@@ -8,6 +8,8 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/Dialect/Tensor/IR/TensorInferTypeOpInterfaceImpl.h"
+#include "mlir/Dialect/Tensor/IR/TensorTilingInterfaceImpl.h"
 #include "mlir/IR/AsmState.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/Parser/Parser.h"
@@ -24,12 +26,20 @@ using namespace mlir;
 namespace loom::driver {
 
 void registerLoomDialects(MLIRContext &context) {
-  context.loadDialect<mlir::BuiltinDialect, mlir::func::FuncDialect,
-                      mlir::affine::AffineDialect, mlir::arith::ArithDialect,
-                      mlir::memref::MemRefDialect, mlir::tensor::TensorDialect,
-                      mlir::linalg::LinalgDialect, mlir::scf::SCFDialect,
-                      mlir::bufferization::BufferizationDialect,
-                      loom::LoomDialect>();
+  DialectRegistry registry;
+  registry.insert<mlir::BuiltinDialect, mlir::func::FuncDialect,
+                  mlir::affine::AffineDialect, mlir::arith::ArithDialect,
+                  mlir::memref::MemRefDialect, mlir::tensor::TensorDialect,
+                  mlir::linalg::LinalgDialect, mlir::scf::SCFDialect,
+                  mlir::bufferization::BufferizationDialect,
+                  loom::LoomDialect>();
+
+  // Register external models for the tensor dialect interfaces.
+  mlir::tensor::registerInferTypeOpInterfaceExternalModels(registry);
+  mlir::tensor::registerTilingInterfaceExternalModels(registry);
+
+  context.appendDialectRegistry(registry);
+  context.loadAllAvailableDialects();
 }
 
 void registerLoomAndADLDialects(MLIRContext &context) {
