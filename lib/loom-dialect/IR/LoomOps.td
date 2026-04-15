@@ -791,14 +791,14 @@ def GatherOp : Loom_Op<"gather", [
 
   let arguments = !con(
     (ins
-      AnyRankedTensor:$ins,
-      AnyRankedTensor:$init,
+      AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$ins,
+      AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$init,
       Index:$across
     ),
     MeshBoundsArgs
   );
 
-  let results = (outs AnyRankedTensor:$result);
+  let results = (outs Variadic<AnyRankedTensor>:$result);
 
   let assemblyFormat = [{
     `ins` `(` $ins `:` type($ins) `)`
@@ -806,7 +806,7 @@ def GatherOp : Loom_Op<"gather", [
     `across` `(` $across `:` type($across) `)`
     ( `region` `:` `(` `UL` `:` `[` $ul_x^ `,` $ul_y `]` `,`
         `LR` `:` `[` $lr_x `,` $lr_y `]` `)` )?
-    attr-dict `->` type($result)
+    attr-dict (`->` type($result)^ )?
   }];
 
   let hasCanonicalizer = 1;
