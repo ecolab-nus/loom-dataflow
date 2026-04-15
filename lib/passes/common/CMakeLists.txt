@@ -42,6 +42,8 @@ target_link_libraries(LoomPassesCommon
     MLIRArithDialect
     MLIRBufferizationDialect
     MLIRTensorDialect
+    MLIRTensorInferTypeOpInterfaceImpl
+    MLIRTensorTilingInterfaceImpl
     MLIRLinalgDialect
     MLIRControlFlowDialect
     loomDialect

@@ -31,6 +31,8 @@ std::unique_ptr<mlir::Pass> createFuseZeroFillMatmulPass();
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/SCF/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/Dialect/Tensor/IR/TensorInferTypeOpInterfaceImpl.h"
+#include "mlir/Dialect/Tensor/IR/TensorTilingInterfaceImpl.h"
 #include "mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Tensor/Transforms/SubsetInsertionOpInterfaceImpl.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -139,6 +141,8 @@ runMaterializationCore(const char *input_mlir_text,
   tensor::registerSubsetOpInterfaceExternalModels(registry);
   bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(
       registry);
+  mlir::tensor::registerInferTypeOpInterfaceExternalModels(registry);
+  mlir::tensor::registerTilingInterfaceExternalModels(registry);
   context.appendDialectRegistry(registry);
 
   context.loadDialect<loom::LoomDialect,
