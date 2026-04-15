@@ -47,22 +47,38 @@ struct FoldRedundantExtractSlice
       }
     }
 
-    // 3. Check sizes match the source tensor's shape
+    // 3a. Check sizes match via SSA value identity (original path)
     Value source = op.getSource();
     auto sourceShape = loom::utils::traceShape(source);
     auto extractSizes = op.getMixedSizes();
 
-    if (sourceShape.size() != extractSizes.size())
-      return failure();
-
-    for (size_t i = 0; i < sourceShape.size(); ++i) {
-      if (sourceShape[i] != extractSizes[i])
-        return failure();
+    bool ssaMatch = (sourceShape.size() == extractSizes.size());
+    if (ssaMatch) {
+      for (size_t i = 0; i < sourceShape.size(); ++i) {
+        if (sourceShape[i] != extractSizes[i]) {
+          ssaMatch = false;
+          break;
+        }
+      }
     }
 
-    // 4. If all hold, replace extract_slice with source
-    rewriter.replaceOp(op, source);
-    return success();
+    if (ssaMatch) {
+      rewriter.replaceOp(op, source);
+      return success();
+    }
+
+    // 3b. Fallback: if source and result types are the same RankedTensorType
+    // (identical rank + static dims), this is a full-tensor identity slice.
+    // This handles the case where dynamic sizes come from semantically-equal
+    // but SSA-distinct Values (e.g. two uses of the same loom.sym).
+    auto srcType = mlir::dyn_cast<RankedTensorType>(source.getType());
+    auto resType = mlir::dyn_cast<RankedTensorType>(op.getResult().getType());
+    if (srcType && resType && srcType == resType) {
+      rewriter.replaceOp(op, source);
+      return success();
+    }
+
+    return failure();
   }
 };
 
