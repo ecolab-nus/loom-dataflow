@@ -31,8 +31,10 @@ int main(int argc, char **argv) {
 
   PassManager pm(&context);
 
-  // Preprocessing: fuse elementwise generics to make patterns visible and clean
-  pm.addPass(mlir::createLinalgElementwiseOpFusionPass());
+  // Preprocessing: fuse elementwise generics to make patterns visible and
+  // clean, but skip fusions that would produce a leading-reduction generic
+  // (unsupported on target hardware).
+  pm.addPass(loom::passes::createLinalgGuardedElementwiseOpFusionPass());
   pm.addPass(mlir::createLinalgFoldUnitExtentDimsPass());
   pm.addPass(mlir::createCanonicalizerPass());
 
