@@ -2071,6 +2071,26 @@ private:
     return llvm::is_contained(emittedTilesVars, name.str());
   }
 
+  /**
+   * @brief Check whether a circular buffer is fed by a function input memref.
+   *
+   * @param cbInfo Circular-buffer metadata collected for host emission.
+   * @return True when any CB index in @p cbInfo maps to an input DRAM buffer.
+   */
+  bool isInputCircularBuffer(const CircularBufferInfo &cbInfo) const {
+    for (unsigned cbIndex : cbInfo.cbIndices) {
+      for (const DramBufferInfo &dramInfo : dramInfos) {
+        if (dramInfo.cbIndex < 0)
+          continue;
+        if (static_cast<unsigned>(dramInfo.cbIndex) != cbIndex)
+          continue;
+        if (dramInfo.isInput)
+          return true;
+      }
+    }
+    return false;
+  }
+
   void annotateHostSignatureMetadata() {
     Builder b(hostFunc.getContext());
     hostFunc->setAttr(
@@ -2101,10 +2121,12 @@ private:
         setPageSizeChain +=
             ".set_page_size(" + cbIndexName + ", single_tile_size)";
 
+      const std::string cbDepthExpr =
+          isInputCircularBuffer(info) ? "cb_buffer_depth" : "1";
       emitLine("tt_metal::CreateCircularBuffer(program, all_cores, "
                "CircularBufferConfig(" +
                info.tilesVarName +
-               " * cb_buffer_depth * single_tile_size, {{" + cbEntries +
+               " * " + cbDepthExpr + " * single_tile_size, {{" + cbEntries +
                "}})" + setPageSizeChain + ");");
     };
 
