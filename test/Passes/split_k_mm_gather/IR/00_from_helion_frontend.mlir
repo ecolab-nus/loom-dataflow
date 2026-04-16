@@ -25,17 +25,17 @@ module attributes {loom.tile_m = {upper_bound = 512 : index, is_reduction = fals
       %t19 = linalg.fill ins(%t16 : f16) outs(%t18 : tensor<?x?xf16>) -> tensor<?x?xf16>
       %t20 = linalg.matmul ins(%tile9, %tile13 : tensor<?x?xf16>, tensor<?x?xf16>) outs(%t19 : tensor<?x?xf16>) -> tensor<?x?xf16>
       %t21 = tensor.empty(%tile_m, %tile_n) : tensor<?x?xf16>
-      %cmp_rhs22 = arith.constant 0 : index
-      %cmp23 = arith.cmpi eq, %iv_block_2, %cmp_rhs22 : index
-      scf.if %cmp23 {
-        %loop_extent24 = arith.constant 4096 : index
-        %trip_count25 = arith.ceildivui %loop_extent24, %tile_k : index
-        %gather_out26 = tensor.empty(%trip_count25, %tile_m, %tile_n) : tensor<?x?x?xf16>
-        %gathered27 = "loom.gather"(%t20, %gather_out26, %iv_block_2) {operandSegmentSizes = array<i32: 1, 1, 1, 0, 0, 0, 0>} : (tensor<?x?xf16>, tensor<?x?x?xf16>, index) -> tensor<?x?x?xf16>
+      %loop_extent22 = arith.constant 4096 : index
+      %trip_count23 = arith.ceildivui %loop_extent22, %tile_k : index
+      %gather_out24 = tensor.empty(%trip_count23, %tile_m, %tile_n) : tensor<?x?x?xf16>
+      %gathered25 = "loom.gather"(%t20, %gather_out24, %iv_block_2) {operandSegmentSizes = array<i32: 1, 1, 1, 0, 0, 0, 0>} : (tensor<?x?xf16>, tensor<?x?x?xf16>, index) -> tensor<?x?x?xf16>
+      %cmp_rhs26 = arith.constant 0 : index
+      %cmp27 = arith.cmpi eq, %iv_block_2, %cmp_rhs26 : index
+      scf.if %cmp27 {
         %t28 = arith.constant 0.000000e+00 : f16
         %t31 = tensor.empty(%tile_m, %tile_n) : tensor<?x?xf16>
         %t32 = linalg.fill ins(%t28 : f16) outs(%t31 : tensor<?x?xf16>) -> tensor<?x?xf16>
-        %t33 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d1, d2)>], iterator_types = ["reduction", "parallel", "parallel"]} ins(%gathered27 : tensor<?x?x?xf16>) outs(%t32 : tensor<?x?xf16>) {
+        %t33 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d1, d2)>], iterator_types = ["reduction", "parallel", "parallel"]} ins(%gathered25 : tensor<?x?x?xf16>) outs(%t32 : tensor<?x?xf16>) {
         ^bb0(%blk_arg34: f16, %blk_arg35: f16):
         %t36 = arith.addf %blk_arg34, %blk_arg35 : f16
         linalg.yield %t36 : f16

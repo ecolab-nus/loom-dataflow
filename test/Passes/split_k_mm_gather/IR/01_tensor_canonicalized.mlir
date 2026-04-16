@@ -22,14 +22,14 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 4096 : ind
       %12 = tensor.empty(%0, %1) : tensor<?x?xf16>
       %13 = linalg.fill ins(%cst : f16) outs(%12 : tensor<?x?xf16>) -> tensor<?x?xf16>
       %14 = linalg.matmul ins(%8, %11 : tensor<?x?xf16>, tensor<?x?xf16>) outs(%13 : tensor<?x?xf16>) -> tensor<?x?xf16>
-      %15 = arith.cmpi eq, %arg5, %c0 : index
-      scf.if %15 {
-        %16 = arith.ceildivui %c4096, %2 : index
-        %17 = tensor.empty(%16, %0, %1) : tensor<?x?x?xf16>
-        %18 = loom.gather ins(%14 : tensor<?x?xf16>) outs(%17 : tensor<?x?x?xf16>) across(%arg5 : index) -> tensor<?x?x?xf16>
+      %15 = arith.ceildivui %c4096, %2 : index
+      %16 = tensor.empty(%15, %0, %1) : tensor<?x?x?xf16>
+      %17 = loom.gather ins(%14 : tensor<?x?xf16>) outs(%16 : tensor<?x?x?xf16>) across(%arg5 : index) -> tensor<?x?x?xf16>
+      %18 = arith.cmpi eq, %arg5, %c0 : index
+      scf.if %18 {
         %19 = tensor.empty(%0, %1) : tensor<?x?xf16>
         %20 = linalg.fill ins(%cst : f16) outs(%19 : tensor<?x?xf16>) -> tensor<?x?xf16>
-        %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d1, d2)>], iterator_types = ["reduction", "parallel", "parallel"]} ins(%18 : tensor<?x?x?xf16>) outs(%20 : tensor<?x?xf16>) {
+        %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d1, d2)>], iterator_types = ["reduction", "parallel", "parallel"]} ins(%17 : tensor<?x?x?xf16>) outs(%20 : tensor<?x?xf16>) {
         ^bb0(%in: f16, %out: f16):
           %25 = arith.addf %in, %out : f16
           linalg.yield %25 : f16
