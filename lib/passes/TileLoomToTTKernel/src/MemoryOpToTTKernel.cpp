@@ -90,6 +90,38 @@ static std::optional<int64_t> getNumTilesFromShapedType(Type type) {
 }
 
 /**
+ * @brief Compute the number of 32x32 tiles represented by a CB type.
+ *
+ * @details
+ * - For tile-typed CBs, TTKernel stores the tile count directly.
+ * - For element-typed CBs (e.g. f16/f32/i32), the CB stores element count and
+ *   we convert to tile count via ceil(numElements / 1024).
+ *
+ * This avoids relying on shaped memref rank semantics (which can undercount
+ * stacked gather payloads such as `8x64x64`).
+ *
+ * @param cbType Circular buffer type.
+ * @return Number of tiles, or nullopt for invalid/non-positive sizes.
+ */
+static std::optional<int64_t> getNumTilesFromCBType(CBType cbType) {
+  if (!cbType)
+    return std::nullopt;
+
+  Type elementType = cbType.getElementType();
+  if (isa<TileType>(elementType)) {
+    int64_t tiles = cbType.getNumTiles();
+    return tiles > 0 ? std::optional<int64_t>(tiles) : std::nullopt;
+  }
+
+  int64_t numElements = cbType.getNumElements();
+  if (numElements <= 0)
+    return std::nullopt;
+
+  constexpr int64_t kTileElements = 32 * 32;
+  return (numElements + kTileElements - 1) / kTileElements;
+}
+
+/**
  * @brief Check if the operation is inside a compute kernel function.
  *
  * @details Determines kernel type by checking the ThreadTypeAttr on the parent
@@ -1080,13 +1112,14 @@ struct ConvertLoomSemaphoreGiveOp
           op, "expected semaphore_give source to be converted to CB type");
     }
 
-    Value numPages;
-    auto tilesOpt = getNumTilesFromShapedType(op.getSource().getType());
-    int64_t numTiles =
-        tilesOpt ? *tilesOpt : static_cast<int64_t>(cbType.getNumTiles());
+    auto cbTiles = getNumTilesFromCBType(cbType);
+    if (!cbTiles) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to derive tile count from CB type for semaphore_give");
+    }
 
-    numPages = rewriter.create<arith::ConstantIntOp>(
-        loc, rewriter.getI32Type(), numTiles);
+    Value numPages = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(), *cbTiles);
 
 
     CBPopFrontOp::create(rewriter, loc, cb, numPages);

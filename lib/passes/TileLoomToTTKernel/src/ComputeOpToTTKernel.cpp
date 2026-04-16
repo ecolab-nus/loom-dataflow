@@ -425,7 +425,7 @@ static LogicalResult tileGenericOp(
   }
   CBPushBackOp::create(rewriter, loc, outCb, outTilesV);
   waitState[outCb] = 0;
-  CBPopFrontOp::create(rewriter, loc, inCb, inputTilesV);
+  //CBPopFrontOp::create(rewriter, loc, inCb, inputTilesV);
   waitState[inCb] = 0;
 
   rewriter.eraseOp(op);
