@@ -57,31 +57,27 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %30 = arith.ceildivui %29, %2 : index
       %31 = scf.for %arg13 = %c0 to %30 step %c1 iter_args(%arg14 = %27) -> (tensor<?x?xf16>) {
         %36 = arith.muli %arg13, %2 : index
-        %37 = arith.addi %36, %2 : index
-        %38 = arith.cmpi ult, %37, %29 : index
-        %39 = arith.select %38, %37, %29 : index
-        %40 = arith.subi %39, %36 : index
-        %subview_7 = memref.subview %arg0[%12, %14, %20, %15, %36] [1, 1, 1, %0, %40] [1, 1, 1, 1, 1] : memref<2x8x1x256x256xf16> to memref<?x?xf16, strided<[256, 1], offset: ?>>
-        %41 = bufferization.to_tensor %subview_7 : memref<?x?xf16, strided<[256, 1], offset: ?>> to tensor<?x?xf16>
-        %subview_8 = memref.subview %arg1[%12, %13, %14, %36] [1, 1, 1, %40] [1, 1, 1, 1] : memref<2x16x8x256xf16> to memref<?xf16, strided<[1], offset: ?>>
-        %42 = bufferization.to_tensor %subview_8 : memref<?xf16, strided<[1], offset: ?>> to tensor<?xf16>
-        %43 = tensor.empty(%0, %2) : tensor<?x?xf16>
-        %subview_9 = memref.subview %arg2[%12, %13, %14, %36] [1, 1, 1, %40] [1, 1, 1, 1] : memref<2x16x8x256xf16> to memref<?xf16, strided<[1], offset: ?>>
-        %44 = bufferization.to_tensor %subview_9 : memref<?xf16, strided<[1], offset: ?>> to tensor<?xf16>
-        %45 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0)>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%41, %16, %42, %44 : tensor<?x?xf16>, tensor<?xf16>, tensor<?xf16>, tensor<?xf16>) outs(%43 : tensor<?x?xf16>) {
+        %subview_7 = memref.subview %arg0[%12, %14, %20, %15, %36] [1, 1, 1, %0, %2] [1, 1, 1, 1, 1] : memref<2x8x1x256x256xf16> to memref<?x?xf16, strided<[256, 1], offset: ?>>
+        %37 = bufferization.to_tensor %subview_7 : memref<?x?xf16, strided<[256, 1], offset: ?>> to tensor<?x?xf16>
+        %subview_8 = memref.subview %arg1[%12, %13, %14, %36] [1, 1, 1, %2] [1, 1, 1, 1] : memref<2x16x8x256xf16> to memref<?xf16, strided<[1], offset: ?>>
+        %38 = bufferization.to_tensor %subview_8 : memref<?xf16, strided<[1], offset: ?>> to tensor<?xf16>
+        %39 = tensor.empty(%0, %2) : tensor<?x?xf16>
+        %subview_9 = memref.subview %arg2[%12, %13, %14, %36] [1, 1, 1, %2] [1, 1, 1, 1] : memref<2x16x8x256xf16> to memref<?xf16, strided<[1], offset: ?>>
+        %40 = bufferization.to_tensor %subview_9 : memref<?xf16, strided<[1], offset: ?>> to tensor<?xf16>
+        %41 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0)>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%37, %16, %38, %40 : tensor<?x?xf16>, tensor<?xf16>, tensor<?xf16>, tensor<?xf16>) outs(%39 : tensor<?x?xf16>) {
         ^bb0(%in: f16, %in_11: f16, %in_12: f16, %in_13: f16, %out: f16):
-          %48 = arith.mulf %in_12, %cst_1 : f16
-          %49 = arith.mulf %in_11, %cst_1 : f16
-          %50 = arith.subf %49, %48 : f16
-          %51 = math.powf %cst, %50 : f16
-          %52 = arith.mulf %in, %51 : f16
-          %53 = arith.mulf %52, %in_13 : f16
-          linalg.yield %53 : f16
+          %44 = arith.mulf %in_12, %cst_1 : f16
+          %45 = arith.mulf %in_11, %cst_1 : f16
+          %46 = arith.subf %45, %44 : f16
+          %47 = math.powf %cst, %46 : f16
+          %48 = arith.mulf %in, %47 : f16
+          %49 = arith.mulf %48, %in_13 : f16
+          linalg.yield %49 : f16
         } -> tensor<?x?xf16>
         %subview_10 = memref.subview %arg3[%12, %19, %13, %22] [1, %2, 1, %1] [1, 1, 1, 1] : memref<2x2048x16x64xf16> to memref<?x?xf16, strided<[1024, 1], offset: ?>>
-        %46 = bufferization.to_tensor %subview_10 : memref<?x?xf16, strided<[1024, 1], offset: ?>> to tensor<?x?xf16>
-        %47 = linalg.matmul ins(%45, %46 : tensor<?x?xf16>, tensor<?x?xf16>) outs(%arg14 : tensor<?x?xf16>) -> tensor<?x?xf16>
-        scf.yield %47 : tensor<?x?xf16>
+        %42 = bufferization.to_tensor %subview_10 : memref<?x?xf16, strided<[1024, 1], offset: ?>> to tensor<?x?xf16>
+        %43 = linalg.matmul ins(%41, %42 : tensor<?x?xf16>, tensor<?x?xf16>) outs(%arg14 : tensor<?x?xf16>) -> tensor<?x?xf16>
+        scf.yield %43 : tensor<?x?xf16>
       }
       %subview_4 = memref.subview %arg6[%13] [1] [1] : memref<16xf16> to memref<f16, strided<[], offset: ?>>
       %32 = bufferization.to_tensor %subview_4 : memref<f16, strided<[], offset: ?>> to tensor<f16>
