@@ -39,103 +39,99 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       %16:3 = scf.for %arg6 = %c0 to %15 step %c1 iter_args(%arg7 = %6, %arg8 = %7, %arg9 = %9) -> (tensor<?x32xf16>, tensor<?x32xf16>, tensor<?x32x128xf16>) {
         %20 = arith.muli %arg6, %2 : index
         %21 = arith.addi %12, %20 : index
-        %22 = arith.addi %21, %2 : index
-        %23 = arith.cmpi ult, %22, %13 : index
-        %24 = arith.select %23, %22, %13 : index
-        %25 = arith.subi %24, %21 : index
-        %subview_4 = memref.subview %arg0[%10, 0, %21] [%0, 128, %25] [1, 1, 1] : memref<16x128x8192xf16> to memref<?x128x?xf16, strided<[1048576, 8192, 1], offset: ?>>
-        %26 = bufferization.to_tensor %subview_4 : memref<?x128x?xf16, strided<[1048576, 8192, 1], offset: ?>> to tensor<?x128x?xf16>
-        %27 = arith.index_cast %0 : index to i64
-        %28 = arith.cmpi eq, %27, %27 : i64
-        cf.assert %28, "mismatching contracting dimension"
-        %29 = tensor.empty(%0, %2) : tensor<?x32x?xf16>
-        %30 = linalg.fill ins(%cst_0 : f16) outs(%29 : tensor<?x32x?xf16>) -> tensor<?x32x?xf16>
-        %31 = linalg.batch_matmul ins(%11, %26 : tensor<?x32x128xf16>, tensor<?x128x?xf16>) outs(%30 : tensor<?x32x?xf16>) -> tensor<?x32x?xf16>
-        %32 = tensor.empty(%0) : tensor<?x32xi64>
-        %33 = linalg.fill ins(%c0_i64 : i64) outs(%32 : tensor<?x32xi64>) -> tensor<?x32xi64>
-        %34:2 = linalg.generic {indexing_maps = [#map, #map1, #map1], iterator_types = ["parallel", "parallel", "reduction"]} ins(%31 : tensor<?x32x?xf16>) outs(%6, %33 : tensor<?x32xf16>, tensor<?x32xi64>) {
+        %subview_4 = memref.subview %arg0[%10, 0, %21] [%0, 128, %2] [1, 1, 1] : memref<16x128x8192xf16> to memref<?x128x?xf16, strided<[1048576, 8192, 1], offset: ?>>
+        %22 = bufferization.to_tensor %subview_4 : memref<?x128x?xf16, strided<[1048576, 8192, 1], offset: ?>> to tensor<?x128x?xf16>
+        %23 = arith.index_cast %0 : index to i64
+        %24 = arith.cmpi eq, %23, %23 : i64
+        cf.assert %24, "mismatching contracting dimension"
+        %25 = tensor.empty(%0, %2) : tensor<?x32x?xf16>
+        %26 = linalg.fill ins(%cst_0 : f16) outs(%25 : tensor<?x32x?xf16>) -> tensor<?x32x?xf16>
+        %27 = linalg.batch_matmul ins(%11, %22 : tensor<?x32x128xf16>, tensor<?x128x?xf16>) outs(%26 : tensor<?x32x?xf16>) -> tensor<?x32x?xf16>
+        %28 = tensor.empty(%0) : tensor<?x32xi64>
+        %29 = linalg.fill ins(%c0_i64 : i64) outs(%28 : tensor<?x32xi64>) -> tensor<?x32xi64>
+        %30:2 = linalg.generic {indexing_maps = [#map, #map1, #map1], iterator_types = ["parallel", "parallel", "reduction"]} ins(%27 : tensor<?x32x?xf16>) outs(%6, %29 : tensor<?x32xf16>, tensor<?x32xi64>) {
         ^bb0(%in: f16, %out: f16, %out_8: i64):
-          %52 = linalg.index 2 : index
-          %53 = arith.index_cast %52 : index to i64
-          %54 = arith.maximumf %in, %out : f16
-          %55 = arith.cmpf ogt, %in, %out : f16
-          %56 = arith.select %55, %53, %out_8 : i64
-          linalg.yield %54, %56 : f16, i64
+          %48 = linalg.index 2 : index
+          %49 = arith.index_cast %48 : index to i64
+          %50 = arith.maximumf %in, %out : f16
+          %51 = arith.cmpf ogt, %in, %out : f16
+          %52 = arith.select %51, %49, %out_8 : i64
+          linalg.yield %50, %52 : f16, i64
         } -> (tensor<?x32xf16>, tensor<?x32xi64>)
-        %35 = linalg.generic {indexing_maps = [#map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%34#0 : tensor<?x32xf16>) outs(%5 : tensor<?x32xf16>) {
+        %31 = linalg.generic {indexing_maps = [#map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%30#0 : tensor<?x32xf16>) outs(%5 : tensor<?x32xf16>) {
         ^bb0(%in: f16, %out: f16):
-          %52 = arith.mulf %in, %cst_3 : f16
-          linalg.yield %52 : f16
+          %48 = arith.mulf %in, %cst_3 : f16
+          linalg.yield %48 : f16
         } -> tensor<?x32xf16>
-        %36 = linalg.generic {indexing_maps = [#map2, #map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%arg7, %35 : tensor<?x32xf16>, tensor<?x32xf16>) outs(%5 : tensor<?x32xf16>) {
+        %32 = linalg.generic {indexing_maps = [#map2, #map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%arg7, %31 : tensor<?x32xf16>, tensor<?x32xf16>) outs(%5 : tensor<?x32xf16>) {
         ^bb0(%in: f16, %in_8: f16, %out: f16):
-          %52 = arith.cmpf ogt, %in, %in_8 : f16
-          %53 = arith.select %52, %in, %in_8 : f16
-          linalg.yield %53 : f16
+          %48 = arith.cmpf ogt, %in, %in_8 : f16
+          %49 = arith.select %48, %in, %in_8 : f16
+          linalg.yield %49 : f16
         } -> tensor<?x32xf16>
-        %37 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel", "parallel"]} ins(%31 : tensor<?x32x?xf16>) outs(%29 : tensor<?x32x?xf16>) {
+        %33 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel", "parallel"]} ins(%27 : tensor<?x32x?xf16>) outs(%25 : tensor<?x32x?xf16>) {
         ^bb0(%in: f16, %out: f16):
-          %52 = arith.mulf %in, %cst_3 : f16
-          linalg.yield %52 : f16
+          %48 = arith.mulf %in, %cst_3 : f16
+          linalg.yield %48 : f16
         } -> tensor<?x32x?xf16>
-        %extracted_slice = tensor.extract_slice %36[0, 0] [%0, 32] [1, 1] : tensor<?x32xf16> to tensor<?x32xf16>
+        %extracted_slice = tensor.extract_slice %32[0, 0] [%0, 32] [1, 1] : tensor<?x32xf16> to tensor<?x32xf16>
         %expanded = tensor.expand_shape %extracted_slice [[0], [1, 2]] output_shape [%0, 32, 1] : tensor<?x32xf16> into tensor<?x32x1xf16>
-        %38 = linalg.generic {indexing_maps = [#map, #map3, #map], iterator_types = ["parallel", "parallel", "parallel"]} ins(%37, %expanded : tensor<?x32x?xf16>, tensor<?x32x1xf16>) outs(%29 : tensor<?x32x?xf16>) {
+        %34 = linalg.generic {indexing_maps = [#map, #map3, #map], iterator_types = ["parallel", "parallel", "parallel"]} ins(%33, %expanded : tensor<?x32x?xf16>, tensor<?x32x1xf16>) outs(%25 : tensor<?x32x?xf16>) {
         ^bb0(%in: f16, %in_8: f16, %out: f16):
-          %52 = arith.subf %in, %in_8 : f16
-          linalg.yield %52 : f16
+          %48 = arith.subf %in, %in_8 : f16
+          linalg.yield %48 : f16
         } -> tensor<?x32x?xf16>
-        %39 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel", "parallel"]} ins(%38 : tensor<?x32x?xf16>) outs(%29 : tensor<?x32x?xf16>) {
+        %35 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel", "parallel"]} ins(%34 : tensor<?x32x?xf16>) outs(%25 : tensor<?x32x?xf16>) {
         ^bb0(%in: f16, %out: f16):
-          %52 = math.powf %cst, %in : f16
-          linalg.yield %52 : f16
+          %48 = math.powf %cst, %in : f16
+          linalg.yield %48 : f16
         } -> tensor<?x32x?xf16>
-        %40 = linalg.fill ins(%cst_0 : f16) outs(%5 : tensor<?x32xf16>) -> tensor<?x32xf16>
-        %41 = linalg.generic {indexing_maps = [#map, #map1], iterator_types = ["parallel", "parallel", "reduction"]} ins(%39 : tensor<?x32x?xf16>) outs(%40 : tensor<?x32xf16>) {
+        %36 = linalg.fill ins(%cst_0 : f16) outs(%5 : tensor<?x32xf16>) -> tensor<?x32xf16>
+        %37 = linalg.generic {indexing_maps = [#map, #map1], iterator_types = ["parallel", "parallel", "reduction"]} ins(%35 : tensor<?x32x?xf16>) outs(%36 : tensor<?x32xf16>) {
         ^bb0(%in: f16, %out: f16):
-          %52 = arith.addf %in, %out : f16
-          linalg.yield %52 : f16
+          %48 = arith.addf %in, %out : f16
+          linalg.yield %48 : f16
         } -> tensor<?x32xf16>
-        %42 = linalg.generic {indexing_maps = [#map2, #map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%arg7, %36 : tensor<?x32xf16>, tensor<?x32xf16>) outs(%5 : tensor<?x32xf16>) {
+        %38 = linalg.generic {indexing_maps = [#map2, #map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%arg7, %32 : tensor<?x32xf16>, tensor<?x32xf16>) outs(%5 : tensor<?x32xf16>) {
         ^bb0(%in: f16, %in_8: f16, %out: f16):
-          %52 = arith.subf %in, %in_8 : f16
-          linalg.yield %52 : f16
+          %48 = arith.subf %in, %in_8 : f16
+          linalg.yield %48 : f16
         } -> tensor<?x32xf16>
-        %43 = linalg.generic {indexing_maps = [#map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%42 : tensor<?x32xf16>) outs(%5 : tensor<?x32xf16>) {
+        %39 = linalg.generic {indexing_maps = [#map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%38 : tensor<?x32xf16>) outs(%5 : tensor<?x32xf16>) {
         ^bb0(%in: f16, %out: f16):
-          %52 = math.powf %cst, %in : f16
-          linalg.yield %52 : f16
+          %48 = math.powf %cst, %in : f16
+          linalg.yield %48 : f16
         } -> tensor<?x32xf16>
-        %44 = linalg.generic {indexing_maps = [#map2, #map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%arg8, %43 : tensor<?x32xf16>, tensor<?x32xf16>) outs(%5 : tensor<?x32xf16>) {
+        %40 = linalg.generic {indexing_maps = [#map2, #map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%arg8, %39 : tensor<?x32xf16>, tensor<?x32xf16>) outs(%5 : tensor<?x32xf16>) {
         ^bb0(%in: f16, %in_8: f16, %out: f16):
-          %52 = arith.mulf %in, %in_8 : f16
-          linalg.yield %52 : f16
+          %48 = arith.mulf %in, %in_8 : f16
+          linalg.yield %48 : f16
         } -> tensor<?x32xf16>
-        %45 = linalg.generic {indexing_maps = [#map2, #map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%44, %41 : tensor<?x32xf16>, tensor<?x32xf16>) outs(%5 : tensor<?x32xf16>) {
+        %41 = linalg.generic {indexing_maps = [#map2, #map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%40, %37 : tensor<?x32xf16>, tensor<?x32xf16>) outs(%5 : tensor<?x32xf16>) {
         ^bb0(%in: f16, %in_8: f16, %out: f16):
-          %52 = arith.addf %in, %in_8 : f16
-          linalg.yield %52 : f16
+          %48 = arith.addf %in, %in_8 : f16
+          linalg.yield %48 : f16
         } -> tensor<?x32xf16>
-        %extracted_slice_5 = tensor.extract_slice %43[0, 0] [%0, 32] [1, 1] : tensor<?x32xf16> to tensor<?x32xf16>
+        %extracted_slice_5 = tensor.extract_slice %39[0, 0] [%0, 32] [1, 1] : tensor<?x32xf16> to tensor<?x32xf16>
         %expanded_6 = tensor.expand_shape %extracted_slice_5 [[0], [1, 2]] output_shape [%0, 32, 1] : tensor<?x32xf16> into tensor<?x32x1xf16>
-        %46 = linalg.generic {indexing_maps = [#map, #map3, #map], iterator_types = ["parallel", "parallel", "parallel"]} ins(%arg9, %expanded_6 : tensor<?x32x128xf16>, tensor<?x32x1xf16>) outs(%8 : tensor<?x32x128xf16>) {
+        %42 = linalg.generic {indexing_maps = [#map, #map3, #map], iterator_types = ["parallel", "parallel", "parallel"]} ins(%arg9, %expanded_6 : tensor<?x32x128xf16>, tensor<?x32x1xf16>) outs(%8 : tensor<?x32x128xf16>) {
         ^bb0(%in: f16, %in_8: f16, %out: f16):
-          %52 = arith.mulf %in, %in_8 : f16
-          linalg.yield %52 : f16
+          %48 = arith.mulf %in, %in_8 : f16
+          linalg.yield %48 : f16
         } -> tensor<?x32x128xf16>
-        %subview_7 = memref.subview %arg1[%10, %21, 0] [%0, %25, 128] [1, 1, 1] : memref<16x8192x128xf16> to memref<?x?x128xf16, strided<[1048576, 128, 1], offset: ?>>
-        %47 = bufferization.to_tensor %subview_7 : memref<?x?x128xf16, strided<[1048576, 128, 1], offset: ?>> to tensor<?x?x128xf16>
-        cf.assert %28, "mismatching contracting dimension"
-        %48 = arith.index_cast %2 : index to i64
-        %49 = arith.cmpi eq, %48, %48 : i64
-        cf.assert %49, "mismatching contracting dimension"
-        %50 = linalg.batch_matmul ins(%39, %47 : tensor<?x32x?xf16>, tensor<?x?x128xf16>) outs(%9 : tensor<?x32x128xf16>) -> tensor<?x32x128xf16>
-        %51 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel", "parallel"]} ins(%50, %46 : tensor<?x32x128xf16>, tensor<?x32x128xf16>) outs(%8 : tensor<?x32x128xf16>) {
+        %subview_7 = memref.subview %arg1[%10, %21, 0] [%0, %2, 128] [1, 1, 1] : memref<16x8192x128xf16> to memref<?x?x128xf16, strided<[1048576, 128, 1], offset: ?>>
+        %43 = bufferization.to_tensor %subview_7 : memref<?x?x128xf16, strided<[1048576, 128, 1], offset: ?>> to tensor<?x?x128xf16>
+        cf.assert %24, "mismatching contracting dimension"
+        %44 = arith.index_cast %2 : index to i64
+        %45 = arith.cmpi eq, %44, %44 : i64
+        cf.assert %45, "mismatching contracting dimension"
+        %46 = linalg.batch_matmul ins(%35, %43 : tensor<?x32x?xf16>, tensor<?x?x128xf16>) outs(%9 : tensor<?x32x128xf16>) -> tensor<?x32x128xf16>
+        %47 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel", "parallel"]} ins(%46, %42 : tensor<?x32x128xf16>, tensor<?x32x128xf16>) outs(%8 : tensor<?x32x128xf16>) {
         ^bb0(%in: f16, %in_8: f16, %out: f16):
-          %52 = arith.addf %in, %in_8 : f16
-          linalg.yield %52 : f16
+          %48 = arith.addf %in, %in_8 : f16
+          linalg.yield %48 : f16
         } -> tensor<?x32x128xf16>
-        scf.yield %36, %45, %51 : tensor<?x32xf16>, tensor<?x32xf16>, tensor<?x32x128xf16>
+        scf.yield %32, %41, %47 : tensor<?x32xf16>, tensor<?x32xf16>, tensor<?x32x128xf16>
       }
       %17 = linalg.generic {indexing_maps = [#map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%16#1 : tensor<?x32xf16>) outs(%5 : tensor<?x32xf16>) {
       ^bb0(%in: f16, %out: f16):
