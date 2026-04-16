@@ -90,6 +90,17 @@ def FoldRedundantExtractSlice : Pass<"loom-fold-redundant-extract-slice", "mlir:
   let constructor = "loom::passes::createFoldRedundantExtractSlicePass()";
 }
 
+def LinalgGuardedElementwiseOpFusion : Pass<"loom-linalg-guarded-elementwise-fusion", "mlir::ModuleOp"> {
+  let summary = "Elementwise op fusion that skips fusions producing a leading-reduction generic";
+  let description = [{
+    Mirrors the upstream linalg-elementwise-op-fusion pass but installs a
+    control function that blocks fusion whenever the producer OR consumer
+    linalg.generic has a leading (outermost) reduction iterator.  Such fused
+    forms are not processable by the target hardware.
+  }];
+  let constructor = "loom::passes::createLinalgGuardedElementwiseOpFusionPass()";
+}
+
 def MemoryBindingPass : Pass<"loom-memory-binding", "mlir::ModuleOp"> {
   let summary = "Bind memory allocations to tensor operations";
   let description = [{
