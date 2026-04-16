@@ -49,11 +49,34 @@ enum class FlashAttentionGenericKind {
   Elementwise
 };
 
+/// Elementwise broadcast categories accepted by the generic lowering.
+enum class ElementwiseBroadcastKind {
+  /// Broadcast over the last tensor dimension.
+  RowBroadcast,
+  /// Broadcast over the second-last tensor dimension.
+  ColBroadcast,
+  /// Broadcast over a dimension other than the last two.
+  BatchBroadcast
+};
+
+/// Metadata describing one elementwise broadcast input.
+struct ElementwiseBroadcastInfo {
+  /// Input operand index in the generic op.
+  unsigned inputIdx = 0;
+  /// Output-loop dimension that is broadcast (dropped in input indexing map).
+  unsigned droppedDim = 0;
+  /// Normalized broadcast category.
+  ElementwiseBroadcastKind kind = ElementwiseBroadcastKind::BatchBroadcast;
+  /// Tile-count extent for the dropped dimension.
+  int64_t droppedDimTiles = 1;
+  /// Product of tile-count extents after @p droppedDim.
+  int64_t suffixTiles = 1;
+};
+
 struct ElementwiseAnalysis {
   Value yieldValue;
   int64_t outTiles = 0;
-  std::optional<unsigned> rowBcastInput;
-  std::optional<int64_t> colTiles;
+  std::optional<ElementwiseBroadcastInfo> broadcast;
   SmallVector<int64_t, 4> inputWaitTiles;
   llvm::SmallBitVector usedInputs;
 
@@ -65,6 +88,7 @@ struct ElementwiseAnalysis {
   bool needsBinaryMax = false;
   bool needsPowBinary = false;
   bool needsRecip = false;
+  bool needsLog = false;
 };
 
 static std::optional<int64_t> ceilDiv32(int64_t value) {
@@ -257,6 +281,7 @@ struct TileGenericExprAnalysis {
   bool needsBinaryMax = false;
   bool needsPowBinary = false;
   bool needsRecip = false;
+  bool needsLog = false;
 };
 
 /**
@@ -287,11 +312,9 @@ static LogicalResult emitTileGenericExprToReg(
  */
 static bool isTileGenericOp(linalg::GenericOp op) {
   auto iteratorTypes = op.getIteratorTypesArray();
-  if (iteratorTypes.size() != 3)
+  if (iteratorTypes.size() < 3)
     return false;
-  return iteratorTypes[0] == utils::IteratorType::reduction &&
-         iteratorTypes[1] == utils::IteratorType::parallel &&
-         iteratorTypes[2] == utils::IteratorType::parallel;
+  return iteratorTypes[0] == utils::IteratorType::reduction;
 }
 
 /**
@@ -308,8 +331,6 @@ static LogicalResult tileGenericOp(
   auto fallbackToReduce = [&]() -> LogicalResult {
     return rewriteReduceGeneric(op, adaptor, rewriter, waitState);
   };
-  if (adaptor.getInputs().size() != 1 || adaptor.getOutputs().size() != 1)
-    return fallbackToReduce();
 
   Value inCb = adaptor.getInputs().front();
   Value outCb = adaptor.getOutputs().front();
@@ -322,9 +343,6 @@ static LogicalResult tileGenericOp(
 
   auto inType = dyn_cast<ShapedType>(op.getDpsInputs()[0].getType());
   auto outType = dyn_cast<ShapedType>(op.getDpsInits()[0].getType());
-  if (!inType || !outType || !inType.hasStaticShape() || !outType.hasStaticShape() ||
-      inType.getRank() != 3 || outType.getRank() != 2)
-    return fallbackToReduce();
 
   ArrayRef<int64_t> inShape = inType.getShape();
   ArrayRef<int64_t> outShape = outType.getShape();
@@ -385,6 +403,8 @@ static LogicalResult tileGenericOp(
     rewriter.create<PowBinaryTilesInitOp>(loc);
   if (analysis.needsRecip)
     rewriter.create<RecipTileInitOp>(loc);
+  if (analysis.needsLog)
+    rewriter.create<LogTileInitOp>(loc);
 
   scf::ForOp outTileLoop =
       scf::ForOp::create(rewriter, loc, zeroI32, outTilesV, oneI32);
@@ -444,15 +464,6 @@ static bool isIdentityMapForRank(AffineMap map, unsigned rank) {
   return true;
 }
 
-static bool isBatchRowMap3D(AffineMap map) {
-  if (!map || map.getNumDims() != 3 || map.getNumSymbols() != 0 ||
-      map.getNumResults() != 2)
-    return false;
-  auto d0 = dyn_cast<AffineDimExpr>(map.getResult(0));
-  auto d1 = dyn_cast<AffineDimExpr>(map.getResult(1));
-  return d0 && d1 && d0.getPosition() == 0 && d1.getPosition() == 1;
-}
-
 static bool hasAllIdentityMapsForRank(linalg::GenericOp op, unsigned rank) {
   if (op.getNumLoops() != rank)
     return false;
@@ -462,30 +473,87 @@ static bool hasAllIdentityMapsForRank(linalg::GenericOp op, unsigned rank) {
   return true;
 }
 
-static std::optional<unsigned> getRowBroadcastInputIndex3D(linalg::GenericOp op) {
-  if (op.getNumLoops() != 3 || op.getNumDpsInits() != 1)
+/**
+ * @brief Return the dropped output dimension for a pure broadcast map.
+ *
+ * @details A supported broadcast map is rank-1 and consists only of strictly
+ *          increasing affine dim expressions, i.e. identity with exactly one
+ *          missing dimension.
+ */
+static std::optional<unsigned> getDroppedDimFromBroadcastMap(AffineMap map,
+                                                             unsigned rank) {
+  if (!map || map.getNumDims() != rank || map.getNumSymbols() != 0 ||
+      map.getNumResults() != rank - 1 || rank == 0)
     return std::nullopt;
 
-  unsigned numInputs = op.getNumDpsInputs();
-  auto maps = op.getIndexingMapsArray();
-  if (maps.size() != numInputs + 1)
-    return std::nullopt;
-  if (!isIdentityMapForRank(maps[numInputs], 3))
-    return std::nullopt;
-
-  std::optional<unsigned> rowInputIndex;
-  for (unsigned i = 0; i < numInputs; ++i) {
-    if (isBatchRowMap3D(maps[i])) {
-      if (rowInputIndex)
-        return std::nullopt;
-      rowInputIndex = i;
-      continue;
-    }
-    if (!isIdentityMapForRank(maps[i], 3))
+  llvm::SmallBitVector seenDims(rank);
+  unsigned prevPos = 0;
+  bool hasPrev = false;
+  for (AffineExpr expr : map.getResults()) {
+    auto dimExpr = dyn_cast<AffineDimExpr>(expr);
+    if (!dimExpr)
       return std::nullopt;
+    unsigned pos = dimExpr.getPosition();
+    if (pos >= rank || seenDims.test(pos))
+      return std::nullopt;
+    if (hasPrev && pos <= prevPos)
+      return std::nullopt;
+    seenDims.set(pos);
+    prevPos = pos;
+    hasPrev = true;
   }
 
-  return rowInputIndex;
+  for (unsigned dim = 0; dim < rank; ++dim) {
+    if (!seenDims.test(dim))
+      return dim;
+  }
+  return std::nullopt;
+}
+
+/// Classify broadcast kind by dropped output dimension.
+static ElementwiseBroadcastKind
+classifyElementwiseBroadcastKind(unsigned droppedDim, unsigned rank) {
+  if (rank >= 1 && droppedDim == rank - 1)
+    return ElementwiseBroadcastKind::RowBroadcast;
+  if (rank >= 2 && droppedDim == rank - 2)
+    return ElementwiseBroadcastKind::ColBroadcast;
+  return ElementwiseBroadcastKind::BatchBroadcast;
+}
+
+/**
+ * @brief Map analysis broadcast kind to TTKernel unary-broadcast enum.
+ *
+ * @details TTKernel naming follows hardware lanes (`col`/`row`), so the
+ *          semantic mapping from dropped dimensions is:
+ *          - RowBroadcast (drop last dim)      -> `BcastType::Col`
+ *          - ColBroadcast (drop second-last)   -> `BcastType::Row`
+ *          - BatchBroadcast                     -> no unary broadcast op
+ */
+static std::optional<BcastType>
+getUnaryBcastType(ElementwiseBroadcastKind kind) {
+  switch (kind) {
+  case ElementwiseBroadcastKind::RowBroadcast:
+    return BcastType::Col;
+  case ElementwiseBroadcastKind::ColBroadcast:
+    return BcastType::Row;
+  case ElementwiseBroadcastKind::BatchBroadcast:
+    return std::nullopt;
+  }
+  return std::nullopt;
+}
+
+/// Product of tile extents strictly after @p droppedDim.
+static std::optional<int64_t>
+getSuffixTilesAfterDim(ArrayRef<int64_t> outTileShape, unsigned droppedDim) {
+  if (droppedDim >= outTileShape.size())
+    return std::nullopt;
+  int64_t suffix = 1;
+  for (unsigned dim = droppedDim + 1; dim < outTileShape.size(); ++dim) {
+    if (outTileShape[dim] <= 0)
+      return std::nullopt;
+    suffix *= outTileShape[dim];
+  }
+  return suffix;
 }
 
 static std::optional<unsigned> getBodyInputIndex(linalg::GenericOp op, Value value) {
@@ -935,6 +1003,7 @@ enum class GenericExprFeature {
   BinaryMax,
   PowBinary,
   Recip,
+  Log,
   Fill
 };
 
@@ -1009,6 +1078,11 @@ static LogicalResult analyzeGenericExprTree(
       handlePowBaseConst();
       setFlag(GenericExprFeature::PowBinary);
       return self(self, powOp.getRhs());
+    }
+
+    if (auto logOp = dyn_cast<math::LogOp>(defOp)) {
+      setFlag(GenericExprFeature::Log);
+      return self(self, logOp.getOperand());
     }
 
     if (auto maxOp = dyn_cast<arith::MaximumFOp>(defOp)) {
@@ -1093,6 +1167,9 @@ static LogicalResult analyzeTileGenericExpr(Value exprValue, linalg::GenericOp o
       return;
     case GenericExprFeature::Recip:
       analysis.needsRecip = true;
+      return;
+    case GenericExprFeature::Log:
+      analysis.needsLog = true;
       return;
     case GenericExprFeature::Fill:
       analysis.needsFill = true;
@@ -1280,6 +1357,16 @@ static LogicalResult emitGenericExprToRegImpl(
       return success();
     }
 
+    if (auto logOp = dyn_cast<math::LogOp>(defOp)) {
+      if (failed(self(self, logOp.getOperand(), curDstReg, curTmpRegA,
+                      curTmpRegB)))
+        return failure();
+      if (emitInlineInitOps)
+        rewriter.create<LogTileInitOp>(loc);
+      rewriter.create<LogTileOp>(loc, curDstRegVal);
+      return success();
+    }
+
     auto emitBinaryMax = [&](Value lhs, Value rhs) -> LogicalResult {
       bool emitRhsFirst = emitRhsFirstForOperands(lhs, rhs);
       if (emitRhsFirst) {
@@ -1395,6 +1482,9 @@ static LogicalResult analyzeElementwiseExpr(Value exprValue, linalg::GenericOp o
     case GenericExprFeature::Recip:
       analysis.needsRecip = true;
       return;
+    case GenericExprFeature::Log:
+      analysis.needsLog = true;
+      return;
     case GenericExprFeature::Fill:
       return;
     }
@@ -1414,16 +1504,59 @@ static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
       return failure();
 
   unsigned rank = op.getNumLoops();
-  bool allIdentity = hasAllIdentityMapsForRank(op, rank);
-  std::optional<unsigned> rowBcastInput;
-  if (!allIdentity) {
-    if (rank != 3)
+  auto outType = dyn_cast<ShapedType>(op.getDpsInits()[0].getType());
+  if (!outType || !outType.hasStaticShape() || outType.getRank() != rank)
+    return failure();
+
+  SmallVector<int64_t, 4> outTileShape;
+  outTileShape.reserve(rank);
+  for (int64_t dimSize : outType.getShape()) {
+    auto dimTiles = ceilDiv32(dimSize);
+    if (!dimTiles)
       return failure();
-    rowBcastInput = getRowBroadcastInputIndex3D(op);
-    if (!rowBcastInput)
+    outTileShape.push_back(*dimTiles);
+  }
+
+  bool allIdentity = hasAllIdentityMapsForRank(op, rank);
+  std::optional<ElementwiseBroadcastInfo> broadcast;
+  if (!allIdentity) {
+    unsigned numInputs = op.getNumDpsInputs();
+    auto maps = op.getIndexingMapsArray();
+    if (maps.size() != numInputs + 1)
+      return failure();
+    if (!isIdentityMapForRank(maps[numInputs], rank))
+      return failure();
+
+    for (unsigned i = 0; i < numInputs; ++i) {
+      if (isIdentityMapForRank(maps[i], rank))
+        continue;
+
+      auto droppedDim = getDroppedDimFromBroadcastMap(maps[i], rank);
+      if (!droppedDim || broadcast)
+        return failure();
+
+      auto suffixTiles = getSuffixTilesAfterDim(outTileShape, *droppedDim);
+      if (!suffixTiles || *suffixTiles <= 0)
+        return failure();
+
+      int64_t droppedDimTiles = outTileShape[*droppedDim];
+      if (droppedDimTiles <= 0)
+        return failure();
+
+      ElementwiseBroadcastInfo info;
+      info.inputIdx = i;
+      info.droppedDim = *droppedDim;
+      info.kind = classifyElementwiseBroadcastKind(*droppedDim, rank);
+      info.droppedDimTiles = droppedDimTiles;
+      info.suffixTiles = *suffixTiles;
+      broadcast = info;
+    }
+
+    // Non-identity elementwise maps must be one supported broadcast input.
+    if (!broadcast)
       return failure();
   }
-  analysis.rowBcastInput = rowBcastInput;
+  analysis.broadcast = broadcast;
 
   auto outTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
   if (!outTiles)
@@ -1434,15 +1567,12 @@ static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
   analysis.usedInputs.resize(op.getNumDpsInputs());
   analysis.usedInputs.reset();
 
-  if (analysis.rowBcastInput) {
-    auto rowTiles =
-        getNumTilesFromShapedType(op.getDpsInputs()[*analysis.rowBcastInput].getType());
-    auto outType = dyn_cast<ShapedType>(op.getDpsInits()[0].getType());
-    auto colTiles = outType ? getTileDim(outType, 2) : std::nullopt;
-    if (!rowTiles || !colTiles || *colTiles <= 0)
+  if (analysis.broadcast) {
+    auto inputTiles = getNumTilesFromShapedType(
+        op.getDpsInputs()[analysis.broadcast->inputIdx].getType());
+    if (!inputTiles || *inputTiles <= 0)
       return failure();
-    analysis.inputWaitTiles[*analysis.rowBcastInput] = *rowTiles;
-    analysis.colTiles = *colTiles;
+    analysis.inputWaitTiles[analysis.broadcast->inputIdx] = *inputTiles;
   }
 
   auto yieldOp = dyn_cast<linalg::YieldOp>(op.getRegion().front().getTerminator());
@@ -1453,7 +1583,9 @@ static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
   if (failed(analyzeElementwiseExpr(analysis.yieldValue, op, analysis)))
     return failure();
 
-  if (analysis.rowBcastInput && analysis.usedInputs.test(*analysis.rowBcastInput))
+  if (analysis.broadcast &&
+      analysis.usedInputs.test(analysis.broadcast->inputIdx) &&
+      analysis.broadcast->kind != ElementwiseBroadcastKind::BatchBroadcast)
     analysis.needsUnaryBcast = true;
 
   return success();
@@ -1491,6 +1623,9 @@ static bool exprContainsBodyInput(Value exprValue, linalg::GenericOp op,
     return exprContainsBodyInput(powOp.getLhs(), op, inputIdx) ||
            exprContainsBodyInput(powOp.getRhs(), op, inputIdx);
 
+  if (auto logOp = dyn_cast<math::LogOp>(defOp))
+    return exprContainsBodyInput(logOp.getOperand(), op, inputIdx);
+
   if (auto selectOp = dyn_cast<arith::SelectOp>(defOp)) {
     Value lhs;
     Value rhs;
@@ -1503,22 +1638,22 @@ static bool exprContainsBodyInput(Value exprValue, linalg::GenericOp op,
   return false;
 }
 
-static bool shouldEmitRhsFirstForRowBcast(
+static bool shouldEmitRhsFirstForBroadcast(
     Value lhs, Value rhs, linalg::GenericOp op,
-    std::optional<unsigned> rowBcastInput, bool emitInlineInitOps) {
-  if (!emitInlineInitOps || !rowBcastInput)
+    std::optional<unsigned> broadcastInput, bool emitInlineInitOps) {
+  if (!emitInlineInitOps || !broadcastInput)
     return false;
-  bool lhsUsesRowBcast = exprContainsBodyInput(lhs, op, *rowBcastInput);
-  bool rhsUsesRowBcast = exprContainsBodyInput(rhs, op, *rowBcastInput);
+  bool lhsUsesRowBcast = exprContainsBodyInput(lhs, op, *broadcastInput);
+  bool rhsUsesRowBcast = exprContainsBodyInput(rhs, op, *broadcastInput);
   return rhsUsesRowBcast && !lhsUsesRowBcast;
 }
 
 static LogicalResult emitElementwiseExprToReg(
     Value exprValue, int dstReg, int tmpRegA, int tmpRegB, linalg::GenericOp op,
     linalg::GenericOp::Adaptor adaptor, ConversionPatternRewriter &rewriter,
-    Location loc, Value tileIdx, std::optional<Value> rowIdx,
-    std::optional<unsigned> rowBcastInput, bool emitInlineInitOps,
-    std::optional<unsigned> rowBcastRefInput) {
+    Location loc, Value tileIdx, std::optional<Value> broadcastTileIdx,
+    std::optional<unsigned> broadcastInput, std::optional<BcastType> bcastType,
+    bool emitInlineInitOps, std::optional<unsigned> broadcastRefInput) {
   auto emitLeaf = [&](Value value, int reg, bool &handled) -> LogicalResult {
     auto inputIdx = getBodyInputIndex(op, value);
     if (!inputIdx) {
@@ -1528,18 +1663,26 @@ static LogicalResult emitElementwiseExprToReg(
 
     handled = true;
     Value regVal = i32Const(rewriter, loc, reg);
-    if (rowBcastInput && *inputIdx == *rowBcastInput) {
-      if (!rowIdx)
+    if (broadcastInput && *inputIdx == *broadcastInput) {
+      if (!broadcastTileIdx)
         return failure();
-      if (emitInlineInitOps) {
-        if (!rowBcastRefInput)
-          return failure();
-        rewriter.create<UnaryBcastInitOp>(
-            loc, adaptor.getInputs()[*rowBcastInput],
-            adaptor.getInputs()[*rowBcastRefInput], BcastType::Col);
+
+      if (bcastType) {
+        if (emitInlineInitOps) {
+          if (!broadcastRefInput)
+            return failure();
+          rewriter.create<UnaryBcastInitOp>(
+              loc, adaptor.getInputs()[*broadcastInput],
+              adaptor.getInputs()[*broadcastRefInput], *bcastType);
+        }
+        rewriter.create<UnaryBcastTileOp>(loc, adaptor.getInputs()[*inputIdx],
+                                          *broadcastTileIdx, regVal, *bcastType);
+      } else {
+        if (emitInlineInitOps)
+          rewriter.create<CopyTileInitOp>(loc, adaptor.getInputs()[*inputIdx]);
+        rewriter.create<CopyTileOp>(loc, adaptor.getInputs()[*inputIdx],
+                                    *broadcastTileIdx, regVal);
       }
-      rewriter.create<UnaryBcastTileOp>(loc, adaptor.getInputs()[*inputIdx],
-                                        *rowIdx, regVal, BcastType::Col);
       return success();
     }
 
@@ -1551,7 +1694,7 @@ static LogicalResult emitElementwiseExprToReg(
   };
 
   auto emitRhsFirstForOperands = [&](Value lhs, Value rhs) -> bool {
-    return shouldEmitRhsFirstForRowBcast(lhs, rhs, op, rowBcastInput,
+    return shouldEmitRhsFirstForBroadcast(lhs, rhs, op, broadcastInput,
                                          emitInlineInitOps);
   };
 
@@ -1705,24 +1848,34 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
   }
   rewriter.create<InitSFPUOp>(loc, inCbForInit, outCb);
   bool emitInlineInitOps = analysis.needsUnaryBcast;
-  std::optional<unsigned> rowBcastRefInput;
-  if (analysis.rowBcastInput) {
-    unsigned rowInput = *analysis.rowBcastInput;
-    unsigned refInput = rowInput;
-    for (unsigned i = 0; i < adaptor.getInputs().size(); ++i) {
-      if (i != rowInput && analysis.usedInputs.test(i)) {
-        refInput = i;
-        break;
+  std::optional<unsigned> broadcastInput;
+  std::optional<unsigned> broadcastRefInput;
+  std::optional<BcastType> unaryBcastType;
+  if (analysis.broadcast &&
+      analysis.usedInputs.test(analysis.broadcast->inputIdx)) {
+    broadcastInput = analysis.broadcast->inputIdx;
+    if (analysis.needsUnaryBcast) {
+      unaryBcastType = getUnaryBcastType(analysis.broadcast->kind);
+      if (!unaryBcastType)
+        return failure();
+
+      unsigned refInput = *broadcastInput;
+      for (unsigned i = 0; i < adaptor.getInputs().size(); ++i) {
+        if (i != *broadcastInput && analysis.usedInputs.test(i)) {
+          refInput = i;
+          break;
+        }
       }
+      broadcastRefInput = refInput;
     }
-    rowBcastRefInput = refInput;
   }
 
   if (!emitInlineInitOps) {
     for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
       if (!analysis.usedInputs.test(idx))
         continue;
-      if (analysis.rowBcastInput && idx == *analysis.rowBcastInput)
+      if (broadcastInput && analysis.needsUnaryBcast &&
+          idx == *broadcastInput)
         continue;
       rewriter.create<CopyTileInitOp>(loc, inputCb);
     }
@@ -1742,21 +1895,37 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
     }
     if (analysis.needsRecip)
       rewriter.create<RecipTileInitOp>(loc);
+    if (analysis.needsLog)
+      rewriter.create<LogTileInitOp>(loc);
   }
 
   LogicalResult result = emitElementwiseTiles(
       rewriter, loc, outCb, analysis.outTiles, [&](Value tileIdx) -> LogicalResult {
-        std::optional<Value> rowIdx;
-        if (analysis.rowBcastInput) {
-          if (!analysis.colTiles || *analysis.colTiles <= 0)
-            return failure();
-          Value colTiles = i32Const(rewriter, loc, *analysis.colTiles);
-          rowIdx = rewriter.create<arith::DivUIOp>(loc, tileIdx, colTiles);
+        std::optional<Value> broadcastTileIdx;
+        if (broadcastInput && analysis.broadcast) {
+          const ElementwiseBroadcastInfo &broadcastInfo = *analysis.broadcast;
+          Value suffixTiles =
+              i32Const(rewriter, loc, broadcastInfo.suffixTiles);
+          Value droppedDimSpan = i32Const(
+              rewriter, loc,
+              broadcastInfo.droppedDimTiles * broadcastInfo.suffixTiles);
+          Value prefix = rewriter.create<arith::DivUIOp>(loc, tileIdx,
+                                                         droppedDimSpan);
+          if (broadcastInfo.suffixTiles == 1) {
+            broadcastTileIdx = prefix;
+          } else {
+            Value suffixOffset =
+                rewriter.create<arith::RemUIOp>(loc, tileIdx, suffixTiles);
+            Value prefixBase =
+                rewriter.create<arith::MulIOp>(loc, prefix, suffixTiles);
+            broadcastTileIdx =
+                rewriter.create<arith::AddIOp>(loc, prefixBase, suffixOffset);
+          }
         }
         return emitElementwiseExprToReg(
             analysis.yieldValue, /*dstReg=*/0, /*tmpRegA=*/1, /*tmpRegB=*/2, op,
-            adaptor, rewriter, loc, tileIdx, rowIdx, analysis.rowBcastInput,
-            emitInlineInitOps, rowBcastRefInput);
+            adaptor, rewriter, loc, tileIdx, broadcastTileIdx, broadcastInput,
+            unaryBcastType, emitInlineInitOps, broadcastRefInput);
       });
   if (failed(result))
     return failure();
@@ -1962,6 +2131,135 @@ public:
       CBPushBackOp::create(rewriter, loc, outCb, outCbNumTiles);
     }
 
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
+/**
+ * @brief Lower `linalg.batch_matmul` by reusing TTKernel matmul block ops.
+ *
+ * @details This pattern keeps the existing matmul-block execution model and
+ *          iterates over the batch dimension by advancing input tile offsets.
+ *          It reserves/pushes the whole output CB once and packs each batch's
+ *          tile-register result range into the corresponding output tile slice.
+ */
+class ConvertLinalgBatchMatmulOp
+    : public OpConversionPattern<linalg::BatchMatmulOp> {
+public:
+  using OpConversionPattern<linalg::BatchMatmulOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(linalg::BatchMatmulOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (adaptor.getInputs().size() != 2 || adaptor.getOutputs().size() != 1)
+      return failure();
+
+    Location loc = op.getLoc();
+    Value in0Cb = adaptor.getInputs()[0];
+    Value in1Cb = adaptor.getInputs()[1];
+    Value outCb = adaptor.getOutputs()[0];
+
+    if (!isa<CBType>(in0Cb.getType()) || !isa<CBType>(in1Cb.getType()) ||
+        !isa<CBType>(outCb.getType()))
+      return failure();
+
+    auto lhsShapedType = dyn_cast<ShapedType>(op.getInputs()[0].getType());
+    auto rhsShapedType = dyn_cast<ShapedType>(op.getInputs()[1].getType());
+    auto outShapedType = dyn_cast<ShapedType>(op.getOutputs()[0].getType());
+    if (!lhsShapedType || !rhsShapedType || !outShapedType ||
+        !lhsShapedType.hasStaticShape() || !rhsShapedType.hasStaticShape() ||
+        !outShapedType.hasStaticShape() || lhsShapedType.getRank() != 3 ||
+        rhsShapedType.getRank() != 3 || outShapedType.getRank() != 3)
+      return failure();
+
+    ArrayRef<int64_t> lhsShape = lhsShapedType.getShape();
+    ArrayRef<int64_t> rhsShape = rhsShapedType.getShape();
+    ArrayRef<int64_t> outShape = outShapedType.getShape();
+    if (lhsShape[0] != rhsShape[0] || lhsShape[0] != outShape[0] ||
+        lhsShape[1] != outShape[1] || lhsShape[2] != rhsShape[1] ||
+        rhsShape[2] != outShape[2]) {
+      return failure();
+    }
+
+    int64_t batchSize = lhsShape[0];
+    if (batchSize <= 0)
+      return failure();
+
+    int32_t rtVal = static_cast<int32_t>(lhsShape[1] / 32);
+    int32_t ktVal = static_cast<int32_t>(lhsShape[2] / 32);
+    int32_t ctVal = static_cast<int32_t>(rhsShape[2] / 32);
+    int32_t ntVal = static_cast<int32_t>(outShape[2] / 32);
+    if (rtVal <= 0 || ktVal <= 0 || ctVal <= 0 || ntVal <= 0)
+      return failure();
+
+    int64_t in0TilesPerBatch = static_cast<int64_t>(rtVal) * ktVal;
+    int64_t in1TilesPerBatch = static_cast<int64_t>(ktVal) * ctVal;
+    int64_t outTilesPerBatch = static_cast<int64_t>(rtVal) * ntVal;
+
+    int64_t in0TilesTotal = in0TilesPerBatch * batchSize;
+    int64_t in1TilesTotal = in1TilesPerBatch * batchSize;
+    int64_t outTilesTotal = outTilesPerBatch * batchSize;
+    if (in0TilesTotal <= 0 || in1TilesTotal <= 0 || outTilesTotal <= 0)
+      return failure();
+
+    Value zeroI32 = i32Const(rewriter, loc, 0);
+    Value oneI32 = i32Const(rewriter, loc, 1);
+    Value transpose = zeroI32;
+    Value ctDim = i32Const(rewriter, loc, ctVal);
+    Value rtDim = i32Const(rewriter, loc, rtVal);
+    Value ntDim = i32Const(rewriter, loc, ntVal);
+    Value ktDim = i32Const(rewriter, loc, ktVal);
+
+    rewriter.create<MatmulBlockInitShortOp>(
+        loc, TypeRange{}, ValueRange{in0Cb, in1Cb, transpose, ctDim, rtDim, ktDim});
+
+    Value in0TileCount = i32Const(rewriter, loc, in0TilesTotal);
+    Value in1TileCount = i32Const(rewriter, loc, in1TilesTotal);
+    if (in0Cb == in1Cb) {
+      int64_t sharedTiles = std::max(in0TilesTotal, in1TilesTotal);
+      CBWaitFrontOp::create(rewriter, loc, in0Cb,
+                            i32Const(rewriter, loc, sharedTiles));
+    } else {
+      CBWaitFrontOp::create(rewriter, loc, in0Cb, in0TileCount);
+      CBWaitFrontOp::create(rewriter, loc, in1Cb, in1TileCount);
+    }
+
+    Value totalOutTiles = i32Const(rewriter, loc, outTilesTotal);
+    Value batchTiles = i32Const(rewriter, loc, outTilesPerBatch);
+    Value in0BatchStride = i32Const(rewriter, loc, in0TilesPerBatch);
+    Value in1BatchStride = i32Const(rewriter, loc, in1TilesPerBatch);
+    Value batchCount = i32Const(rewriter, loc, batchSize);
+    CBReserveBackOp::create(rewriter, loc, outCb, totalOutTiles);
+
+    scf::ForOp batchLoop =
+        scf::ForOp::create(rewriter, loc, zeroI32, batchCount, oneI32);
+    rewriter.setInsertionPointToStart(batchLoop.getBody());
+    Value batchIdx = batchLoop.getInductionVar();
+    Value in0TileIdx = rewriter.create<arith::MulIOp>(loc, batchIdx, in0BatchStride);
+    Value in1TileIdx = rewriter.create<arith::MulIOp>(loc, batchIdx, in1BatchStride);
+    Value outTileBase = rewriter.create<arith::MulIOp>(loc, batchIdx, batchTiles);
+
+    TileRegsAcquireOp::create(rewriter, loc);
+    rewriter.create<ExperimentalMatmulBlockOp>(
+        loc, TypeRange{},
+        ValueRange{in0Cb, in1Cb, in0TileIdx, in1TileIdx, zeroI32, transpose,
+                   ctDim, rtDim, ktDim, ntDim});
+    TileRegsCommitOp::create(rewriter, loc);
+    TileRegsWaitOp::create(rewriter, loc);
+
+    scf::ForOp packLoop =
+        scf::ForOp::create(rewriter, loc, zeroI32, batchTiles, oneI32);
+    rewriter.setInsertionPointToStart(packLoop.getBody());
+    Value i = packLoop.getInductionVar();
+    Value outTileIdx = rewriter.create<arith::AddIOp>(loc, outTileBase, i);
+    PackTileOp::create(rewriter, loc, i, outCb, outTileIdx);
+    rewriter.setInsertionPointAfter(packLoop);
+
+    TileRegsReleaseOp::create(rewriter, loc);
+    rewriter.setInsertionPointAfter(batchLoop);
+
+    CBPushBackOp::create(rewriter, loc, outCb, totalOutTiles);
     rewriter.eraseOp(op);
     return success();
   }
@@ -2262,6 +2560,7 @@ void mlir::loom::populateComputeOpConversionPatterns(
   patterns.add<ConvertLinalgFillOp>(typeConverter, context);
   patterns.add<ConvertLinalgCopyOp>(typeConverter, context);
   patterns.add<ConvertLinalgMatmulOp>(typeConverter, context);
+  patterns.add<ConvertLinalgBatchMatmulOp>(typeConverter, context);
   patterns.add<ConvertMemrefCollapseShapeOp>(typeConverter, context);
   patterns.add<ConvertFlashAttentionGenericOp>(typeConverter, context);
 }

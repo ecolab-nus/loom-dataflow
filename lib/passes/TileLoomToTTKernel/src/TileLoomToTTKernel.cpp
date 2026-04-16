@@ -178,19 +178,19 @@ static LogicalResult rewriteBatch1MatmulToMatmul(ModuleOp module) {
     auto lhsTy = dyn_cast<MemRefType>(op.getInputs()[0].getType());
     auto rhsTy = dyn_cast<MemRefType>(op.getInputs()[1].getType());
     auto outTy = dyn_cast<MemRefType>(op.getOutputs()[0].getType());
-    if (!lhsTy || !rhsTy || !outTy || !lhsTy.hasStaticShape() ||
-        !rhsTy.hasStaticShape() || !outTy.hasStaticShape() ||
-        lhsTy.getRank() != 3 || rhsTy.getRank() != 3 ||
-        outTy.getRank() != 3) {
-      return op.emitOpError(
-          "expected static-rank memref<1xMxK>, memref<1xKxN>, memref<1xMxN>");
-    }
+    if (!lhsTy || !rhsTy || !outTy || lhsTy.getRank() != 3 ||
+        rhsTy.getRank() != 3 || outTy.getRank() != 3)
+      continue;
+
+    // Only canonicalize the batch-1 case into plain linalg.matmul.
+    // True batched cases are lowered by ConvertLinalgBatchMatmulOp.
+    if (!lhsTy.hasStaticShape() || !rhsTy.hasStaticShape() ||
+        !outTy.hasStaticShape())
+      continue;
 
     if (lhsTy.getShape()[0] != 1 || rhsTy.getShape()[0] != 1 ||
-        outTy.getShape()[0] != 1) {
-      return op.emitOpError(
-          "only batch-size 1 linalg.batch_matmul is supported");
-    }
+        outTy.getShape()[0] != 1)
+      continue;
 
     SmallVector<ReassociationIndices> reassociation = {{0, 1}, {2}};
     auto makeCollapsedType = [&](MemRefType srcTy) {
@@ -297,6 +297,9 @@ public:
 
       bool hasMatmul = false;
       func.walk([&](linalg::MatmulOp) { hasMatmul = true; });
+      if (!hasMatmul) {
+        func.walk([&](linalg::BatchMatmulOp) { hasMatmul = true; });
+      }
       if (!hasMatmul)
         continue;
 
