@@ -170,48 +170,39 @@ static void eraseLoomLoopAttrs(ModuleOp module) {
   });
 }
 
-static LogicalResult rewriteBatch1MatmulToMatmul(ModuleOp module) {
-  SmallVector<linalg::BatchMatmulOp> batchMatmuls;
-  module.walk([&](linalg::BatchMatmulOp op) { batchMatmuls.push_back(op); });
+static LogicalResult rewriteMatmulToBatch1Matmul(ModuleOp module) {
+  SmallVector<linalg::MatmulOp> matmuls;
+  module.walk([&](linalg::MatmulOp op) { matmuls.push_back(op); });
 
-  for (linalg::BatchMatmulOp op : batchMatmuls) {
+  for (linalg::MatmulOp op : matmuls) {
     auto lhsTy = dyn_cast<MemRefType>(op.getInputs()[0].getType());
     auto rhsTy = dyn_cast<MemRefType>(op.getInputs()[1].getType());
     auto outTy = dyn_cast<MemRefType>(op.getOutputs()[0].getType());
-    if (!lhsTy || !rhsTy || !outTy || lhsTy.getRank() != 3 ||
-        rhsTy.getRank() != 3 || outTy.getRank() != 3)
+    if (!lhsTy || !rhsTy || !outTy || lhsTy.getRank() != 2 ||
+        rhsTy.getRank() != 2 || outTy.getRank() != 2)
       continue;
 
-    // Only canonicalize the batch-1 case into plain linalg.matmul.
-    // True batched cases are lowered by ConvertLinalgBatchMatmulOp.
-    if (!lhsTy.hasStaticShape() || !rhsTy.hasStaticShape() ||
-        !outTy.hasStaticShape())
-      continue;
-
-    if (lhsTy.getShape()[0] != 1 || rhsTy.getShape()[0] != 1 ||
-        outTy.getShape()[0] != 1)
-      continue;
-
-    SmallVector<ReassociationIndices> reassociation = {{0, 1}, {2}};
-    auto makeCollapsedType = [&](MemRefType srcTy) {
-      return MemRefType::get({srcTy.getShape()[1], srcTy.getShape()[2]},
-                             srcTy.getElementType(), AffineMap(),
-                             srcTy.getMemorySpace());
+    auto makeBatch1Type = [&](MemRefType srcTy) -> MemRefType {
+      int64_t dim0 = srcTy.isDynamicDim(0) ? ShapedType::kDynamic
+                                           : srcTy.getDimSize(0);
+      int64_t dim1 = srcTy.isDynamicDim(1) ? ShapedType::kDynamic
+                                           : srcTy.getDimSize(1);
+      return MemRefType::get({1, dim0, dim1}, srcTy.getElementType(),
+                             AffineMap(), srcTy.getMemorySpace());
     };
 
+    SmallVector<ReassociationIndices> reassociation = {{0, 1}, {2}};
     OpBuilder builder(op);
-    Value lhs2D = builder.create<memref::CollapseShapeOp>(
-        op.getLoc(), makeCollapsedType(lhsTy), op.getInputs()[0],
-        reassociation);
-    Value rhs2D = builder.create<memref::CollapseShapeOp>(
-        op.getLoc(), makeCollapsedType(rhsTy), op.getInputs()[1],
-        reassociation);
-    Value out2D = builder.create<memref::CollapseShapeOp>(
-        op.getLoc(), makeCollapsedType(outTy), op.getOutputs()[0],
-        reassociation);
+    Value lhs3D = builder.create<memref::ExpandShapeOp>(
+        op.getLoc(), makeBatch1Type(lhsTy), op.getInputs()[0], reassociation);
+    Value rhs3D = builder.create<memref::ExpandShapeOp>(
+        op.getLoc(), makeBatch1Type(rhsTy), op.getInputs()[1], reassociation);
+    Value out3D = builder.create<memref::ExpandShapeOp>(
+        op.getLoc(), makeBatch1Type(outTy), op.getOutputs()[0], reassociation);
 
-    builder.create<linalg::MatmulOp>(op.getLoc(), ValueRange{lhs2D, rhs2D},
-                                     ValueRange{out2D});
+    builder.create<linalg::BatchMatmulOp>(op.getLoc(),
+                                          ValueRange{lhs3D, rhs3D},
+                                          ValueRange{out3D});
     op.erase();
   }
 
@@ -573,7 +564,7 @@ public:
       return;
     }
 
-    if (failed(rewriteBatch1MatmulToMatmul(module))) {
+    if (failed(rewriteMatmulToBatch1Matmul(module))) {
       signalPassFailure();
       return;
     }
@@ -597,7 +588,7 @@ public:
     // uses are eliminated.
 
     // Insert a single ttkernel.mm_init for compute kernels after all compile
-    // parameters are materialized and before linalg.matmul lowering.
+    // parameters are materialized and before linalg.batch_matmul lowering.
     PassManager mmInitPm(context);
     mmInitPm.addPass(createInsertMMInitPass());
     if (failed(mmInitPm.run(module))) {
@@ -633,8 +624,8 @@ public:
           return false;
         });
 
-    // linalg dialect is generally legal, but we require a conversion for
-    // linalg.matmul so it can be lowered to TTKernel matmul.
+    // linalg dialect is generally legal, but we require conversion for
+    // matmul-style ops so they can be lowered to TTKernel matmul blocks.
     target.addLegalDialect<linalg::LinalgDialect>();
     target.addDynamicallyLegalOp<linalg::MatmulOp>(
         [&](linalg::MatmulOp op) { return false; });
@@ -678,6 +669,11 @@ public:
               !dstTy.hasStaticShape())
             return true;
           return srcTy.getNumElements() != dstTy.getNumElements();
+        });
+    target.addDynamicallyLegalOp<memref::ExpandShapeOp>(
+        [&](memref::ExpandShapeOp op) {
+          (void)op;
+          return false;
         });
     target.addLegalDialect<mlir::tt::ttkernel::TTKernelDialect,
                            mlir::emitc::EmitCDialect>();

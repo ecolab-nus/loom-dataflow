@@ -117,80 +117,6 @@ static bool isComputeKernel(Operation *op) {
   return parentFunc.getName().ends_with("__compute");
 }
 
-/**
- * @brief Collect non-view users reachable from a value through view aliases.
- *
- * @details Walks users of `rootValue` and follows view-like ops (casts/views)
- *          to discover the effective non-view consumers. `excludedUser` is
- *          skipped (used to ignore the producer op currently being rewritten).
- */
-static void collectNonViewUsersThroughViews(
-    Value rootValue, Operation *excludedUser,
-    SmallVectorImpl<Operation *> &users) {
-  SmallVector<Value, 8> worklist;
-  llvm::SmallPtrSet<Value, 16> seenValues;
-  llvm::SmallPtrSet<Operation *, 16> seenUsers;
-
-  worklist.push_back(rootValue);
-  seenValues.insert(rootValue);
-
-  while (!worklist.empty()) {
-    Value current = worklist.pop_back_val();
-    for (Operation *user : current.getUsers()) {
-      if (user == excludedUser)
-        continue;
-
-      if (isa<ViewLikeOpInterface>(user)) {
-        for (Value result : user->getResults())
-          if (seenValues.insert(result).second)
-            worklist.push_back(result);
-        continue;
-      }
-
-      if (seenUsers.insert(user).second)
-        users.push_back(user);
-    }
-  }
-}
-
-/**
- * @brief Choose where matmul output tile-reg materialization should be placed.
- *
- * @details If a matmul output is consumed in the same block after matmul, the
- *          materialization scope is the matmul itself. If not, but the output
- *          is consumed in an ancestor block, the nearest enclosing op whose
- *          parent block contains that next consumer is returned (e.g. an
- *          enclosing scf.for). This enables wrapping tile-reg acquire/commit
- *          around loop scopes when the next use is outside the loop body.
- */
-static Operation *findMatmulOutputMaterializationScope(Value outputBuffer,
-                                                       Operation *matmulOp) {
-  SmallVector<Operation *, 8> users;
-  collectNonViewUsersThroughViews(outputBuffer, matmulOp, users);
-  if (users.empty())
-    return matmulOp;
-
-  Block *matmulBlock = matmulOp->getBlock();
-  for (Operation *user : users) {
-    if (user->getBlock() == matmulBlock && matmulOp->isBeforeInBlock(user))
-      return matmulOp;
-  }
-
-  for (Operation *ancestor = matmulOp->getParentOp(); ancestor;
-       ancestor = ancestor->getParentOp()) {
-    Block *ancestorBlock = ancestor->getBlock();
-    if (!ancestorBlock)
-      continue;
-    for (Operation *user : users) {
-      if (user->getBlock() == ancestorBlock &&
-          ancestor->isBeforeInBlock(user))
-        return ancestor;
-    }
-  }
-
-  return matmulOp;
-}
-
 struct NextUseInBlock {
   Operation *user = nullptr;
   Value usedValue;
@@ -618,11 +544,10 @@ struct MatmulTileInfo {
 };
 
 /**
- * @brief Analyze matmul/batch_matmul shapes into a shared tile model.
+ * @brief Analyze rank-3 batch_matmul shapes into tile metadata.
  *
- * @details For rank-2 inputs this returns the batch-1 specialization; rank-3
- *          inputs are interpreted as true batched matmul. This keeps tile-count
- *          and wait/pack math identical between matmul and batch_matmul.
+ * @details `linalg.matmul` is normalized to batch-1 `linalg.batch_matmul`
+ *          earlier in the pipeline, so this helper only accepts rank-3 shapes.
  */
 static std::optional<MatmulTileInfo>
 getMatmulTileInfo(ShapedType lhsType, ShapedType rhsType, ShapedType outType) {
@@ -638,28 +563,8 @@ getMatmulTileInfo(ShapedType lhsType, ShapedType rhsType, ShapedType outType) {
     return value;
   };
 
-  if (lhsType.getRank() == 2 && rhsType.getRank() == 2 &&
-      outType.getRank() == 2) {
-    ArrayRef<int64_t> lhs = lhsType.getShape();
-    ArrayRef<int64_t> rhs = rhsType.getShape();
-    ArrayRef<int64_t> out = outType.getShape();
-    if (lhs[1] != rhs[0] || lhs[0] != out[0] || rhs[1] != out[1])
-      return std::nullopt;
-
-    auto rt = toI64(getTileDim(lhsType, 0));
-    auto kt = toI64(getTileDim(lhsType, 1));
-    auto ct = toI64(getTileDim(rhsType, 1));
-    auto nt = toI64(getTileDim(outType, 1));
-    if (!rt || !kt || !ct || !nt)
-      return std::nullopt;
-
-    info.batchSize = 1;
-    info.rt = *rt;
-    info.kt = *kt;
-    info.ct = *ct;
-    info.nt = *nt;
-  } else if (lhsType.getRank() == 3 && rhsType.getRank() == 3 &&
-             outType.getRank() == 3) {
+  if (lhsType.getRank() == 3 && rhsType.getRank() == 3 &&
+      outType.getRank() == 3) {
     ArrayRef<int64_t> lhs = lhsType.getShape();
     ArrayRef<int64_t> rhs = rhsType.getShape();
     ArrayRef<int64_t> out = outType.getShape();
@@ -2043,175 +1948,6 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
   return success();
 }
 
-class ConvertLinalgMatmulOp : public OpConversionPattern<linalg::MatmulOp> {
-public:
-  using OpConversionPattern<linalg::MatmulOp>::OpConversionPattern;
-
-  LogicalResult
-  matchAndRewrite(linalg::MatmulOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    // Expect exactly two inputs and one output.
-    if (adaptor.getInputs().size() != 2 || adaptor.getOutputs().size() != 1)
-      return failure();
-
-    Location loc = op.getLoc();
-
-    Value in0Cb = adaptor.getInputs()[0];
-    Value in1Cb = adaptor.getInputs()[1];
-    Value outCb = adaptor.getOutputs()[0];
-    Value outBuffer = op.getOutputs()[0];
-
-    // Ensure operands are TTKernel CBs.
-    if (!isa<CBType>(in0Cb.getType()) || !isa<CBType>(in1Cb.getType()) ||
-        !isa<CBType>(outCb.getType()))
-      return failure();
-
-    auto lhsShapedType = dyn_cast<ShapedType>(op.getInputs()[0].getType());
-    auto rhsShapedType = dyn_cast<ShapedType>(op.getInputs()[1].getType());
-    auto outShapedType = dyn_cast<ShapedType>(op.getOutputs()[0].getType());
-    std::optional<MatmulTileInfo> tileInfo =
-        getMatmulTileInfo(lhsShapedType, rhsShapedType, outShapedType);
-    if (!tileInfo)
-      return failure();
-
-    // Matmul lowering is the batch=1 specialization of batch_matmul lowering.
-    if (tileInfo->batchSize != 1)
-      return failure();
-
-    Value zeroI32;
-    Value in0TileIdx;
-    Value in1TileIdx;
-    Value dstTileIdx;
-    Value transpose;
-    Value ctDim;
-    Value rtDim;
-    Value ntDim;
-    Value ktDim;
-    //TODO: move matmul_block_init just before the code, only use for flashattn
-    zeroI32 = rewriter.create<arith::ConstantIntOp>(
-      loc, 0, 32);
-    in0TileIdx = zeroI32;
-    in1TileIdx = zeroI32;
-    dstTileIdx = zeroI32;
-    transpose = zeroI32;
-    ctDim = i32Const(rewriter, loc, tileInfo->ct);
-    rtDim = i32Const(rewriter, loc, tileInfo->rt);
-    ntDim = i32Const(rewriter, loc, tileInfo->nt);
-    ktDim = i32Const(rewriter, loc, tileInfo->kt);
-
-    rewriter.create<MatmulBlockInitShortOp>(
-        loc, TypeRange{},
-        ValueRange{in0Cb, in1Cb, transpose, ctDim, rtDim, ktDim});
-
-
-    Value in0TileCount = i32Const(rewriter, loc, tileInfo->in0TilesTotal);
-    Value in1TileCount = i32Const(rewriter, loc, tileInfo->in1TilesTotal);
-    if (in0Cb == in1Cb) {
-      int64_t sharedTiles =
-          std::max(tileInfo->in0TilesTotal, tileInfo->in1TilesTotal);
-      CBWaitFrontOp::create(rewriter, loc, in0Cb,
-                            i32Const(rewriter, loc, sharedTiles));
-    } else {
-      CBWaitFrontOp::create(rewriter, loc, in0Cb, in0TileCount);
-      CBWaitFrontOp::create(rewriter, loc, in1Cb, in1TileCount);
-    }
-
-/*     {
-      OpBuilder::InsertionGuard guard(rewriter);
-      bool placeInitAtKernelStart = false;
-
-      if (auto parentFunc = op->getParentOfType<func::FuncOp>()) {
-        Block &entry = parentFunc.front();
-        Operation *lastGetArgValOp = nullptr;
-        for (Operation &entryOp : entry)
-          if (isa<GetArgValOp>(entryOp))
-            lastGetArgValOp = &entryOp;
-
-        auto isAvailableAtEntry = [&](Value value) -> bool {
-          if (auto blockArg = dyn_cast<BlockArgument>(value))
-            return blockArg.getOwner() == &entry;
-
-          Operation *defOp = value.getDefiningOp();
-          if (!defOp || defOp->getBlock() != &entry)
-            return false;
-
-          if (!lastGetArgValOp)
-            return true;
-
-          return defOp == lastGetArgValOp ||
-                 defOp->isBeforeInBlock(lastGetArgValOp);
-        };
-
-        placeInitAtKernelStart = isAvailableAtEntry(in0Cb) &&
-                                 isAvailableAtEntry(in1Cb) &&
-                                 isAvailableAtEntry(outCb);
-
-        if (placeInitAtKernelStart) {
-          if (lastGetArgValOp)
-            rewriter.setInsertionPointAfter(lastGetArgValOp);
-          else
-            rewriter.setInsertionPointToStart(&entry);
-        }
-      }
-
-      zeroI32 = rewriter.create<arith::ConstantIntOp>(
-          loc, 0, 32);
-      in0TileIdx = zeroI32;
-      in1TileIdx = zeroI32;
-      dstTileIdx = zeroI32;
-      transpose = zeroI32;
-      ctDim = rewriter.create<arith::ConstantIntOp>(loc, ctVal, 32);
-      rtDim = rewriter.create<arith::ConstantIntOp>(loc, rtVal, 32);
-      ntDim = rewriter.create<arith::ConstantIntOp>(loc, ntVal, 32);
-      ktDim = rewriter.create<arith::ConstantIntOp>(loc, ktVal, 32);
-
-      rewriter.create<MatmulBlockInitOp>(
-          loc, TypeRange{},
-          ValueRange{in0Cb, in1Cb, outCb, transpose, ctDim, rtDim, ktDim});
-    } */
-
-    Operation *materializationScopeOp =
-        findMatmulOutputMaterializationScope(outBuffer, op.getOperation());
-
-    {
-      OpBuilder::InsertionGuard guard(rewriter);
-      rewriter.setInsertionPoint(materializationScopeOp);
-      TileRegsAcquireOp::create(rewriter, loc);
-    }
-
-    rewriter.create<ExperimentalMatmulBlockOp>(
-        loc, TypeRange{},
-        ValueRange{in0Cb, in1Cb, in0TileIdx, in1TileIdx, dstTileIdx, transpose,
-                   ctDim, rtDim, ktDim, ntDim});
-
-    {
-      OpBuilder::InsertionGuard guard(rewriter);
-      rewriter.setInsertionPointAfter(materializationScopeOp);
-
-      Value outCbNumTiles = i32Const(rewriter, loc, tileInfo->outTilesTotal);
-      Value lowerBound = i32Const(rewriter, loc, 0);
-      Value step = i32Const(rewriter, loc, 1);
-
-      // Materialize tile-register results into L1 CB at the chosen scope.
-      CBReserveBackOp::create(rewriter, loc, outCb, outCbNumTiles);
-      TileRegsCommitOp::create(rewriter, loc);
-      TileRegsWaitOp::create(rewriter, loc);
-
-      scf::ForOp packLoop =
-          scf::ForOp::create(rewriter, loc, lowerBound, outCbNumTiles, step);
-      rewriter.setInsertionPointToStart(packLoop.getBody());
-      Value i = packLoop.getInductionVar();
-      PackTileOp::create(rewriter, loc, i, outCb, i);
-      rewriter.setInsertionPointAfter(packLoop);
-      TileRegsReleaseOp::create(rewriter, loc);
-      CBPushBackOp::create(rewriter, loc, outCb, outCbNumTiles);
-    }
-
-    rewriter.eraseOp(op);
-    return success();
-  }
-};
-
 /**
  * @brief Lower `linalg.batch_matmul` by reusing TTKernel matmul block ops.
  *
@@ -2543,6 +2279,24 @@ public:
   }
 };
 
+class ConvertMemrefExpandShapeOp
+    : public OpConversionPattern<memref::ExpandShapeOp> {
+public:
+  using OpConversionPattern<memref::ExpandShapeOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(memref::ExpandShapeOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto srcTy = dyn_cast<MemRefType>(op.getSrcType());
+    auto dstTy = dyn_cast<MemRefType>(op.getResultType());
+    if (!srcTy || !dstTy)
+      return failure();
+
+    rewriter.replaceOp(op, adaptor.getSrc());
+    return success();
+  }
+};
+
 class ConvertFlashAttentionGenericOp
     : public OpConversionPattern<linalg::GenericOp> {
 public:
@@ -2610,8 +2364,8 @@ void mlir::loom::populateComputeOpConversionPatterns(
   (void)reduceProtocol;
   patterns.add<ConvertLinalgFillOp>(typeConverter, context);
   patterns.add<ConvertLinalgCopyOp>(typeConverter, context);
-  patterns.add<ConvertLinalgMatmulOp>(typeConverter, context);
   patterns.add<ConvertLinalgBatchMatmulOp>(typeConverter, context);
   patterns.add<ConvertMemrefCollapseShapeOp>(typeConverter, context);
+  patterns.add<ConvertMemrefExpandShapeOp>(typeConverter, context);
   patterns.add<ConvertFlashAttentionGenericOp>(typeConverter, context);
 }

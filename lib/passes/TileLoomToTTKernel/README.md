@@ -78,7 +78,7 @@ The main pass lives in `src/TileLoomToTTKernel.cpp`. The real execution order is
 3. Optionally annotate matmul functions for merged B-reader/writer partitioning.
 4. Specialize each original function into compute, reader, writer, and host variants.
 5. Run canonicalize/CSE/SymbolDCE cleanup on the specialized functions.
-6. Rewrite batch-1 `linalg.batch_matmul` into plain `linalg.matmul`.
+6. Rewrite `linalg.matmul` into batch-1 `linalg.batch_matmul`.
 7. Replace function arguments with `ttkernel.get_arg_val`-based values through
    `CompileArgTracker`.
 8. Insert one `ttkernel.mm_init` into compute kernels that contain matmul.
@@ -88,12 +88,12 @@ The main pass lives in `src/TileLoomToTTKernel.cpp`. The real execution order is
    - `loom.semaphore_give`
    - `loom.copy`
    - `loom.gather` (writer-side cross-core transport)
-   - `linalg.matmul`
+   - `linalg.batch_matmul`
    - selected `linalg.generic` (including reduction-style sum)
    - `linalg.fill`
    - selected `linalg.copy`
    - `memref.reinterpret_cast`
-   - shape-preserving `memref.collapse_shape`
+   - shape-preserving `memref.collapse_shape` / `memref.expand_shape`
 10. Erase leftover host lowering artifacts.
 11. Run a second cleanup conversion that removes dead `loom.alloc`.
 12. Remove all remaining function arguments.
@@ -182,8 +182,8 @@ This section lists the most important functions to inspect before editing code.
 
 - `rewriteLoomLinearAlgebraToLinalg(ModuleOp)`
   Converts `loom.matmul` and `loom.batch_matmul` into `linalg` equivalents.
-- `rewriteBatch1MatmulToMatmul(ModuleOp)`
-  Only supports static rank-3 memrefs with batch size 1.
+- `rewriteMatmulToBatch1Matmul(ModuleOp)`
+  Canonicalizes rank-2 `linalg.matmul` to rank-3 batch-1 `linalg.batch_matmul`.
 - `eraseHostLoweringArtifacts(ModuleOp)`
   Removes leftover host-only loop shells and dead `get_arg_val` artifacts after
   specialization and conversion.
@@ -275,16 +275,13 @@ This section lists the most important functions to inspect before editing code.
 
 ### `src/ComputeOpToTTKernel.cpp`
 
-- `ConvertLinalgMatmulOp::matchAndRewrite(...)`
-  Main matmul lowering. Emits:
+- `ConvertLinalgBatchMatmulOp::matchAndRewrite(...)`
+  Main matmul/batch-matmul lowering. Emits:
   - `ttkernel.matmul_block_init_short`
   - `ttkernel.cb_wait_front`
   - `ttkernel.tile_regs_acquire`
   - `ttkernel.experimental.matmul_block`
   - packing of tile-register results into the output CB
-- `findMatmulOutputMaterializationScope(...)`
-  Decides where output packing should occur if the result is consumed outside
-  the immediate block.
 - `ConvertLinalgFillOp::matchAndRewrite(...)`
   Lowers `linalg.fill` into SFPU tile generation plus pack loop.
 - `ConvertLinalgCopyOp::matchAndRewrite(...)`
@@ -323,7 +320,7 @@ If an input stops satisfying one of these contracts, failures usually appear in:
 
 - `replaceFuncArgsWithCompileArgs`
 - `ConvertSCFParallelOp`
-- `ConvertLinalgMatmulOp`
+- `ConvertLinalgBatchMatmulOp`
 - `ConvertLoomMemoryLoadOp`
 - `PostEmitCHostSignaturePass`
 
@@ -440,7 +437,7 @@ Legacy `loom.reduce_sum` is rejected with a migration diagnostic
   logic and the direct helper call is commented out. Do not assume the helper is
   on the active path.
 - Compute-side `loom.copy` store lowering currently erases the op. The real
-  output materialization for matmul happens inside `ConvertLinalgMatmulOp`.
+  output materialization for matmul happens inside `ConvertLinalgBatchMatmulOp`.
 - The host emitter hardcodes kernel source names:
   - `reader.cpp`
   - `writer.cpp`
@@ -482,7 +479,7 @@ rg -n "CompileArgTracker|kRuntimeArgsPerMemref|emitReaderRuntimeArgsForCore" \
   lib/passes/TileLoomToTTKernel/src/FuncOpToTTKernel.cpp
 rg -n "ConvertLoomMemoryLoadOp|ConvertLoomMemoryStoreOp|multicast_" \
   lib/passes/TileLoomToTTKernel/src/MemoryOpToTTKernel.cpp
-rg -n "ConvertLinalgMatmulOp|rewriteElementwiseGeneric|rewriteReduceGeneric" \
+rg -n "ConvertLinalgBatchMatmulOp|rewriteElementwiseGeneric|rewriteReduceGeneric" \
   lib/passes/TileLoomToTTKernel/src/ComputeOpToTTKernel.cpp
 rg -n "ReduceProtocol|ConvertLoomGather" \
   lib/passes/TileLoomToTTKernel/src/ lib/passes/TileLoomToTTKernel/inc/
