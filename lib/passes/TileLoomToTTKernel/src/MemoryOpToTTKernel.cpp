@@ -988,25 +988,48 @@ struct ConvertLoomSemaphoreTakeOp
     return {};
   }
 
+  bool isWriterGatherTransportBuffer(::loom::SemaphoreTakeOp semaphore) const {
+    if (!isWriterKernel(semaphore))
+      return false;
+
+    auto stripSemaphoreAndCasts = [](Value value) -> Value {
+      Value current = stripMemrefCasts(value);
+      while (auto sem = current.getDefiningOp<::loom::SemaphoreTakeOp>())
+        current = stripMemrefCasts(sem.getSource());
+      return current;
+    };
+
+    Value semaphoreBase = stripSemaphoreAndCasts(semaphore.getSource());
+    if (!semaphoreBase)
+      return false;
+
+    auto parentFunc = semaphore->getParentOfType<func::FuncOp>();
+    if (!parentFunc)
+      return false;
+
+    bool found = false;
+    parentFunc.walk([&](::loom::GatherOp gatherOp) {
+      if (found)
+        return;
+      Value gatherInsBase = stripSemaphoreAndCasts(gatherOp.getIns());
+      Value gatherOutsBase = stripSemaphoreAndCasts(gatherOp.getInit());
+      found = gatherInsBase == semaphoreBase || gatherOutsBase == semaphoreBase;
+    });
+    return found;
+  }
+
   LogicalResult
   matchAndRewrite(::loom::SemaphoreTakeOp op, OpAdaptor /*adaptor*/,
                   ConversionPatternRewriter &rewriter) const override {
     bool isReductionScaleCb = op->hasAttr(kReductionScaleCbAttrName);
     bool isDataMovementScaleInitTarget =
         isReductionScaleCb && isWriterKernel(op);
-    bool isWriterGatherTransportTarget = false;
-    if (isWriterKernel(op)) {
-      for (Operation *user : op.getResult().getUsers()) {
-        if (isa<::loom::GatherOp>(user)) {
-          isWriterGatherTransportTarget = true;
-          break;
-        }
-      }
-    }
+    bool isWriterGatherTransportTarget = isWriterGatherTransportBuffer(op);
 
-    // semaphore_take participates in CB handle materialization only for
-    // compute kernels. In reader/writer/host kernels, keep the underlying
-    // memref flow so loom.copy rewrites can consume it and erase the op.
+    // semaphore_take participates in CB handle materialization for compute
+    // kernels, writer gather transport buffers, and writer reduction-scale
+    // initialization. Reader/host kernels keep memref flow so loom.copy
+    // rewrites can consume and erase semaphore/copy scaffolding.
     if (!isComputeKernel(op) && !isDataMovementScaleInitTarget &&
         !isWriterGatherTransportTarget) {
       rewriter.replaceOp(op, op.getSource());
@@ -1043,6 +1066,7 @@ struct ConvertLoomSemaphoreTakeOp
     if (!cb) {
       cb = tracker->createTypedCompileArg(loc, rewriter, parentFunc, defaultCBType);
     }
+
     if (!cb)
       return rewriter.notifyMatchFailure(
           op, "failed to create compile-arg CB for loom.semaphore");
