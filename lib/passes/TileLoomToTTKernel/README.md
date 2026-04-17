@@ -310,7 +310,8 @@ The current implementation assumes:
 - most tensor/memref shapes are static
 - tile math is based on `32 x 32` tiles
 - `scf.parallel` has no results/reductions
-- `linalg.batch_matmul` is only rewritten when batch size is exactly `1`
+- `linalg.batch_matmul` supports static batch sizes (`matmul` is treated as the
+  batch-`1` specialization during lowering math)
 - compute kernels are identified by `ThreadTypeAttr == Compute` or `__compute`
   naming
 - data movement kernels are identified by `ThreadTypeAttr == Noc` or the

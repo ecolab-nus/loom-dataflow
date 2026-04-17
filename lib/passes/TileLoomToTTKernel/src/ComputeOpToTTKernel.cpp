@@ -603,6 +603,100 @@ static std::optional<int64_t> getTileDim(ShapedType type, unsigned dim) {
   return ceilDiv32(type.getShape()[dim]);
 }
 
+struct MatmulTileInfo {
+  int64_t batchSize = 1;
+  int64_t rt = 0;
+  int64_t kt = 0;
+  int64_t ct = 0;
+  int64_t nt = 0;
+  int64_t in0TilesPerBatch = 0;
+  int64_t in1TilesPerBatch = 0;
+  int64_t outTilesPerBatch = 0;
+  int64_t in0TilesTotal = 0;
+  int64_t in1TilesTotal = 0;
+  int64_t outTilesTotal = 0;
+};
+
+/**
+ * @brief Analyze matmul/batch_matmul shapes into a shared tile model.
+ *
+ * @details For rank-2 inputs this returns the batch-1 specialization; rank-3
+ *          inputs are interpreted as true batched matmul. This keeps tile-count
+ *          and wait/pack math identical between matmul and batch_matmul.
+ */
+static std::optional<MatmulTileInfo>
+getMatmulTileInfo(ShapedType lhsType, ShapedType rhsType, ShapedType outType) {
+  if (!lhsType || !rhsType || !outType || !lhsType.hasStaticShape() ||
+      !rhsType.hasStaticShape() || !outType.hasStaticShape())
+    return std::nullopt;
+
+  MatmulTileInfo info;
+
+  auto toI64 = [](std::optional<int64_t> value) -> std::optional<int64_t> {
+    if (!value || *value <= 0)
+      return std::nullopt;
+    return value;
+  };
+
+  if (lhsType.getRank() == 2 && rhsType.getRank() == 2 &&
+      outType.getRank() == 2) {
+    ArrayRef<int64_t> lhs = lhsType.getShape();
+    ArrayRef<int64_t> rhs = rhsType.getShape();
+    ArrayRef<int64_t> out = outType.getShape();
+    if (lhs[1] != rhs[0] || lhs[0] != out[0] || rhs[1] != out[1])
+      return std::nullopt;
+
+    auto rt = toI64(getTileDim(lhsType, 0));
+    auto kt = toI64(getTileDim(lhsType, 1));
+    auto ct = toI64(getTileDim(rhsType, 1));
+    auto nt = toI64(getTileDim(outType, 1));
+    if (!rt || !kt || !ct || !nt)
+      return std::nullopt;
+
+    info.batchSize = 1;
+    info.rt = *rt;
+    info.kt = *kt;
+    info.ct = *ct;
+    info.nt = *nt;
+  } else if (lhsType.getRank() == 3 && rhsType.getRank() == 3 &&
+             outType.getRank() == 3) {
+    ArrayRef<int64_t> lhs = lhsType.getShape();
+    ArrayRef<int64_t> rhs = rhsType.getShape();
+    ArrayRef<int64_t> out = outType.getShape();
+    if (lhs[0] != rhs[0] || lhs[0] != out[0] || lhs[1] != out[1] ||
+        lhs[2] != rhs[1] || rhs[2] != out[2] || lhs[0] <= 0)
+      return std::nullopt;
+
+    auto rt = toI64(getTileDim(lhsType, 1));
+    auto kt = toI64(getTileDim(lhsType, 2));
+    auto ct = toI64(getTileDim(rhsType, 2));
+    auto nt = toI64(getTileDim(outType, 2));
+    if (!rt || !kt || !ct || !nt)
+      return std::nullopt;
+
+    info.batchSize = lhs[0];
+    info.rt = *rt;
+    info.kt = *kt;
+    info.ct = *ct;
+    info.nt = *nt;
+  } else {
+    return std::nullopt;
+  }
+
+  info.in0TilesPerBatch = info.rt * info.kt;
+  info.in1TilesPerBatch = info.kt * info.ct;
+  info.outTilesPerBatch = info.rt * info.nt;
+  info.in0TilesTotal = info.in0TilesPerBatch * info.batchSize;
+  info.in1TilesTotal = info.in1TilesPerBatch * info.batchSize;
+  info.outTilesTotal = info.outTilesPerBatch * info.batchSize;
+  if (info.in0TilesPerBatch <= 0 || info.in1TilesPerBatch <= 0 ||
+      info.outTilesPerBatch <= 0 || info.in0TilesTotal <= 0 ||
+      info.in1TilesTotal <= 0 || info.outTilesTotal <= 0)
+    return std::nullopt;
+
+  return info;
+}
+
 static Value i32Const(ConversionPatternRewriter &rewriter, Location loc,
                       int64_t value) {
   return rewriter.create<arith::ConstantIntOp>(loc, value, 32);
@@ -1972,33 +2066,17 @@ public:
         !isa<CBType>(outCb.getType()))
       return failure();
 
-    auto in0Tiles = getNumTilesFromShapedType(op.getInputs()[0].getType());
-    auto in1Tiles = getNumTilesFromShapedType(op.getInputs()[1].getType());
-    if (!in0Tiles || !in1Tiles)
-      return failure();
-
-    // Use the original linalg.matmul input type to query the tensor/memref shape.
     auto lhsShapedType = dyn_cast<ShapedType>(op.getInputs()[0].getType());
-    if (!lhsShapedType || !lhsShapedType.hasStaticShape() ||
-        lhsShapedType.getRank() != 2)
-      return failure();
-    ArrayRef<int64_t> lhsShape = lhsShapedType.getShape();
-    int32_t rtVal = static_cast<int32_t>(lhsShape[lhsShape.size() - 2] / 32);
-    int32_t ktVal = static_cast<int32_t>(lhsShape[lhsShape.size() - 1] / 32);
-
     auto rhsShapedType = dyn_cast<ShapedType>(op.getInputs()[1].getType());
-    if (!rhsShapedType || !rhsShapedType.hasStaticShape() ||
-        rhsShapedType.getRank() != 2)
-      return failure();
-    ArrayRef<int64_t> rhsShape = rhsShapedType.getShape();
-    int32_t ctVal = static_cast<int32_t>(rhsShape[1] / 32);
-
     auto outShapedType = dyn_cast<ShapedType>(op.getOutputs()[0].getType());
-    if (!outShapedType || !outShapedType.hasStaticShape() ||
-        outShapedType.getRank() != 2)
+    std::optional<MatmulTileInfo> tileInfo =
+        getMatmulTileInfo(lhsShapedType, rhsShapedType, outShapedType);
+    if (!tileInfo)
       return failure();
-    ArrayRef<int64_t> outShape = outShapedType.getShape();
-    int32_t ntVal = static_cast<int32_t>(outShape[1] / 32);
+
+    // Matmul lowering is the batch=1 specialization of batch_matmul lowering.
+    if (tileInfo->batchSize != 1)
+      return failure();
 
     Value zeroI32;
     Value in0TileIdx;
@@ -2016,20 +2094,21 @@ public:
     in1TileIdx = zeroI32;
     dstTileIdx = zeroI32;
     transpose = zeroI32;
-    ctDim = rewriter.create<arith::ConstantIntOp>(loc, ctVal, 32);
-    rtDim = rewriter.create<arith::ConstantIntOp>(loc, rtVal, 32);
-    ntDim = rewriter.create<arith::ConstantIntOp>(loc, ntVal, 32);
-    ktDim = rewriter.create<arith::ConstantIntOp>(loc, ktVal, 32);
+    ctDim = i32Const(rewriter, loc, tileInfo->ct);
+    rtDim = i32Const(rewriter, loc, tileInfo->rt);
+    ntDim = i32Const(rewriter, loc, tileInfo->nt);
+    ktDim = i32Const(rewriter, loc, tileInfo->kt);
 
     rewriter.create<MatmulBlockInitShortOp>(
         loc, TypeRange{},
         ValueRange{in0Cb, in1Cb, transpose, ctDim, rtDim, ktDim});
 
 
-    Value in0TileCount = i32Const(rewriter, loc, *in0Tiles);
-    Value in1TileCount = i32Const(rewriter, loc, *in1Tiles);
+    Value in0TileCount = i32Const(rewriter, loc, tileInfo->in0TilesTotal);
+    Value in1TileCount = i32Const(rewriter, loc, tileInfo->in1TilesTotal);
     if (in0Cb == in1Cb) {
-      int64_t sharedTiles = std::max(*in0Tiles, *in1Tiles);
+      int64_t sharedTiles =
+          std::max(tileInfo->in0TilesTotal, tileInfo->in1TilesTotal);
       CBWaitFrontOp::create(rewriter, loc, in0Cb,
                             i32Const(rewriter, loc, sharedTiles));
     } else {
@@ -2109,12 +2188,9 @@ public:
       OpBuilder::InsertionGuard guard(rewriter);
       rewriter.setInsertionPointAfter(materializationScopeOp);
 
-      auto outCbType = cast<CBType>(outCb.getType());
-      int32_t numTiles = static_cast<int32_t>(outCbType.getNumElements()) / 1024;
-      Value outCbNumTiles =
-          rewriter.create<arith::ConstantIntOp>(loc, numTiles, 32);
-      Value lowerBound = rewriter.create<arith::ConstantIntOp>(loc, 0, 32);
-      Value step = rewriter.create<arith::ConstantIntOp>(loc, 1, 32);
+      Value outCbNumTiles = i32Const(rewriter, loc, tileInfo->outTilesTotal);
+      Value lowerBound = i32Const(rewriter, loc, 0);
+      Value step = i32Const(rewriter, loc, 1);
 
       // Materialize tile-register results into L1 CB at the chosen scope.
       CBReserveBackOp::create(rewriter, loc, outCb, outCbNumTiles);
@@ -2167,57 +2243,32 @@ public:
     auto lhsShapedType = dyn_cast<ShapedType>(op.getInputs()[0].getType());
     auto rhsShapedType = dyn_cast<ShapedType>(op.getInputs()[1].getType());
     auto outShapedType = dyn_cast<ShapedType>(op.getOutputs()[0].getType());
-    if (!lhsShapedType || !rhsShapedType || !outShapedType ||
-        !lhsShapedType.hasStaticShape() || !rhsShapedType.hasStaticShape() ||
-        !outShapedType.hasStaticShape() || lhsShapedType.getRank() != 3 ||
-        rhsShapedType.getRank() != 3 || outShapedType.getRank() != 3)
+    std::optional<MatmulTileInfo> tileInfo =
+        getMatmulTileInfo(lhsShapedType, rhsShapedType, outShapedType);
+    if (!tileInfo || tileInfo->batchSize <= 0)
       return failure();
 
-    ArrayRef<int64_t> lhsShape = lhsShapedType.getShape();
-    ArrayRef<int64_t> rhsShape = rhsShapedType.getShape();
-    ArrayRef<int64_t> outShape = outShapedType.getShape();
-    if (lhsShape[0] != rhsShape[0] || lhsShape[0] != outShape[0] ||
-        lhsShape[1] != outShape[1] || lhsShape[2] != rhsShape[1] ||
-        rhsShape[2] != outShape[2]) {
+    if (lhsShapedType.getRank() != 3 || rhsShapedType.getRank() != 3 ||
+        outShapedType.getRank() != 3) {
       return failure();
     }
-
-    int64_t batchSize = lhsShape[0];
-    if (batchSize <= 0)
-      return failure();
-
-    int32_t rtVal = static_cast<int32_t>(lhsShape[1] / 32);
-    int32_t ktVal = static_cast<int32_t>(lhsShape[2] / 32);
-    int32_t ctVal = static_cast<int32_t>(rhsShape[2] / 32);
-    int32_t ntVal = static_cast<int32_t>(outShape[2] / 32);
-    if (rtVal <= 0 || ktVal <= 0 || ctVal <= 0 || ntVal <= 0)
-      return failure();
-
-    int64_t in0TilesPerBatch = static_cast<int64_t>(rtVal) * ktVal;
-    int64_t in1TilesPerBatch = static_cast<int64_t>(ktVal) * ctVal;
-    int64_t outTilesPerBatch = static_cast<int64_t>(rtVal) * ntVal;
-
-    int64_t in0TilesTotal = in0TilesPerBatch * batchSize;
-    int64_t in1TilesTotal = in1TilesPerBatch * batchSize;
-    int64_t outTilesTotal = outTilesPerBatch * batchSize;
-    if (in0TilesTotal <= 0 || in1TilesTotal <= 0 || outTilesTotal <= 0)
-      return failure();
 
     Value zeroI32 = i32Const(rewriter, loc, 0);
     Value oneI32 = i32Const(rewriter, loc, 1);
     Value transpose = zeroI32;
-    Value ctDim = i32Const(rewriter, loc, ctVal);
-    Value rtDim = i32Const(rewriter, loc, rtVal);
-    Value ntDim = i32Const(rewriter, loc, ntVal);
-    Value ktDim = i32Const(rewriter, loc, ktVal);
+    Value ctDim = i32Const(rewriter, loc, tileInfo->ct);
+    Value rtDim = i32Const(rewriter, loc, tileInfo->rt);
+    Value ntDim = i32Const(rewriter, loc, tileInfo->nt);
+    Value ktDim = i32Const(rewriter, loc, tileInfo->kt);
 
     rewriter.create<MatmulBlockInitShortOp>(
         loc, TypeRange{}, ValueRange{in0Cb, in1Cb, transpose, ctDim, rtDim, ktDim});
 
-    Value in0TileCount = i32Const(rewriter, loc, in0TilesTotal);
-    Value in1TileCount = i32Const(rewriter, loc, in1TilesTotal);
+    Value in0TileCount = i32Const(rewriter, loc, tileInfo->in0TilesTotal);
+    Value in1TileCount = i32Const(rewriter, loc, tileInfo->in1TilesTotal);
     if (in0Cb == in1Cb) {
-      int64_t sharedTiles = std::max(in0TilesTotal, in1TilesTotal);
+      int64_t sharedTiles =
+          std::max(tileInfo->in0TilesTotal, tileInfo->in1TilesTotal);
       CBWaitFrontOp::create(rewriter, loc, in0Cb,
                             i32Const(rewriter, loc, sharedTiles));
     } else {
@@ -2225,11 +2276,11 @@ public:
       CBWaitFrontOp::create(rewriter, loc, in1Cb, in1TileCount);
     }
 
-    Value totalOutTiles = i32Const(rewriter, loc, outTilesTotal);
-    Value batchTiles = i32Const(rewriter, loc, outTilesPerBatch);
-    Value in0BatchStride = i32Const(rewriter, loc, in0TilesPerBatch);
-    Value in1BatchStride = i32Const(rewriter, loc, in1TilesPerBatch);
-    Value batchCount = i32Const(rewriter, loc, batchSize);
+    Value totalOutTiles = i32Const(rewriter, loc, tileInfo->outTilesTotal);
+    Value batchTiles = i32Const(rewriter, loc, tileInfo->outTilesPerBatch);
+    Value in0BatchStride = i32Const(rewriter, loc, tileInfo->in0TilesPerBatch);
+    Value in1BatchStride = i32Const(rewriter, loc, tileInfo->in1TilesPerBatch);
+    Value batchCount = i32Const(rewriter, loc, tileInfo->batchSize);
     CBReserveBackOp::create(rewriter, loc, outCb, totalOutTiles);
 
     scf::ForOp batchLoop =
