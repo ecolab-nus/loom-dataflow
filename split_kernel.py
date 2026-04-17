@@ -92,6 +92,8 @@ def process_source_content(lines, section_name=None):
         .replace('uint32_t', 'int32_t')
         .replace('int32_t', 'uint32_t')
         .replace('pack_tile<false>', 'pack_tile<true>')
+        .replace("INFINITY", '100.0')
+        .replace("tt_metal/programming_examples/", '')
         for line in lines
     ]
 

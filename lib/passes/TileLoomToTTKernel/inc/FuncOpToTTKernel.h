@@ -203,6 +203,34 @@ public:
   Value createTypedCompileArg(Location loc, OpBuilder &rewriter,
                               Operation *funcOp, Type resultType);
 
+  /**
+   * @brief Create or reuse a typed compile-arg at a fixed absolute arg index.
+   *
+   * @details This bypasses sequential index allocation and is used when an
+   *          operation must bind to a deterministic runtime-arg slot shared
+   *          across specialized kernels.
+   *
+   * @param loc Location for the created operations.
+   * @param rewriter Builder used to create operations.
+   * @param funcOp Parent function that scopes compile-arg allocation.
+   * @param argIndex Absolute runtime-arg index to materialize.
+   * @param resultType Result type for the `GetArgValOp`.
+   * @return The created/reused compile-arg value, or null on invalid input.
+   */
+  Value createTypedCompileArgAtIndex(Location loc, OpBuilder &rewriter,
+                                     Operation *funcOp, int64_t argIndex,
+                                     Type resultType);
+
+  /**
+   * @brief Get the precomputed runtime-arg base index for internal CB handles.
+   *
+   * @details Internal CB slots are emitted after memref/reduce/scalar args and
+   *          core-coordinate args. This returns the per-function base index
+   *          used to translate a stable internal slot id to an absolute
+   *          runtime-arg index.
+   */
+  int64_t getInternalCbBaseArgIndex(Operation *funcOp) const;
+
   /// Get function-level reduce runtime args if available.
   const ReduceRuntimeArgs *getReduceRuntimeArgs(Operation *funcOp) const;
   ReduceRuntimeArgs *getReduceRuntimeArgs(Operation *funcOp);
@@ -269,6 +297,11 @@ private:
   // Helper to get and increment the compile-arg index for a specific function.
   int64_t getAndIncrementIndex(Operation *funcOp);
 
+  // Helper to materialize GetArgValOp at an explicit absolute arg index.
+  Value createGetArgValOpAtIndex(Location loc, OpBuilder &rewriter,
+                                 Operation *funcOp, int64_t argIndex,
+                                 Type resultType);
+
   /**
    * @brief Create a GetArgValOp with an automatically generated index.
    *
@@ -288,6 +321,13 @@ private:
 
   // Map from FuncOp (as Operation*) to the next available compile-arg index.
   llvm::DenseMap<Operation *, int64_t> funcToNextArgIndex;
+
+  // Per-function base runtime-arg index where internal CB slots begin.
+  llvm::DenseMap<Operation *, int64_t> funcToInternalCbBaseArgIndex;
+
+  // Per-function cache for explicit-index compile args.
+  llvm::DenseMap<Operation *, llvm::DenseMap<int64_t, Value>>
+      funcToExplicitCompileArgs;
 
   // Map from FuncOp (as Operation*) to the next available tensor accessor args index.
   llvm::DenseMap<Operation *, int64_t> funcToNextTensorAccessorArgsIndex;

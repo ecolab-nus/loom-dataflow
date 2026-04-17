@@ -523,6 +523,44 @@ static std::optional<int64_t> getNumTilesFromShapedType(Type type) {
   return tiles;
 }
 
+/// Tile-shape metadata for elementwise generics where only innermost two dims
+/// are tiled (32x32), and outer dims are already tile-count dimensions.
+struct ElementwiseTileShapeInfo {
+  SmallVector<int64_t, 4> dimExtents;
+  int64_t totalTiles = 0;
+};
+
+static std::optional<ElementwiseTileShapeInfo>
+getElementwiseTileShapeInfo(ShapedType type) {
+  if (!type || !type.hasStaticShape())
+    return std::nullopt;
+
+  unsigned rank = type.getRank();
+  unsigned tiledStartDim = rank > 2 ? rank - 2 : 0;
+
+  ElementwiseTileShapeInfo info;
+  info.totalTiles = 1;
+  info.dimExtents.reserve(rank);
+  for (unsigned dim = 0; dim < rank; ++dim) {
+    int64_t dimSize = type.getShape()[dim];
+    if (dimSize <= 0)
+      return std::nullopt;
+
+    int64_t dimExtent = dimSize;
+    if (dim >= tiledStartDim) {
+      auto dimTiles = ceilDiv32(dimSize);
+      if (!dimTiles || *dimTiles <= 0)
+        return std::nullopt;
+      dimExtent = *dimTiles;
+    }
+
+    info.dimExtents.push_back(dimExtent);
+    info.totalTiles *= dimExtent;
+  }
+
+  return info;
+}
+
 static std::optional<int64_t> getTileDim(ShapedType type, unsigned dim) {
   if (!type.hasStaticShape() || dim >= type.getRank())
     return std::nullopt;
@@ -1507,14 +1545,10 @@ static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
   if (!outType || !outType.hasStaticShape() || outType.getRank() != rank)
     return failure();
 
-  SmallVector<int64_t, 4> outTileShape;
-  outTileShape.reserve(rank);
-  for (int64_t dimSize : outType.getShape()) {
-    auto dimTiles = ceilDiv32(dimSize);
-    if (!dimTiles)
-      return failure();
-    outTileShape.push_back(*dimTiles);
-  }
+  auto outTileInfo = getElementwiseTileShapeInfo(outType);
+  if (!outTileInfo)
+    return failure();
+  ArrayRef<int64_t> outTileShape = outTileInfo->dimExtents;
 
   bool allIdentity = hasAllIdentityMapsForRank(op, rank);
   std::optional<ElementwiseBroadcastInfo> broadcast;
@@ -1557,21 +1591,20 @@ static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
   }
   analysis.broadcast = broadcast;
 
-  auto outTiles = getNumTilesFromShapedType(op.getDpsInits()[0].getType());
-  if (!outTiles)
+  if (outTileInfo->totalTiles <= 0)
     return failure();
-  analysis.outTiles = *outTiles;
+  analysis.outTiles = outTileInfo->totalTiles;
 
-  analysis.inputWaitTiles.assign(op.getNumDpsInputs(), *outTiles);
+  analysis.inputWaitTiles.assign(op.getNumDpsInputs(), analysis.outTiles);
   analysis.usedInputs.resize(op.getNumDpsInputs());
   analysis.usedInputs.reset();
 
   if (analysis.broadcast) {
-    auto inputTiles = getNumTilesFromShapedType(
-        op.getDpsInputs()[analysis.broadcast->inputIdx].getType());
-    if (!inputTiles || *inputTiles <= 0)
+    int64_t droppedDimTiles = analysis.broadcast->droppedDimTiles;
+    if (droppedDimTiles <= 0 || analysis.outTiles % droppedDimTiles != 0)
       return failure();
-    analysis.inputWaitTiles[analysis.broadcast->inputIdx] = *inputTiles;
+    analysis.inputWaitTiles[analysis.broadcast->inputIdx] =
+        analysis.outTiles / droppedDimTiles;
   }
 
   auto yieldOp = dyn_cast<linalg::YieldOp>(op.getRegion().front().getTerminator());

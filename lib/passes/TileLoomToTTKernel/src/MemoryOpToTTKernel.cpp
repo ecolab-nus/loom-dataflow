@@ -49,6 +49,8 @@ constexpr llvm::StringLiteral kReductionScaleCbAttrName =
     "loom.reduction_scale_cb";
 constexpr llvm::StringLiteral kScalarSiteIdAttrName =
     "loom.ttkernel.scalar_site_id";
+constexpr llvm::StringLiteral kSemaphoreSlotAttrName =
+    "loom.ttkernel.semaphore_slot";
 
 /**
  * @brief Compute ceiling division of a dimension by the tile size (32).
@@ -1022,15 +1024,17 @@ struct ConvertLoomSemaphoreTakeOp
   matchAndRewrite(::loom::SemaphoreTakeOp op, OpAdaptor /*adaptor*/,
                   ConversionPatternRewriter &rewriter) const override {
     bool isReductionScaleCb = op->hasAttr(kReductionScaleCbAttrName);
-    bool isDataMovementScaleInitTarget =
-        isReductionScaleCb && isWriterKernel(op);
+    bool isWriterKernelOp = isWriterKernel(op);
+    bool isDataMovementScaleInitTarget = isReductionScaleCb && isWriterKernelOp;
     bool isWriterGatherTransportTarget = isWriterGatherTransportBuffer(op);
 
     // semaphore_take participates in CB handle materialization for compute
-    // kernels, writer gather transport buffers, and writer reduction-scale
-    // initialization. Reader/host kernels keep memref flow so loom.copy
-    // rewrites can consume and erase semaphore/copy scaffolding.
-    if (!isComputeKernel(op) && !isDataMovementScaleInitTarget &&
+    // kernels and writer kernels. Writer-side materialization keeps runtime
+    // argument indexing aligned with compute/host CB ordering for cross-kernel
+    // transport buffers (e.g. gather/reduce payload/output paths).
+    // Reader/host kernels keep memref flow so loom.copy rewrites can consume
+    // and erase semaphore/copy scaffolding.
+    if (!isComputeKernel(op) && !isWriterKernelOp && !isDataMovementScaleInitTarget &&
         !isWriterGatherTransportTarget) {
       rewriter.replaceOp(op, op.getSource());
       return success();
@@ -1064,7 +1068,17 @@ struct ConvertLoomSemaphoreTakeOp
 
     // Fallback for internal-only semaphore buffers not tied to memref args.
     if (!cb) {
-      cb = tracker->createTypedCompileArg(loc, rewriter, parentFunc, defaultCBType);
+      if (auto slotAttr = op->getAttrOfType<IntegerAttr>(kSemaphoreSlotAttrName)) {
+        int64_t internalBase =
+            tracker->getInternalCbBaseArgIndex(parentFunc.getOperation());
+        if (internalBase >= 0) {
+          int64_t argIndex = internalBase + slotAttr.getInt();
+          cb = tracker->createTypedCompileArgAtIndex(loc, rewriter, parentFunc,
+                                                     argIndex, defaultCBType);
+        }
+      }
+      if (!cb)
+        cb = tracker->createTypedCompileArg(loc, rewriter, parentFunc, defaultCBType);
     }
 
     if (!cb)

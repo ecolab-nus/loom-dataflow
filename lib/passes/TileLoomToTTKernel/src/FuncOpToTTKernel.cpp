@@ -24,6 +24,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
@@ -69,6 +70,8 @@ constexpr llvm::StringLiteral kScalarSiteIdAttrName =
     "loom.ttkernel.scalar_site_id";
 constexpr llvm::StringLiteral kScalarSiteCountAttrName =
     "loom.ttkernel.scalar_site_count";
+constexpr llvm::StringLiteral kSemaphoreSlotAttrName =
+    "loom.ttkernel.semaphore_slot";
 constexpr llvm::StringLiteral kReaderDataMovementRole = "reader";
 constexpr llvm::StringLiteral kWriterDataMovementRole = "writer";
 constexpr llvm::StringLiteral kDMProcessorRISCV0 = "riscv0";
@@ -461,6 +464,58 @@ static bool preprocessScalarMemoryOpsTmp(func::FuncOp func) {
   return true;
 }
 
+static void annotateSemaphoreSlots(func::FuncOp func) {
+  llvm::DenseMap<Value, SmallVector<::loom::SemaphoreTakeOp, 4>> semaphoresByAlloc;
+  func.walk([&](::loom::SemaphoreTakeOp sem) {
+    Value base = stripLoomSemaphores(stripMemrefCasts(sem.getSource()));
+    if (!base.getDefiningOp<::loom::AllocOp>())
+      return;
+    semaphoresByAlloc[base].push_back(sem);
+  });
+
+  llvm::SmallPtrSet<Operation *, 16> memrefLinkedSemaphores;
+  auto markMemrefLinkedSemaphoreFromEndpoint = [&](Value endpoint) {
+    Value current = stripMemrefCasts(endpoint);
+    if (auto sem = current.getDefiningOp<::loom::SemaphoreTakeOp>()) {
+      memrefLinkedSemaphores.insert(sem.getOperation());
+      return;
+    }
+
+    Value base = stripLoomSemaphores(current);
+    auto alloc = base.getDefiningOp<::loom::AllocOp>();
+    if (!alloc)
+      return;
+    auto it = semaphoresByAlloc.find(alloc.getResult());
+    if (it == semaphoresByAlloc.end() || it->second.empty())
+      return;
+    // Keep parity with host CB-link fallback: alloc endpoints map to first sem.
+    memrefLinkedSemaphores.insert(it->second.front().getOperation());
+  };
+
+  func.walk([&](::loom::CopyOp copyOp) {
+    if (copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>())
+      markMemrefLinkedSemaphoreFromEndpoint(copyOp.getDestination());
+    if (copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>())
+      markMemrefLinkedSemaphoreFromEndpoint(copyOp.getSource());
+  });
+
+  int64_t nextSlot = 0;
+  func.walk([&](::loom::AllocOp alloc) {
+    auto it = semaphoresByAlloc.find(alloc.getResult());
+    if (it == semaphoresByAlloc.end())
+      return;
+
+    for (::loom::SemaphoreTakeOp sem : it->second) {
+      if (memrefLinkedSemaphores.contains(sem.getOperation()))
+        continue;
+      sem->setAttr(
+          kSemaphoreSlotAttrName,
+          IntegerAttr::get(IntegerType::get(func.getContext(), 64), nextSlot));
+      ++nextSlot;
+    }
+  });
+}
+
 } // namespace
 
 LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
@@ -671,6 +726,13 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     }
   }
 
+  // Internal CB runtime slots are emitted after core-coordinate args in host
+  // runtime-arg layout. SCF lowering currently materializes two core args
+  // (x/y), so reserve space for them when computing internal CB base.
+  constexpr int64_t kCoreCoordArgCount = 2;
+  funcToInternalCbBaseArgIndex[func.getOperation()] =
+      funcToNextArgIndex[func.getOperation()] + kCoreCoordArgCount;
+
   return success();
 }
 
@@ -747,6 +809,36 @@ Value mlir::loom::CompileArgTracker::createTypedCompileArg(
   if (!funcOp || !resultType)
     return nullptr;
   return createGetArgValOp(loc, rewriter, funcOp, resultType);
+}
+
+Value mlir::loom::CompileArgTracker::createTypedCompileArgAtIndex(
+    Location loc, OpBuilder &rewriter, Operation *funcOp, int64_t argIndex,
+    Type resultType) {
+  if (!funcOp || !resultType || argIndex < 0)
+    return nullptr;
+
+  auto &explicitArgs = funcToExplicitCompileArgs[funcOp];
+  auto it = explicitArgs.find(argIndex);
+  if (it != explicitArgs.end()) {
+    if (it->second.getType() != resultType)
+      return nullptr;
+    return it->second;
+  }
+
+  Value value = createGetArgValOpAtIndex(loc, rewriter, funcOp, argIndex, resultType);
+  if (!value)
+    return nullptr;
+
+  explicitArgs.try_emplace(argIndex, value);
+  return value;
+}
+
+int64_t
+mlir::loom::CompileArgTracker::getInternalCbBaseArgIndex(Operation *funcOp) const {
+  auto it = funcToInternalCbBaseArgIndex.find(funcOp);
+  if (it == funcToInternalCbBaseArgIndex.end())
+    return -1;
+  return it->second;
 }
 
 const mlir::loom::CompileArgTracker::ReduceRuntimeArgs *
@@ -837,6 +929,21 @@ Value mlir::loom::CompileArgTracker::createGetArgValOp(Location loc, OpBuilder &
   int64_t index = getAndIncrementIndex(funcOp);
   Value idxValue = rewriter.create<arith::ConstantIntOp>(
       loc, rewriter.getI32Type(), static_cast<int64_t>(index));
+  return rewriter.create<GetArgValOp>(loc, resultType, idxValue).getResult();
+}
+
+Value mlir::loom::CompileArgTracker::createGetArgValOpAtIndex(
+    Location loc, OpBuilder &rewriter, Operation *funcOp, int64_t argIndex,
+    Type resultType) {
+  if (!funcOp || !resultType || argIndex < 0)
+    return nullptr;
+
+  int64_t &nextIndex = funcToNextArgIndex[funcOp];
+  if (nextIndex <= argIndex)
+    nextIndex = argIndex + 1;
+
+  Value idxValue = rewriter.create<arith::ConstantIntOp>(
+      loc, rewriter.getI32Type(), argIndex);
   return rewriter.create<GetArgValOp>(loc, resultType, idxValue).getResult();
 }
 
@@ -2652,6 +2759,10 @@ void mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
     // Temporary scalar path: replace scalar alloc/semaphore memory chains with
     // direct function inputs before function specialization.
     preprocessScalarMemoryOpsTmp(func);
+
+    // Assign stable per-semaphore internal CB slots before cloning so
+    // specialized kernels share deterministic runtime-arg bindings.
+    annotateSemaphoreSlots(func);
 
     // Create specialized versions
     FunctionSpecializer specializer(module, func);
