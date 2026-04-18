@@ -16,6 +16,7 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Attributes.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -89,6 +90,58 @@ static std::optional<int64_t> getNumTilesFromShapedType(Type type) {
     tiles *= *dimTiles;
   }
   return tiles;
+}
+
+/**
+ * @brief Compute semaphore-give tile count from a shaped value.
+ *
+ * @details
+ * Uses tensor rank semantics where the trailing two dimensions map to a tile
+ * plane and all leading dimensions are batch multiplicity. The trailing two
+ * dims are each clamped to at least 32 so narrow vectors/scalars still occupy
+ * one 32x32 tile per leading slice.
+ *
+ * Examples:
+ * - `8x1x32` -> `8 * ceil(max(1,32)/32) * ceil(max(32,32)/32)` = `8`
+ * - `8x1x32x128` -> `8 * 1 * 4` = `32`
+ *
+ * @param type The shaped type backing semaphore-give.
+ * @return Number of tiles, or nullopt for dynamic/invalid shapes.
+ */
+static std::optional<int64_t> getNumTilesForSemaphoreGive(Type type) {
+  auto shaped = dyn_cast<ShapedType>(type);
+  if (!shaped || !shaped.hasStaticShape())
+    return std::nullopt;
+
+  ArrayRef<int64_t> shape = shaped.getShape();
+  if (shape.empty())
+    return int64_t{1};
+
+  int64_t leadingMultiplier = 1;
+  if (shape.size() > 2) {
+    for (int64_t dim : shape.drop_back(2)) {
+      if (dim <= 0)
+        return std::nullopt;
+      leadingMultiplier *= dim;
+    }
+  }
+
+  int64_t height = shape.size() >= 2 ? shape[shape.size() - 2] : 1;
+  int64_t width = shape.back();
+  if (height <= 0 || width <= 0)
+    return std::nullopt;
+
+  if (height < 32)
+    height = 32;
+  if (width < 32)
+    width = 32;
+
+  auto heightTiles = ceilDiv32(height);
+  auto widthTiles = ceilDiv32(width);
+  if (!heightTiles || !widthTiles)
+    return std::nullopt;
+
+  return leadingMultiplier * (*heightTiles) * (*widthTiles);
 }
 
 /**
@@ -535,6 +588,45 @@ static Value stripMemrefCasts(Value value) {
   Value current = value;
   while (auto cast = current.getDefiningOp<memref::CastOp>())
     current = cast.getSource();
+  return current;
+}
+
+/**
+ * @brief Strip lightweight cast wrappers introduced during conversion.
+ *
+ * @details Removes:
+ * - `memref.cast`
+ * - single-input `builtin.unrealized_conversion_cast`
+ */
+static Value stripConversionCasts(Value value) {
+  Value current = value;
+  while (true) {
+    if (auto cast = current.getDefiningOp<memref::CastOp>()) {
+      current = cast.getSource();
+      continue;
+    }
+    if (auto unrealized =
+            current.getDefiningOp<UnrealizedConversionCastOp>()) {
+      if (unrealized.getNumOperands() == 1) {
+        current = unrealized.getOperand(0);
+        continue;
+      }
+    }
+    break;
+  }
+  return current;
+}
+
+/**
+ * @brief Recover the base semaphore-backed memref from a rewritten operand.
+ *
+ * @details Walks through conversion casts and nested `loom.semaphore_take`
+ * wrappers to reach the underlying memref value whenever possible.
+ */
+static Value resolveSemaphoreSourceMemref(Value value) {
+  Value current = stripConversionCasts(value);
+  while (auto semTake = current.getDefiningOp<::loom::SemaphoreTakeOp>())
+    current = stripConversionCasts(semTake.getSource());
   return current;
 }
 
@@ -1150,14 +1242,17 @@ struct ConvertLoomSemaphoreGiveOp
           op, "expected semaphore_give source to be converted to CB type");
     }
 
-    auto cbTiles = getNumTilesFromCBType(cbType);
-    if (!cbTiles) {
+    Value semaphoreBase = resolveSemaphoreSourceMemref(op.getSource());
+    auto semGiveTiles = getNumTilesForSemaphoreGive(semaphoreBase.getType());
+    if (!semGiveTiles)
+      semGiveTiles = getNumTilesFromCBType(cbType);
+    if (!semGiveTiles) {
       return rewriter.notifyMatchFailure(
-          op, "failed to derive tile count from CB type for semaphore_give");
+          op, "failed to derive tile count for semaphore_give");
     }
 
     Value numPages = rewriter.create<arith::ConstantIntOp>(
-        loc, rewriter.getI32Type(), *cbTiles);
+        loc, rewriter.getI32Type(), *semGiveTiles);
 
 
     CBPopFrontOp::create(rewriter, loc, cb, numPages);

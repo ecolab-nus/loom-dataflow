@@ -269,18 +269,25 @@ static LogicalResult tileGenericOp(
 
   auto inType = dyn_cast<ShapedType>(op.getDpsInputs()[0].getType());
   auto outType = dyn_cast<ShapedType>(op.getDpsInits()[0].getType());
+  if (!inType || !outType || !inType.hasStaticShape() || !outType.hasStaticShape())
+    return failure();
 
   ArrayRef<int64_t> inShape = inType.getShape();
   ArrayRef<int64_t> outShape = outType.getShape();
-  if (inShape[0] <= 0 || inShape[1] != outShape[0] || inShape[2] != outShape[1])
-    return fallbackToReduce();
+  if (inShape.size() != outShape.size() + 1 || inShape[0] <= 0)
+    return failure();
+  for (size_t dim = 0; dim < outShape.size(); ++dim) {
+    if (inShape[dim + 1] != outShape[dim])
+      return failure();
+  }
 
-  auto rowTiles = ceilDiv32(outShape[0]);
-  auto colTiles = ceilDiv32(outShape[1]);
-  if (!rowTiles || !colTiles)
-    return fallbackToReduce();
-
-  int64_t outTiles = (*rowTiles) * (*colTiles);
+  int64_t outTiles = 1;
+  for (int64_t dim : outShape) {
+    auto dimTiles = ceilDiv32(dim);
+    if (!dimTiles || *dimTiles <= 0)
+      return failure();
+    outTiles *= *dimTiles;
+  }
   int64_t reduceSlices = inShape[0];
   int64_t inputTiles = reduceSlices * outTiles;
 
@@ -292,7 +299,6 @@ static LogicalResult tileGenericOp(
   Value oneI32 = i32(1);
   Value outTilesV = i32(outTiles);
   Value reduceSlicesV = i32(reduceSlices);
-  Value inputTilesV = i32(inputTiles);
 
   auto emitWaitFront = [&](Value cb, int64_t tiles) {
     if (tiles <= 0)
@@ -371,7 +377,7 @@ static LogicalResult tileGenericOp(
   }
   CBPushBackOp::create(rewriter, loc, outCb, outTilesV);
   waitState[outCb] = 0;
-  //CBPopFrontOp::create(rewriter, loc, inCb, inputTilesV);
+  //CBPopFrontOp::create(rewriter, loc, inCb, i32(inputTiles));
   waitState[inCb] = 0;
 
   rewriter.eraseOp(op);
