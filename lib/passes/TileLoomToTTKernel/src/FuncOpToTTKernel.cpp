@@ -753,6 +753,10 @@ static bool preprocessScalarMemoryOpsTmp(func::FuncOp func) {
     scalarArgs.push_back(entry.addArgument(semType, func.getLoc()));
 
   for (auto [sem, scalarArg] : llvm::zip(scalarSemaphores, scalarArgs)) {
+    if (auto siteAttr = sem->getAttrOfType<IntegerAttr>(kScalarSiteIdAttrName))
+      func.setArgAttr(static_cast<unsigned>(scalarArg.getArgNumber()),
+                      kScalarSiteIdAttrName, siteAttr);
+
     SmallVector<::loom::SemaphoreGiveOp, 4> giveOps;
     for (Operation *user : sem.getResult().getUsers())
       if (auto giveOp = dyn_cast<::loom::SemaphoreGiveOp>(user))

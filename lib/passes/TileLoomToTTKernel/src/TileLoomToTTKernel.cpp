@@ -153,6 +153,53 @@ static void eraseHostLoweringArtifacts(ModuleOp module) {
   }
 }
 
+static bool isKernelRuntimeSetupCleanupTarget(func::FuncOp func) {
+  StringRef name = func.getName();
+  return name.ends_with("__reader") || name.ends_with("__compute") ||
+         name.ends_with("__writer");
+}
+
+static bool isDeadRemovableRuntimeSetupOp(Operation *op) {
+  if (!op || op->getNumRegions() != 0)
+    return false;
+
+  if (op->getNumResults() == 0)
+    return false;
+
+  if (!llvm::all_of(op->getResults(),
+                    [](Value result) { return result.use_empty(); }))
+    return false;
+
+  return isa<GetSemaphoreOp, TensorAccessorArgsOp, TensorAccessorOp, GetNocAddrOp,
+             ExperimentalGetNocMulticastAddrOp, CastToL1PtrOp, GetTileSizeOp,
+             GetArgValOp, arith::IndexCastOp>(op);
+}
+
+static void eraseDeadRuntimeSetupArtifacts(ModuleOp module) {
+  for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+    if (!isKernelRuntimeSetupCleanupTarget(func))
+      continue;
+
+    bool changed = true;
+    while (changed) {
+      changed = false;
+      llvm::SetVector<Operation *> opsToErase;
+
+      func.walk([&](Operation *op) {
+        if (isDeadRemovableRuntimeSetupOp(op))
+          opsToErase.insert(op);
+      });
+
+      if (opsToErase.empty())
+        break;
+
+      changed = true;
+      for (Operation *op : llvm::reverse(opsToErase))
+        op->erase();
+    }
+  }
+}
+
 static void eraseLoomLoopAttrs(ModuleOp module) {
   auto erasePrefixedAttrs = [](Operation *op) {
     SmallVector<StringAttr, 8> attrsToErase;
@@ -728,6 +775,7 @@ public:
     // Host specialization can leave loop shells containing only unused
     // get_arg_val/index_cast artifacts. Remove them before final cleanup.
     eraseHostLoweringArtifacts(module);
+    eraseDeadRuntimeSetupArtifacts(module);
 
     // Finalize loom.alloc cleanup after all dependent rewrites have run.
     ConversionTarget allocCleanupTarget(*context);

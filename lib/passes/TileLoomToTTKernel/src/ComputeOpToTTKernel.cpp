@@ -96,6 +96,8 @@ struct ElementwiseAnalysis {
 };
 
 constexpr llvm::StringLiteral kVecTilesAttrName = "loom.ttkernel.vec_tiles";
+constexpr llvm::StringLiteral kScalarSiteIdAttrName =
+    "loom.ttkernel.scalar_site_id";
 
 static std::optional<int64_t> ceilDiv32(int64_t value) {
   if (value <= 0)
@@ -126,6 +128,59 @@ static std::optional<int64_t> getAnnotatedVecTilesFromInput(Value value) {
     break;
   }
   return std::nullopt;
+}
+
+static Value stripElementwiseInputWrappers(Value value) {
+  Value current = value;
+  while (current) {
+    if (auto cast = current.getDefiningOp<memref::CastOp>()) {
+      current = cast.getSource();
+      continue;
+    }
+    if (auto sem = current.getDefiningOp<::loom::SemaphoreTakeOp>()) {
+      current = sem.getSource();
+      continue;
+    }
+    if (auto viewLike = current.getDefiningOp<ViewLikeOpInterface>()) {
+      current = viewLike.getViewSource();
+      continue;
+    }
+    break;
+  }
+  return current;
+}
+
+static std::optional<int64_t>
+getScalarSiteIdForGenericInput(linalg::GenericOp op, unsigned inputIdx) {
+  if (inputIdx >= op.getNumDpsInputs())
+    return std::nullopt;
+
+  auto parentFunc = op->getParentOfType<func::FuncOp>();
+  if (!parentFunc)
+    return std::nullopt;
+
+  Value inputRoot = stripElementwiseInputWrappers(op.getDpsInputs()[inputIdx]);
+  if (auto blockArg = dyn_cast<BlockArgument>(inputRoot)) {
+    if (blockArg.getOwner() == &parentFunc.front()) {
+      if (auto siteAttr = dyn_cast_or_null<IntegerAttr>(parentFunc.getArgAttr(
+              blockArg.getArgNumber(), kScalarSiteIdAttrName)))
+        return siteAttr.getInt();
+    }
+  }
+
+  std::optional<int64_t> siteId;
+  parentFunc.walk([&](::loom::CopyOp copyOp) {
+    if (siteId)
+      return;
+    auto siteAttr = copyOp->getAttrOfType<IntegerAttr>(kScalarSiteIdAttrName);
+    if (!siteAttr)
+      return;
+    Value destinationRoot = stripElementwiseInputWrappers(copyOp.getDestination());
+    if (destinationRoot != inputRoot)
+      return;
+    siteId = siteAttr.getInt();
+  });
+  return siteId;
 }
 
 static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
@@ -1283,12 +1338,14 @@ static LogicalResult analyzeTileGeneric(linalg::GenericOp op,
  *          FlashAttention elementwise and tile-generic lowering. Callers
  *          provide leaf materialization and operand-order policy.
  */
-template <typename LeafEmitterT, typename RhsFirstPolicyT>
+template <typename LeafEmitterT, typename RhsFirstPolicyT,
+          typename RuntimeScalarLookupT>
 static LogicalResult emitGenericExprToRegImpl(
     Value exprValue, int dstReg, int tmpRegA, int tmpRegB, linalg::GenericOp op,
     linalg::GenericOp::Adaptor adaptor, ConversionPatternRewriter &rewriter,
     Location loc, bool emitInlineInitOps, bool allowMaximumFOp,
-    LeafEmitterT &&emitLeafToReg, RhsFirstPolicyT &&emitRhsFirstForOperands) {
+    LeafEmitterT &&emitLeafToReg, RhsFirstPolicyT &&emitRhsFirstForOperands,
+    RuntimeScalarLookupT &&lookupRuntimeScalarBits) {
   auto recurse =
       [&](auto &&self, Value value, int curDstReg, int curTmpRegA,
           int curTmpRegB) -> LogicalResult {
@@ -1335,6 +1392,26 @@ static LogicalResult emitGenericExprToRegImpl(
             loc, curDstRegVal, getScalarBitsFromFloat(rewriter, loc, *rhsConst));
         return success();
       }
+      Value lhsRuntimeScalar = lookupRuntimeScalarBits(mulOp.getLhs());
+      Value rhsRuntimeScalar = lookupRuntimeScalarBits(mulOp.getRhs());
+      if (lhsRuntimeScalar && !rhsRuntimeScalar) {
+        if (failed(self(self, mulOp.getRhs(), curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+        if (emitInlineInitOps)
+          rewriter.create<BinopWithScalarTileInitOp>(loc);
+        rewriter.create<MulUnaryTileOp>(loc, curDstRegVal, lhsRuntimeScalar);
+        return success();
+      }
+      if (rhsRuntimeScalar && !lhsRuntimeScalar) {
+        if (failed(self(self, mulOp.getLhs(), curDstReg, curTmpRegA, curTmpRegB)))
+          return failure();
+        if (emitInlineInitOps)
+          rewriter.create<BinopWithScalarTileInitOp>(loc);
+        rewriter.create<MulUnaryTileOp>(loc, curDstRegVal, rhsRuntimeScalar);
+        return success();
+      }
+      if (lhsRuntimeScalar && rhsRuntimeScalar)
+        return failure();
 
       bool emitRhsFirst = emitRhsFirstForOperands(mulOp.getLhs(), mulOp.getRhs());
       if (emitRhsFirst) {
@@ -1520,11 +1597,15 @@ static LogicalResult emitTileGenericExprToReg(
     (void)rhs;
     return false;
   };
+  auto lookupRuntimeScalarBits = [&](Value value) -> Value {
+    (void)value;
+    return {};
+  };
 
   return emitGenericExprToRegImpl(
       exprValue, dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter, loc,
       emitInlineInitOps, /*allowMaximumFOp=*/true, emitLeaf,
-      emitRhsFirstForOperands);
+      emitRhsFirstForOperands, lookupRuntimeScalarBits);
 }
 
 static LogicalResult analyzeElementwiseExpr(Value exprValue, linalg::GenericOp op,
@@ -1770,7 +1851,9 @@ static LogicalResult emitElementwiseExprToReg(
     linalg::GenericOp::Adaptor adaptor, ConversionPatternRewriter &rewriter,
     Location loc, Value tileIdx,
     ArrayRef<std::optional<Value>> broadcastTileIdxByInput,
-    ArrayRef<std::optional<BcastType>> bcastTypeByInput, bool emitInlineInitOps,
+    ArrayRef<std::optional<BcastType>> bcastTypeByInput,
+    ArrayRef<std::optional<Value>> runtimeScalarBitsByInput,
+    bool emitInlineInitOps,
     ArrayRef<std::optional<unsigned>> bcastRefInputByInput,
     const llvm::SmallBitVector &unaryBcastInputs) {
   auto emitLeaf = [&](Value value, int reg, bool &handled) -> LogicalResult {
@@ -1782,6 +1865,10 @@ static LogicalResult emitElementwiseExprToReg(
 
     handled = true;
     Value regVal = i32Const(rewriter, loc, reg);
+    if (*inputIdx < runtimeScalarBitsByInput.size() &&
+        runtimeScalarBitsByInput[*inputIdx].has_value())
+      return failure();
+
     if (*inputIdx < broadcastTileIdxByInput.size() &&
         broadcastTileIdxByInput[*inputIdx].has_value()) {
       Value bcastTileIdx = *broadcastTileIdxByInput[*inputIdx];
@@ -1823,11 +1910,18 @@ static LogicalResult emitElementwiseExprToReg(
     return shouldEmitRhsFirstForBroadcast(lhs, rhs, op, unaryBcastInputs,
                                          emitInlineInitOps);
   };
+  auto lookupRuntimeScalarBits = [&](Value value) -> Value {
+    auto inputIdx = getBodyInputIndex(op, value);
+    if (!inputIdx || *inputIdx >= runtimeScalarBitsByInput.size() ||
+        !runtimeScalarBitsByInput[*inputIdx].has_value())
+      return {};
+    return *runtimeScalarBitsByInput[*inputIdx];
+  };
 
   return emitGenericExprToRegImpl(
       exprValue, dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter, loc,
       emitInlineInitOps, /*allowMaximumFOp=*/false, emitLeaf,
-      emitRhsFirstForOperands);
+      emitRhsFirstForOperands, lookupRuntimeScalarBits);
 }
 
 static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
@@ -1930,7 +2024,8 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
 static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
                                                linalg::GenericOp::Adaptor adaptor,
                                                ConversionPatternRewriter &rewriter,
-                                               llvm::DenseMap<Value, int64_t> &waitState) {
+                                               llvm::DenseMap<Value, int64_t> &waitState,
+                                               std::shared_ptr<CompileArgTracker> tracker) {
   if (adaptor.getOutputs().size() != 1 || adaptor.getInputs().empty())
     return failure();
 
@@ -1947,9 +2042,35 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
 
   Location loc = op.getLoc();
   bool outAliasesInput = hasOutputAlias(outCb, adaptor.getInputs());
+  unsigned numInputs = adaptor.getInputs().size();
+  SmallVector<std::optional<Value>, 4> runtimeScalarBitsByInput(numInputs,
+                                                                 std::nullopt);
+  auto parentFunc = op->getParentOfType<func::FuncOp>();
+  if (tracker && parentFunc) {
+    for (unsigned i = 0; i < numInputs; ++i) {
+      if (i >= analysis.broadcastsByInput.size() || !analysis.broadcastsByInput[i] ||
+          !analysis.broadcastsByInput[i]->isScalar)
+        continue;
+      if (!analysis.usedInputs.test(i))
+        continue;
+
+      auto siteId = getScalarSiteIdForGenericInput(op, i);
+      if (!siteId)
+        continue;
+      Value scalarBits =
+          tracker->getScalarRuntimeArg(parentFunc.getOperation(), *siteId);
+      if (!scalarBits)
+        continue;
+      runtimeScalarBitsByInput[i] = scalarBits;
+      analysis.needsBinopWithScalar = true;
+    }
+  }
 
   for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
     if (!analysis.usedInputs.test(idx))
+      continue;
+    if (idx < runtimeScalarBitsByInput.size() &&
+        runtimeScalarBitsByInput[idx].has_value())
       continue;
 
     int64_t waitTiles = analysis.inputWaitTiles.empty()
@@ -1967,14 +2088,15 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
 
   Value inCbForInit = outCb;
   for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
-    if (analysis.usedInputs.test(idx)) {
+    if (analysis.usedInputs.test(idx) &&
+        !(idx < runtimeScalarBitsByInput.size() &&
+          runtimeScalarBitsByInput[idx].has_value())) {
       inCbForInit = inputCb;
       break;
     }
   }
   rewriter.create<InitSFPUOp>(loc, inCbForInit, outCb);
   bool emitInlineInitOps = analysis.needsUnaryBcast;
-  unsigned numInputs = adaptor.getInputs().size();
   SmallVector<std::optional<BcastType>, 4> bcastTypeByInput(numInputs,
                                                              std::nullopt);
   SmallVector<std::optional<unsigned>, 4> bcastRefInputByInput(numInputs,
@@ -2003,6 +2125,9 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
   if (!emitInlineInitOps) {
     for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
       if (!analysis.usedInputs.test(idx))
+        continue;
+      if (idx < runtimeScalarBitsByInput.size() &&
+          runtimeScalarBitsByInput[idx].has_value())
         continue;
       rewriter.create<CopyTileInitOp>(loc, inputCb);
     }
@@ -2058,7 +2183,8 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
         return emitElementwiseExprToReg(
             analysis.yieldValue, /*dstReg=*/0, /*tmpRegA=*/1, /*tmpRegB=*/2, op,
             adaptor, rewriter, loc, tileIdx, broadcastTileIdxByInput,
-            bcastTypeByInput, emitInlineInitOps, bcastRefInputByInput,
+            bcastTypeByInput, runtimeScalarBitsByInput, emitInlineInitOps,
+            bcastRefInputByInput,
             analysis.unaryBcastInputs);
       });
   if (failed(result))
@@ -2491,7 +2617,11 @@ public:
 class ConvertFlashAttentionGenericOp
     : public OpConversionPattern<linalg::GenericOp> {
 public:
-  using OpConversionPattern<linalg::GenericOp>::OpConversionPattern;
+  ConvertFlashAttentionGenericOp(TypeConverter &typeConverter,
+                                 MLIRContext *context,
+                                 std::shared_ptr<CompileArgTracker> tracker)
+      : OpConversionPattern<linalg::GenericOp>(typeConverter, context),
+        tracker(std::move(tracker)) {}
 
   LogicalResult
   matchAndRewrite(linalg::GenericOp op, OpAdaptor adaptor,
@@ -2517,7 +2647,8 @@ public:
     case FlashAttentionGenericKind::Reduction:
       return rewriteReduceGeneric(op, adaptor, rewriter, waitState);
     case FlashAttentionGenericKind::Elementwise:
-      return rewriteElementwiseGeneric(op, adaptor, rewriter, waitState);
+      return rewriteElementwiseGeneric(op, adaptor, rewriter, waitState,
+                                       tracker);
     }
 
     return failure();
@@ -2526,6 +2657,7 @@ public:
 private:
   mutable llvm::DenseMap<Value, int64_t> waitState;
   mutable func::FuncOp activeFunc;
+  std::shared_ptr<CompileArgTracker> tracker;
 };
 
 } // namespace
@@ -2571,7 +2703,6 @@ void mlir::loom::populateComputeOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker,
     ReduceProtocol reduceProtocol) {
-  (void)tracker;
   (void)reduceProtocol;
   patterns.add<ConvertLinalgFillOp>(typeConverter, context);
   patterns.add<ConvertLinalgCopyOp>(typeConverter, context);
@@ -2579,5 +2710,6 @@ void mlir::loom::populateComputeOpConversionPatterns(
   patterns.add<ConvertLinalgBatchMatmulOp>(typeConverter, context);
   patterns.add<ConvertMemrefCollapseShapeOp>(typeConverter, context);
   patterns.add<ConvertMemrefExpandShapeOp>(typeConverter, context);
-  patterns.add<ConvertFlashAttentionGenericOp>(typeConverter, context);
+  patterns.add<ConvertFlashAttentionGenericOp>(typeConverter, context,
+                                               std::move(tracker));
 }
