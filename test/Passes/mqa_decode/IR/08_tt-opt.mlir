@@ -75,65 +75,65 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           %48 = loom.alloc [1, 64, 128] on @L1 : memref<1x64x128xf16>
           %49 = loom.semaphore_take %48 : memref<1x64x128xf16> -> memref<1x64x128xf16>
           scf.for %arg7 = %c0 to %c16 step %c1 {
-            %55 = arith.muli %arg7, %c64 : index
-            %56 = arith.addi %26, %55 : index
-            %57 = arith.muli %21, %c1048576 overflow<nsw> : index
-            %58 = arith.addi %57, %56 : index
-            %reinterpret_cast_4 = memref.reinterpret_cast %arg0 to offset: [%58], sizes: [1, 128, 64], strides: [1048576, 8192, 1] : memref<16x128x8192xf16> to memref<1x128x64xf16, strided<[1048576, 8192, 1], offset: ?>>
+            %57 = arith.muli %arg7, %c64 : index
+            %58 = arith.addi %26, %57 : index
+            %59 = arith.muli %21, %c1048576 overflow<nsw> : index
+            %60 = arith.addi %59, %58 : index
+            %reinterpret_cast_4 = memref.reinterpret_cast %arg0 to offset: [%60], sizes: [1, 128, 64], strides: [1048576, 8192, 1] : memref<16x128x8192xf16> to memref<1x128x64xf16, strided<[1048576, 8192, 1], offset: ?>>
             loom.copy %reinterpret_cast_4, %45 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%arg5, %arg4], LR : [%arg5, %arg4]) : memref<1x128x64xf16, strided<[1048576, 8192, 1], offset: ?>> to memref<1x128x64xf16>
             loom.batch_matmul ins(%24, %45 : memref<1x32x128xf16>, memref<1x128x64xf16>) outs(%47 : memref<1x32x64xf16>)
             loom.semaphore_give %45 : memref<1x128x64xf16>
             linalg.fill ins(%cst_2 : f16) outs(%39 : memref<1x32xf16>)
             linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%47 : memref<1x32x64xf16>) outs(%39 : memref<1x32xf16>) {
             ^bb0(%in: f16, %out: f16):
-              %61 = arith.maximumf %in, %out : f16
-              linalg.yield %61 : f16
+              %63 = arith.maximumf %in, %out : f16
+              linalg.yield %63 : f16
             }
             linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%35, %39 : memref<1x32xf16>, memref<1x32xf16>) outs(%39 : memref<1x32xf16>) {
             ^bb0(%in: f16, %in_6: f16, %out: f16):
-              %61 = arith.mulf %in_6, %cst_3 : f16
-              %62 = arith.cmpf ogt, %in, %61 : f16
-              %63 = arith.select %62, %in, %61 : f16
-              linalg.yield %63 : f16
+              %63 = arith.mulf %in_6, %cst_3 : f16
+              %64 = arith.cmpf ogt, %in, %63 : f16
+              %65 = arith.select %64, %in, %63 : f16
+              linalg.yield %65 : f16
             }
             linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%47, %39 : memref<1x32x64xf16>, memref<1x32xf16>) outs(%47 : memref<1x32x64xf16>) {
             ^bb0(%in: f16, %in_6: f16, %out: f16):
-              %61 = arith.mulf %in, %cst_3 : f16
-              %62 = arith.subf %61, %in_6 : f16
-              %63 = math.powf %cst, %62 : f16
-              linalg.yield %63 : f16
+              %63 = arith.mulf %in, %cst_3 : f16
+              %64 = arith.subf %63, %in_6 : f16
+              %65 = math.powf %cst, %64 : f16
+              linalg.yield %65 : f16
             }
             linalg.fill ins(%cst_0 : f16) outs(%41 : memref<1x32xf16>)
             linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%47 : memref<1x32x64xf16>) outs(%41 : memref<1x32xf16>) {
             ^bb0(%in: f16, %out: f16):
-              %61 = arith.addf %in, %out : f16
-              linalg.yield %61 : f16
+              %63 = arith.addf %in, %out : f16
+              linalg.yield %63 : f16
             }
             linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%35, %39 : memref<1x32xf16>, memref<1x32xf16>) outs(%43 : memref<1x32xf16>) {
             ^bb0(%in: f16, %in_6: f16, %out: f16):
-              %61 = arith.subf %in, %in_6 : f16
-              %62 = math.powf %cst, %61 : f16
-              linalg.yield %62 : f16
+              %63 = arith.subf %in, %in_6 : f16
+              %64 = math.powf %cst, %63 : f16
+              linalg.yield %64 : f16
             }
             linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%33, %43, %41 : memref<1x32xf16>, memref<1x32xf16>, memref<1x32xf16>) outs(%33 : memref<1x32xf16>) {
             ^bb0(%in: f16, %in_6: f16, %in_7: f16, %out: f16):
-              %61 = arith.mulf %in, %in_6 : f16
-              %62 = arith.addf %61, %in_7 : f16
-              linalg.yield %62 : f16
+              %63 = arith.mulf %in, %in_6 : f16
+              %64 = arith.addf %63, %in_7 : f16
+              linalg.yield %64 : f16
             }
             loom.semaphore_give %41 : memref<1x32xf16>
-            %59 = arith.muli %56, %c128 overflow<nsw> : index
-            %60 = arith.addi %57, %59 : index
-            %reinterpret_cast_5 = memref.reinterpret_cast %arg1 to offset: [%60], sizes: [1, 64, 128], strides: [1048576, 128, 1] : memref<16x8192x128xf16> to memref<1x64x128xf16, strided<[1048576, 128, 1], offset: ?>>
+            %61 = arith.muli %58, %c128 overflow<nsw> : index
+            %62 = arith.addi %59, %61 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg1 to offset: [%62], sizes: [1, 64, 128], strides: [1048576, 128, 1] : memref<16x8192x128xf16> to memref<1x64x128xf16, strided<[1048576, 128, 1], offset: ?>>
             loom.copy %reinterpret_cast_5, %49 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%arg5, %arg4], LR : [%arg5, %arg4]) : memref<1x64x128xf16, strided<[1048576, 128, 1], offset: ?>> to memref<1x64x128xf16>
             loom.batch_matmul ins(%47, %49 : memref<1x32x64xf16>, memref<1x64x128xf16>) outs(%37 : memref<1x32x128xf16>)
             loom.semaphore_give %49 : memref<1x64x128xf16>
             loom.semaphore_give %47 : memref<1x32x64xf16>
             linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%37, %28, %43 : memref<1x32x128xf16>, memref<1x32x128xf16>, memref<1x32xf16>) outs(%28 : memref<1x32x128xf16>) {
             ^bb0(%in: f16, %in_6: f16, %in_7: f16, %out: f16):
-              %61 = arith.mulf %in_6, %in_7 : f16
-              %62 = arith.addf %in, %61 : f16
-              linalg.yield %62 : f16
+              %63 = arith.mulf %in_6, %in_7 : f16
+              %64 = arith.addf %in, %63 : f16
+              linalg.yield %64 : f16
             }
             loom.semaphore_give %43 : memref<1x32xf16>
             loom.semaphore_give %37 : memref<1x32x128xf16>
@@ -143,60 +143,66 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           loom.semaphore_give %24 : memref<1x32x128xf16>
           linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%33, %35 : memref<1x32xf16>, memref<1x32xf16>) outs(%32 : memref<1x32xf16>) {
           ^bb0(%in: f16, %in_4: f16, %out: f16):
-            %55 = math.log2 %in : f16
-            %56 = arith.addf %55, %in_4 : f16
-            linalg.yield %56 : f16
+            %57 = math.log2 %in : f16
+            %58 = arith.addf %57, %in_4 : f16
+            linalg.yield %58 : f16
           }
           loom.semaphore_give %33 : memref<1x32xf16>
           loom.semaphore_give %35 : memref<1x32xf16>
           %50 = loom.alloc [8, 1, 32] on @L1 : memref<8x1x32xf16>
           %51 = loom.semaphore_take %50 : memref<8x1x32xf16> -> memref<8x1x32xf16>
-          loom.gather ins(%32 : memref<1x32xf16>) outs(%51 : memref<8x1x32xf16>) across(%arg5 : index) region : (UL : [%c0, %arg4], LR : [%c7, %arg4])
+          %52 = loom.semaphore_take %29 : memref<1x32xf16> -> memref<1x32xf16>
+          loom.sync ins(%32 : memref<1x32xf16>) outs(%52 : memref<1x32xf16>)
+          loom.gather ins(%52 : memref<1x32xf16>) outs(%51 : memref<8x1x32xf16>) across(%arg5 : index) region : (UL : [%c0, %arg4], LR : [%c7, %arg4])
+          loom.semaphore_give %52 : memref<1x32xf16>
           loom.semaphore_give %32 : memref<1x32xf16>
-          %52 = loom.alloc [8, 1, 32, 128] on @L1 : memref<8x1x32x128xf16>
-          %53 = loom.semaphore_take %52 : memref<8x1x32x128xf16> -> memref<8x1x32x128xf16>
-          loom.gather ins(%28 : memref<1x32x128xf16>) outs(%53 : memref<8x1x32x128xf16>) across(%arg5 : index) region : (UL : [%c0, %arg4], LR : [%c7, %arg4])
+          %53 = loom.alloc [8, 1, 32, 128] on @L1 : memref<8x1x32x128xf16>
+          %54 = loom.semaphore_take %53 : memref<8x1x32x128xf16> -> memref<8x1x32x128xf16>
+          %55 = loom.semaphore_take %27 : memref<1x32x128xf16> -> memref<1x32x128xf16>
+          loom.sync ins(%28 : memref<1x32x128xf16>) outs(%55 : memref<1x32x128xf16>)
+          loom.gather ins(%55 : memref<1x32x128xf16>) outs(%54 : memref<8x1x32x128xf16>) across(%arg5 : index) region : (UL : [%c0, %arg4], LR : [%c7, %arg4])
+          loom.semaphore_give %55 : memref<1x32x128xf16>
           loom.semaphore_give %28 : memref<1x32x128xf16>
-          %54 = arith.cmpi eq, %arg5, %c0 : index
-          scf.if %54 {
+          %56 = arith.cmpi eq, %arg5, %c0 : index
+          scf.if %56 {
             linalg.fill ins(%cst_2 : f16) outs(%31 : memref<1x32xf16>)
             linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d1, d2)>], iterator_types = ["reduction", "parallel", "parallel"]} ins(%51 : memref<8x1x32xf16>) outs(%31 : memref<1x32xf16>) {
             ^bb0(%in: f16, %out: f16):
-              %55 = arith.maximumf %in, %out : f16
-              linalg.yield %55 : f16
+              %57 = arith.maximumf %in, %out : f16
+              linalg.yield %57 : f16
             }
             linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%51, %31 : memref<8x1x32xf16>, memref<1x32xf16>) outs(%51 : memref<8x1x32xf16>) {
             ^bb0(%in: f16, %in_5: f16, %out: f16):
-              %55 = arith.subf %in, %in_5 : f16
-              %56 = math.powf %cst, %55 : f16
-              linalg.yield %56 : f16
+              %57 = arith.subf %in, %in_5 : f16
+              %58 = math.powf %cst, %57 : f16
+              linalg.yield %58 : f16
             }
             loom.semaphore_give %31 : memref<1x32xf16>
             linalg.fill ins(%cst_0 : f16) outs(%30 : memref<1x32xf16>)
             linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d1, d2)>], iterator_types = ["reduction", "parallel", "parallel"]} ins(%51 : memref<8x1x32xf16>) outs(%30 : memref<1x32xf16>) {
             ^bb0(%in: f16, %out: f16):
-              %55 = arith.addf %in, %out : f16
-              linalg.yield %55 : f16
+              %57 = arith.addf %in, %out : f16
+              linalg.yield %57 : f16
             }
             linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%51, %30 : memref<8x1x32xf16>, memref<1x32xf16>) outs(%51 : memref<8x1x32xf16>) {
             ^bb0(%in: f16, %in_5: f16, %out: f16):
-              %55 = arith.divf %in, %in_5 : f16
-              linalg.yield %55 : f16
+              %57 = arith.divf %in, %in_5 : f16
+              linalg.yield %57 : f16
             }
             loom.semaphore_give %30 : memref<1x32xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2)>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>], iterator_types = ["parallel", "parallel", "parallel", "parallel"]} ins(%53, %51 : memref<8x1x32x128xf16>, memref<8x1x32xf16>) outs(%53 : memref<8x1x32x128xf16>) {
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2)>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>], iterator_types = ["parallel", "parallel", "parallel", "parallel"]} ins(%54, %51 : memref<8x1x32x128xf16>, memref<8x1x32xf16>) outs(%54 : memref<8x1x32x128xf16>) {
             ^bb0(%in: f16, %in_5: f16, %out: f16):
-              %55 = arith.mulf %in, %in_5 : f16
-              linalg.yield %55 : f16
+              %57 = arith.mulf %in, %in_5 : f16
+              linalg.yield %57 : f16
             }
             loom.semaphore_give %51 : memref<8x1x32xf16>
             linalg.fill ins(%cst_0 : f16) outs(%23 : memref<1x32x128xf16>)
-            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d1, d2, d3)>], iterator_types = ["reduction", "parallel", "parallel", "parallel"]} ins(%53 : memref<8x1x32x128xf16>) outs(%23 : memref<1x32x128xf16>) {
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d1, d2, d3)>], iterator_types = ["reduction", "parallel", "parallel", "parallel"]} ins(%54 : memref<8x1x32x128xf16>) outs(%23 : memref<1x32x128xf16>) {
             ^bb0(%in: f16, %out: f16):
-              %55 = arith.addf %in, %out : f16
-              linalg.yield %55 : f16
+              %57 = arith.addf %in, %out : f16
+              linalg.yield %57 : f16
             }
-            loom.semaphore_give %53 : memref<8x1x32x128xf16>
+            loom.semaphore_give %54 : memref<8x1x32x128xf16>
             %reinterpret_cast_4 = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [1, 32, 128], strides: [4096, 128, 1] : memref<16x32x128xf16> to memref<1x32x128xf16, strided<[4096, 128, 1], offset: ?>>
             loom.copy %23, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [8, 1] region : (UL : [%c0, %arg4], LR : [%c7, %arg4]) : memref<1x32x128xf16> to memref<1x32x128xf16, strided<[4096, 128, 1], offset: ?>>
             loom.semaphore_give %23 : memref<1x32x128xf16>
