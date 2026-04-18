@@ -50,6 +50,8 @@ constexpr llvm::StringLiteral kReductionScaleCbAttrName =
     "loom.reduction_scale_cb";
 constexpr llvm::StringLiteral kScalarSiteIdAttrName =
     "loom.ttkernel.scalar_site_id";
+constexpr llvm::StringLiteral kVecKindAttrName = "loom.ttkernel.vec_kind";
+constexpr llvm::StringLiteral kVecTilesAttrName = "loom.ttkernel.vec_tiles";
 constexpr llvm::StringLiteral kSemaphoreSlotAttrName =
     "loom.ttkernel.semaphore_slot";
 
@@ -207,6 +209,18 @@ static bool isWriterKernel(Operation *op) {
 static Value i32Const(ConversionPatternRewriter &rewriter, Location loc,
                       int32_t value) {
   return rewriter.create<arith::ConstantIntOp>(loc, value, 32);
+}
+
+// Emit ceil_div(lhs, rhs) using ops that survive downstream TTKernel->EmitC.
+static Value ceilDivSICompat(ConversionPatternRewriter &rewriter, Location loc,
+                             Value lhs, Value rhs) {
+  Type ty = lhs.getType();
+  Value one = arith::ConstantIntOp::create(rewriter, loc, ty, 1);
+  Value rhsMinusOne = arith::SubIOp::create(
+      rewriter, loc, rhs, one, arith::IntegerOverflowFlags::nsw);
+  Value numer = arith::AddIOp::create(rewriter, loc, lhs, rhsMinusOne,
+                                      arith::IntegerOverflowFlags::nsw);
+  return arith::DivSIOp::create(rewriter, loc, numer, rhs);
 }
 
 struct ReduceTransportAnalysis {
@@ -500,6 +514,23 @@ parseBroadcastAttr(ArrayAttr broadcastAttr) {
     return std::nullopt;
 
   return std::make_pair(xAttr.getInt(), yAttr.getInt());
+}
+
+static std::optional<int64_t> getAnnotatedVecTiles(::loom::CopyOp op) {
+  auto tilesAttr = op->getAttrOfType<IntegerAttr>(kVecTilesAttrName);
+  if (!tilesAttr)
+    return std::nullopt;
+  int64_t tiles = tilesAttr.getInt();
+  if (tiles <= 0)
+    return std::nullopt;
+  return tiles;
+}
+
+static std::optional<int64_t> getRank1VecTilesFromMemref(Type type) {
+  auto memrefType = dyn_cast<MemRefType>(type);
+  if (!memrefType || !memrefType.hasStaticShape() || memrefType.getRank() != 1)
+    return std::nullopt;
+  return ceilDiv32(memrefType.getShape().front());
 }
 
 static int64_t getPackedWordForScalarOne(Type elementType) {
@@ -819,13 +850,6 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
   // Tile dimension (32x32 for TTKernel).
   constexpr int64_t kTileDim = 32;
 
-  // Calculate number of tiles in each dimension: numTiles = shape / 32.
-  // For 2D memref [H, W], we have (H/32) x (W/32) tiles.
-  int64_t numTileRows =
-      (shape.size() > 0) ? (shape[shape.size() - 2] + kTileDim - 1) / kTileDim : 1;
-  int64_t numTileCols =
-      (shape.size() > 1) ? (shape[shape.size() - 1] + kTileDim - 1) / kTileDim : 1;
-
   // Create constants for loop bounds and calculations.
   Value loopConst0 =
       rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
@@ -833,100 +857,125 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
       rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 1);
   Value tileDimVal = rewriter.create<arith::ConstantIntOp>(
       loc, rewriter.getI32Type(), kTileDim);
-  Value numTileRowsVal = rewriter.create<arith::ConstantIntOp>(
-      loc, rewriter.getI32Type(), numTileRows);
-  Value numTileColsVal = rewriter.create<arith::ConstantIntOp>(
-      loc, rewriter.getI32Type(), numTileCols);
-  Value stride0Val = rewriter.create<arith::ConstantIntOp>(
-    loc, rewriter.getI32Type(), (strides.size() > 0) ? strides[strides.size() - 2] : 1);
-  Value stride1Val = rewriter.create<arith::ConstantIntOp>(
-    loc, rewriter.getI32Type(), (strides.size() > 1) ? strides[strides.size() - 1] : 1);
 
-  // Create nested loops to iterate over all tiles.
-  // Outer loop: iterate over tile rows (0 to numTileRows).
-  scf::ForOp rowLoop =
-      scf::ForOp::create(rewriter, loc, loopConst0, numTileRowsVal, loopConst1,
-                         ValueRange{l1Addr});
-  {
-    rewriter.setInsertionPointToStart(rowLoop.getBody());
-    Value tileRow = rowLoop.getInductionVar();
-    Value crtL1Addr = rowLoop.getRegionIterArgs()[0];
+  if (shape.size() <= 1) {
+    // Rank-0/1 payloads use a synthetic [1, N] view so tile-id mapping
+    // remains valid and avoids rank-2 indexing assumptions.
+    int64_t logicalCols = shape.empty() ? 1 : shape.back();
+    int64_t numTileCols = (logicalCols + kTileDim - 1) / kTileDim;
 
-    // Inner loop: iterate over tile columns (0 to numTileCols).
-    scf::ForOp colLoop =
-        scf::ForOp::create(rewriter, loc, loopConst0, numTileColsVal,
-                           loopConst1, ValueRange{crtL1Addr});
+    Value numTileColsVal = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(), numTileCols);
+    Value logicalColsVal = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(), logicalCols);
+
+    scf::ForOp colLoop = scf::ForOp::create(rewriter, loc, loopConst0,
+                                            numTileColsVal, loopConst1,
+                                            ValueRange{l1Addr});
     {
       rewriter.setInsertionPointToStart(colLoop.getBody());
       Value tileCol = colLoop.getInductionVar();
       Value innerL1Addr = colLoop.getRegionIterArgs()[0];
 
-      // Calculate element offset for this tile within the memref:
-      // tileElemOffset = tileRow * tileDim * stride0 + tileCol * tileDim *
-      // stride1
-      Value rowOffset =
-          arith::MulIOp::create(rewriter, loc, tileRow, tileDimVal,
-                                arith::IntegerOverflowFlags::nsw);
-      rowOffset = arith::MulIOp::create(rewriter, loc, rowOffset, stride0Val,
-                                        arith::IntegerOverflowFlags::nsw);
+      Value tileElemOffset = arith::MulIOp::create(
+          rewriter, loc, tileCol, tileDimVal, arith::IntegerOverflowFlags::nsw);
+      Value totalElemOffset = arith::AddIOp::create(
+          rewriter, loc, baseElemOffset, tileElemOffset,
+          arith::IntegerOverflowFlags::nsw);
 
-      Value colOffset =
-          arith::MulIOp::create(rewriter, loc, tileCol, tileDimVal,
-                                arith::IntegerOverflowFlags::nsw);
-      colOffset = arith::MulIOp::create(rewriter, loc, colOffset, stride1Val,
-                                        arith::IntegerOverflowFlags::nsw);
-
-      Value tileElemOffset =
-          arith::AddIOp::create(rewriter, loc, rowOffset, colOffset,
-                                arith::IntegerOverflowFlags::nsw);
-
-      // Total element offset = baseElemOffset + tileElemOffset
-      Value totalElemOffset =
-          arith::AddIOp::create(rewriter, loc, baseElemOffset, tileElemOffset,
-                                arith::IntegerOverflowFlags::nsw);
-
-      // rowIdx = totalElemOffset / elementsPerRow
       Value rowIdx =
-          arith::DivSIOp::create(rewriter, loc, totalElemOffset, stride0Val);
-
-      // colIdx = totalElemOffset % elementsPerRow
+          arith::DivSIOp::create(rewriter, loc, totalElemOffset, logicalColsVal);
       Value colIdx =
-          arith::RemSIOp::create(rewriter, loc, totalElemOffset, stride0Val);
-
-      // tilesPerRow = elementsPerRow / tileDim
-      Value tilesPerRow =
-          arith::DivSIOp::create(rewriter, loc, stride0Val, tileDimVal);
-
-      // rowTile = rowIdx / tileDim
+          arith::RemSIOp::create(rewriter, loc, totalElemOffset, logicalColsVal);
       Value rowTile = arith::DivSIOp::create(rewriter, loc, rowIdx, tileDimVal);
-
-      // rowTileBase = rowTile * tilesPerRow
-      Value rowTileBase =
-          arith::MulIOp::create(rewriter, loc, rowTile, tilesPerRow,
-                                arith::IntegerOverflowFlags::nsw);
-
-      // colTile = colIdx / tileDim
+      Value rowTileBase = arith::MulIOp::create(
+          rewriter, loc, rowTile, numTileColsVal,
+          arith::IntegerOverflowFlags::nsw);
       Value colTile = arith::DivSIOp::create(rewriter, loc, colIdx, tileDimVal);
-
-      // tileId = rowTileBase + colTile
       Value tileId = arith::AddIOp::create(rewriter, loc, rowTileBase, colTile,
                                            arith::IntegerOverflowFlags::nsw);
 
-      // Issue an async read for this tile using the tensor accessor.
       NocAsyncReadTileOp::create(rewriter, loc, tileId, accessorOp, innerL1Addr);
-
-      // Advance L1 address to next tile by adding tile_size.
-      Value nextL1Addr =
-          arith::AddIOp::create(rewriter, loc, innerL1Addr, pageSize,
-                                arith::IntegerOverflowFlags::nsw);
+      Value nextL1Addr = arith::AddIOp::create(
+          rewriter, loc, innerL1Addr, pageSize, arith::IntegerOverflowFlags::nsw);
       scf::YieldOp::create(rewriter, loc, ValueRange(nextL1Addr));
     }
-
-    // Yield updated L1 address from inner loop.
     rewriter.setInsertionPointAfter(colLoop);
-    scf::YieldOp::create(rewriter, loc, colLoop.getResults());
+  } else {
+    // Calculate number of tiles in each dimension: numTiles = shape / 32.
+    int64_t numTileRows = (shape[shape.size() - 2] + kTileDim - 1) / kTileDim;
+    int64_t numTileCols = (shape[shape.size() - 1] + kTileDim - 1) / kTileDim;
+
+    Value numTileRowsVal = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(), numTileRows);
+    Value numTileColsVal = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(), numTileCols);
+    Value stride0Val = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(),
+        (strides.size() > 1) ? strides[strides.size() - 2] : 1);
+    Value stride1Val = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(),
+        (strides.size() > 0) ? strides[strides.size() - 1] : 1);
+
+    // Create nested loops to iterate over all tiles.
+    scf::ForOp rowLoop = scf::ForOp::create(rewriter, loc, loopConst0,
+                                            numTileRowsVal, loopConst1,
+                                            ValueRange{l1Addr});
+    {
+      rewriter.setInsertionPointToStart(rowLoop.getBody());
+      Value tileRow = rowLoop.getInductionVar();
+      Value crtL1Addr = rowLoop.getRegionIterArgs()[0];
+
+      scf::ForOp colLoop = scf::ForOp::create(rewriter, loc, loopConst0,
+                                              numTileColsVal, loopConst1,
+                                              ValueRange{crtL1Addr});
+      {
+        rewriter.setInsertionPointToStart(colLoop.getBody());
+        Value tileCol = colLoop.getInductionVar();
+        Value innerL1Addr = colLoop.getRegionIterArgs()[0];
+
+        Value rowOffset = arith::MulIOp::create(
+            rewriter, loc, tileRow, tileDimVal, arith::IntegerOverflowFlags::nsw);
+        rowOffset = arith::MulIOp::create(rewriter, loc, rowOffset, stride0Val,
+                                          arith::IntegerOverflowFlags::nsw);
+
+        Value colOffset = arith::MulIOp::create(
+            rewriter, loc, tileCol, tileDimVal, arith::IntegerOverflowFlags::nsw);
+        colOffset = arith::MulIOp::create(rewriter, loc, colOffset, stride1Val,
+                                          arith::IntegerOverflowFlags::nsw);
+
+        Value tileElemOffset = arith::AddIOp::create(
+            rewriter, loc, rowOffset, colOffset, arith::IntegerOverflowFlags::nsw);
+        Value totalElemOffset = arith::AddIOp::create(
+            rewriter, loc, baseElemOffset, tileElemOffset,
+            arith::IntegerOverflowFlags::nsw);
+
+        Value rowIdx =
+            arith::DivSIOp::create(rewriter, loc, totalElemOffset, stride0Val);
+        Value colIdx =
+            arith::RemSIOp::create(rewriter, loc, totalElemOffset, stride0Val);
+        Value tilesPerRow =
+            arith::DivSIOp::create(rewriter, loc, stride0Val, tileDimVal);
+        Value rowTile =
+            arith::DivSIOp::create(rewriter, loc, rowIdx, tileDimVal);
+        Value rowTileBase = arith::MulIOp::create(
+            rewriter, loc, rowTile, tilesPerRow, arith::IntegerOverflowFlags::nsw);
+        Value colTile =
+            arith::DivSIOp::create(rewriter, loc, colIdx, tileDimVal);
+        Value tileId = arith::AddIOp::create(rewriter, loc, rowTileBase, colTile,
+                                             arith::IntegerOverflowFlags::nsw);
+
+        NocAsyncReadTileOp::create(rewriter, loc, tileId, accessorOp, innerL1Addr);
+        Value nextL1Addr = arith::AddIOp::create(
+            rewriter, loc, innerL1Addr, pageSize, arith::IntegerOverflowFlags::nsw);
+        scf::YieldOp::create(rewriter, loc, ValueRange(nextL1Addr));
+      }
+
+      rewriter.setInsertionPointAfter(colLoop);
+      scf::YieldOp::create(rewriter, loc, colLoop.getResults());
+    }
+    rewriter.setInsertionPointAfter(rowLoop);
   }
-  rewriter.setInsertionPointAfter(rowLoop);
 
   // Barrier to wait for all async reads to complete.
   NocAsyncReadBarrierOp::create(rewriter, loc);
@@ -1340,8 +1389,20 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
     auto cbType = cast<CBType>(cb.getType());
     auto elementType = cbType.getElementType();
     Value numPages;
+    std::optional<int64_t> annotatedVecTiles = getAnnotatedVecTiles(op);
+    std::optional<int64_t> rank1VecTiles =
+        getRank1VecTilesFromMemref(reinterpretCastOp.getResult().getType());
 
-    if (auto tileType = llvm::dyn_cast<TileType>(elementType)) {
+    if (rank1VecTiles) {
+      int64_t vecTiles = annotatedVecTiles.value_or(*rank1VecTiles);
+      if (vecTiles <= 0) {
+        return rewriter.notifyMatchFailure(
+            op, "invalid vector tile count for DRAM load");
+      }
+      numPages =
+          rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(),
+                                                static_cast<int32_t>(vecTiles));
+    } else if (isa<TileType>(elementType)) {
       const int32_t numTiles = cbType.getNumTiles();
       numPages = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), numTiles);
@@ -1357,7 +1418,7 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
       Value pageSize = GetTileSizeOp::create(rewriter, loc, cb);
       Value totalSize = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), numElements * elementSizeBytes);
-      numPages = arith::DivSIOp::create(rewriter, loc, totalSize, pageSize);
+      numPages = ceilDivSICompat(rewriter, loc, totalSize, pageSize);
     }
 
     memrefArgData->num_tiles = numPages;
@@ -1540,7 +1601,7 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
     auto cbType = cast<CBType>(cb.getType());
     Value numPages;
     auto elementType = cbType.getElementType();
-    if (auto tileType = llvm::dyn_cast<TileType>(elementType)) {
+    if (isa<TileType>(elementType)) {
       const int32_t numTiles = cbType.getNumTiles();
       numPages = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), numTiles);
@@ -1555,8 +1616,7 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
         elementSizeBytes = (intType.getWidth() + 7) / 8;
       Value totalSizeBytes = rewriter.create<arith::ConstantIntOp>(
           loc, rewriter.getI32Type(), numElements * elementSizeBytes);
-      numPages =
-          arith::DivSIOp::create(rewriter, loc, totalSizeBytes, pageSize);
+      numPages = ceilDivSICompat(rewriter, loc, totalSizeBytes, pageSize);
     }
 
     Value accessorOp = tracker->getTensorAccessor(outputMemref);
@@ -1587,9 +1647,9 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
 
     constexpr int64_t kTileDim = 32;
     int64_t numTileRows =
-        (shape.size() > 0) ? (shape[shape.size() - 2] + kTileDim - 1) / kTileDim : 1;
+        (shape.size() > 1) ? (shape[shape.size() - 2] + kTileDim - 1) / kTileDim : 1;
     int64_t numTileCols =
-        (shape.size() > 1) ? (shape[shape.size() - 1] + kTileDim - 1) / kTileDim : 1;
+        (shape.size() > 0) ? (shape[shape.size() - 1] + kTileDim - 1) / kTileDim : 1;
 
     Value loopConst0 =
         rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
@@ -1602,9 +1662,9 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
     Value numTileColsVal = rewriter.create<arith::ConstantIntOp>(
         loc, rewriter.getI32Type(), numTileCols);
     Value stride0Val = rewriter.create<arith::ConstantIntOp>(
-      loc, rewriter.getI32Type(), (strides.size() > 0) ? strides[strides.size() - 2] : 1);
+      loc, rewriter.getI32Type(), (strides.size() > 1) ? strides[strides.size() - 2] : 1);
     Value stride1Val = rewriter.create<arith::ConstantIntOp>(
-      loc, rewriter.getI32Type(), (strides.size() > 1) ? strides[strides.size() - 1] : 1);
+      loc, rewriter.getI32Type(), (strides.size() > 0) ? strides[strides.size() - 1] : 1);
 
     scf::ForOp rowLoop =
         scf::ForOp::create(rewriter, loc, loopConst0, numTileRowsVal,

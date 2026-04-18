@@ -56,4 +56,8 @@ bool isSupportedFlashAttentionGeneric(mlir::linalg::GenericOp op);
 /// this pass.
 bool shouldConvertComputeLinalgCopy(mlir::linalg::CopyOp op);
 
+/// Returns true when this `linalg.transpose` is a compute-kernel transpose
+/// handled by this pass.
+bool shouldConvertComputeLinalgTranspose(mlir::linalg::TransposeOp op);
+
 } // namespace mlir::loom

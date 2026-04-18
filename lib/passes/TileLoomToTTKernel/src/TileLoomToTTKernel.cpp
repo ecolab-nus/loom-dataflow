@@ -522,6 +522,12 @@ public:
         return;
       }
     }
+
+    if (failed(annotateVecLoadUsage(module))) {
+      signalPassFailure();
+      return;
+    }
+
     specializeFunctionsForTTKernel(module);
 
     // Create shared compile-arg tracker for index management.
@@ -612,6 +618,15 @@ public:
     // Mark memref operations that don't need conversion as legal
     // (they will be type-converted automatically)
     target.addLegalDialect<arith::ArithDialect, scf::SCFDialect>();
+    // Normalize unsigned index div/mod before handing IR to EmitC lowering.
+    target.addDynamicallyLegalOp<arith::DivUIOp>(
+        [](arith::DivUIOp op) { return !op.getType().isIndex(); });
+    target.addDynamicallyLegalOp<arith::RemUIOp>(
+        [](arith::RemUIOp op) { return !op.getType().isIndex(); });
+    target.addDynamicallyLegalOp<arith::CeilDivUIOp>(
+        [](arith::CeilDivUIOp op) { return !op.getType().isIndex(); });
+    target.addDynamicallyLegalOp<arith::CeilDivSIOp>(
+        [](arith::CeilDivSIOp op) { return !op.getType().isIndex(); });
 
     // SCF dialect is generally legal, but we require a conversion for
     // scf.parallel so it can be lowered to straight-line code with
@@ -640,6 +655,10 @@ public:
     target.addDynamicallyLegalOp<linalg::CopyOp>(
         [&](linalg::CopyOp op) {
           return !mlir::loom::shouldConvertComputeLinalgCopy(op);
+        });
+    target.addDynamicallyLegalOp<linalg::TransposeOp>(
+        [&](linalg::TransposeOp op) {
+          return !mlir::loom::shouldConvertComputeLinalgTranspose(op);
         });
     target.addDynamicallyLegalOp<::loom::CopyOp>(
         [&](::loom::CopyOp op) {

@@ -133,12 +133,11 @@ LogicalResult tileAffineParallel(affine::AffineParallelOp original_parop,
 // --- Parallel to Nested For ---
 
 /// Recursively materialize an AffineExpr as index-typed arith ops.
-/// Unlike `mlir::affine::expandAffineMap`, this emits `arith.ceildivui` /
-/// `arith.divui` / `arith.remui` directly instead of the sign-safe lowering
-/// (cmpi + select chains).  Trip counts and tile sizes are always
-/// non-negative, so the unsigned variants are sound, and the resulting
-/// def-use chain is shallow enough for `traceIndexValueToExpr` to recover
-/// a symbolic `Expr`.
+/// Unlike `mlir::affine::expandAffineMap`, this emits direct div/mod ops
+/// instead of the sign-safe lowering (cmpi + select chains). Trip counts and
+/// tile sizes are always non-negative, so signed div/mod is equivalent here and
+/// keeps the def-use chain shallow enough for `traceIndexValueToExpr` to
+/// recover a symbolic `Expr`.
 static Value materializeAffineExprAsIndex(OpBuilder &builder, Location loc,
                                           AffineExpr expr,
                                           ValueRange dimOperands,
@@ -165,11 +164,11 @@ static Value materializeAffineExprAsIndex(OpBuilder &builder, Location loc,
   case AffineExprKind::Mul:
     return arith::MulIOp::create(builder, loc, lhs, rhs);
   case AffineExprKind::CeilDiv:
-    return arith::CeilDivUIOp::create(builder, loc, lhs, rhs);
+    return arith::CeilDivSIOp::create(builder, loc, lhs, rhs);
   case AffineExprKind::FloorDiv:
-    return arith::DivUIOp::create(builder, loc, lhs, rhs);
+    return arith::DivSIOp::create(builder, loc, lhs, rhs);
   case AffineExprKind::Mod:
-    return arith::RemUIOp::create(builder, loc, lhs, rhs);
+    return arith::RemSIOp::create(builder, loc, lhs, rhs);
   default:
     llvm_unreachable("unexpected AffineExpr kind in trip-count materialization");
   }

@@ -372,6 +372,23 @@ private:
 LogicalResult prepareMatmulBReaderMerge(ModuleOp module);
 
 /**
+ * @brief Annotate DRAM vector-load copy sites with vec->tile metadata.
+ *
+ * @details Scans load-direction `loom.copy` ops whose source is
+ *          `memref.reinterpret_cast` and whose destination is rank-1 static
+ *          memref storage. For each such load, it inspects downstream
+ *          `linalg.generic` usage and records:
+ *          - `loom.ttkernel.vec_kind`  : `none` | `row_bcast` | `col_bcast`
+ *          - `loom.ttkernel.vec_tiles` : required tile pages in reader CB
+ *
+ *          Conflicting usage intents for the same load site are rejected.
+ *
+ * @param module The module containing unspecialized functions.
+ * @return success on valid annotation, failure on conflicting/unsupported use.
+ */
+LogicalResult annotateVecLoadUsage(ModuleOp module);
+
+/**
  * @brief Specialize functions into compute, data, and host variants.
  *
  * @details For each func::FuncOp in the module, this creates five clones:

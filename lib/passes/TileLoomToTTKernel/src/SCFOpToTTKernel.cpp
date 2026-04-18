@@ -44,6 +44,79 @@ using namespace tt::ttkernel;
 
 namespace {
 
+/// Normalize unsigned index arithmetic to signed forms.
+/// `ttmlir-opt --convert-ttkernel-to-emitc` does not legalize `arith.divui`
+/// / `arith.remui` / `arith.ceildivui` on `index`.
+class ConvertIndexDivUIOp : public OpConversionPattern<arith::DivUIOp> {
+public:
+  using OpConversionPattern<arith::DivUIOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(arith::DivUIOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (!op.getType().isIndex())
+      return failure();
+    rewriter.replaceOpWithNewOp<arith::DivSIOp>(op, adaptor.getLhs(),
+                                                adaptor.getRhs());
+    return success();
+  }
+};
+
+class ConvertIndexRemUIOp : public OpConversionPattern<arith::RemUIOp> {
+public:
+  using OpConversionPattern<arith::RemUIOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(arith::RemUIOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (!op.getType().isIndex())
+      return failure();
+    rewriter.replaceOpWithNewOp<arith::RemSIOp>(op, adaptor.getLhs(),
+                                                adaptor.getRhs());
+    return success();
+  }
+};
+
+class ConvertIndexCeilDivUIOp
+    : public OpConversionPattern<arith::CeilDivUIOp> {
+public:
+  using OpConversionPattern<arith::CeilDivUIOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(arith::CeilDivUIOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (!op.getType().isIndex())
+      return failure();
+    Value one = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 1);
+    Value rhsMinusOne =
+        rewriter.create<arith::SubIOp>(op.getLoc(), adaptor.getRhs(), one);
+    Value numerator =
+        rewriter.create<arith::AddIOp>(op.getLoc(), adaptor.getLhs(), rhsMinusOne);
+    rewriter.replaceOpWithNewOp<arith::DivSIOp>(op, numerator, adaptor.getRhs());
+    return success();
+  }
+};
+
+class ConvertIndexCeilDivSIOp
+    : public OpConversionPattern<arith::CeilDivSIOp> {
+public:
+  using OpConversionPattern<arith::CeilDivSIOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(arith::CeilDivSIOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (!op.getType().isIndex())
+      return failure();
+    Value one = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 1);
+    Value rhsMinusOne =
+        rewriter.create<arith::SubIOp>(op.getLoc(), adaptor.getRhs(), one);
+    Value numerator =
+        rewriter.create<arith::AddIOp>(op.getLoc(), adaptor.getLhs(), rhsMinusOne);
+    rewriter.replaceOpWithNewOp<arith::DivSIOp>(op, numerator, adaptor.getRhs());
+    return success();
+  }
+};
+
 static std::string stringifyAttr(Attribute attr) {
   std::string text;
   llvm::raw_string_ostream os(text);
@@ -235,8 +308,13 @@ public:
             continue;
           }
           Value span = rewriter.create<arith::SubIOp>(loc, ubI32, lbI32);
-          Value extent =
-              rewriter.create<arith::CeilDivSIOp>(loc, span, stepI32);
+          // Emit ceildiv as (span + step - 1) / step to avoid downstream
+          // legalization gaps for arith.ceildivsi.
+          Value stepMinusOne =
+              rewriter.create<arith::SubIOp>(loc, stepI32, oneI32);
+          Value ceilNumer =
+              rewriter.create<arith::AddIOp>(loc, span, stepMinusOne);
+          Value extent = rewriter.create<arith::DivSIOp>(loc, ceilNumer, stepI32);
           Value quotient = rewriter.create<arith::DivSIOp>(loc, axisCoord, stride);
           Value digit = rewriter.create<arith::RemSIOp>(loc, quotient, extent);
           Value scaledDigit = rewriter.create<arith::MulIOp>(loc, digit, stepI32);
@@ -298,6 +376,9 @@ private:
 void loom::populateSCFOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker) {
+  patterns.add<ConvertIndexDivUIOp, ConvertIndexRemUIOp,
+               ConvertIndexCeilDivUIOp, ConvertIndexCeilDivSIOp>(typeConverter,
+                                                                  context);
   patterns.add<ConvertSCFParallelOp>(typeConverter, context,
                                      std::move(tracker));
 }

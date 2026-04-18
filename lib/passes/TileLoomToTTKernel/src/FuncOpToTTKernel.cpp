@@ -70,6 +70,8 @@ constexpr llvm::StringLiteral kScalarSiteIdAttrName =
     "loom.ttkernel.scalar_site_id";
 constexpr llvm::StringLiteral kScalarSiteCountAttrName =
     "loom.ttkernel.scalar_site_count";
+constexpr llvm::StringLiteral kVecKindAttrName = "loom.ttkernel.vec_kind";
+constexpr llvm::StringLiteral kVecTilesAttrName = "loom.ttkernel.vec_tiles";
 constexpr llvm::StringLiteral kSemaphoreSlotAttrName =
     "loom.ttkernel.semaphore_slot";
 constexpr llvm::StringLiteral kReaderDataMovementRole = "reader";
@@ -389,6 +391,320 @@ static void annotateScalarRuntimeSites(func::FuncOp func) {
   }
 }
 
+enum class VecBroadcastKind { None, RowBcast, ColBcast };
+
+static std::optional<int64_t> ceilDiv32Int(int64_t value) {
+  if (value <= 0)
+    return std::nullopt;
+  return (value + 31) / 32;
+}
+
+static bool isIdentityMapForRank(AffineMap map, unsigned rank) {
+  if (!map || map.getNumDims() != rank || map.getNumSymbols() != 0 ||
+      map.getNumResults() != rank)
+    return false;
+  for (unsigned i = 0; i < rank; ++i) {
+    auto dimExpr = dyn_cast<AffineDimExpr>(map.getResult(i));
+    if (!dimExpr || dimExpr.getPosition() != i)
+      return false;
+  }
+  return true;
+}
+
+static std::optional<unsigned> getDroppedDimFromBroadcastMap(AffineMap map,
+                                                             unsigned rank) {
+  if (!map || map.getNumDims() != rank || map.getNumSymbols() != 0 ||
+      map.getNumResults() != rank - 1 || rank == 0)
+    return std::nullopt;
+
+  llvm::SmallBitVector seenDims(rank);
+  unsigned prevPos = 0;
+  bool hasPrev = false;
+  for (AffineExpr expr : map.getResults()) {
+    auto dimExpr = dyn_cast<AffineDimExpr>(expr);
+    if (!dimExpr)
+      return std::nullopt;
+    unsigned pos = dimExpr.getPosition();
+    if (pos >= rank || seenDims.test(pos))
+      return std::nullopt;
+    if (hasPrev && pos <= prevPos)
+      return std::nullopt;
+    seenDims.set(pos);
+    prevPos = pos;
+    hasPrev = true;
+  }
+
+  for (unsigned dim = 0; dim < rank; ++dim) {
+    if (!seenDims.test(dim))
+      return dim;
+  }
+  return std::nullopt;
+}
+
+static std::optional<SmallVector<int64_t, 4>>
+getElementwiseOutTileShape(linalg::GenericOp op) {
+  if (op.getNumDpsInits() != 1)
+    return std::nullopt;
+
+  auto outType = dyn_cast<ShapedType>(op.getDpsInits()[0].getType());
+  if (!outType || !outType.hasStaticShape())
+    return std::nullopt;
+
+  unsigned rank = op.getNumLoops();
+  if (outType.getRank() != rank)
+    return std::nullopt;
+
+  // Mirror compute lowering semantics: only innermost 2 dims are tiled.
+  unsigned tiledStartDim = rank > 2 ? rank - 2 : 0;
+
+  SmallVector<int64_t, 4> extents;
+  extents.reserve(rank);
+  for (unsigned dim = 0; dim < rank; ++dim) {
+    int64_t dimSize = outType.getShape()[dim];
+    if (dimSize <= 0)
+      return std::nullopt;
+
+    if (dim >= tiledStartDim) {
+      auto dimTiles = ceilDiv32Int(dimSize);
+      if (!dimTiles || *dimTiles <= 0)
+        return std::nullopt;
+      extents.push_back(*dimTiles);
+    } else {
+      extents.push_back(dimSize);
+    }
+  }
+
+  return extents;
+}
+
+static std::optional<int64_t> getOutTilesFromTileShape(ArrayRef<int64_t> shape) {
+  int64_t outTiles = 1;
+  for (int64_t extent : shape) {
+    if (extent <= 0)
+      return std::nullopt;
+    outTiles *= extent;
+  }
+  return outTiles;
+}
+
+static Value stripVecUseWrappers(Value value) {
+  Value current = value;
+  while (true) {
+    if (auto cast = current.getDefiningOp<memref::CastOp>()) {
+      current = cast.getSource();
+      continue;
+    }
+    if (auto sem = current.getDefiningOp<::loom::SemaphoreTakeOp>()) {
+      current = sem.getSource();
+      continue;
+    }
+    if (auto buf = current.getDefiningOp<::loom::BufferizeToTensorOp>()) {
+      current = buf.getSource();
+      continue;
+    }
+    if (auto viewLike = current.getDefiningOp<ViewLikeOpInterface>()) {
+      current = viewLike.getViewSource();
+      continue;
+    }
+    break;
+  }
+  return current;
+}
+
+static StringRef stringifyVecBroadcastKind(VecBroadcastKind kind) {
+  switch (kind) {
+  case VecBroadcastKind::None:
+    return "none";
+  case VecBroadcastKind::RowBcast:
+    return "row_bcast";
+  case VecBroadcastKind::ColBcast:
+    return "col_bcast";
+  }
+  llvm_unreachable("unknown VecBroadcastKind");
+}
+
+static FailureOr<std::pair<VecBroadcastKind, int64_t>>
+inferVecUseForGenericInput(linalg::GenericOp genericOp, unsigned inputIdx) {
+  for (utils::IteratorType iterType : genericOp.getIteratorTypesArray()) {
+    if (iterType == utils::IteratorType::reduction) {
+      genericOp.emitOpError(
+          "vector DRAM load annotation only supports elementwise "
+          "linalg.generic (no reduction iterators)")
+          << ", input #" << inputIdx;
+      return failure();
+    }
+  }
+
+  auto tileShape = getElementwiseOutTileShape(genericOp);
+  if (!tileShape) {
+    genericOp.emitOpError("failed to infer static output tile shape for "
+                          "vector DRAM load annotation");
+    return failure();
+  }
+  auto outTiles = getOutTilesFromTileShape(*tileShape);
+  if (!outTiles || *outTiles <= 0) {
+    genericOp.emitOpError(
+        "invalid output tile count while annotating vector DRAM load");
+    return failure();
+  }
+
+  auto maps = genericOp.getIndexingMapsArray();
+  size_t expectedMapCount = static_cast<size_t>(
+      genericOp.getNumDpsInputs() + genericOp.getNumDpsInits());
+  if (maps.size() != expectedMapCount) {
+    genericOp.emitOpError("unexpected indexing map arity");
+    return failure();
+  }
+  if (inputIdx >= genericOp.getNumDpsInputs()) {
+    genericOp.emitOpError("invalid generic input index for annotation");
+    return failure();
+  }
+
+  unsigned rank = genericOp.getNumLoops();
+  AffineMap inputMap = maps[inputIdx];
+  if (isIdentityMapForRank(inputMap, rank))
+    return std::make_pair(VecBroadcastKind::None, *outTiles);
+
+  auto droppedDim = getDroppedDimFromBroadcastMap(inputMap, rank);
+  if (!droppedDim) {
+    genericOp.emitOpError("unsupported broadcast indexing map for "
+                          "vector DRAM load annotation")
+        << ", input #" << inputIdx;
+    return failure();
+  }
+
+  if (*droppedDim != rank - 1 && (rank < 2 || *droppedDim != rank - 2)) {
+    genericOp.emitOpError("vector DRAM load supports only row/col "
+                          "broadcast generic inputs")
+        << ", dropped dim=" << *droppedDim << ", rank=" << rank;
+    return failure();
+  }
+
+  int64_t droppedDimTiles = (*tileShape)[*droppedDim];
+  if (droppedDimTiles <= 0 || (*outTiles % droppedDimTiles) != 0) {
+    genericOp.emitOpError("failed to derive input tile count for vector "
+                          "DRAM load broadcast");
+    return failure();
+  }
+
+  int64_t requiredTiles = *outTiles / droppedDimTiles;
+  if (requiredTiles <= 0) {
+    genericOp.emitOpError(
+        "derived non-positive input tile count for vector DRAM load");
+    return failure();
+  }
+
+  VecBroadcastKind kind =
+      (*droppedDim == rank - 1) ? VecBroadcastKind::RowBcast
+                                : VecBroadcastKind::ColBcast;
+  return std::make_pair(kind, requiredTiles);
+}
+
+static FailureOr<bool> annotateVecLoadUsageInFunc(func::FuncOp func) {
+  OpBuilder builder(func.getContext());
+  bool changed = false;
+
+  SmallVector<::loom::CopyOp, 8> vectorLoadCopies;
+  func.walk([&](::loom::CopyOp copyOp) {
+    auto sourceRC = copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>();
+    if (!sourceRC)
+      return;
+
+    auto dstType = dyn_cast<MemRefType>(copyOp.getDestination().getType());
+    if (!dstType || !dstType.hasStaticShape() || dstType.getRank() != 1)
+      return;
+
+    vectorLoadCopies.push_back(copyOp);
+  });
+
+  for (::loom::CopyOp copyOp : vectorLoadCopies) {
+    Value destinationRoot = stripVecUseWrappers(copyOp.getDestination());
+
+    std::optional<VecBroadcastKind> resolvedKind;
+    std::optional<int64_t> resolvedTiles;
+    LogicalResult status = success();
+
+    func.walk([&](linalg::GenericOp genericOp) {
+      if (failed(status))
+        return;
+
+      for (auto [inputIdx, inputValue] : llvm::enumerate(genericOp.getDpsInputs())) {
+        if (stripVecUseWrappers(inputValue) != destinationRoot)
+          continue;
+
+        auto inferred = inferVecUseForGenericInput(genericOp, inputIdx);
+        if (failed(inferred)) {
+          status = failure();
+          return;
+        }
+
+        VecBroadcastKind kind = inferred->first;
+        int64_t tiles = inferred->second;
+        if (!resolvedKind) {
+          resolvedKind = kind;
+          resolvedTiles = tiles;
+          continue;
+        }
+
+        if (*resolvedTiles != tiles) {
+          copyOp.emitOpError(
+              "conflicting vector DRAM load broadcast usage across "
+              "linalg.generic consumers")
+              << " (existing kind=" << stringifyVecBroadcastKind(*resolvedKind)
+              << ", tiles=" << *resolvedTiles
+              << "; new kind=" << stringifyVecBroadcastKind(kind)
+              << ", tiles=" << tiles << ")";
+          status = failure();
+          return;
+        }
+
+        if (*resolvedKind == kind)
+          continue;
+
+        // Treat `none` as neutral: prefer a concrete row/col kind when present.
+        if (*resolvedKind == VecBroadcastKind::None) {
+          resolvedKind = kind;
+          continue;
+        }
+        if (kind == VecBroadcastKind::None)
+          continue;
+
+        copyOp.emitOpError(
+            "conflicting vector DRAM load broadcast usage across "
+            "linalg.generic consumers")
+            << " (existing kind=" << stringifyVecBroadcastKind(*resolvedKind)
+            << ", tiles=" << *resolvedTiles
+            << "; new kind=" << stringifyVecBroadcastKind(kind)
+            << ", tiles=" << tiles << ")";
+        status = failure();
+        return;
+      }
+    });
+
+    if (failed(status))
+      return failure();
+
+    if (!resolvedKind || !resolvedTiles)
+      continue;
+
+    copyOp->setAttr(kVecKindAttrName,
+                    builder.getStringAttr(stringifyVecBroadcastKind(*resolvedKind)));
+    copyOp->setAttr(kVecTilesAttrName, builder.getI64IntegerAttr(*resolvedTiles));
+
+    Value destination = stripMemrefCasts(copyOp.getDestination());
+    if (auto sem = destination.getDefiningOp<::loom::SemaphoreTakeOp>()) {
+      sem->setAttr(
+          kVecKindAttrName,
+          builder.getStringAttr(stringifyVecBroadcastKind(*resolvedKind)));
+      sem->setAttr(kVecTilesAttrName, builder.getI64IntegerAttr(*resolvedTiles));
+    }
+
+    changed = true;
+  }
+
+  return changed;
+}
+
 static bool isScalarMemRefType(Type type) {
   auto memrefType = dyn_cast<MemRefType>(type);
   if (!memrefType || !memrefType.hasStaticShape())
@@ -408,12 +724,6 @@ static bool preprocessScalarMemoryOpsTmp(func::FuncOp func) {
     if (!semType || !allocOp || !isScalarMemRefType(semType) ||
         !isScalarMemRefType(allocOp.getType()))
       return;
-
-    for (Operation *user : sem.getResult().getUsers()) {
-      // Keep scalar buffers tied to loom.copy on the memory path for now.
-      if (isa<::loom::CopyOp>(user))
-        return;
-    }
     scalarSemaphores.push_back(sem);
   });
 
@@ -2729,6 +3039,25 @@ LogicalResult mlir::loom::prepareMatmulBReaderMerge(ModuleOp module) {
       return failure();
   }
 
+  return success();
+}
+
+LogicalResult mlir::loom::annotateVecLoadUsage(ModuleOp module) {
+  for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+    StringRef name = func.getName();
+    if (name.ends_with("__compute") || name.ends_with("__reader") ||
+        name.ends_with("__writer") || name.ends_with("__host") ||
+        name.ends_with("__host_cpp") || name.ends_with("__host_pybind")) {
+      continue;
+    }
+
+    if (func.isExternal())
+      continue;
+
+    auto annotated = annotateVecLoadUsageInFunc(func);
+    if (failed(annotated))
+      return failure();
+  }
   return success();
 }
 
