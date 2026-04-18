@@ -23,6 +23,7 @@ add_library(loomTritonSharedPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/memory_binding_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/view_to_reinterpret_cast.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/lower_affine_with_attr.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/gather_sync_insertion_pass.cpp
 )
 
 target_include_directories(loomTritonSharedPasses PUBLIC
