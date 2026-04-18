@@ -250,6 +250,39 @@ struct GatherOpInterface
   }
 };
 
+/// SyncOp implements DestinationStyleOpInterface and bufferizes to a memref
+/// form (no results) while preserving DPS in-place semantics.
+struct SyncOpInterface
+    : public bufferization::DstBufferizableOpInterfaceExternalModel<
+          SyncOpInterface, loom::SyncOp> {
+
+  LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
+                          const BufferizationOptions &options,
+                          BufferizationState &state) const {
+    auto syncOp = cast<loom::SyncOp>(op);
+
+    auto resolveBuffer = [&](Value v) -> FailureOr<Value> {
+      if (isa<BaseMemRefType>(v.getType()))
+        return v;
+      return getBuffer(rewriter, v, options, state);
+    };
+
+    FailureOr<Value> insBuffer = resolveBuffer(syncOp.getIns());
+    if (failed(insBuffer))
+      return failure();
+
+    FailureOr<Value> initBuffer = resolveBuffer(syncOp.getInit());
+    if (failed(initBuffer))
+      return failure();
+
+    loom::SyncOp::create(rewriter, op->getLoc(), /*resultTypes=*/TypeRange{},
+                         *insBuffer, *initBuffer);
+
+    replaceOpWithBufferizedValues(rewriter, op, *initBuffer);
+    return success();
+  }
+};
+
 } // namespace
 
 void loom::registerBufferizableOpInterfaceExternalModels(MLIRContext *ctx) {
@@ -261,4 +294,5 @@ void loom::registerBufferizableOpInterfaceExternalModels(MLIRContext *ctx) {
   loom::BufferizeToMemrefOp::attachInterface<BufferizeToMemrefOpInterface>(
       *ctx);
   loom::GatherOp::attachInterface<GatherOpInterface>(*ctx);
+  loom::SyncOp::attachInterface<SyncOpInterface>(*ctx);
 }

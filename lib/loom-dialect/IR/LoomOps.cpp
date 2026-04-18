@@ -227,6 +227,13 @@ void loom::GatherOp::getEffects(
   effects.emplace_back(MemoryEffects::Write::get());
 }
 
+void loom::SyncOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(MemoryEffects::Read::get());
+  effects.emplace_back(MemoryEffects::Write::get());
+}
+
 void loom::CopyToTensorOp::getEffects(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects) {
