@@ -120,4 +120,15 @@ def LowerAffineWithAttr : Pass<"loom-lower-affine-with-attr", "mlir::ModuleOp"> 
   let constructor = "loom::passes::createLowerAffineWithAttrPass()";
 }
 
+def GatherSyncInsertionPass : Pass<"loom-gather-sync-insertion", "mlir::ModuleOp"> {
+  let summary = "Insert loom.sync and semaphore lifecycle around loom.gather ins";
+  let description = [{
+    For each tensor-mode loom.gather, trace its ins operand to root loom.alloc,
+    insert semaphore_take + init_tensor + loom.sync before gather, rewrite
+    gather ins to sync result, and insert semaphore_give immediately after
+    gather.
+  }];
+  let constructor = "loom::passes::createGatherSyncInsertionPass()";
+}
+
 #endif // LOOM_TRITON_SHARED_PASSES
