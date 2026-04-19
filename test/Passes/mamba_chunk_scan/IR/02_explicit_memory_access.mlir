@@ -35,9 +35,9 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %21 = loom.init_tensor %20[%0] : memref<?xf16> -> tensor<?xf16>
       %22 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%18 : tensor<?xf16>) outs(%21 : tensor<?xf16>) {
       ^bb0(%in: f16, %out: f16):
-        %70 = arith.mulf %in, %cst_1 : f16
-        %71 = math.powf %cst, %70 : f16
-        linalg.yield %71 : f16
+        %73 = arith.mulf %in, %cst_1 : f16
+        %74 = math.powf %cst, %73 : f16
+        linalg.yield %74 : f16
       } -> tensor<?xf16>
       %23 = arith.muli %13, %c256 : index
       %24 = arith.divui %12, %c64 : index
@@ -68,8 +68,8 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       loom.semaphore_give %26 : memref<?x64xf16>
       %44 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%43, %22 : tensor<?x?xf16>, tensor<?xf16>) outs(%41 : tensor<?x?xf16>) {
       ^bb0(%in: f16, %in_2: f16, %out: f16):
-        %70 = arith.mulf %in, %in_2 : f16
-        linalg.yield %70 : f16
+        %73 = arith.mulf %in, %in_2 : f16
+        linalg.yield %73 : f16
       } -> tensor<?x?xf16>
       loom.semaphore_give %38 : memref<?x?xf16>
       loom.semaphore_give %20 : memref<?xf16>
@@ -86,35 +86,35 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %55 = loom.alloc [%2, %1] on @L1 : memref<?x?xf16>
       %56 = loom.semaphore_take %55 : memref<?x?xf16> -> memref<?x?xf16>
       %57 = scf.for %arg13 = %c0 to %47 step %c1 iter_args(%arg14 = %44) -> (tensor<?x?xf16>) {
-        %70 = arith.muli %arg13, %2 : index
-        %71 = loom.subview %arg0[%11, %13, %24, %14, %70] [1, 1, 1, %0, %2] [1, 1, 1, 1, 1], reuse : [seq = false, spat = false, temp = false] : memref<2x8x1x256x256xf16> to memref<?x?xf16, strided<[256, 1], offset: ?>>
-        loom.copy %71, %49 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] : memref<?x?xf16, strided<[256, 1], offset: ?>> to memref<?x?xf16>
-        %72 = loom.bufferize_to_tensor %49[%0, %2] : memref<?x?xf16> -> tensor<?x?xf16>
-        %73 = loom.subview %arg1[%11, %12, %13, %70] [1, 1, 1, %2] [1, 1, 1, 1], reuse : [seq = false, spat = false, temp = false] : memref<2x64x8x256xf16> to memref<?xf16, strided<[1], offset: ?>>
-        loom.copy %73, %52 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] : memref<?xf16, strided<[1], offset: ?>> to memref<?xf16>
-        %74 = loom.bufferize_to_tensor %52[%2] : memref<?xf16> -> tensor<?xf16>
-        %75 = loom.subview %arg2[%11, %12, %13, %70] [1, 1, 1, %2] [1, 1, 1, 1], reuse : [seq = false, spat = false, temp = false] : memref<2x64x8x256xf16> to memref<?xf16, strided<[1], offset: ?>>
-        loom.copy %75, %54 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] : memref<?xf16, strided<[1], offset: ?>> to memref<?xf16>
-        %76 = loom.bufferize_to_tensor %54[%2] : memref<?xf16> -> tensor<?xf16>
-        %77 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0)>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%72, %18, %74, %76 : tensor<?x?xf16>, tensor<?xf16>, tensor<?xf16>, tensor<?xf16>) outs(%50 : tensor<?x?xf16>) {
+        %73 = arith.muli %arg13, %2 : index
+        %74 = loom.subview %arg0[%11, %13, %24, %14, %73] [1, 1, 1, %0, %2] [1, 1, 1, 1, 1], reuse : [seq = false, spat = false, temp = false] : memref<2x8x1x256x256xf16> to memref<?x?xf16, strided<[256, 1], offset: ?>>
+        loom.copy %74, %49 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] : memref<?x?xf16, strided<[256, 1], offset: ?>> to memref<?x?xf16>
+        %75 = loom.bufferize_to_tensor %49[%0, %2] : memref<?x?xf16> -> tensor<?x?xf16>
+        %76 = loom.subview %arg1[%11, %12, %13, %73] [1, 1, 1, %2] [1, 1, 1, 1], reuse : [seq = false, spat = false, temp = false] : memref<2x64x8x256xf16> to memref<?xf16, strided<[1], offset: ?>>
+        loom.copy %76, %52 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] : memref<?xf16, strided<[1], offset: ?>> to memref<?xf16>
+        %77 = loom.bufferize_to_tensor %52[%2] : memref<?xf16> -> tensor<?xf16>
+        %78 = loom.subview %arg2[%11, %12, %13, %73] [1, 1, 1, %2] [1, 1, 1, 1], reuse : [seq = false, spat = false, temp = false] : memref<2x64x8x256xf16> to memref<?xf16, strided<[1], offset: ?>>
+        loom.copy %78, %54 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] : memref<?xf16, strided<[1], offset: ?>> to memref<?xf16>
+        %79 = loom.bufferize_to_tensor %54[%2] : memref<?xf16> -> tensor<?xf16>
+        %80 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0)>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%75, %18, %77, %79 : tensor<?x?xf16>, tensor<?xf16>, tensor<?xf16>, tensor<?xf16>) outs(%50 : tensor<?x?xf16>) {
         ^bb0(%in: f16, %in_2: f16, %in_3: f16, %in_4: f16, %out: f16):
-          %81 = arith.mulf %in_3, %cst_1 : f16
-          %82 = arith.mulf %in_2, %cst_1 : f16
-          %83 = arith.subf %82, %81 : f16
-          %84 = math.powf %cst, %83 : f16
-          %85 = arith.mulf %in, %84 : f16
-          %86 = arith.mulf %85, %in_4 : f16
-          linalg.yield %86 : f16
+          %84 = arith.mulf %in_3, %cst_1 : f16
+          %85 = arith.mulf %in_2, %cst_1 : f16
+          %86 = arith.subf %85, %84 : f16
+          %87 = math.powf %cst, %86 : f16
+          %88 = arith.mulf %in, %87 : f16
+          %89 = arith.mulf %88, %in_4 : f16
+          linalg.yield %89 : f16
         } -> tensor<?x?xf16>
         loom.semaphore_give %54 : memref<?xf16>
         loom.semaphore_give %52 : memref<?xf16>
-        %78 = loom.subview %arg3[%11, %23, %12, %29] [1, %2, 1, %1] [1, 1, 1, 1], reuse : [seq = false, spat = false, temp = false] : memref<2x2048x64x64xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
-        loom.copy %78, %56 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] : memref<?x?xf16, strided<[4096, 1], offset: ?>> to memref<?x?xf16>
-        %79 = loom.bufferize_to_tensor %56[%2, %1] : memref<?x?xf16> -> tensor<?x?xf16>
-        %80 = linalg.matmul ins(%77, %79 : tensor<?x?xf16>, tensor<?x?xf16>) outs(%arg14 : tensor<?x?xf16>) -> tensor<?x?xf16>
+        %81 = loom.subview %arg3[%11, %23, %12, %29] [1, %2, 1, %1] [1, 1, 1, 1], reuse : [seq = false, spat = false, temp = false] : memref<2x2048x64x64xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
+        loom.copy %81, %56 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] : memref<?x?xf16, strided<[4096, 1], offset: ?>> to memref<?x?xf16>
+        %82 = loom.bufferize_to_tensor %56[%2, %1] : memref<?x?xf16> -> tensor<?x?xf16>
+        %83 = linalg.matmul ins(%80, %82 : tensor<?x?xf16>, tensor<?x?xf16>) outs(%arg14 : tensor<?x?xf16>) -> tensor<?x?xf16>
         loom.semaphore_give %56 : memref<?x?xf16>
         loom.semaphore_give %49 : memref<?x?xf16>
-        scf.yield %80 : tensor<?x?xf16>
+        scf.yield %83 : tensor<?x?xf16>
       }
       loom.semaphore_give %16 : memref<?xf16>
       %58 = loom.alloc [1] on @L1 : memref<f16>
@@ -130,15 +130,19 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %66 = loom.bufferize_to_tensor %63[%0, %1] : memref<?x?xf16> -> tensor<?x?xf16>
       %67 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%57, %66, %61 : tensor<?x?xf16>, tensor<?x?xf16>, tensor<f16>) outs(%64 : tensor<?x?xf16>) {
       ^bb0(%in: f16, %in_2: f16, %in_3: f16, %out: f16):
-        %70 = arith.mulf %in_2, %in_3 : f16
-        %71 = arith.addf %in, %70 : f16
-        linalg.yield %71 : f16
+        %73 = arith.mulf %in_2, %in_3 : f16
+        %74 = arith.addf %in, %73 : f16
+        linalg.yield %74 : f16
       } -> tensor<?x?xf16>
       loom.semaphore_give %59 : memref<f16>
       loom.semaphore_give %40 : memref<?x?xf16>
       %68 = loom.subview %arg7[%11, %23, %12, %29] [1, %0, 1, %1] [1, 1, 1, 1], reuse : [seq = false, spat = false, temp = false] : memref<2x2048x64x64xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
-      %69 = loom.bufferize_to_memref %67 : tensor<?x?xf16> -> memref<?x?xf16>
-      loom.copy %69, %68 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
+      %69 = loom.semaphore_take %62 : memref<?x?xf16> -> memref<?x?xf16>
+      %70 = loom.init_tensor %69[%0, %1] : memref<?x?xf16> -> tensor<?x?xf16>
+      %71 = loom.sync ins(%67 : tensor<?x?xf16>) outs(%70 : tensor<?x?xf16>) -> tensor<?x?xf16>
+      %72 = loom.bufferize_to_memref %71 : tensor<?x?xf16> -> memref<?x?xf16>
+      loom.copy %72, %68 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] : memref<?x?xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
+      loom.semaphore_give %69 : memref<?x?xf16>
       loom.semaphore_give %63 : memref<?x?xf16>
     }
     return
