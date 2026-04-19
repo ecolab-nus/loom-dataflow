@@ -33,7 +33,10 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/Support/raw_ostream.h"
+#include <cstdint>
 #include <algorithm>
+#include <functional>
+#include <optional>
 
 #include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOps.h"
@@ -259,7 +262,25 @@ public:
     // Materialize exactly two physical compile args (x, y) when we can map
     // logical IVs through physical dims metadata.
     if (!xComponents.empty() || !yComponents.empty()) {
+      std::function<std::optional<int64_t>(Value)> getConstI64 =
+          [&](Value value) -> std::optional<int64_t> {
+        if (!value)
+          return std::nullopt;
+        if (auto cst = value.getDefiningOp<arith::ConstantIntOp>())
+          return cst.value();
+        if (auto cst = value.getDefiningOp<arith::ConstantIndexOp>())
+          return cst.value();
+        if (auto cst = value.getDefiningOp<arith::ConstantOp>()) {
+          if (auto intAttr = dyn_cast<IntegerAttr>(cst.getValue()))
+            return intAttr.getInt();
+        }
+        if (auto cast = value.getDefiningOp<arith::IndexCastOp>())
+          return getConstI64(cast.getIn());
+        return std::nullopt;
+      };
+
       Value oneI32 = rewriter.create<arith::ConstantIntOp>(loc, 1, 32);
+      Value zeroI32 = rewriter.create<arith::ConstantIntOp>(loc, 0, 32);
       Value xCompileArgI32 = tracker->createTypedCompileArg(
           loc, rewriter, parentFunc, rewriter.getI32Type());
       Value yCompileArgI32 = tracker->createTypedCompileArg(
@@ -307,22 +328,51 @@ public:
             newIvValues[idx] = {};
             continue;
           }
-          Value span = rewriter.create<arith::SubIOp>(loc, ubI32, lbI32);
-          // Emit ceildiv as (span + step - 1) / step to avoid downstream
-          // legalization gaps for arith.ceildivsi.
-          Value stepMinusOne =
-              rewriter.create<arith::SubIOp>(loc, stepI32, oneI32);
-          Value ceilNumer =
-              rewriter.create<arith::AddIOp>(loc, span, stepMinusOne);
-          Value extent = rewriter.create<arith::DivSIOp>(loc, ceilNumer, stepI32);
-          Value quotient = rewriter.create<arith::DivSIOp>(loc, axisCoord, stride);
-          Value digit = rewriter.create<arith::RemSIOp>(loc, quotient, extent);
-          Value scaledDigit = rewriter.create<arith::MulIOp>(loc, digit, stepI32);
-          Value ivValI32 = rewriter.create<arith::AddIOp>(loc, lbI32, scaledDigit);
+          auto lbConst = getConstI64(lbI32);
+          auto ubConst = getConstI64(ubI32);
+          auto stepConst = getConstI64(stepI32);
+
+          Value extent;
+          std::optional<int64_t> extentConst;
+          if (lbConst && ubConst && stepConst && *stepConst > 0) {
+            int64_t spanConst = *ubConst - *lbConst;
+            int64_t extentVal = (spanConst + *stepConst - 1) / *stepConst;
+            extentConst = extentVal;
+            extent =
+                rewriter.create<arith::ConstantIntOp>(loc, extentVal, 32);
+          } else {
+            Value span = rewriter.createOrFold<arith::SubIOp>(loc, ubI32, lbI32);
+            // Emit ceildiv as (span + step - 1) / step to avoid downstream
+            // legalization gaps for arith.ceildivsi.
+            Value stepMinusOne =
+                rewriter.createOrFold<arith::SubIOp>(loc, stepI32, oneI32);
+            Value ceilNumer =
+                rewriter.createOrFold<arith::AddIOp>(loc, span, stepMinusOne);
+            extent =
+                rewriter.createOrFold<arith::DivSIOp>(loc, ceilNumer, stepI32);
+            extentConst = getConstI64(extent);
+          }
+
+          Value quotient =
+              rewriter.createOrFold<arith::DivSIOp>(loc, axisCoord, stride);
+          Value digit = (extentConst && *extentConst == 1)
+                            ? zeroI32
+                            : rewriter.createOrFold<arith::RemSIOp>(
+                                  loc, quotient, extent);
+          Value scaledDigit = (stepConst && *stepConst == 1)
+                                  ? digit
+                                  : rewriter.createOrFold<arith::MulIOp>(
+                                        loc, digit, stepI32);
+          Value ivValI32 = (lbConst && *lbConst == 0)
+                               ? scaledDigit
+                               : rewriter.createOrFold<arith::AddIOp>(
+                                     loc, lbI32, scaledDigit);
           Value ivValIndex = rewriter.create<arith::IndexCastOp>(
               loc, rewriter.getIndexType(), ivValI32);
           newIvValues[idx] = ivValIndex;
-          stride = rewriter.create<arith::MulIOp>(loc, stride, extent);
+          if (extentConst && *extentConst == 1)
+            continue;
+          stride = rewriter.createOrFold<arith::MulIOp>(loc, stride, extent);
         }
       };
 

@@ -1744,6 +1744,63 @@ private:
 
   using IndexExprMap = llvm::DenseMap<Value, std::string>;
 
+  static std::optional<int64_t> evaluateConstInt(Value value) {
+    if (!value)
+      return std::nullopt;
+
+    if (auto cst = value.getDefiningOp<arith::ConstantIndexOp>())
+      return cst.value();
+
+    if (auto cst = value.getDefiningOp<arith::ConstantIntOp>())
+      return cst.value();
+
+    if (auto cst = value.getDefiningOp<arith::ConstantOp>()) {
+      if (auto intAttr = dyn_cast<IntegerAttr>(cst.getValue()))
+        return intAttr.getInt();
+    }
+
+    if (auto cast = value.getDefiningOp<arith::IndexCastOp>())
+      return evaluateConstInt(cast.getIn());
+
+    auto evalBinary = [&](Value lhs, Value rhs, auto fn) -> std::optional<int64_t> {
+      auto lhsConst = evaluateConstInt(lhs);
+      auto rhsConst = evaluateConstInt(rhs);
+      if (!lhsConst || !rhsConst)
+        return std::nullopt;
+      return fn(*lhsConst, *rhsConst);
+    };
+
+    if (auto op = value.getDefiningOp<arith::AddIOp>())
+      return evalBinary(op.getLhs(), op.getRhs(),
+                        [](int64_t lhs, int64_t rhs) { return lhs + rhs; });
+    if (auto op = value.getDefiningOp<arith::SubIOp>())
+      return evalBinary(op.getLhs(), op.getRhs(),
+                        [](int64_t lhs, int64_t rhs) { return lhs - rhs; });
+    if (auto op = value.getDefiningOp<arith::MulIOp>())
+      return evalBinary(op.getLhs(), op.getRhs(),
+                        [](int64_t lhs, int64_t rhs) { return lhs * rhs; });
+    if (auto op = value.getDefiningOp<arith::DivSIOp>()) {
+      auto lhsConst = evaluateConstInt(op.getLhs());
+      auto rhsConst = evaluateConstInt(op.getRhs());
+      if (!lhsConst || !rhsConst || *rhsConst == 0)
+        return std::nullopt;
+      return *lhsConst / *rhsConst;
+    }
+    if (auto op = value.getDefiningOp<arith::RemSIOp>()) {
+      auto lhsConst = evaluateConstInt(op.getLhs());
+      auto rhsConst = evaluateConstInt(op.getRhs());
+      if (!lhsConst || !rhsConst || *rhsConst == 0)
+        return std::nullopt;
+      return *lhsConst % *rhsConst;
+    }
+
+    return std::nullopt;
+  }
+
+  static std::string makeBinaryExpr(StringRef lhs, StringRef rhs, StringRef op) {
+    return "((" + lhs.str() + ") " + op.str() + " (" + rhs.str() + "))";
+  }
+
   std::optional<std::string> buildIndexExpr(Value value,
                                             const IndexExprMap &knownExprs) const {
     if (!value)
@@ -1755,16 +1812,8 @@ private:
     if (isa<BlockArgument>(value))
       return std::nullopt;
 
-    if (auto cst = value.getDefiningOp<arith::ConstantIndexOp>())
-      return std::to_string(cst.value());
-
-    if (auto cst = value.getDefiningOp<arith::ConstantIntOp>())
-      return std::to_string(cst.value());
-
-    if (auto cst = value.getDefiningOp<arith::ConstantOp>()) {
-      if (auto intAttr = dyn_cast<IntegerAttr>(cst.getValue()))
-        return std::to_string(intAttr.getValue().getSExtValue());
-    }
+    if (auto constValue = evaluateConstInt(value))
+      return std::to_string(*constValue);
 
     if (auto cast = value.getDefiningOp<arith::IndexCastOp>())
       return buildIndexExpr(cast.getIn(), knownExprs);
@@ -1775,7 +1824,50 @@ private:
       auto rhsExpr = buildIndexExpr(rhs, knownExprs);
       if (!lhsExpr || !rhsExpr)
         return std::nullopt;
-      return "((" + *lhsExpr + ") " + opSymbol.str() + " (" + *rhsExpr + "))";
+
+      auto lhsConst = evaluateConstInt(lhs);
+      auto rhsConst = evaluateConstInt(rhs);
+      if (lhsConst && rhsConst) {
+        if (opSymbol == "+")
+          return std::to_string(*lhsConst + *rhsConst);
+        if (opSymbol == "-")
+          return std::to_string(*lhsConst - *rhsConst);
+        if (opSymbol == "*")
+          return std::to_string(*lhsConst * *rhsConst);
+        if (opSymbol == "/" && *rhsConst != 0)
+          return std::to_string(*lhsConst / *rhsConst);
+        if (opSymbol == "%" && *rhsConst != 0)
+          return std::to_string(*lhsConst % *rhsConst);
+      }
+
+      if (opSymbol == "+") {
+        if (rhsConst && *rhsConst == 0)
+          return lhsExpr;
+        if (lhsConst && *lhsConst == 0)
+          return rhsExpr;
+      } else if (opSymbol == "-") {
+        if (rhsConst && *rhsConst == 0)
+          return lhsExpr;
+      } else if (opSymbol == "*") {
+        if ((lhsConst && *lhsConst == 0) || (rhsConst && *rhsConst == 0))
+          return std::string("0");
+        if (rhsConst && *rhsConst == 1)
+          return lhsExpr;
+        if (lhsConst && *lhsConst == 1)
+          return rhsExpr;
+      } else if (opSymbol == "/") {
+        if (lhsConst && *lhsConst == 0)
+          return std::string("0");
+        if (rhsConst && *rhsConst == 1)
+          return lhsExpr;
+      } else if (opSymbol == "%") {
+        if (lhsConst && *lhsConst == 0)
+          return std::string("0");
+        if (rhsConst && *rhsConst == 1)
+          return std::string("0");
+      }
+
+      return makeBinaryExpr(*lhsExpr, *rhsExpr, opSymbol);
     };
 
     if (auto op = value.getDefiningOp<arith::AddIOp>())
@@ -1864,6 +1956,7 @@ private:
       auto buildAxisIvExprs = [&](ArrayRef<AxisComponent> components,
                                   StringRef axisExpr) {
         std::string strideExpr = "1";
+        std::optional<int64_t> strideConst = int64_t{1};
         for (const AxisComponent &component : components) {
           size_t idx = component.idx;
           auto lbExpr = buildIndexExpr(lbs[idx], parallelIvExprByValue);
@@ -1872,15 +1965,55 @@ private:
           if (!lbExpr || !ubExpr || !stepExpr)
             continue;
 
-          std::string extentExpr = "((((" + *ubExpr + ") - (" + *lbExpr +
-                                   ")) + (" + *stepExpr + ") - 1) / (" +
-                                   *stepExpr + "))";
-          std::string ivExpr = "((" + *lbExpr + ") + (((((" + axisExpr.str() +
-                               ") / (" + strideExpr + ")) % (" + extentExpr +
-                               ")) * (" + *stepExpr + "))))";
+          auto lbConst = evaluateConstInt(lbs[idx]);
+          auto ubConst = evaluateConstInt(ubs[idx]);
+          auto stepConst = evaluateConstInt(steps[idx]);
+
+          std::optional<int64_t> extentConst;
+          std::string extentExpr;
+          if (lbConst && ubConst && stepConst && *stepConst > 0) {
+            int64_t spanConst = *ubConst - *lbConst;
+            extentConst = (spanConst + *stepConst - 1) / *stepConst;
+            extentExpr = std::to_string(*extentConst);
+          } else {
+            extentExpr = makeBinaryExpr(
+                makeBinaryExpr(makeBinaryExpr(*ubExpr, *lbExpr, "-"),
+                               makeBinaryExpr(*stepExpr, "1", "-"), "+"),
+                *stepExpr, "/");
+          }
+
+          std::string quotientExpr = (strideConst && *strideConst == 1)
+                                         ? axisExpr.str()
+                                         : makeBinaryExpr(axisExpr, strideExpr, "/");
+
+          std::string digitExpr = (extentConst && *extentConst == 1)
+                                      ? "0"
+                                      : makeBinaryExpr(quotientExpr, extentExpr, "%");
+          std::string scaledExpr;
+          if (stepConst && *stepConst == 1) {
+            scaledExpr = digitExpr;
+          } else if (stepConst && *stepConst == 0) {
+            scaledExpr = "0";
+          } else {
+            scaledExpr = makeBinaryExpr(digitExpr, *stepExpr, "*");
+          }
+
+          std::string ivExpr;
+          if (lbConst && *lbConst == 0)
+            ivExpr = scaledExpr;
+          else if (scaledExpr == "0")
+            ivExpr = *lbExpr;
+          else
+            ivExpr = makeBinaryExpr(*lbExpr, scaledExpr, "+");
 
           parallelIvExprByValue[op.getInductionVars()[idx]] = ivExpr;
-          strideExpr = "((" + strideExpr + ") * (" + extentExpr + "))";
+          if (strideConst && extentConst) {
+            *strideConst *= *extentConst;
+            strideExpr = std::to_string(*strideConst);
+          } else {
+            strideConst = std::nullopt;
+            strideExpr = makeBinaryExpr(strideExpr, extentExpr, "*");
+          }
         }
       };
 
