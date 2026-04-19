@@ -33,7 +33,7 @@ std::unique_ptr<mlir::Pass> createFoldRedundantExtractSlicePass();
 std::unique_ptr<mlir::Pass> createSinkFillOpsPass();
 std::unique_ptr<mlir::Pass> createLinalgGuardedElementwiseOpFusionPass();
 std::unique_ptr<mlir::Pass> createLowerAffineWithAttrPass();
-std::unique_ptr<mlir::Pass> createGatherSyncInsertionPass();
+std::unique_ptr<mlir::Pass> createWriteOutSyncInsertionPass();
 
 // Pass registration functions
 void registerTritonSharedExploreSpatialMappingsPass();
