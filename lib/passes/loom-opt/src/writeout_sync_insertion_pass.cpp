@@ -1,10 +1,16 @@
 #include "Passes.h"
 
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/Dominance.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Pass/Pass.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include <optional>
 
@@ -46,6 +52,34 @@ static std::optional<WriteOutChain> buildGatherChain(loom::GatherOp gatherOp) {
   return chain;
 }
 
+static std::optional<WriteOutChain>
+buildGatherFirstConsumerChain(loom::GatherOp gatherOp) {
+  if (gatherOp->getNumResults() == 0)
+    return std::nullopt;
+  Value gatherResult = gatherOp->getResult(0);
+  if (!isa<RankedTensorType>(gatherResult.getType()))
+    return std::nullopt;
+
+  Operation *firstConsumer = nullptr;
+  for (Operation *user : gatherResult.getUsers()) {
+    if (!firstConsumer) {
+      firstConsumer = user;
+      continue;
+    }
+    if (user->getBlock() == firstConsumer->getBlock() &&
+        user->isBeforeInBlock(firstConsumer)) {
+      firstConsumer = user;
+    }
+  }
+  if (!firstConsumer)
+    return std::nullopt;
+
+  WriteOutChain chain;
+  chain.ops.push_back(firstConsumer);
+  chain.targetTensor = gatherResult;
+  return chain;
+}
+
 static FailureOr<WriteOutChain> buildL1ToDramCopyChain(loom::CopyOp copyOp) {
   if (!isL1ToDramCopy(copyOp))
     return failure();
@@ -70,6 +104,101 @@ static FailureOr<WriteOutChain> buildL1ToDramCopyChain(loom::CopyOp copyOp) {
   return chain;
 }
 
+static Value traceToSemaphore(Value value) {
+  if (!value)
+    return nullptr;
+
+  llvm::SmallPtrSet<Value, 32> visited;
+  llvm::SmallVector<Value, 32> worklist = {value};
+
+  while (!worklist.empty()) {
+    Value current = worklist.pop_back_val();
+    if (!current || !visited.insert(current).second)
+      continue;
+
+    if (auto semTake = current.getDefiningOp<loom::SemaphoreTakeOp>())
+      return semTake.getResult();
+
+    if (auto blockArg = dyn_cast<BlockArgument>(current)) {
+      Operation *parent = blockArg.getOwner()->getParentOp();
+
+      if (auto scfFor = dyn_cast<scf::ForOp>(parent)) {
+        unsigned argNum = blockArg.getArgNumber();
+        if (argNum > 0 && argNum - 1 < scfFor.getInits().size())
+          worklist.push_back(scfFor.getInits()[argNum - 1]);
+      } else if (auto affFor = dyn_cast<affine::AffineForOp>(parent)) {
+        unsigned bodyArgs = affFor.getBody()->getNumArguments();
+        unsigned iterCount = affFor.getNumIterOperands();
+        unsigned firstIterArg = bodyArgs - iterCount;
+        unsigned argNum = blockArg.getArgNumber();
+        if (argNum >= firstIterArg) {
+          unsigned iterIdx = argNum - firstIterArg;
+          if (iterIdx < affFor.getInits().size())
+            worklist.push_back(affFor.getInits()[iterIdx]);
+        }
+      } else if (auto affPar = dyn_cast<affine::AffineParallelOp>(parent)) {
+        unsigned argNum = blockArg.getArgNumber();
+        if (argNum < affPar.getInits().size())
+          worklist.push_back(affPar.getInits()[argNum]);
+      }
+      continue;
+    }
+
+    Operation *defOp = current.getDefiningOp();
+    if (!defOp)
+      continue;
+
+    if (auto init = dyn_cast<loom::InitTensorOp>(defOp)) {
+      worklist.push_back(init.getBuffer());
+      continue;
+    }
+    if (auto copyToTensor = dyn_cast<loom::CopyToTensorOp>(defOp)) {
+      worklist.push_back(copyToTensor.getBuffer());
+      continue;
+    }
+    if (auto toTensor = dyn_cast<loom::BufferizeToTensorOp>(defOp)) {
+      worklist.push_back(toTensor.getSource());
+      continue;
+    }
+    if (auto toMemref = dyn_cast<loom::BufferizeToMemrefOp>(defOp)) {
+      worklist.push_back(toMemref.getSource());
+      continue;
+    }
+    if (auto toTensor = dyn_cast<bufferization::ToTensorOp>(defOp)) {
+      worklist.push_back(toTensor.getBuffer());
+      continue;
+    }
+    if (auto toBuffer = dyn_cast<bufferization::ToBufferOp>(defOp)) {
+      worklist.push_back(toBuffer.getTensor());
+      continue;
+    }
+    if (auto mcast = dyn_cast<memref::CastOp>(defOp)) {
+      worklist.push_back(mcast.getSource());
+      continue;
+    }
+    if (auto tcast = dyn_cast<tensor::CastOp>(defOp)) {
+      worklist.push_back(tcast.getSource());
+      continue;
+    }
+
+    if (auto dps = dyn_cast<DestinationStyleOpInterface>(defOp)) {
+      if (auto res = dyn_cast<OpResult>(current)) {
+        unsigned resIdx = res.getResultNumber();
+        ValueRange inits = dps.getDpsInits();
+        if (resIdx < inits.size()) {
+          worklist.push_back(inits[resIdx]);
+          continue;
+        }
+      }
+    }
+
+    for (Value operand : defOp->getOperands())
+      worklist.push_back(operand);
+  }
+
+  return nullptr;
+}
+
 class WriteOutSyncInsertionPass
     : public PassWrapper<WriteOutSyncInsertionPass, OperationPass<ModuleOp>> {
 public:
@@ -85,6 +214,7 @@ public:
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
+    DominanceInfo dominance(module);
 
     SmallVector<WriteOutChain, 16> chains;
     bool hadError = false;
@@ -92,6 +222,8 @@ public:
     module.walk([&](Operation *op) {
       if (auto gatherOp = dyn_cast<loom::GatherOp>(op)) {
         if (auto chain = buildGatherChain(gatherOp))
+          chains.push_back(*chain);
+        if (auto chain = buildGatherFirstConsumerChain(gatherOp))
           chains.push_back(*chain);
         return;
       }
@@ -184,19 +316,50 @@ public:
                                        TypeRange{tensorType}, chain.targetTensor,
                                        initTensor.getResult());
 
-      if (auto gatherOp = dyn_cast<loom::GatherOp>(chain.first())) {
-        gatherOp.getInsMutable().assign(sync->getResult(0));
-      } else if (auto b2m = dyn_cast<loom::BufferizeToMemrefOp>(chain.first())) {
-        b2m.getSourceMutable().assign(sync->getResult(0));
-      } else {
-        chain.first()->emitError("unsupported chain start op for rewiring");
+      bool rewiredAnyUse = false;
+      Value targetTensor = chain.targetTensor;
+      targetTensor.replaceUsesWithIf(
+          sync->getResult(0), [&](OpOperand &use) {
+            Operation *owner = use.getOwner();
+            if (owner == sync.getOperation())
+              return false;
+            if (dominance.dominates(sync.getOperation(), owner)) {
+              rewiredAnyUse = true;
+              return true;
+            }
+            return false;
+          });
+      if (!rewiredAnyUse) {
+        chain.first()->emitError(
+            "failed to rewire any dominated use of sync target tensor");
         signalPassFailure();
         return;
       }
 
-      OpBuilder afterBuilder(chain.last()->getContext());
-      afterBuilder.setInsertionPointAfter(chain.last());
-      loom::SemaphoreGiveOp::create(afterBuilder, chain.last()->getLoc(),
+      Value originalSemaphore = traceToSemaphore(chain.targetTensor);
+      if (!originalSemaphore) {
+        chain.first()->emitError(
+            "failed to trace write-out chain target to source semaphore");
+        signalPassFailure();
+        return;
+      }
+
+      loom::SemaphoreGiveOp originalGive;
+      for (Operation *user : originalSemaphore.getUsers()) {
+        if (auto semGive = dyn_cast<loom::SemaphoreGiveOp>(user)) {
+          originalGive = semGive;
+          break;
+        }
+      }
+      if (!originalGive) {
+        chain.first()->emitError(
+            "failed to find semaphore_give for write-out chain source semaphore");
+        signalPassFailure();
+        return;
+      }
+
+      OpBuilder giveBuilder(originalGive);
+      loom::SemaphoreGiveOp::create(giveBuilder, originalGive.getLoc(),
                                     semTake.getResult());
     }
   }
