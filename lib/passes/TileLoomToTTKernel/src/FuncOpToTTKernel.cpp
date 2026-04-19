@@ -712,6 +712,13 @@ static bool isScalarMemRefType(Type type) {
   return memrefType.getNumElements() == 1;
 }
 
+static bool isScalarRuntimeSiteArg(func::FuncOp func, BlockArgument arg) {
+  if (!arg || arg.getOwner() != &func.front())
+    return false;
+  return isa_and_nonnull<IntegerAttr>(
+      func.getArgAttr(arg.getArgNumber(), kScalarSiteIdAttrName));
+}
+
 // TODO(tmp): This is a temporary scalar-only preprocessing rewrite.
 // It removes scalar alloc/semaphore memory scaffolding and forwards scalar
 // sites via function arguments. We may replace this with a dedicated scalar
@@ -870,7 +877,16 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
 
   // Process each function argument.
   for (BlockArgument arg : entry.getArguments()) {
+    // Scalar runtime sites are lowered via per-site packed scalar runtime words.
+    // They must not consume DRAM/CB compile-arg slots.
+    if (isScalarRuntimeSiteArg(func, arg))
+      continue;
+
     Type argType = arg.getType();
+    if (auto memrefType = dyn_cast<MemRefType>(argType)) {
+      if (isScalarMemRefType(memrefType) && memrefType.getRank() == 0)
+        continue;
+    }
 
     if (isa<MemRefType, UnrankedMemRefType>(argType)) {
       // Memref type: create CB and base address.
@@ -1492,9 +1508,29 @@ static func::FuncOp makeComputeFunc(func::FuncOp func) {
   // CB synchronization operations (cb_wait_front/cb_push_back) by the
   // ConvertComputeLoadOp and ConvertComputeStoreOp patterns.
   // Gather transport is writer-only and should not remain in compute clones.
+  // Erase semaphore_give for gather inputs before erasing gather itself, since
+  // later lowering cannot see gather users in compute clones.
   SmallVector<Operation *, 4> gatherOpsToErase;
+  SmallVector<Value, 4> gatherInputValues;
   computeFunc.walk(
-      [&](::loom::GatherOp op) { gatherOpsToErase.push_back(op.getOperation()); });
+      [&](::loom::GatherOp op) {
+        gatherOpsToErase.push_back(op.getOperation());
+        Value gatherInput = stripMemrefCasts(op.getIns());
+        if (!llvm::is_contained(gatherInputValues, gatherInput))
+          gatherInputValues.push_back(gatherInput);
+      });
+
+  SmallVector<Operation *, 4> gatherInputGiveOpsToErase;
+  if (!gatherInputValues.empty()) {
+    computeFunc.walk([&](::loom::SemaphoreGiveOp op) {
+      Value giveSource = stripMemrefCasts(op.getSource());
+      if (llvm::is_contained(gatherInputValues, giveSource))
+        gatherInputGiveOpsToErase.push_back(op.getOperation());
+    });
+  }
+
+  for (Operation *op : llvm::reverse(gatherInputGiveOpsToErase))
+    op->erase();
   for (Operation *op : llvm::reverse(gatherOpsToErase))
     op->erase();
 
@@ -1852,20 +1888,20 @@ private:
       buildAxisIvExprs(yComponents, "core.y");
     });
   }
-  //TODO: tmp fix, need to get the total size and then divide by the tile size
+  // TODO: tmp fix, need to get the total size and then divide by the tile size
   static bool buildTilesExpr(MemRefType memrefType, std::string &expr) {
     expr.clear();
-  
+
     auto shape = memrefType.getShape();
     const size_t rank = shape.size();
-  
-    // Need at least 2 dims to "tile the last two dimensions".
-    // If you prefer returning "1" for rank < 2, change this behavior accordingly.
-    if (rank < 2) {
-      expr = "1";
-      return true;
+
+    // Rank-0 memrefs do not carry tile geometry information.
+    if (rank == 0) {
+      //print error message
+      llvm::errs() << "Rank-0 memrefs do not carry tile geometry information.\n";
+      return false;
     }
-  
+
     auto appendOne = [&](int64_t dim) -> bool {
       if (dim == ShapedType::kDynamic) return false;
       dim = std::max<int64_t>(32, dim);
@@ -1873,7 +1909,17 @@ private:
       expr += " / TILE_HEIGHT";
       return true;
     };
-  
+
+    // Rank-1 memrefs are treated as [32, max(32, original_dim)].
+    if (rank == 1) {
+      if (!appendOne(32))
+        return false;
+      expr += " * ";
+      if (!appendOne(shape[0]))
+        return false;
+      return true;
+    }
+
     // Dims before the last two: multiply them directly.
     for (size_t i = 0; i + 2 < rank; ++i) {
       int64_t dim = shape[i];
@@ -1890,7 +1936,7 @@ private:
     if (!appendOne(shape[rank - 2])) return false;
     expr += " * ";
     if (!appendOne(shape[rank - 1])) return false;
-  
+
     // (Now expr can’t be empty if rank>=2, but keep the old fallback behavior.)
     if (expr.empty()) expr = "1";
     return true;
@@ -2053,8 +2099,13 @@ private:
     unsigned outputTensorIdx = 0;
 
     for (auto [index, arg] : llvm::enumerate(originalFunc.getArguments())) {
+      if (isScalarRuntimeSiteArg(originalFunc, arg))
+        continue;
+
       auto memrefType = dyn_cast<MemRefType>(arg.getType());
       if (!memrefType)
+        continue;
+      if (isScalarMemRefType(memrefType) && memrefType.getRank() == 0)
         continue;
 
       std::string tilesExpr;

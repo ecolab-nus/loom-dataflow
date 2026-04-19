@@ -610,13 +610,29 @@ static std::optional<int64_t> getNumTilesFromShapedType(Type type) {
   if (!shaped || !shaped.hasStaticShape())
     return std::nullopt;
 
+  ArrayRef<int64_t> shape = shaped.getShape();
+  unsigned rank = shape.size();
+  if (rank == 0)
+    return std::nullopt;
+
   int64_t tiles = 1;
-  for (int64_t dim : shaped.getShape()) {
-    auto dimTiles = ceilDiv32(dim);
+
+  // Dimensions before the innermost 2 are already tile-domain extents.
+  for (unsigned i = 0; i + 2 < rank; ++i) {
+    if (shape[i] <= 0)
+      return std::nullopt;
+    tiles *= shape[i];
+  }
+
+  // Innermost dimensions are element-domain extents and require 32x32 tiling.
+  unsigned tiledStart = rank > 1 ? rank - 2 : 0;
+  for (unsigned i = tiledStart; i < rank; ++i) {
+    auto dimTiles = ceilDiv32(shape[i]);
     if (!dimTiles)
       return std::nullopt;
     tiles *= *dimTiles;
   }
+
   return tiles;
 }
 

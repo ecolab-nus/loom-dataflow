@@ -713,6 +713,33 @@ static bool isSemaphoreGiveForAdjacentL1ToDramStore(
 }
 
 /**
+ * @brief Check whether semaphore_give source aliases a loom.gather input.
+ *
+ * @details If a buffer is consumed as `loom.gather` input, gather transport
+ *          owns the source-consumption semantics. Lowering an additional
+ *          `semaphore_give` into `cb_pop_front` would double-consume pages.
+ */
+static bool isSemaphoreGiveForGatherInput(::loom::SemaphoreGiveOp giveOp) {
+  auto parentFunc = giveOp->getParentOfType<func::FuncOp>();
+  if (!parentFunc)
+    return false;
+
+  Value giveBase = resolveSemaphoreSourceMemref(giveOp.getSource());
+  if (!giveBase)
+    return false;
+
+  bool found = false;
+  parentFunc.walk([&](::loom::GatherOp gatherOp) {
+    if (found)
+      return;
+    Value gatherInsBase = resolveSemaphoreSourceMemref(gatherOp.getIns());
+    found = gatherInsBase && gatherInsBase == giveBase;
+  });
+
+  return found;
+}
+
+/**
  * @brief Emit TTKernel NOC async read operations for a DRAM-to-L1 transfer.
  *
  * @details Given the source value (which must come from a
@@ -1262,6 +1289,13 @@ struct ConvertLoomSemaphoreGiveOp
     // L1->DRAM stores are drained by writer kernels. The adjacent give is
     // only a liveness marker and must not lower to cb_pop_front in compute.
     if (isSemaphoreGiveForAdjacentL1ToDramStore(op)) {
+      rewriter.eraseOp(op);
+      return success();
+    }
+
+    // If this source also feeds loom.gather input, gather transport owns
+    // consumption and semaphore_give is only a marker.
+    if (isSemaphoreGiveForGatherInput(op)) {
       rewriter.eraseOp(op);
       return success();
     }
