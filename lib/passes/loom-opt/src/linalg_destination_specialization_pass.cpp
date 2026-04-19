@@ -257,6 +257,11 @@ struct SpecializeLinalgDestination
     if (!actualAccumulator)
       return failure();
 
+    // Keep explicit elementwise accumulation when consuming matmul-family
+    // results. We want the post-matmul generic to remain explicit.
+    if (isa<linalg::MatmulOp, linalg::BatchMatmulOp>(producer.getOperation()))
+      return failure();
+
     // Step 5: Transformation - clone producer at consumer's location
     rewriter.setInsertionPoint(consumer);
 
