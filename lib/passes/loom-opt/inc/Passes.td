@@ -120,15 +120,16 @@ def LowerAffineWithAttr : Pass<"loom-lower-affine-with-attr", "mlir::ModuleOp"> 
   let constructor = "loom::passes::createLowerAffineWithAttrPass()";
 }
 
-def GatherSyncInsertionPass : Pass<"loom-gather-sync-insertion", "mlir::ModuleOp"> {
-  let summary = "Insert loom.sync and semaphore lifecycle around loom.gather ins";
+def WriteOutSyncInsertionPass : Pass<"loom-writeout-sync-insertion", "mlir::ModuleOp"> {
+  let summary = "Insert loom.sync and semaphore lifecycle around write-out chains";
   let description = [{
-    For each tensor-mode loom.gather, trace its ins operand to root loom.alloc,
-    insert semaphore_take + init_tensor + loom.sync before gather, rewrite
-    gather ins to sync result, and insert semaphore_give immediately after
-    gather.
+    Discover write-out chains:
+    - tensor-mode loom.gather (single-op chain)
+    - loom.bufferize_to_memref + loom.copy with L1->DRAM attrs (two-op chain)
+    and insert semaphore_take + init_tensor + loom.sync before chain start,
+    then semaphore_give after chain end.
   }];
-  let constructor = "loom::passes::createGatherSyncInsertionPass()";
+  let constructor = "loom::passes::createWriteOutSyncInsertionPass()";
 }
 
 #endif // LOOM_TRITON_SHARED_PASSES
