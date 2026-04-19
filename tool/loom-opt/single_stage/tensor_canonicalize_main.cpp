@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
   pm.addPass(mlir::createLinalgFoldUnitExtentDimsPass());
   pm.addPass(mlir::createCanonicalizerPass());
 
-  // Our destination specialization - now works on simplified/fused IR
+  // Destination specialization (with guards for post matmul accumulations).
   pm.addPass(loom::passes::createLinalgDestinationSpecializationPass());
 
   // Postprocessing: remove dead producers and final cleanup
