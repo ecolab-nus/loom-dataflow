@@ -1,0 +1,407 @@
+[
+  {
+    "memory_scope": {
+      "stages": [
+        {
+          "stage_id": 8,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "dram_to_l1_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_b"}],
+                            ["N",{"Const":128}]
+                          ]
+                        },
+                        "symbols": ["M","N"]
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "dram_to_l1_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["M",{"Sym":"tile_b"}],
+                            ["N",{"Sym":"?"}]
+                          ]
+                        },
+                        "symbols": ["M","N"]
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ],
+      "scope_name": "MemoryScope"
+    },
+    "constraint_scope": {
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}]},{"Mul":[{"Sym":"tile_b"},{"Const":32}]}]},{"Mul":[{"Sym":"tile_b"},{"Const":32}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}]},{"Mul":[{"Sym":"tile_b"},{"Const":32}]}]},{"Mul":[{"Sym":"tile_b"},{"Const":32}]}]},{"Mul":[{"Sym":"tile_b"},{"Const":32}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Sym":"tile_n"}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":128}]},{"Sym":"?"}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"?"}]},{"Const":128}]}]},{"Mul":[{"Mul":[{"Sym":"?"},{"Sym":"tile_b"}]},{"Const":32}]}]},{"Mul":[{"Mul":[{"Sym":"tile_s"},{"Sym":"tile_b"}]},{"Const":32}]}]},{"Mul":[{"Mul":[{"Mul":[{"Sym":"?"},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":128}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ],
+      "metadata": {
+        "L1_footprint": [
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
+          {"Mul":[{"Sym":"tile_b"},{"Const":32}]},
+          {"Mul":[{"Sym":"tile_b"},{"Const":32}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
+          {"Mul":[{"Sym":"tile_b"},{"Const":32}]},
+          {"Mul":[{"Sym":"tile_b"},{"Const":32}]},
+          {"Mul":[{"Sym":"tile_b"},{"Const":32}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Sym":"tile_n"}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":128}]},{"Sym":"?"}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"?"}]},{"Const":128}]},
+          {"Mul":[{"Mul":[{"Sym":"?"},{"Sym":"tile_b"}]},{"Const":32}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_s"},{"Sym":"tile_b"}]},{"Const":32}]},
+          {"Mul":[{"Mul":[{"Mul":[{"Sym":"?"},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":128}]}
+        ],
+        "symbols": {
+          "tile_b": {
+            "natural_ub": 8,
+            "type": "int"
+          },
+          "tile_s": {
+            "natural_ub": 8192,
+            "type": "int"
+          },
+          "tile_n": {
+            "natural_ub": 64,
+            "type": "int"
+          }
+        },
+        "iter_num": {
+          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
+          "temp_iter": [
+            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":8}]},
+            {"Div":[{"Div":[{"Const":8},{"Sym":"tile_b"}]},{"Const":8}]}
+          ]
+        },
+        "datatype": "f16",
+        "booleans": ["is_double_buffer"]
+      }
+    },
+    "variant_name": "flash_decode__x8_y8__d0i1_d1i0__f01__dim_x_level0_bc8_n_n_n",
+    "compute_scope": {
+      "stages": [
+        {
+          "stage_id": 9,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "batch_matmul_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["B",{"Sym":"tile_b"}],
+                            ["K",{"Const":128}],
+                            ["M",{"Const":32}],
+                            ["N",{"Sym":"?"}]
+                          ]
+                        },
+                        "symbols": ["B","K","M","N"]
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        },
+        {
+          "stage_id": 10,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_vmax_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["P",{"Mul":[{"Sym":"tile_b"},{"Const":32}]}],
+                            ["R",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["P","R"]
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        },
+        {
+          "stage_id": 11,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_mul_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["L",{"Mul":[{"Sym":"tile_b"},{"Const":32}]}]
+                          ]
+                        },
+                        "symbols": ["L"]
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_cmpf_ogt_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["L",{"Mul":[{"Sym":"tile_b"},{"Const":32}]}]
+                          ]
+                        },
+                        "symbols": ["L"]
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_select_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["L",{"Mul":[{"Sym":"tile_b"},{"Const":32}]}]
+                          ]
+                        },
+                        "symbols": ["L"]
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        },
+        {
+          "stage_id": 12,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_mul_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Sym":"tile_n"}]}]
+                          ]
+                        },
+                        "symbols": ["L"]
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_sub_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Sym":"tile_n"}]}]
+                          ]
+                        },
+                        "symbols": ["L"]
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_powf_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Sym":"tile_n"}]}]
+                          ]
+                        },
+                        "symbols": ["L"]
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_sub_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["L",{"Mul":[{"Sym":"tile_b"},{"Const":32}]}]
+                          ]
+                        },
+                        "symbols": ["L"]
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_powf_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["L",{"Mul":[{"Sym":"tile_b"},{"Const":32}]}]
+                          ]
+                        },
+                        "symbols": ["L"]
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        },
+        {
+          "stage_id": 13,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_vsum_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["P",{"Mul":[{"Sym":"tile_b"},{"Const":32}]}],
+                            ["R",{"Sym":"tile_n"}]
+                          ]
+                        },
+                        "symbols": ["P","R"]
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "batch_matmul_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["B",{"Sym":"tile_b"}],
+                            ["K",{"Sym":"tile_n"}],
+                            ["M",{"Const":32}],
+                            ["N",{"Const":128}]
+                          ]
+                        },
+                        "symbols": ["B","K","M","N"]
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        },
+        {
+          "stage_id": 14,
+          "Parallel": [
+            {
+              "Sequential": {
+                "schedules": [
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_mul_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["L",{"Mul":[{"Sym":"tile_b"},{"Const":32}]}]
+                          ]
+                        },
+                        "symbols": ["L"]
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_add_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["L",{"Mul":[{"Sym":"tile_b"},{"Const":32}]}]
+                          ]
+                        },
+                        "symbols": ["L"]
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_mul_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}]
+                          ]
+                        },
+                        "symbols": ["L"]
+                      },
+                      "scenarios": []
+                    }
+                  },
+                  {
+                    "Func": {
+                      "func": {
+                        "name": "vec_add_f16",
+                        "sym_map": {
+                          "entries": [
+                            ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}]
+                          ]
+                        },
+                        "symbols": ["L"]
+                      },
+                      "scenarios": []
+                    }
+                  }
+                ],
+                "scenarios": []
+              }
+            }
+          ]
+        }
+      ],
+      "scope_name": "ComputeScope"
+    }
+  }
+]

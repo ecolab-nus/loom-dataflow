@@ -816,6 +816,39 @@ def GatherOp : Loom_Op<"gather", [
   }];
 }
 
+def SyncOp : Loom_Op<"sync", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  DestinationStyleOpInterface
+]> {
+  let summary = "Synchronize a source tensor/memref into a destination buffer (DPS)";
+  let description = [{
+    The `loom.sync` operation provides an explicit synchronization edge between
+    `ins` and `outs`. It follows destination-passing style (DPS):
+    - Tensor mode: returns a tensor result aliasing `outs`.
+    - Memref mode: has no result and operates directly on buffers.
+
+    This op is intentionally effectful (read+write) so it is preserved and
+    ordered relative to neighboring synchronization operations.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$ins,
+    AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$init
+  );
+
+  let results = (outs Variadic<AnyRankedTensor>:$result);
+
+  let assemblyFormat = [{
+    `ins` `(` $ins `:` type($ins) `)`
+    `outs` `(` $init `:` type($init) `)`
+    attr-dict (`->` type($result)^ )?
+  }];
+
+  let extraClassDeclaration = [{
+    ::mlir::MutableOperandRange getDpsInitsMutable() { return getInitMutable(); }
+  }];
+}
+
 def BatchMatmulOp : Loom_Op<"batch_matmul", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
 ]> {

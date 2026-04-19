@@ -29,6 +29,7 @@ int main(int argc, char **argv) {
 
   PassManager pm(&context);
   pm.addPass(loom::passes::createMemoryBindingPass());
+  pm.addPass(loom::passes::createGatherSyncInsertionPass());
   if (failed(pm.run(*module))) {
     llvm::errs() << "LOOM memory-binding pass failed\n";
     return 2;

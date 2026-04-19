@@ -90,6 +90,17 @@ def FoldRedundantExtractSlice : Pass<"loom-fold-redundant-extract-slice", "mlir:
   let constructor = "loom::passes::createFoldRedundantExtractSlicePass()";
 }
 
+def LinalgGuardedElementwiseOpFusion : Pass<"loom-linalg-guarded-elementwise-fusion", "mlir::ModuleOp"> {
+  let summary = "Elementwise op fusion that skips fusions producing a leading-reduction generic";
+  let description = [{
+    Mirrors the upstream linalg-elementwise-op-fusion pass but installs a
+    control function that blocks fusion whenever the producer OR consumer
+    linalg.generic has a leading (outermost) reduction iterator.  Such fused
+    forms are not processable by the target hardware.
+  }];
+  let constructor = "loom::passes::createLinalgGuardedElementwiseOpFusionPass()";
+}
+
 def MemoryBindingPass : Pass<"loom-memory-binding", "mlir::ModuleOp"> {
   let summary = "Bind memory allocations to tensor operations";
   let description = [{
@@ -107,6 +118,17 @@ def LowerAffineWithAttr : Pass<"loom-lower-affine-with-attr", "mlir::ModuleOp"> 
     scf.parallel operation.
   }];
   let constructor = "loom::passes::createLowerAffineWithAttrPass()";
+}
+
+def GatherSyncInsertionPass : Pass<"loom-gather-sync-insertion", "mlir::ModuleOp"> {
+  let summary = "Insert loom.sync and semaphore lifecycle around loom.gather ins";
+  let description = [{
+    For each tensor-mode loom.gather, trace its ins operand to root loom.alloc,
+    insert semaphore_take + init_tensor + loom.sync before gather, rewrite
+    gather ins to sync result, and insert semaphore_give immediately after
+    gather.
+  }];
+  let constructor = "loom::passes::createGatherSyncInsertionPass()";
 }
 
 #endif // LOOM_TRITON_SHARED_PASSES
