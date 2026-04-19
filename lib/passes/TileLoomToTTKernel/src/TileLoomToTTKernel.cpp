@@ -707,6 +707,10 @@ public:
         [&](linalg::TransposeOp op) {
           return !mlir::loom::shouldConvertComputeLinalgTranspose(op);
         });
+    target.addDynamicallyLegalOp<::loom::SyncOp>(
+        [&](::loom::SyncOp op) {
+          return !mlir::loom::shouldConvertComputeLoomSync(op);
+        });
     target.addDynamicallyLegalOp<::loom::CopyOp>(
         [&](::loom::CopyOp op) {
           return false;
@@ -808,6 +812,10 @@ public:
         func.emitWarning() << "could not remove all function arguments";
       }
     }
+
+    // A second runtime-setup DCE pass after function-argument erasure catches
+    // any setup ops that become dead only after signature cleanup.
+    eraseDeadRuntimeSetupArtifacts(module);
 
 
     // postprocessing optimizations

@@ -987,8 +987,9 @@ emitTileAccumulate(ConversionPatternRewriter &rewriter, Location loc,
   return success();
 }
 
-static void copyTile(ConversionPatternRewriter &rewriter,
-  Location loc, Value inputCb, Value outputCb, Value tiles) {
+static void copyTile(ConversionPatternRewriter &rewriter, Location loc,
+                     Value inputCb, Value outputCb, Value tiles,
+                     bool popInputCb = true) {
   Value zero = i32Const(rewriter, loc, 0);
   Value one = i32Const(rewriter, loc, 1);
   CBWaitFrontOp::create(rewriter, loc, inputCb, tiles);
@@ -1007,8 +1008,10 @@ static void copyTile(ConversionPatternRewriter &rewriter,
     PackTileOp::create(rewriter, loc, zero, outputCb, tileIdx);
     TileRegsReleaseOp::create(rewriter, loc);
   }
-  //TODO: tmp use for split_k first, CBPopFront should only be controlled by semaphore.give
-  CBPopFrontOp::create(rewriter, loc, inputCb, tiles);
+  if (popInputCb) {
+    // Default behavior consumes input tiles once the copy is complete.
+    CBPopFrontOp::create(rewriter, loc, inputCb, tiles);
+  }
 }
 
 static void emitWorkerPreparePayload(ConversionPatternRewriter &rewriter,
@@ -2492,7 +2495,56 @@ public:
     Value tileCount = i32Const(rewriter, loc, *inTiles);
 
     // Reuse copyTile transport path as an initial transpose lowering entry.
-    copyTile(rewriter, loc, inCb, outCb, tileCount);
+    // linalg.transpose is typically followed by loom.semaphore_give on the
+    // source buffer; let that lowering own the cb_pop_front to avoid
+    // double-pop mismatches.
+    copyTile(rewriter, loc, inCb, outCb, tileCount, /*popInputCb=*/false);
+    CBPushBackOp::create(rewriter, loc, outCb, tileCount);
+
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
+class ConvertLoomSyncOp : public OpConversionPattern<::loom::SyncOp> {
+public:
+  using OpConversionPattern<::loom::SyncOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(::loom::SyncOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (!mlir::loom::shouldConvertComputeLoomSync(op))
+      return failure();
+
+    if (adaptor.getOperands().size() != 2)
+      return failure();
+
+    Value inCb = adaptor.getOperands()[0];
+    Value outCb = adaptor.getOperands()[1];
+    if (!isa<CBType>(inCb.getType()) || !isa<CBType>(outCb.getType()))
+      return failure();
+
+    // Memref-form loom.sync has no result value to replace.
+    if (op.getNumResults() != 0)
+      return failure();
+
+    auto inTiles = getNumTilesFromShapedType(op.getIns().getType());
+    auto outTiles = getNumTilesFromShapedType(op.getInit().getType());
+    if (!inTiles || !outTiles || *inTiles != *outTiles)
+      return failure();
+
+    // Synchronization source/destination may alias the same CB handle. In that
+    // case, no transport is needed.
+    if (inCb == outCb) {
+      rewriter.eraseOp(op);
+      return success();
+    }
+
+    Location loc = op.getLoc();
+    Value tileCount = i32Const(rewriter, loc, *inTiles);
+
+    // Keep input ownership with semaphore_give lowering to avoid double-pop.
+    copyTile(rewriter, loc, inCb, outCb, tileCount, /*popInputCb=*/false);
     CBPushBackOp::create(rewriter, loc, outCb, tileCount);
 
     rewriter.eraseOp(op);
@@ -2699,6 +2751,18 @@ bool mlir::loom::shouldConvertComputeLinalgTranspose(linalg::TransposeOp op) {
   return inTiles && outTiles && *inTiles == *outTiles;
 }
 
+bool mlir::loom::shouldConvertComputeLoomSync(::loom::SyncOp op) {
+  if (!isComputeKernel(op.getOperation()))
+    return false;
+
+  if (op.getNumResults() != 0)
+    return false;
+
+  auto inTiles = getNumTilesFromShapedType(op.getIns().getType());
+  auto outTiles = getNumTilesFromShapedType(op.getInit().getType());
+  return inTiles && outTiles && *inTiles == *outTiles;
+}
+
 void mlir::loom::populateComputeOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker,
@@ -2707,6 +2771,7 @@ void mlir::loom::populateComputeOpConversionPatterns(
   patterns.add<ConvertLinalgFillOp>(typeConverter, context);
   patterns.add<ConvertLinalgCopyOp>(typeConverter, context);
   patterns.add<ConvertLinalgTransposeOp>(typeConverter, context);
+  patterns.add<ConvertLoomSyncOp>(typeConverter, context);
   patterns.add<ConvertLinalgBatchMatmulOp>(typeConverter, context);
   patterns.add<ConvertMemrefCollapseShapeOp>(typeConverter, context);
   patterns.add<ConvertMemrefExpandShapeOp>(typeConverter, context);

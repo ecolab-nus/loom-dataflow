@@ -9,6 +9,10 @@
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Transforms/DialectConversion.h"
 
+namespace loom {
+class SyncOp;
+} // namespace loom
+
 namespace mlir::loom {
 
 /// Transport synchronization protocol for cross-core reduce operations.
@@ -59,5 +63,8 @@ bool shouldConvertComputeLinalgCopy(mlir::linalg::CopyOp op);
 /// Returns true when this `linalg.transpose` is a compute-kernel transpose
 /// handled by this pass.
 bool shouldConvertComputeLinalgTranspose(mlir::linalg::TransposeOp op);
+
+/// Returns true when this `loom.sync` should be lowered in compute kernels.
+bool shouldConvertComputeLoomSync(::loom::SyncOp op);
 
 } // namespace mlir::loom
