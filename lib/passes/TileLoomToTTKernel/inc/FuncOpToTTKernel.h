@@ -36,10 +36,12 @@ namespace mlir {
 namespace loom {
 
 /**
- * @brief Data created for a memref input argument.
+ * @brief Runtime tuple values created for a DRAM/L1 binding.
  *
- * @details Stores the CB value and base address value created by 
- *          GetArgValOp for a memref function argument.
+ * @details Stores the CB value, base address value, tensor accessor, and
+ *          multicast helper values materialized from `ttkernel.get_arg_val`.
+ *          This data is shared by per-copy bindings and any internal CB users
+ *          that need the same runtime tuple shape.
  */
 struct MemrefArgData {
   /// The CB value created for this memref argument.
@@ -80,6 +82,25 @@ struct MemrefArgData {
   Value num_tiles;
   /// The location attribute where this memref argument data was initialized.
   LocationAttr initLoc;
+};
+
+/**
+ * @brief Runtime tuple plus source metadata for a specific DRAM/L1 `loom.copy`.
+ *
+ * @details Each DRAM/L1 copy site owns an independent binding slot even when
+ *          the underlying DRAM memref argument is shared by multiple copies.
+ */
+struct CopyBindingData : public MemrefArgData {
+  /// Stable binding slot shared across specialized kernels.
+  int64_t slot = -1;
+  /// Original memref argument on the DRAM side of the copy.
+  Value linkedMemrefArg;
+  /// Non-DRAM endpoint of the copy (typically semaphore_take or alloc).
+  Value l1Endpoint;
+  /// True when the binding is DRAM -> L1.
+  bool isLoad = false;
+  /// True when the binding is L1 -> DRAM.
+  bool isStore = false;
 };
 /**
  * @brief Data created for an index input argument.
@@ -239,6 +260,23 @@ public:
   Value getScalarRuntimeArg(Operation *funcOp, int64_t siteId) const;
 
   /**
+   * @brief Get the runtime tuple data for a per-copy binding slot.
+   *
+   * @param funcOp Parent function that owns the binding.
+   * @param slot Stable copy-binding slot.
+   * @return Pointer to CopyBindingData if found, nullptr otherwise.
+   */
+  CopyBindingData *getCopyBindingData(Operation *funcOp, int64_t slot);
+
+  /**
+   * @brief Get the number of per-copy runtime bindings in a function.
+   *
+   * @param funcOp Parent function.
+   * @return Number of annotated DRAM/L1 copy bindings.
+   */
+  int64_t getCopyBindingCount(Operation *funcOp) const;
+
+  /**
    * @brief Append a value to the tracker core list.
    *
    * @details The core list is a simple ordered collection of values that
@@ -334,6 +372,13 @@ private:
 
   /// Map from memref argument to its created CB and base address.
   llvm::DenseMap<Value, MemrefArgData> memrefArgToData;
+
+  /// Map from memref argument to its shared TensorAccessorArgs index.
+  llvm::DenseMap<Value, int64_t> memrefArgToTensorAccessorArgsIndex;
+
+  /// Per-function runtime tuple data keyed by stable copy-binding slot.
+  llvm::DenseMap<Operation *, llvm::DenseMap<int64_t, CopyBindingData>>
+      funcToCopyBindingData;
   
   /// Map from index argument to its created compile-arg value.
   llvm::DenseMap<Value, IndexArgData> indexArgToData;

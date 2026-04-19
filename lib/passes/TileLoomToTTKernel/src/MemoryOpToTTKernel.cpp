@@ -54,6 +54,8 @@ constexpr llvm::StringLiteral kVecKindAttrName = "loom.ttkernel.vec_kind";
 constexpr llvm::StringLiteral kVecTilesAttrName = "loom.ttkernel.vec_tiles";
 constexpr llvm::StringLiteral kSemaphoreSlotAttrName =
     "loom.ttkernel.semaphore_slot";
+constexpr llvm::StringLiteral kCopyBindingSlotAttrName =
+    "loom.ttkernel.copy_binding_slot";
 
 /**
  * @brief Compute ceiling division of a dimension by the tile size (32).
@@ -661,6 +663,36 @@ static Value resolveSemaphoreSourceMemref(Value value) {
   return current;
 }
 
+static std::optional<int64_t> getCopyBindingSlot(Operation *op) {
+  if (!op)
+    return std::nullopt;
+  auto slotAttr = op->getAttrOfType<IntegerAttr>(kCopyBindingSlotAttrName);
+  if (!slotAttr)
+    return std::nullopt;
+  return slotAttr.getInt();
+}
+
+static SmallVector<int64_t, 2> collectCopyBindingSlotsForEndpoint(Value endpoint) {
+  SmallVector<int64_t, 2> slots;
+  if (!endpoint)
+    return slots;
+
+  for (Operation *user : endpoint.getUsers()) {
+    auto copyOp = dyn_cast<::loom::CopyOp>(user);
+    if (!copyOp)
+      continue;
+    if (copyOp.getSource() != endpoint && copyOp.getDestination() != endpoint)
+      continue;
+    auto slot = getCopyBindingSlot(copyOp.getOperation());
+    if (!slot)
+      continue;
+    if (!llvm::is_contained(slots, *slot))
+      slots.push_back(*slot);
+  }
+
+  return slots;
+}
+
 /**
  * @brief Check whether a loom.copy is an L1->DRAM store.
  */
@@ -750,37 +782,30 @@ static bool isSemaphoreGiveForGatherInput(::loom::SemaphoreGiveOp giveOp) {
  * @param source The source Value (result of a memref.reinterpret_cast).
  * @param loc    Location for newly created operations.
  * @param rewriter          The conversion pattern rewriter.
- * @param memrefArgData     Pre-computed multicast/broadcast metadata.
- * @param tracker           Shared compile-arg tracker.
- * @param typeConverter     The type converter in use.
+ * @param bindingData       Pre-computed per-copy runtime tuple metadata.
  * @return A pair of (totalSizeBytes, multicast_l1Addr), or (null, null) on
  *         error.
  */
 std::pair<Value, Value> dram_read(Value source, Location loc,
                                    ConversionPatternRewriter &rewriter,
-                                   MemrefArgData *memrefArgData,
-                                   std::shared_ptr<CompileArgTracker> tracker,
-                                   const TypeConverter *typeConverter) {
+                                   CopyBindingData *bindingData) {
   auto reinterpretCastOp = source.getDefiningOp<memref::ReinterpretCastOp>();
   if (!reinterpretCastOp)
     return std::make_pair(Value(), Value());
 
-  // Get the input memref (source of reinterpret_cast) - this should be a
-  // function argument.
-  Value inputMemref = reinterpretCastOp.getSource();
+  if (!bindingData)
+    return std::make_pair(Value(), Value());
 
-  // Get the pre-created CB from the tracker.
-  Value cb = tracker->getCB(inputMemref);
+  Value cb = bindingData->cb;
   if (!cb) {
-    llvm::errs() << "Error: CB not found for memref " << inputMemref << "\n";
+    llvm::errs() << "Error: CB not found for copy binding\n";
     return std::make_pair(Value(), Value());
   }
 
 
-  // Get the pre-created base address from the tracker.
-  Value baseAddr = tracker->getBaseAddr(inputMemref);
+  Value baseAddr = bindingData->baseAddr;
   if (!baseAddr) {
-    llvm::errs() << "Error: base address not found for memref " << inputMemref << "\n";
+    llvm::errs() << "Error: base address not found for copy binding\n";
     return std::make_pair(Value(), Value());
   }
 
@@ -835,15 +860,14 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
                                                     offsetI32);
   }
 
-  // Use num_tiles from memrefArgData (pre-computed by caller for domination correctness)
+  // Use num_tiles from bindingData (pre-computed by caller for domination correctness)
   // If not set yet (non-broadcast case), compute it now.
-  Value numPages = memrefArgData->num_tiles;
+  Value numPages = bindingData->num_tiles;
   Value totalSizeBytes = arith::MulIOp::create(rewriter, loc, numPages, pageSize);
 
-  // Get the pre-created TensorAccessor from the tracker.
-  Value accessorOp = tracker->getTensorAccessor(inputMemref);
+  Value accessorOp = bindingData->tensorAccessor;
   if (!accessorOp) {
-    llvm::errs() << "No TensorAccessor found for input memref\n";
+    llvm::errs() << "No TensorAccessor found for copy binding\n";
     return std::make_pair(Value(), Value());
   }
 
@@ -1226,12 +1250,20 @@ struct ConvertLoomSemaphoreTakeOp
 
     // Prefer reusing already-created memref-argument CB indexes.
     Value cb;
-    if (Value inputMemref = findInputMemref(op))
-      cb = tracker->getCB(inputMemref);
-
-    if (!cb) {
-      if (Value outputMemref = findOutputMemref(op))
-        cb = tracker->getCB(outputMemref);
+    SmallVector<int64_t, 2> bindingSlots =
+        collectCopyBindingSlotsForEndpoint(op.getResult());
+    if (bindingSlots.size() > 1) {
+      return rewriter.notifyMatchFailure(
+          op, "semaphore participates in multiple DRAM/L1 copy bindings");
+    }
+    if (bindingSlots.size() == 1) {
+      auto *bindingData = tracker->getCopyBindingData(parentFunc.getOperation(),
+                                                      bindingSlots.front());
+      if (!bindingData) {
+        return rewriter.notifyMatchFailure(
+            op, "missing copy binding runtime tuple for semaphore");
+      }
+      cb = bindingData->cb;
     }
 
     // Fallback for internal-only semaphore buffers not tied to memref args.
@@ -1398,16 +1430,6 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
     if (!reinterpretCastOp)
       return failure();
 
-    Value inputMemref = reinterpretCastOp.getSource();
-
-    // Get memrefArgData from tracker.
-    MemrefArgData *memrefArgData = tracker->getMemrefData(inputMemref);
-    if (!memrefArgData) {
-      llvm::errs() << "No MemrefArgData found for input memref\n";
-      llvm::errs() << "inputMemref: " << inputMemref << "\n";
-      return failure();
-    }
-
     // Scalar load-sites are replaced by per-core runtime scalar args.
     // No reader-side DRAM->CB movement is emitted for these copies.
     if (op->hasAttr(kScalarSiteIdAttrName)) {
@@ -1415,9 +1437,23 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
       return success();
     }
 
-    Value cb = tracker->getCB(inputMemref);
+    auto parentFunc = op->getParentOfType<func::FuncOp>();
+    if (!parentFunc)
+      return failure();
+    auto slot = getCopyBindingSlot(op.getOperation());
+    if (!slot)
+      return rewriter.notifyMatchFailure(
+          op, "missing required copy binding slot on DRAM load");
+    CopyBindingData *bindingData =
+        tracker->getCopyBindingData(parentFunc.getOperation(), *slot);
+    if (!bindingData)
+      return rewriter.notifyMatchFailure(
+          op, "missing runtime tuple for DRAM load copy binding");
+
+    Value cb = bindingData->cb;
     if (!cb) {
-      llvm::errs() << "Error: CB not found for memref " << inputMemref << "\n";
+      llvm::errs() << "Error: CB not found for DRAM load binding slot " << *slot
+                   << "\n";
       return failure();
     }
     auto cbType = cast<CBType>(cb.getType());
@@ -1455,8 +1491,8 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
       numPages = ceilDivSICompat(rewriter, loc, totalSize, pageSize);
     }
 
-    memrefArgData->num_tiles = numPages;
-    CBReserveBackOp::create(rewriter, loc, cb, memrefArgData->num_tiles);
+    bindingData->num_tiles = numPages;
+    CBReserveBackOp::create(rewriter, loc, cb, bindingData->num_tiles);
 
     // Determine broadcast direction from the loom.copy broadcast attribute.
     // broadcast : [x, y]
@@ -1520,30 +1556,30 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
         rewriter.setInsertionPoint(
             ifOp.getThenRegion().front().getTerminator());
         auto [totalSizeBytes, multicast_l1Addr] = dram_read(
-            source, loc, rewriter, memrefArgData, tracker, getTypeConverter());
+            source, loc, rewriter, bindingData);
         if (!totalSizeBytes || !multicast_l1Addr) {
           llvm::errs() << "dram_read failed to return valid values\n";
           return failure();
         }
-        multicast_send(rewriter, loc, memrefArgData, totalSizeBytes,
+        multicast_send(rewriter, loc, bindingData, totalSizeBytes,
                        multicast_l1Addr);
 
         rewriter.setInsertionPoint(
             ifOp.getElseRegion().front().getTerminator());
-        multicast_receive(rewriter, loc, memrefArgData);
+        multicast_receive(rewriter, loc, bindingData);
       }
       rewriter.setInsertionPointAfter(ifOp);
     } else {
       auto [totalSizeBytes, multicast_l1Addr] = dram_read(
-          source, loc, rewriter, memrefArgData, tracker, getTypeConverter());
+          source, loc, rewriter, bindingData);
       if (!totalSizeBytes || !multicast_l1Addr) {
         llvm::errs() << "dram_read failed to return valid values\n";
         return failure();
       }
     }
 
-    CBPushBackOp::create(rewriter, loc, memrefArgData->cb,
-                         memrefArgData->num_tiles);
+    CBPushBackOp::create(rewriter, loc, bindingData->cb,
+                         bindingData->num_tiles);
     rewriter.eraseOp(op);
     return success();
   }
@@ -1577,16 +1613,27 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
       return failure();
     Location loc = op.getLoc();
 
-    Value outputMemref = reinterpretCastOp.getSource();
+    auto parentFunc = op->getParentOfType<func::FuncOp>();
+    if (!parentFunc)
+      return failure();
+    auto slot = getCopyBindingSlot(op.getOperation());
+    if (!slot)
+      return rewriter.notifyMatchFailure(
+          op, "missing required copy binding slot on DRAM store");
+    CopyBindingData *bindingData =
+        tracker->getCopyBindingData(parentFunc.getOperation(), *slot);
+    if (!bindingData)
+      return rewriter.notifyMatchFailure(
+          op, "missing runtime tuple for DRAM store copy binding");
 
-    Value cb = tracker->getCB(outputMemref);
+    Value cb = bindingData->cb;
     if (!cb) {
-      llvm::errs() << "No CB found for LoomCopyOp store outputMemref: "
-                   << outputMemref << "\n";
+      llvm::errs() << "No CB found for LoomCopyOp store binding slot " << *slot
+                   << "\n";
       return failure();
     }
 
-    Value baseAddr = tracker->getBaseAddr(outputMemref);
+    Value baseAddr = bindingData->baseAddr;
     if (!baseAddr) {
       llvm::errs() << "No base address found for LoomCopyOp store\n";
       return failure();
@@ -1653,7 +1700,7 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
       numPages = ceilDivSICompat(rewriter, loc, totalSizeBytes, pageSize);
     }
 
-    Value accessorOp = tracker->getTensorAccessor(outputMemref);
+    Value accessorOp = bindingData->tensorAccessor;
     if (!accessorOp) {
       llvm::errs() << "No TensorAccessor found for output memref\n";
       return failure();
@@ -1906,9 +1953,20 @@ struct ConvertLoomComputeStoreOp : public OpConversionPattern<::loom::CopyOp> {
     if (!reinterpretCastOp)
       return failure();
 
-    Value outputMemref = reinterpretCastOp.getSource();
+    auto parentFunc = op->getParentOfType<func::FuncOp>();
+    if (!parentFunc)
+      return failure();
+    auto slot = getCopyBindingSlot(op.getOperation());
+    if (!slot)
+      return rewriter.notifyMatchFailure(
+          op, "missing required copy binding slot on compute-side DRAM store");
+    CopyBindingData *bindingData =
+        tracker->getCopyBindingData(parentFunc.getOperation(), *slot);
+    if (!bindingData)
+      return rewriter.notifyMatchFailure(
+          op, "missing runtime tuple for compute-side DRAM store");
 
-    Value outcb = tracker->getCB(outputMemref);
+    Value outcb = bindingData->cb;
     if (!outcb || !isa<CBType>(outcb.getType())) {
       llvm::errs() << "No CB found for LoomComputeStoreOp target\n";
       return failure();

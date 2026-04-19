@@ -74,10 +74,15 @@ constexpr llvm::StringLiteral kVecKindAttrName = "loom.ttkernel.vec_kind";
 constexpr llvm::StringLiteral kVecTilesAttrName = "loom.ttkernel.vec_tiles";
 constexpr llvm::StringLiteral kSemaphoreSlotAttrName =
     "loom.ttkernel.semaphore_slot";
+constexpr llvm::StringLiteral kCopyBindingSlotAttrName =
+    "loom.ttkernel.copy_binding_slot";
+constexpr llvm::StringLiteral kCopyBindingCountAttrName =
+    "loom.ttkernel.copy_binding_count";
 constexpr llvm::StringLiteral kReaderDataMovementRole = "reader";
 constexpr llvm::StringLiteral kWriterDataMovementRole = "writer";
 constexpr llvm::StringLiteral kDMProcessorRISCV0 = "riscv0";
 constexpr llvm::StringLiteral kDMProcessorRISCV1 = "riscv1";
+constexpr int64_t kRuntimeArgsPerCopyBinding = 11;
 
 enum class HostProgramKind { Cpp, Pybind };
 enum class DataMovementKernelRole { Reader, Writer };
@@ -174,10 +179,118 @@ static Value stripViewLikeWrappers(Value value) {
   return current;
 }
 
+static bool isDramToL1Copy(::loom::CopyOp copyOp) {
+  return copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>() !=
+         nullptr;
+}
+
+static bool isL1ToDramCopy(::loom::CopyOp copyOp) {
+  return copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>() !=
+         nullptr;
+}
+
+static std::optional<int64_t> getCopyBindingSlot(Operation *op) {
+  if (!op)
+    return std::nullopt;
+  auto slotAttr = op->getAttrOfType<IntegerAttr>(kCopyBindingSlotAttrName);
+  if (!slotAttr)
+    return std::nullopt;
+  return slotAttr.getInt();
+}
+
+static int64_t getAnnotatedCopyBindingCount(func::FuncOp func) {
+  if (!func)
+    return 0;
+  auto countAttr = func->getAttrOfType<IntegerAttr>(kCopyBindingCountAttrName);
+  return countAttr ? countAttr.getInt() : 0;
+}
+
+static Value getCopyBindingDramMemref(::loom::CopyOp copyOp) {
+  if (!copyOp)
+    return {};
+
+  if (auto sourceRC =
+          copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>()) {
+    return stripMemrefCasts(sourceRC.getSource());
+  }
+
+  if (auto destRC =
+          copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>()) {
+    return stripMemrefCasts(destRC.getSource());
+  }
+
+  return {};
+}
+
+static Value getCopyBindingL1Endpoint(::loom::CopyOp copyOp) {
+  if (!copyOp)
+    return {};
+
+  if (isDramToL1Copy(copyOp))
+    return stripMemrefCasts(copyOp.getDestination());
+  if (isL1ToDramCopy(copyOp))
+    return stripMemrefCasts(copyOp.getSource());
+  return {};
+}
+
+static MemRefType getCopyBindingCBMemrefType(::loom::CopyOp copyOp) {
+  Value l1Endpoint = getCopyBindingL1Endpoint(copyOp);
+  if (!l1Endpoint)
+    return {};
+
+  Value base = stripLoomSemaphores(stripMemrefCasts(l1Endpoint));
+  if (auto allocOp = base.getDefiningOp<::loom::AllocOp>())
+    return dyn_cast<MemRefType>(allocOp.getType());
+
+  return dyn_cast<MemRefType>(l1Endpoint.getType());
+}
+
+static LogicalResult collectCopyBindingOps(func::FuncOp func,
+                                           SmallVectorImpl<::loom::CopyOp> &ops) {
+  ops.clear();
+  int64_t bindingCount = getAnnotatedCopyBindingCount(func);
+  if (bindingCount < 0)
+    return func.emitError() << "invalid negative copy binding count";
+  if (bindingCount == 0)
+    return success();
+
+  llvm::DenseMap<int64_t, ::loom::CopyOp> copyBySlot;
+  SmallVector<int64_t, 8> slots;
+  LogicalResult status = success();
+
+  func.walk([&](::loom::CopyOp copyOp) {
+    if (failed(status))
+      return;
+    auto slot = getCopyBindingSlot(copyOp.getOperation());
+    if (!slot)
+      return;
+    if (*slot < 0 || *slot >= bindingCount) {
+      status = copyOp.emitOpError("has out-of-range copy binding slot ")
+               << *slot << " for binding count " << bindingCount;
+      return;
+    }
+    if (copyBySlot.count(*slot)) {
+      status = copyOp.emitOpError("duplicate copy binding slot ") << *slot;
+      return;
+    }
+    copyBySlot.try_emplace(*slot, copyOp);
+    slots.push_back(*slot);
+  });
+
+  if (failed(status))
+    return failure();
+
+  llvm::sort(slots);
+  for (int64_t slot : slots)
+    ops.push_back(copyBySlot.lookup(slot));
+
+  return success();
+}
+
 // Infer per-argument CB memref shape from loom.copy links to loom.alloc.
 // This decouples DRAM tensor shape (function args / host buffers) from
 // on-core CB tile shape (loom.alloc).
-static LogicalResult inferArgToCBMemrefType(
+[[maybe_unused]] static LogicalResult inferArgToCBMemrefType(
     func::FuncOp func, llvm::DenseMap<Value, MemRefType> &argToCBMemrefType) {
   Block &entry = func.front();
   LogicalResult status = success();
@@ -785,6 +898,42 @@ static bool preprocessScalarMemoryOpsTmp(func::FuncOp func) {
   return true;
 }
 
+static LogicalResult annotateCopyBindingSlots(func::FuncOp func) {
+  Builder builder(func.getContext());
+  llvm::DenseMap<Operation *, int64_t> semaphoreToSlot;
+  int64_t nextSlot = 0;
+
+  LogicalResult status = success();
+  func.walk([&](::loom::CopyOp copyOp) {
+    if (failed(status))
+      return;
+    if (!isDramToL1Copy(copyOp) && !isL1ToDramCopy(copyOp))
+      return;
+
+    Value l1Endpoint = getCopyBindingL1Endpoint(copyOp);
+    if (auto sem = l1Endpoint.getDefiningOp<::loom::SemaphoreTakeOp>()) {
+      auto [it, inserted] =
+          semaphoreToSlot.try_emplace(sem.getOperation(), nextSlot);
+      if (!inserted) {
+        status = copyOp.emitOpError(
+            "destination/source semaphore participates in multiple DRAM/L1 "
+            "loom.copy bindings; one semaphore must map to one binding");
+        return;
+      }
+    }
+
+    copyOp->setAttr(kCopyBindingSlotAttrName,
+                    builder.getI64IntegerAttr(nextSlot));
+    ++nextSlot;
+  });
+
+  if (failed(status))
+    return failure();
+
+  func->setAttr(kCopyBindingCountAttrName, builder.getI64IntegerAttr(nextSlot));
+  return success();
+}
+
 static void annotateSemaphoreSlots(func::FuncOp func) {
   llvm::DenseMap<Value, SmallVector<::loom::SemaphoreTakeOp, 4>> semaphoresByAlloc;
   func.walk([&](::loom::SemaphoreTakeOp sem) {
@@ -841,6 +990,7 @@ static void annotateSemaphoreSlots(func::FuncOp func) {
 
 LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     func::FuncOp func, TypeConverter &typeConverter, OpBuilder &rewriter) {
+  (void)typeConverter;
   if (func.getName().contains("__host"))
     return success();
 
@@ -871,14 +1021,12 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
   OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToStart(&entry);
 
-  llvm::DenseMap<Value, MemRefType> argToCBMemrefType;
-  if (failed(inferArgToCBMemrefType(func, argToCBMemrefType)))
+  SmallVector<::loom::CopyOp, 8> copyBindings;
+  if (failed(collectCopyBindingOps(func, copyBindings)))
     return failure();
 
-  // Process each function argument.
+  // First reserve shared TensorAccessorArgs indices for memref arguments.
   for (BlockArgument arg : entry.getArguments()) {
-    // Scalar runtime sites are lowered via per-site packed scalar runtime words.
-    // They must not consume DRAM/CB compile-arg slots.
     if (isScalarRuntimeSiteArg(func, arg))
       continue;
 
@@ -889,112 +1037,168 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     }
 
     if (isa<MemRefType, UnrankedMemRefType>(argType)) {
-      // Memref type: create CB and base address.
-      // CB uses nextCompileArgIndex, base address uses nextCompileArgIndex + 1.
-      int64_t tensorAccessorArgsIndex = getNextTensorAccessorArgsIndex(func);
+      memrefArgToTensorAccessorArgsIndex.try_emplace(
+          arg, getNextTensorAccessorArgsIndex(func));
+      continue;
+    }
 
-      // Create GetArgValOp for CB.
-      Type cbType = nullptr;
-      if (auto it = argToCBMemrefType.find(arg); it != argToCBMemrefType.end())
-        cbType = CBType::get(it->second);
-      else
-        cbType = typeConverter.convertType(argType);
-      if (!cbType)
-        return func.emitError() << "failed to convert memref type to CB type";
-      Value cbOp = createGetArgValOp(loc, rewriter, func, cbType);
+    if (!argType.isIndex())
+      return func.emitError() << "unsupported argument type: " << argType;
+  }
 
-      // Create GetArgValOp for base address.
-      Value baseAddrOp = createGetArgValOp(loc, rewriter, func,
-                                           rewriter.getI32Type());
-      
-      Value mcast_dest_noc_start_x_op = createGetArgValOp(
-          loc, rewriter, func, rewriter.getI32Type());
-      Value mcast_dest_noc_start_y_op = createGetArgValOp(
-          loc, rewriter, func, rewriter.getI32Type());
-      Value mcast_dest_noc_end_x_op = createGetArgValOp(
-          loc, rewriter, func, rewriter.getI32Type());
-      Value mcast_dest_noc_end_y_op = createGetArgValOp(
-          loc, rewriter, func, rewriter.getI32Type());
-      Value mcast_dest_num_op = createGetArgValOp(
-          loc, rewriter, func, rewriter.getI32Type());
-      Value mcast_sender_noc_x_op = createGetArgValOp(
-          loc, rewriter, func, rewriter.getI32Type());
-      Value mcast_sender_noc_y_op = createGetArgValOp(
-          loc, rewriter, func, rewriter.getI32Type());
-      Value mcast_sender_semaphore_addr_arg = createGetArgValOp(
-          loc, rewriter, func, rewriter.getI32Type());
-      Value mcast_sender_semaphore_addr_op;
-      Value mcast_receiver_semaphore_addr_arg = createGetArgValOp(
-        loc, rewriter, func, rewriter.getI32Type());
-      Value mcast_receiver_semaphore_addr_op;
+  funcToCopyBindingData.erase(func.getOperation());
 
+  for (::loom::CopyOp copyOp : copyBindings) {
+    auto slot = getCopyBindingSlot(copyOp.getOperation());
+    if (!slot)
+      return copyOp.emitOpError("missing required copy binding slot");
 
-      // Create TensorAccessArgs and TensorAccess for base address only for
-      // non-compute kernels (reader/writer/host). Compute kernels access data
-      // via circular buffers and do not issue NOC reads/writes directly, so
-      // they don't require TensorAccessor metadata.
-      Value tensorAccessor;
-      Value mcast_sender_semaphore_noc_addr_op;
-      Value mcast_receiver_semaphore_noc_addr_op;
-      Value mcast_receiver_semaphore_addr_ptr;
-      Value mcast_sender_semaphore_addr_ptr;
-      if (!isComputeKernel) {
-        Value nocIdVal = rewriter.create<arith::ConstantIntOp>(
-            loc, rewriter.getI8Type(), resolvedDmNocId);
-        mcast_sender_semaphore_addr_op = GetSemaphoreOp::create(
-          rewriter, loc, mcast_sender_semaphore_addr_arg);
-        mcast_receiver_semaphore_addr_op = GetSemaphoreOp::create(
-          rewriter, loc, mcast_receiver_semaphore_addr_arg);
-        auto pagesize = GetTileSizeOp::create(rewriter, loc, cbOp);
-        Value tensorAccessorArgsIdxVal = rewriter.create<arith::ConstantIntOp>(
-            loc, rewriter.getI32Type(),
-            static_cast<int64_t>(tensorAccessorArgsIndex));
-        auto baseAddrArgs = rewriter.create<TensorAccessorArgsOp>(
-            loc, tensorAccessorArgsIdxVal, tensorAccessorArgsIdxVal);
-        auto baseAddrTensorAccess =
-            rewriter.create<TensorAccessorOp>(loc, baseAddrArgs.getResult(),
-                                              baseAddrOp, pagesize);
-        tensorAccessor = baseAddrTensorAccess.getResult();
-        //TODO, need to generate code like "ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>" instead of ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>, this is currently achieved by using python string processing
-        mcast_receiver_semaphore_addr_ptr = CastToL1PtrOp::create(rewriter, loc, mcast_receiver_semaphore_addr_op);
-        
-        mcast_sender_semaphore_addr_ptr = CastToL1PtrOp::create(rewriter, loc, mcast_sender_semaphore_addr_op);
-        mcast_sender_semaphore_noc_addr_op = GetNocAddrOp::create(rewriter, loc, 
-                           mcast_sender_noc_x_op,
-                           mcast_sender_noc_y_op,
-                           mcast_sender_semaphore_addr_op);
+    Value linkedMemrefArg = getCopyBindingDramMemref(copyOp);
+    auto blockArg = dyn_cast<BlockArgument>(linkedMemrefArg);
+    if (!blockArg || blockArg.getOwner() != &entry) {
+      return copyOp.emitOpError("expected DRAM side of copy binding to resolve "
+                                "to a function memref argument");
+    }
 
-        mcast_receiver_semaphore_noc_addr_op =
-            rewriter.create<ExperimentalGetNocMulticastAddrOp>(
-                        loc, mcast_dest_noc_start_x_op,
-                        mcast_dest_noc_start_y_op, mcast_dest_noc_end_x_op,
-                        mcast_dest_noc_end_y_op,
-                        mcast_receiver_semaphore_addr_op, nocIdVal)
-                .getResult();
-      }
+    auto cbMemrefType = getCopyBindingCBMemrefType(copyOp);
+    if (!cbMemrefType) {
+      return copyOp.emitOpError(
+          "failed to infer L1 circular-buffer memref type for binding");
+    }
 
-      // pre-created base address when processing load/store ops.
-      memrefArgToData[arg] = MemrefArgData{
-        cbOp, // cb id
-        baseAddrOp, // base address
-        tensorAccessor, // tensor accessor
-        mcast_dest_noc_start_x_op, // multicast destination NOC start x
-        mcast_dest_noc_start_y_op, // multicast destination NOC start y
-        mcast_dest_noc_end_x_op, // multicast destination NOC end x
-        mcast_dest_noc_end_y_op, // multicast destination NOC end y
-        mcast_dest_num_op, // multicast destination number
-        mcast_sender_noc_x_op, // multicast sender NOC x
-        mcast_sender_noc_y_op, // multicast sender NOC y
-        mcast_sender_semaphore_addr_op, // multicast sender semaphore address
-        mcast_receiver_semaphore_addr_op, // multicast receiver semaphore address
-        mcast_sender_semaphore_addr_ptr, // L1 multicast sender semaphore address pointer
-        mcast_receiver_semaphore_addr_ptr, // L1 multicast receiver semaphore address pointer
-        mcast_sender_semaphore_noc_addr_op, // noc address of sender semaphore
-        mcast_receiver_semaphore_noc_addr_op, // noc address of receiver semaphore
-        resolvedDmNocId // resolved noc id for this data-movement kernel
-      };
-      memrefArgToData[arg].initLoc = loc;
+    auto accessorIndexIt = memrefArgToTensorAccessorArgsIndex.find(linkedMemrefArg);
+    if (accessorIndexIt == memrefArgToTensorAccessorArgsIndex.end()) {
+      return copyOp.emitOpError(
+          "missing TensorAccessorArgs index for DRAM memref argument");
+    }
 
+    Location bindingLoc = copyOp.getLoc();
+    int64_t baseArgIndex = *slot * kRuntimeArgsPerCopyBinding;
+
+    Value cbOp = createTypedCompileArgAtIndex(bindingLoc, rewriter, func,
+                                              baseArgIndex + 0,
+                                              CBType::get(cbMemrefType));
+    Value baseAddrOp = createTypedCompileArgAtIndex(bindingLoc, rewriter, func,
+                                                    baseArgIndex + 1,
+                                                    rewriter.getI32Type());
+    Value mcastDestStartX = createTypedCompileArgAtIndex(
+        bindingLoc, rewriter, func, baseArgIndex + 2, rewriter.getI32Type());
+    Value mcastDestStartY = createTypedCompileArgAtIndex(
+        bindingLoc, rewriter, func, baseArgIndex + 3, rewriter.getI32Type());
+    Value mcastDestEndX = createTypedCompileArgAtIndex(
+        bindingLoc, rewriter, func, baseArgIndex + 4, rewriter.getI32Type());
+    Value mcastDestEndY = createTypedCompileArgAtIndex(
+        bindingLoc, rewriter, func, baseArgIndex + 5, rewriter.getI32Type());
+    Value mcastDestNum = createTypedCompileArgAtIndex(
+        bindingLoc, rewriter, func, baseArgIndex + 6, rewriter.getI32Type());
+    Value mcastSenderNocX = createTypedCompileArgAtIndex(
+        bindingLoc, rewriter, func, baseArgIndex + 7, rewriter.getI32Type());
+    Value mcastSenderNocY = createTypedCompileArgAtIndex(
+        bindingLoc, rewriter, func, baseArgIndex + 8, rewriter.getI32Type());
+    Value mcastSenderSemaphoreAddrArg = createTypedCompileArgAtIndex(
+        bindingLoc, rewriter, func, baseArgIndex + 9, rewriter.getI32Type());
+    Value mcastReceiverSemaphoreAddrArg = createTypedCompileArgAtIndex(
+        bindingLoc, rewriter, func, baseArgIndex + 10, rewriter.getI32Type());
+
+    if (!cbOp || !baseAddrOp || !mcastDestStartX || !mcastDestStartY ||
+        !mcastDestEndX || !mcastDestEndY || !mcastDestNum ||
+        !mcastSenderNocX || !mcastSenderNocY || !mcastSenderSemaphoreAddrArg ||
+        !mcastReceiverSemaphoreAddrArg) {
+      return copyOp.emitOpError("failed to materialize per-copy runtime tuple");
+    }
+
+    Value tensorAccessor;
+    Value mcastSenderSemaphoreAddrOp;
+    Value mcastReceiverSemaphoreAddrOp;
+    Value mcastReceiverSemaphoreAddrPtr;
+    Value mcastSenderSemaphoreAddrPtr;
+    Value mcastSenderSemaphoreNocAddrOp;
+    Value mcastReceiverSemaphoreNocAddrOp;
+    if (!isComputeKernel) {
+      Value nocIdVal = rewriter.create<arith::ConstantIntOp>(
+          bindingLoc, rewriter.getI8Type(), resolvedDmNocId);
+      mcastSenderSemaphoreAddrOp =
+          GetSemaphoreOp::create(rewriter, bindingLoc,
+                                 mcastSenderSemaphoreAddrArg);
+      mcastReceiverSemaphoreAddrOp =
+          GetSemaphoreOp::create(rewriter, bindingLoc,
+                                 mcastReceiverSemaphoreAddrArg);
+      Value pageSize = GetTileSizeOp::create(rewriter, bindingLoc, cbOp);
+      Value tensorAccessorArgsIdxVal = rewriter.create<arith::ConstantIntOp>(
+          bindingLoc, rewriter.getI32Type(), accessorIndexIt->second);
+      auto baseAddrArgs = rewriter.create<TensorAccessorArgsOp>(
+          bindingLoc, tensorAccessorArgsIdxVal, tensorAccessorArgsIdxVal);
+      tensorAccessor = rewriter
+                           .create<TensorAccessorOp>(bindingLoc,
+                                                     baseAddrArgs.getResult(),
+                                                     baseAddrOp, pageSize)
+                           .getResult();
+      mcastReceiverSemaphoreAddrPtr =
+          CastToL1PtrOp::create(rewriter, bindingLoc,
+                                mcastReceiverSemaphoreAddrOp);
+      mcastSenderSemaphoreAddrPtr =
+          CastToL1PtrOp::create(rewriter, bindingLoc,
+                                mcastSenderSemaphoreAddrOp);
+      mcastSenderSemaphoreNocAddrOp = GetNocAddrOp::create(
+          rewriter, bindingLoc, mcastSenderNocX, mcastSenderNocY,
+          mcastSenderSemaphoreAddrOp);
+      mcastReceiverSemaphoreNocAddrOp =
+          rewriter
+              .create<ExperimentalGetNocMulticastAddrOp>(
+                  bindingLoc, mcastDestStartX, mcastDestStartY, mcastDestEndX,
+                  mcastDestEndY, mcastReceiverSemaphoreAddrOp, nocIdVal)
+              .getResult();
+    }
+
+    CopyBindingData bindingData;
+    bindingData.slot = *slot;
+    bindingData.linkedMemrefArg = linkedMemrefArg;
+    bindingData.l1Endpoint = getCopyBindingL1Endpoint(copyOp);
+    bindingData.isLoad = isDramToL1Copy(copyOp);
+    bindingData.isStore = isL1ToDramCopy(copyOp);
+    bindingData.cb = cbOp;
+    bindingData.baseAddr = baseAddrOp;
+    bindingData.tensorAccessor = tensorAccessor;
+    bindingData.mcast_dest_noc_start_x = mcastDestStartX;
+    bindingData.mcast_dest_noc_start_y = mcastDestStartY;
+    bindingData.mcast_dest_noc_end_x = mcastDestEndX;
+    bindingData.mcast_dest_noc_end_y = mcastDestEndY;
+    bindingData.mcast_dest_num = mcastDestNum;
+    bindingData.mcast_sender_noc_x = mcastSenderNocX;
+    bindingData.mcast_sender_noc_y = mcastSenderNocY;
+    bindingData.mcast_sender_semaphore_addr = mcastSenderSemaphoreAddrOp;
+    bindingData.mcast_receiver_semaphore_addr = mcastReceiverSemaphoreAddrOp;
+    bindingData.mcast_sender_semaphore_addr_ptr = mcastSenderSemaphoreAddrPtr;
+    bindingData.mcast_receiver_semaphore_addr_ptr =
+        mcastReceiverSemaphoreAddrPtr;
+    bindingData.mcast_sender_semaphore_noc_addr =
+        mcastSenderSemaphoreNocAddrOp;
+    bindingData.mcast_receiver_semaphore_noc_addr =
+        mcastReceiverSemaphoreNocAddrOp;
+    bindingData.noc_id = resolvedDmNocId;
+    bindingData.initLoc = bindingLoc;
+    funcToCopyBindingData[func.getOperation()][*slot] = bindingData;
+  }
+
+  int64_t bindingPrefixSize =
+      getAnnotatedCopyBindingCount(func) * kRuntimeArgsPerCopyBinding;
+  int64_t &nextArgIndex = funcToNextArgIndex[func.getOperation()];
+  if (nextArgIndex < bindingPrefixSize)
+    nextArgIndex = bindingPrefixSize;
+
+  // Process non-memref function arguments that still need runtime slots.
+  for (BlockArgument arg : entry.getArguments()) {
+    if (isScalarRuntimeSiteArg(func, arg))
+      continue;
+
+    Type argType = arg.getType();
+    if (auto memrefType = dyn_cast<MemRefType>(argType)) {
+      if (isScalarMemRefType(memrefType) && memrefType.getRank() == 0)
+        continue;
+    }
+
+    if (isa<MemRefType, UnrankedMemRefType>(argType)) {
+      continue;
     } else if (argType.isIndex()) {
       // Index type: create a single compile-arg.
       Value compileArgOp = createGetArgValOp(loc, rewriter, func,
@@ -1071,6 +1275,28 @@ mlir::loom::MemrefArgData *mlir::loom::CompileArgTracker::getMemrefData(Value ar
   if (it != memrefArgToData.end())
     return &it->second;
   return nullptr;
+}
+
+mlir::loom::CopyBindingData *
+mlir::loom::CompileArgTracker::getCopyBindingData(Operation *funcOp,
+                                                  int64_t slot) {
+  if (!funcOp || slot < 0)
+    return nullptr;
+  auto funcIt = funcToCopyBindingData.find(funcOp);
+  if (funcIt == funcToCopyBindingData.end())
+    return nullptr;
+  auto slotIt = funcIt->second.find(slot);
+  if (slotIt == funcIt->second.end())
+    return nullptr;
+  return &slotIt->second;
+}
+
+int64_t
+mlir::loom::CompileArgTracker::getCopyBindingCount(Operation *funcOp) const {
+  auto func = dyn_cast_or_null<func::FuncOp>(funcOp);
+  if (!func)
+    return 0;
+  return getAnnotatedCopyBindingCount(func);
 }
 
 mlir::loom::IndexArgData *mlir::loom::CompileArgTracker::getIndexData(Value arg) {
@@ -1639,9 +1865,9 @@ public:
                    containsGatherOp(originalFunc);
     inferCoreCoordArgOrder();
     collectDramInfos();
-    collectBroadcastRegions();
     collectScalarRuntimeSites();
     collectReduceRegion();
+    collectCopyBindings();
     collectCbInfos();
     annotateHostSignatureMetadata();
     eraseNonHostOps();
@@ -1672,21 +1898,30 @@ private:
     unsigned memrefOrdinal;
     int inputTensorOrdinal;
     int outputTensorOrdinal;
-    int cbIndex;
     bool isInput;
     bool isOutput;
-    MulticastKind multicastKind;
-    bool hasBroadcastRegion;
-    std::string ulXExpr;
-    std::string ulYExpr;
-    std::string lrXExpr;
-    std::string lrYExpr;
     std::string inputName;
     std::string configName;
     std::string bufferName;
     std::string tilesVarName;
     std::string tilesExpr;
     std::string sizeExpr;
+  };
+
+  struct CopyBindingInfo {
+    unsigned slot = 0;
+    unsigned dramInfoIndex = 0;
+    int cbIndex = -1;
+    bool isInput = false;
+    bool isOutput = false;
+    bool hasBroadcastRegion = false;
+    Value l1Endpoint;
+    std::string bindingName;
+    std::string cbTilesExpr;
+    std::string ulXExpr;
+    std::string ulYExpr;
+    std::string lrXExpr;
+    std::string lrYExpr;
   };
 
   struct CircularBufferInfo {
@@ -1718,7 +1953,8 @@ private:
     std::string inputName;
   };
 
-  static constexpr unsigned kRuntimeArgsPerMemref = 11;
+  static constexpr unsigned kRuntimeArgsPerBindingTuple =
+      static_cast<unsigned>(kRuntimeArgsPerCopyBinding);
 
   static Value stripCasts(Value value) {
     Value curr = value;
@@ -2269,9 +2505,6 @@ private:
           isInput ? static_cast<int>(inputTensorIdx++) : -1;
       int outputTensorOrdinal =
           isOutput ? static_cast<int>(outputTensorIdx++) : -1;
-      MulticastKind multicastKind = MulticastKind::None;
-      if (isInput)
-        multicastKind = findInputMulticastKind(hostArg);
       std::string inputName =
           isInput ? ("in" + std::to_string(inputIdx++)) : "";
 
@@ -2282,15 +2515,8 @@ private:
           static_cast<unsigned>(dramInfos.size()),
           inputTensorOrdinal,
           outputTensorOrdinal,
-          /*cbIndex=*/-1,
           isInput,
           isOutput,
-          multicastKind,
-          /*hasBroadcastRegion=*/false,
-          /*ulXExpr=*/"",
-          /*ulYExpr=*/"",
-          /*lrXExpr=*/"",
-          /*lrYExpr=*/"",
           inputName,
           "dram_config_" + letter,
           roleName + "_dram_buffer",
@@ -2300,46 +2526,65 @@ private:
     }
   }
 
-  void collectBroadcastRegions() {
-    collectParallelIvExprs();
+  void collectCopyBindings() {
+    copyBindings.clear();
+    if (parallelIvExprByValue.empty())
+      collectParallelIvExprs();
 
-    hostFunc.walk([&](::loom::CopyOp op) {
-      auto sourceRC = op.getSource().getDefiningOp<memref::ReinterpretCastOp>();
-      if (!sourceRC)
-        return;
+    SmallVector<::loom::CopyOp, 8> orderedBindings;
+    if (failed(collectCopyBindingOps(hostFunc, orderedBindings))) {
+      hostFunc.emitError("failed to collect annotated DRAM/L1 copy bindings");
+      return;
+    }
 
-      Value memrefArg = stripCasts(sourceRC.getSource());
-      DramBufferInfo *dramInfo = findDramInfoMutable(memrefArg);
-      if (!dramInfo || !dramInfo->isInput || dramInfo->hasBroadcastRegion)
-        return;
+    copyBindings.reserve(orderedBindings.size());
+    for (::loom::CopyOp copyOp : orderedBindings) {
+      auto slot = getCopyBindingSlot(copyOp.getOperation());
+      if (!slot)
+        continue;
 
-      auto parsedBroadcast = parseBroadcastAttr(op.getBroadcastAttr());
-      if (!parsedBroadcast)
-        return;
-      bool isBroadcast = parsedBroadcast->first > 1 || parsedBroadcast->second > 1;
-      if (!isBroadcast)
-        return;
+      Value dramMemref = getCopyBindingDramMemref(copyOp);
+      DramBufferInfo *dramInfo = findDramInfoMutable(dramMemref);
+      if (!dramInfo)
+        continue;
 
-      Value ulX = op.getUlX();
-      Value ulY = op.getUlY();
-      Value lrX = op.getLrX();
-      Value lrY = op.getLrY();
-      if (!ulX || !ulY || !lrX || !lrY)
-        return;
+      CopyBindingInfo info;
+      info.slot = static_cast<unsigned>(*slot);
+      info.dramInfoIndex = static_cast<unsigned>(dramInfo - dramInfos.data());
+      info.isInput = isDramToL1Copy(copyOp);
+      info.isOutput = isL1ToDramCopy(copyOp);
+      info.l1Endpoint = getCopyBindingL1Endpoint(copyOp);
+      info.bindingName = "binding" + std::to_string(*slot);
 
-      auto ulXExpr = buildIndexExpr(ulX, parallelIvExprByValue);
-      auto ulYExpr = buildIndexExpr(ulY, parallelIvExprByValue);
-      auto lrXExpr = buildIndexExpr(lrX, parallelIvExprByValue);
-      auto lrYExpr = buildIndexExpr(lrY, parallelIvExprByValue);
-      if (!ulXExpr || !ulYExpr || !lrXExpr || !lrYExpr)
-        return;
+      if (auto cbMemrefType = getCopyBindingCBMemrefType(copyOp))
+        (void)buildTilesExpr(cbMemrefType, info.cbTilesExpr);
 
-      dramInfo->hasBroadcastRegion = true;
-      dramInfo->ulXExpr = *ulXExpr;
-      dramInfo->ulYExpr = *ulYExpr;
-      dramInfo->lrXExpr = *lrXExpr;
-      dramInfo->lrYExpr = *lrYExpr;
-    });
+      if (info.isInput) {
+        auto parsedBroadcast = parseBroadcastAttr(copyOp.getBroadcastAttr());
+        if (parsedBroadcast &&
+            (parsedBroadcast->first > 1 || parsedBroadcast->second > 1)) {
+          Value ulX = copyOp.getUlX();
+          Value ulY = copyOp.getUlY();
+          Value lrX = copyOp.getLrX();
+          Value lrY = copyOp.getLrY();
+          if (ulX && ulY && lrX && lrY) {
+            auto ulXExpr = buildIndexExpr(ulX, parallelIvExprByValue);
+            auto ulYExpr = buildIndexExpr(ulY, parallelIvExprByValue);
+            auto lrXExpr = buildIndexExpr(lrX, parallelIvExprByValue);
+            auto lrYExpr = buildIndexExpr(lrY, parallelIvExprByValue);
+            if (ulXExpr && ulYExpr && lrXExpr && lrYExpr) {
+              info.hasBroadcastRegion = true;
+              info.ulXExpr = *ulXExpr;
+              info.ulYExpr = *ulYExpr;
+              info.lrXExpr = *lrXExpr;
+              info.lrYExpr = *lrYExpr;
+            }
+          }
+        }
+      }
+
+      copyBindings.push_back(info);
+    }
   }
 
   void collectScalarRuntimeSites() {
@@ -2426,6 +2671,12 @@ private:
   }
 
   void collectCbInfos() {
+    cbInfos.clear();
+    semaphoreToCbIndex.clear();
+    allocToCbInfo.clear();
+    internalCbRuntimeArgOrder.clear();
+    nextCbIndex = 0;
+
     llvm::DenseMap<Value, SmallVector<Value, 4>> semaphoresByAlloc;
     hostFunc.walk([&](::loom::SemaphoreTakeOp sem) {
       Value base = stripLoomSemaphores(stripCasts(sem.getSource()));
@@ -2467,68 +2718,34 @@ private:
       cbInfos.push_back(info);
     });
 
-    // Resolve memref argument CB mapping using copy edges:
-    // reinterpret_cast(arg) <-> (semaphore|alloc) <-> CBIndex.
-    hostFunc.walk([&](::loom::CopyOp copyOp) {
-      if (auto sourceRC =
-              copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>()) {
-        Value memrefArg = stripCasts(sourceRC.getSource());
-        int cbIndex = resolveCbIndexFromEndpoint(copyOp.getDestination());
-        if (cbIndex >= 0) {
-          if (DramBufferInfo *dramInfo = findDramInfoMutable(memrefArg)) {
-            if (dramInfo->cbIndex < 0)
-              dramInfo->cbIndex = cbIndex;
-          }
-        }
+    SmallVector<unsigned, 8> bindingCbIndices;
+    for (CopyBindingInfo &binding : copyBindings) {
+      int cbIndex = resolveCbIndexFromEndpoint(binding.l1Endpoint);
+      if (cbIndex < 0) {
+        CircularBufferInfo info;
+        info.allocValue = {};
+        info.tilesExpr = binding.cbTilesExpr.empty()
+                             ? dramInfos[binding.dramInfoIndex].tilesExpr
+                             : binding.cbTilesExpr;
+        info.tilesVarName =
+            "cb_tiles_per_block_" + std::to_string(cbInfos.size());
+        cbIndex = nextCbIndex++;
+        info.cbIndices.push_back(static_cast<unsigned>(cbIndex));
+        info.cbIndexNames.push_back("CBIndex::c_" + std::to_string(cbIndex));
+        cbInfos.push_back(info);
       }
 
-      if (auto destRC =
-              copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>()) {
-        Value memrefArg = stripCasts(destRC.getSource());
-        int cbIndex = resolveCbIndexFromEndpoint(copyOp.getSource());
-        if (cbIndex >= 0) {
-          if (DramBufferInfo *dramInfo = findDramInfoMutable(memrefArg)) {
-            if (dramInfo->cbIndex < 0)
-              dramInfo->cbIndex = cbIndex;
-          }
-        }
-      }
-    });
-
-    // Final fallback for memrefs with no copy->alloc/semaphore mapping.
-    for (DramBufferInfo &dramInfo : dramInfos) {
-      if (dramInfo.cbIndex >= 0)
-        continue;
-
-      CircularBufferInfo info;
-      info.allocValue = {};
-      info.tilesExpr = dramInfo.tilesExpr;
-      info.tilesVarName =
-          "cb_tiles_per_block_" + std::to_string(cbInfos.size());
-      unsigned cbIndex = nextCbIndex++;
-      info.cbIndices.push_back(cbIndex);
-      info.cbIndexNames.push_back("CBIndex::c_" + std::to_string(cbIndex));
-      cbInfos.push_back(info);
-
-      dramInfo.cbIndex = static_cast<int>(cbIndex);
+      binding.cbIndex = cbIndex;
+      if (!llvm::is_contained(bindingCbIndices, static_cast<unsigned>(cbIndex)))
+        bindingCbIndices.push_back(static_cast<unsigned>(cbIndex));
     }
 
     // Runtime-arg CB tail must only include internal CBs (those that do not
-    // correspond to memref arguments). Memref-linked CB IDs are already emitted
-    // at fixed per-memref positions at the beginning of runtime args.
-    SmallVector<unsigned, 8> memrefCbIndices;
-    for (const DramBufferInfo &dramInfo : dramInfos) {
-      if (dramInfo.cbIndex < 0)
-        continue;
-      unsigned cbIndex = static_cast<unsigned>(dramInfo.cbIndex);
-      if (!llvm::is_contained(memrefCbIndices, cbIndex))
-        memrefCbIndices.push_back(cbIndex);
-    }
-
-    internalCbRuntimeArgOrder.clear();
+    // correspond to DRAM/L1 copy bindings). Binding-linked CB IDs are already
+    // emitted at fixed per-binding positions at the beginning of runtime args.
     for (const CircularBufferInfo &info : cbInfos) {
       for (unsigned cbIndex : info.cbIndices) {
-        if (llvm::is_contained(memrefCbIndices, cbIndex))
+        if (llvm::is_contained(bindingCbIndices, cbIndex))
           continue;
         if (llvm::is_contained(internalCbRuntimeArgOrder, cbIndex))
           continue;
@@ -2683,12 +2900,12 @@ private:
    */
   bool isInputCircularBuffer(const CircularBufferInfo &cbInfo) const {
     for (unsigned cbIndex : cbInfo.cbIndices) {
-      for (const DramBufferInfo &dramInfo : dramInfos) {
-        if (dramInfo.cbIndex < 0)
+      for (const CopyBindingInfo &binding : copyBindings) {
+        if (binding.cbIndex < 0)
           continue;
-        if (static_cast<unsigned>(dramInfo.cbIndex) != cbIndex)
+        if (static_cast<unsigned>(binding.cbIndex) != cbIndex)
           continue;
-        if (dramInfo.isInput)
+        if (binding.isInput)
           return true;
       }
     }
@@ -2739,13 +2956,13 @@ private:
   }
 
   void emitInputSemaphores() {
-    for (const DramBufferInfo &info : dramInfos) {
-      if (!info.isInput)
+    for (const CopyBindingInfo &binding : copyBindings) {
+      if (!binding.isInput)
         continue;
-      emitLine("auto " + info.inputName +
+      emitLine("auto " + binding.bindingName +
                "_mcast_sender_semaphore_addr = "
                "tt_metal::CreateSemaphore(program, all_cores, INVALID);");
-      emitLine("auto " + info.inputName +
+      emitLine("auto " + binding.bindingName +
                "_mcast_receiver_semaphore_addr = "
                "tt_metal::CreateSemaphore(program, all_cores, INVALID);");
     }
@@ -2805,15 +3022,16 @@ private:
     emitLine("auto& writer_args = writer_args_by_core[core_x][core_y];");
     emitLine("auto& compute_args = compute_args_by_core[core_x][core_y];");
 
-    for (const DramBufferInfo &info : dramInfos) {
+    for (const CopyBindingInfo &binding : copyBindings) {
+      const DramBufferInfo &dramInfo = dramInfos[binding.dramInfoIndex];
       const unsigned addressArgIndex =
-          info.memrefOrdinal * kRuntimeArgsPerMemref + 1;
+          binding.slot * kRuntimeArgsPerBindingTuple + 1;
       std::string offset = std::to_string(addressArgIndex);
-      emitLine("reader_args[" + offset + "] = " + info.bufferName +
+      emitLine("reader_args[" + offset + "] = " + dramInfo.bufferName +
                "->address();");
-      emitLine("writer_args[" + offset + "] = " + info.bufferName +
+      emitLine("writer_args[" + offset + "] = " + dramInfo.bufferName +
                "->address();");
-      emitLine("compute_args[" + offset + "] = " + info.bufferName +
+      emitLine("compute_args[" + offset + "] = " + dramInfo.bufferName +
                "->address();");
     }
 
@@ -2865,25 +3083,19 @@ private:
   }
 
   void emitReaderRuntimeArgsForCore() {
-    auto regionPrefixForInfo = [&](const DramBufferInfo &info) -> std::string {
-      if (!info.inputName.empty())
-        return info.inputName;
-      return "in" + std::to_string(info.memrefOrdinal);
-    };
-
-    for (const DramBufferInfo &info : dramInfos) {
-      if (!info.isInput || !info.hasBroadcastRegion)
+    for (const CopyBindingInfo &binding : copyBindings) {
+      if (!binding.isInput || !binding.hasBroadcastRegion)
         continue;
 
-      std::string prefix = regionPrefixForInfo(info);
+      const std::string &prefix = binding.bindingName;
       emitLine("std::size_t " + prefix + "_ul_x = static_cast<std::size_t>(" +
-               info.ulXExpr + ");");
+               binding.ulXExpr + ");");
       emitLine("std::size_t " + prefix + "_ul_y = static_cast<std::size_t>(" +
-               info.ulYExpr + ");");
+               binding.ulYExpr + ");");
       emitLine("std::size_t " + prefix + "_lr_x = static_cast<std::size_t>(" +
-               info.lrXExpr + ");");
+               binding.lrXExpr + ");");
       emitLine("std::size_t " + prefix + "_lr_y = static_cast<std::size_t>(" +
-               info.lrYExpr + ");");
+               binding.lrYExpr + ");");
 
       emitLine("CoreCoord " + prefix + "_sender_core = {" + prefix +
                "_ul_x, " + prefix + "_ul_y};");
@@ -2952,8 +3164,8 @@ private:
       emitLine("uint32_t reduce_token_mcast_dest_noc_end_y = 0;");
     }
 
-    auto emitMulticastTuple = [&](const DramBufferInfo &info) {
-      if (!info.isInput || !info.hasBroadcastRegion) {
+    auto emitMulticastTuple = [&](const CopyBindingInfo &binding) {
+      if (!binding.isInput) {
         emitLine("0,");
         emitLine("0,");
         emitLine("0,");
@@ -2966,17 +3178,27 @@ private:
         return;
       }
 
-      std::string prefix = regionPrefixForInfo(info);
-      emitLine(prefix + "_multicast_dest_noc_start_x,");
-      emitLine(prefix + "_multicast_dest_noc_start_y,");
-      emitLine(prefix + "_multicast_dest_noc_end_x,");
-      emitLine(prefix + "_multicast_dest_noc_end_y,");
-      emitLine(prefix + "_multicast_dest_num,");
-      emitLine(prefix + "_multicast_sender_noc_x,");
-      emitLine(prefix + "_multicast_sender_noc_y,");
+      const std::string &prefix = binding.bindingName;
+      if (binding.hasBroadcastRegion) {
+        emitLine(prefix + "_multicast_dest_noc_start_x,");
+        emitLine(prefix + "_multicast_dest_noc_start_y,");
+        emitLine(prefix + "_multicast_dest_noc_end_x,");
+        emitLine(prefix + "_multicast_dest_noc_end_y,");
+        emitLine(prefix + "_multicast_dest_num,");
+        emitLine(prefix + "_multicast_sender_noc_x,");
+        emitLine(prefix + "_multicast_sender_noc_y,");
+      } else {
+        emitLine("0,");
+        emitLine("0,");
+        emitLine("0,");
+        emitLine("0,");
+        emitLine("0,");
+        emitLine("0,");
+        emitLine("0,");
+      }
 
-      emitLine(info.inputName + "_mcast_sender_semaphore_addr,");
-      emitLine(info.inputName + "_mcast_receiver_semaphore_addr,");
+      emitLine(prefix + "_mcast_sender_semaphore_addr,");
+      emitLine(prefix + "_mcast_receiver_semaphore_addr,");
     };
 
     for (const ScalarRuntimeSiteInfo &site : scalarRuntimeSites) {
@@ -2997,18 +3219,19 @@ private:
 
     emitLine("std::vector<uint32_t> runtime_args_for_core = {");
 
-    for (const DramBufferInfo &info : dramInfos) {
-      unsigned cbIndex = info.cbIndex >= 0
-                             ? static_cast<unsigned>(info.cbIndex)
-                             : info.memrefOrdinal;
+    for (const CopyBindingInfo &binding : copyBindings) {
+      const DramBufferInfo &dramInfo = dramInfos[binding.dramInfoIndex];
+      unsigned cbIndex = binding.cbIndex >= 0
+                             ? static_cast<unsigned>(binding.cbIndex)
+                             : binding.slot;
       emitLine("static_cast<uint32_t>(CBIndex::c_" +
                std::to_string(cbIndex) + "),");
-      emitLine(info.bufferName + "->address(),");
-      emitMulticastTuple(info);
+      emitLine(dramInfo.bufferName + "->address(),");
+      emitMulticastTuple(binding);
     }
 
     // Keep runtime-arg order aligned with CompileArgTracker creation order:
-    // 1) per-memref runtime tuple(s)
+    // 1) per-copy-binding runtime tuple(s)
     // 2) optional reduce runtime semaphores + token mcast physical bounds
     // 3) per-scalar-site packed scalar runtime words
     // 4) core coordinates from scf.parallel lowering
@@ -3032,20 +3255,20 @@ private:
     emitLine(coreCoordArg0Expr + ",");
     emitLine(coreCoordArg1Expr + ",");
 
-    // Append CB indexes for internal-only buffers. CB IDs tied to memref
-    // arguments are already emitted in the per-memref prefix above.
+    // Append CB indexes for internal-only buffers. CB IDs tied to copy
+    // bindings are already emitted in the per-binding prefix above.
     for (unsigned cbIndex : internalCbRuntimeArgOrder) {
       emitLine("static_cast<uint32_t>(CBIndex::c_" + std::to_string(cbIndex) +
                "),");
     }
 
-    // Keep ordered input CB indexes as the final tail of runtime args.
-    for (const DramBufferInfo &info : dramInfos) {
-      if (!info.isInput)
+    // Keep ordered input-binding CB indexes as the final tail of runtime args.
+    for (const CopyBindingInfo &binding : copyBindings) {
+      if (!binding.isInput)
         continue;
-      unsigned cbIndex = info.cbIndex >= 0
-                             ? static_cast<unsigned>(info.cbIndex)
-                             : info.memrefOrdinal;
+      unsigned cbIndex = binding.cbIndex >= 0
+                             ? static_cast<unsigned>(binding.cbIndex)
+                             : binding.slot;
       emitLine("static_cast<uint32_t>(CBIndex::c_" +
                std::to_string(cbIndex) + "),");
     }
@@ -3102,6 +3325,7 @@ private:
   OpBuilder builder;
   HostProgramKind kind;
   SmallVector<DramBufferInfo, 8> dramInfos;
+  SmallVector<CopyBindingInfo, 8> copyBindings;
   SmallVector<CircularBufferInfo, 8> cbInfos;
   SmallVector<ScalarRuntimeSiteInfo, 4> scalarRuntimeSites;
   IndexExprMap parallelIvExprByValue;
@@ -3276,6 +3500,11 @@ void mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
     // Temporary scalar path: replace scalar alloc/semaphore memory chains with
     // direct function inputs before function specialization.
     preprocessScalarMemoryOpsTmp(func);
+
+    if (failed(annotateCopyBindingSlots(func))) {
+      func.emitError("failed to annotate DRAM/L1 copy binding slots");
+      return;
+    }
 
     // Assign stable per-semaphore internal CB slots before cloning so
     // specialized kernels share deterministic runtime-arg bindings.

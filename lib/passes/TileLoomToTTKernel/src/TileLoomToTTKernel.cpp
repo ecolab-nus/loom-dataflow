@@ -26,6 +26,7 @@
 #include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOps.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOpsTypes.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Support/CommandLine.h"
 #include <string>
@@ -290,11 +291,110 @@ static bool isComputeKernelFunc(func::FuncOp func) {
   return func.getName().ends_with("__compute");
 }
 
-static Value stripMemrefCasts(Value value) {
+[[maybe_unused]] static Value stripMemrefCasts(Value value) {
   Value current = value;
   while (auto cast = current.getDefiningOp<memref::CastOp>())
     current = cast.getSource();
   return current;
+}
+
+constexpr llvm::StringLiteral kCopyBindingSlotAttrName =
+    "loom.ttkernel.copy_binding_slot";
+constexpr llvm::StringLiteral kCopyBindingCountAttrName =
+    "loom.ttkernel.copy_binding_count";
+constexpr llvm::StringLiteral kSemaphoreSlotAttrName =
+    "loom.ttkernel.semaphore_slot";
+constexpr int64_t kRuntimeArgsPerCopyBinding = 11;
+
+static std::optional<int64_t> getConstIntValue(Value value) {
+  if (!value)
+    return std::nullopt;
+  if (auto cst = value.getDefiningOp<arith::ConstantIndexOp>())
+    return cst.value();
+  if (auto cst = value.getDefiningOp<arith::ConstantIntOp>())
+    return cst.value();
+  if (auto cst = value.getDefiningOp<arith::ConstantOp>()) {
+    if (auto intAttr = dyn_cast<IntegerAttr>(cst.getValue()))
+      return intAttr.getInt();
+  }
+  return std::nullopt;
+}
+
+static std::optional<int64_t> getCopyBindingSlot(Operation *op) {
+  if (!op)
+    return std::nullopt;
+  auto slotAttr = op->getAttrOfType<IntegerAttr>(kCopyBindingSlotAttrName);
+  if (!slotAttr)
+    return std::nullopt;
+  return slotAttr.getInt();
+}
+
+static int64_t getAnnotatedCopyBindingCount(func::FuncOp func) {
+  if (!func)
+    return 0;
+  auto countAttr = func->getAttrOfType<IntegerAttr>(kCopyBindingCountAttrName);
+  return countAttr ? countAttr.getInt() : 0;
+}
+
+static Value stripBindingLookupWrappers(Value value) {
+  Value current = value;
+  while (true) {
+    if (auto cast = current.getDefiningOp<memref::CastOp>()) {
+      current = cast.getSource();
+      continue;
+    }
+    if (auto viewLike = current.getDefiningOp<ViewLikeOpInterface>()) {
+      current = viewLike.getViewSource();
+      continue;
+    }
+    break;
+  }
+  return current;
+}
+
+static bool isDramToL1Copy(::loom::CopyOp copyOp) {
+  return copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>() !=
+         nullptr;
+}
+
+static bool isL1ToDramCopy(::loom::CopyOp copyOp) {
+  return copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>() !=
+         nullptr;
+}
+
+static FailureOr<std::pair<int64_t, MemRefType>>
+resolveInternalSemaphoreSlotAndType(Value value) {
+  if (!value)
+    return failure();
+
+  Value endpoint = stripBindingLookupWrappers(value);
+  if (auto sem = endpoint.getDefiningOp<::loom::SemaphoreTakeOp>()) {
+    auto slotAttr = sem->getAttrOfType<IntegerAttr>(kSemaphoreSlotAttrName);
+    auto memrefType = dyn_cast<MemRefType>(sem.getResult().getType());
+    if (!slotAttr || !memrefType)
+      return failure();
+    return std::make_pair(slotAttr.getInt(), memrefType);
+  }
+
+  if (auto alloc = endpoint.getDefiningOp<::loom::AllocOp>()) {
+    std::optional<std::pair<int64_t, MemRefType>> resolved;
+    for (Operation *user : alloc.getResult().getUsers()) {
+      auto sem = dyn_cast<::loom::SemaphoreTakeOp>(user);
+      if (!sem)
+        continue;
+      auto slotAttr = sem->getAttrOfType<IntegerAttr>(kSemaphoreSlotAttrName);
+      auto memrefType = dyn_cast<MemRefType>(sem.getResult().getType());
+      if (!slotAttr || !memrefType)
+        continue;
+      if (resolved && resolved->first != slotAttr.getInt())
+        return failure();
+      resolved = std::make_pair(slotAttr.getInt(), memrefType);
+    }
+    if (resolved)
+      return *resolved;
+  }
+
+  return failure();
 }
 
 static FailureOr<ReduceProtocol>
@@ -333,12 +433,14 @@ public:
       if (!isComputeKernelFunc(func))
         continue;
 
-      bool hasMatmul = false;
-      func.walk([&](linalg::MatmulOp) { hasMatmul = true; });
-      if (!hasMatmul) {
-        func.walk([&](linalg::BatchMatmulOp) { hasMatmul = true; });
-      }
-      if (!hasMatmul)
+      Operation *targetMatmulOp = nullptr;
+      func.walk([&](Operation *op) {
+        if (targetMatmulOp)
+          return;
+        if (isa<linalg::MatmulOp, linalg::BatchMatmulOp>(op))
+          targetMatmulOp = op;
+      });
+      if (!targetMatmulOp)
         continue;
 
       bool hasMMInit = false;
@@ -347,77 +449,83 @@ public:
         continue;
 
       Block &entry = func.front();
-      SmallVector<Value, 4> memrefCBs;
-      struct MemrefArgCBInfo {
-        BlockArgument arg;
-        Value cb;
-        bool isInput = false;
-        bool isOutput = false;
-      };
-      SmallVector<MemrefArgCBInfo, 4> memrefInfos;
+      int64_t copyBindingCount = getAnnotatedCopyBindingCount(func);
+
+      llvm::DenseMap<int64_t, Value> bindingSlotToCB;
+      llvm::DenseMap<int64_t, Value> runtimeArgIndexToCB;
       Operation *lastGetArgVal = nullptr;
+      int64_t maxExistingArgIndex = -1;
       for (Operation &op : entry) {
         auto getArgVal = dyn_cast<GetArgValOp>(op);
         if (!getArgVal)
           continue;
         lastGetArgVal = &op;
-        if (isa<CBType>(getArgVal.getType()))
-          memrefCBs.push_back(getArgVal.getResult());
-      }
-
-      unsigned memrefCbIndex = 0;
-      for (BlockArgument arg : entry.getArguments()) {
-        if (!isa<MemRefType, UnrankedMemRefType>(arg.getType()))
+        auto argIndex = getConstIntValue(getArgVal.getOperand());
+        if (argIndex && *argIndex >= 0)
+          maxExistingArgIndex = std::max(maxExistingArgIndex, *argIndex);
+        if (!isa<CBType>(getArgVal.getType()))
           continue;
-        if (memrefCbIndex >= memrefCBs.size())
-          break;
-        memrefInfos.push_back({arg, memrefCBs[memrefCbIndex++]});
+        if (!argIndex || *argIndex < 0)
+          continue;
+        runtimeArgIndexToCB.try_emplace(*argIndex, getArgVal.getResult());
+        if ((*argIndex % kRuntimeArgsPerCopyBinding) != 0)
+          continue;
+        int64_t slot = *argIndex / kRuntimeArgsPerCopyBinding;
+        if (slot < 0 || slot >= copyBindingCount)
+          continue;
+        bindingSlotToCB.try_emplace(slot, getArgVal.getResult());
       }
 
-      auto markRole = [&](BlockArgument arg, bool markInput) {
-        for (MemrefArgCBInfo &info : memrefInfos) {
-          if (info.arg != arg)
-            continue;
-          if (markInput)
-            info.isInput = true;
-          else
-            info.isOutput = true;
-          break;
-        }
-      };
+      // CompileArgTracker reserves two core-coordinate runtime args before the
+      // internal semaphore-backed CB range. Reconstruct the same base here.
+      constexpr int64_t kCoreCoordArgCount = 2;
+      int64_t internalCbBaseArgIndex =
+          std::max<int64_t>(0, maxExistingArgIndex + 1 + kCoreCoordArgCount);
 
+      llvm::DenseMap<Value, int64_t> inputEndpointToSlot;
+      llvm::DenseMap<Value, int64_t> outputEndpointToSlot;
+      LogicalResult bindingStatus = success();
       func.walk([&](::loom::CopyOp copyOp) {
-        if (auto sourceRC =
-                copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>()) {
-          Value source = stripMemrefCasts(sourceRC.getSource());
-          if (auto sourceArg = dyn_cast<BlockArgument>(source)) {
-            if (sourceArg.getOwner() == &entry)
-              markRole(sourceArg, /*markInput=*/true);
-          }
-        }
+        if (failed(bindingStatus))
+          return;
+        auto slot = getCopyBindingSlot(copyOp.getOperation());
+        if (!slot)
+          return;
 
-        if (auto destRC = copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>()) {
-          Value dest = stripMemrefCasts(destRC.getSource());
-          if (auto destArg = dyn_cast<BlockArgument>(dest)) {
-            if (destArg.getOwner() == &entry)
-              markRole(destArg, /*markInput=*/false);
-          }
-        }
+        auto recordEndpoint =
+            [&](Value endpoint, llvm::DenseMap<Value, int64_t> &map,
+                StringRef kind) {
+              if (!endpoint) {
+                bindingStatus = copyOp.emitOpError()
+                                << "failed to resolve " << kind
+                                << " endpoint for copy binding slot " << *slot;
+                return;
+              }
+              auto [it, inserted] = map.try_emplace(endpoint, *slot);
+              if (!inserted && it->second != *slot) {
+                bindingStatus = copyOp.emitOpError()
+                                << "multiple copy binding slots map to the "
+                                << "same " << kind << " endpoint";
+              }
+            };
+
+        if (isDramToL1Copy(copyOp))
+          recordEndpoint(stripBindingLookupWrappers(copyOp.getDestination()),
+                         inputEndpointToSlot, "input");
+        if (isL1ToDramCopy(copyOp))
+          recordEndpoint(stripBindingLookupWrappers(copyOp.getSource()),
+                         outputEndpointToSlot, "output");
       });
 
-      SmallVector<Value, 4> inputCBs;
-      Value outputCB;
-      for (const MemrefArgCBInfo &info : memrefInfos) {
-        if (info.isInput)
-          inputCBs.push_back(info.cb);
-        if (!outputCB && info.isOutput)
-          outputCB = info.cb;
+      if (failed(bindingStatus)) {
+        signalPassFailure();
+        return;
       }
 
-      if (inputCBs.size() < 2 || !outputCB) {
+      auto linalgOp = cast<linalg::LinalgOp>(targetMatmulOp);
+      if (linalgOp.getDpsInputs().size() < 2 || linalgOp.getDpsInits().empty()) {
         func.emitError()
-            << "failed to infer mm_init CB roles; expected two input DRAM "
-               "memrefs and one output DRAM memref linked by loom.copy";
+            << "expected matmul-like op with two inputs and one output for mm_init";
         signalPassFailure();
         return;
       }
@@ -428,9 +536,67 @@ public:
       else
         builder.setInsertionPointToStart(&entry);
 
+      auto getOrCreateInternalCb = [&](Value operand,
+                                       StringRef role) -> FailureOr<Value> {
+        FailureOr<std::pair<int64_t, MemRefType>> slotAndType =
+            resolveInternalSemaphoreSlotAndType(operand);
+        if (failed(slotAndType)) {
+          func.emitError() << "failed to resolve " << role
+                           << " internal semaphore CB for mm_init operand";
+          return failure();
+        }
+
+        int64_t slot = slotAndType->first;
+        MemRefType memrefType = slotAndType->second;
+        int64_t argIndex = internalCbBaseArgIndex + slot;
+        if (auto it = runtimeArgIndexToCB.find(argIndex);
+            it != runtimeArgIndexToCB.end())
+          return it->second;
+
+        Value argIndexValue = builder.create<arith::ConstantIntOp>(
+            func.getLoc(), builder.getI32Type(), argIndex);
+        Value cb =
+            builder.create<GetArgValOp>(func.getLoc(), CBType::get(memrefType),
+                                        argIndexValue);
+        runtimeArgIndexToCB.try_emplace(argIndex, cb);
+        lastGetArgVal = cb.getDefiningOp();
+        return cb;
+      };
+
+      auto resolveBindingCB = [&](Value operand,
+                                  const llvm::DenseMap<Value, int64_t> &endpointToSlot,
+                                  StringRef role) -> FailureOr<Value> {
+        Value endpoint = stripBindingLookupWrappers(operand);
+        auto slotIt = endpointToSlot.find(endpoint);
+        if (slotIt != endpointToSlot.end()) {
+          auto cbIt = bindingSlotToCB.find(slotIt->second);
+          if (cbIt == bindingSlotToCB.end()) {
+            func.emitError() << "missing CB get_arg_val for copy binding slot "
+                             << slotIt->second << " while building mm_init";
+            return failure();
+          }
+          return cbIt->second;
+        }
+        return getOrCreateInternalCb(endpoint, role);
+      };
+
+      FailureOr<Value> lhsCb =
+          resolveBindingCB(linalgOp.getDpsInputs()[0], inputEndpointToSlot,
+                           "lhs input");
+      FailureOr<Value> rhsCb =
+          resolveBindingCB(linalgOp.getDpsInputs()[1], inputEndpointToSlot,
+                           "rhs input");
+      FailureOr<Value> outputCb =
+          resolveBindingCB(linalgOp.getDpsInits()[0], outputEndpointToSlot,
+                           "output");
+      if (failed(lhsCb) || failed(rhsCb) || failed(outputCb)) {
+        signalPassFailure();
+        return;
+      }
+
       Value transpose = builder.create<arith::ConstantIntOp>(func.getLoc(), 0, 32);
-      builder.create<MatmulInitOp>(func.getLoc(), inputCBs[0], inputCBs[1],
-                                   outputCB, transpose);
+      builder.create<MatmulInitOp>(func.getLoc(), *lhsCb, *rhsCb, *outputCb,
+                                   transpose);
     }
   }
 };
