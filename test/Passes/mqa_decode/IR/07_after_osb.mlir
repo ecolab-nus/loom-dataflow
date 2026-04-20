@@ -20,7 +20,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
   %18 = adl.processor.dmover @proc_dram_l1_bcst_h, [(%2, %7), (%7, %2)], with [%3]
   %19 = adl.arch.compose "arch_system", arch[%15, %16, %17, %18], mem[%2]
   module attributes {loom.pass_name = "Materialize", loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
-    func.func @flash_decode__x8_y8__d0i1_d1i0__f01__dim_x_level0_bc8_n_n_dim_x_level0_bc8__tile_b64__tile_n512__tile_s64(%arg0: memref<16x128x8192xf16>, %arg1: memref<16x8192x128xf16>, %arg2: memref<16x32x128xf16>, %arg3: memref<16x32x128xf16>) {
+    func.func @flash_decode__x8_y8__d0i1_d1i0__f01__dim_x_level0_bc8_n_n_n__tile_b64__tile_n512__tile_s64(%arg0: memref<16x128x8192xf16>, %arg1: memref<16x8192x128xf16>, %arg2: memref<16x32x128xf16>, %arg3: memref<16x32x128xf16>) {
       %c8192 = arith.constant 8192 : index
       %c67108864 = arith.constant 67108864 : index
       %c262144 = arith.constant 262144 : index
@@ -203,7 +203,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
             %reinterpret_cast_5 = memref.reinterpret_cast %arg2 to offset: [%25], sizes: [64, 32, 128], strides: [4096, 128, 1] : memref<16x32x128xf16> to memref<64x32x128xf16, strided<[4096, 128, 1], offset: ?>>
             %63 = loom.semaphore_take %22 : memref<64x32x128xf16> -> memref<64x32x128xf16>
             loom.sync ins(%23 : memref<64x32x128xf16>) outs(%63 : memref<64x32x128xf16>)
-            loom.copy %63, %reinterpret_cast_5 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [8, 1] region : (UL : [%c0, %arg4], LR : [%c7, %arg4]) : memref<64x32x128xf16> to memref<64x32x128xf16, strided<[4096, 128, 1], offset: ?>>
+            loom.copy %63, %reinterpret_cast_5 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%arg5, %arg4], LR : [%arg5, %arg4]) : memref<64x32x128xf16> to memref<64x32x128xf16, strided<[4096, 128, 1], offset: ?>>
             loom.semaphore_give %63 : memref<64x32x128xf16>
             loom.semaphore_give %23 : memref<64x32x128xf16>
           }

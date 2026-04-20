@@ -20,7 +20,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
   %18 = adl.processor.dmover @proc_dram_l1_bcst_h, [(%2, %7), (%7, %2)], with [%3]
   %19 = adl.arch.compose "arch_system", arch[%15, %16, %17, %18], mem[%2]
   module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
-    func.func @flash_decode__x8_y8__d0i1_d1i0__f01__dim_x_level0_bc8_n_n_dim_x_level0_bc8(%arg0: memref<16x128x8192xf16>, %arg1: memref<16x8192x128xf16>, %arg2: memref<16x32x128xf16>, %arg3: memref<16x32x128xf16>) {
+    func.func @flash_decode__x8_y8__d0i1_d1i0__f01__dim_x_level0_bc8_n_n_n(%arg0: memref<16x128x8192xf16>, %arg1: memref<16x8192x128xf16>, %arg2: memref<16x32x128xf16>, %arg3: memref<16x32x128xf16>) {
       %c7 = arith.constant 7 : index
       %c8 = arith.constant 8 : index
       %c0 = arith.constant 0 : index
@@ -234,7 +234,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
                 %108 = loom.init_tensor %107[%20, 32, 128] : memref<?x32x128xf16> -> tensor<?x32x128xf16>
                 %109 = loom.sync ins(%105 : tensor<?x32x128xf16>) outs(%108 : tensor<?x32x128xf16>) -> tensor<?x32x128xf16>
                 %110 = loom.bufferize_to_memref %109 : tensor<?x32x128xf16> -> memref<?x32x128xf16>
-                loom.copy %110, %106 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [8, 1] region : (UL : [%c0, %arg4], LR : [%c7, %arg4]) : memref<?x32x128xf16> to memref<?x32x128xf16, strided<[4096, 128, 1], offset: ?>>
+                loom.copy %110, %106 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%arg5, %arg4], LR : [%arg5, %arg4]) : memref<?x32x128xf16> to memref<?x32x128xf16, strided<[4096, 128, 1], offset: ?>>
                 loom.semaphore_give %107 : memref<?x32x128xf16>
                 loom.semaphore_give %31 : memref<?x32x128xf16>
               }
