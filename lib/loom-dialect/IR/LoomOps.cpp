@@ -715,7 +715,10 @@ struct StaticizeGather : public OpRewritePattern<GatherOp> {
 };
 
 /// Staticize loom.broadcast by peeking through tensor.cast on ins/init and
-/// updating result type to the fully static init type when available.
+/// unwrapping casts on ins/init. Broadcast may intentionally have init/outs
+/// type different from result type, so we never derive result type from init.
+/// Instead, if users apply tensor.cast to a more-static ranked tensor type,
+/// migrate that cast target type onto broadcast's result directly.
 struct StaticizeBroadcast : public OpRewritePattern<BroadcastOp> {
   using OpRewritePattern<BroadcastOp>::OpRewritePattern;
 
@@ -732,31 +735,52 @@ struct StaticizeBroadcast : public OpRewritePattern<BroadcastOp> {
     if (op->getNumResults() == 0)
       return failure();
 
-    auto initType = llvm::dyn_cast<RankedTensorType>(init.getType());
-    if (!initType)
-      return failure();
-
-    auto resultType =
-        llvm::dyn_cast<RankedTensorType>(op->getResultTypes()[0]);
+    auto resultType = llvm::dyn_cast<RankedTensorType>(op->getResultTypes()[0]);
     if (!resultType)
       return failure();
 
+    RankedTensorType migratedResultType = resultType;
+    SmallVector<tensor::CastOp> foldableCasts;
+
+    Value opResult = op->getResult(0);
+    for (Operation *user : opResult.getUsers()) {
+      auto castOp = dyn_cast<tensor::CastOp>(user);
+      if (!castOp || castOp.getSource() != opResult)
+        continue;
+      auto castType = llvm::dyn_cast<RankedTensorType>(castOp.getType());
+      if (!castType)
+        continue;
+      if (castType.hasStaticShape()) {
+        if (migratedResultType == resultType || migratedResultType == castType) {
+          migratedResultType = castType;
+          foldableCasts.push_back(castOp);
+        }
+      }
+    }
+
     bool needsInsUpdate = (ins != op.getIns());
     bool needsInitUpdate = (init != op.getInit());
-    bool needsTypeUpdate =
-        initType.hasStaticShape() && !resultType.hasStaticShape();
+    bool needsTypeUpdate = (migratedResultType != resultType);
 
     if (!needsInsUpdate && !needsInitUpdate && !needsTypeUpdate)
       return failure();
 
-    Type newResultType = needsTypeUpdate ? Type(initType) : Type(resultType);
+    auto newOp = rewriter.create<BroadcastOp>(
+        op.getLoc(), TypeRange{migratedResultType}, ins, init, op.getDim());
+    Value newResult = newOp->getResult(0);
 
-    auto newOp = rewriter.create<BroadcastOp>(op.getLoc(), newResultType, ins,
-                                              init, op.getDim());
-
-    if (newResultType != resultType) {
-      rewriter.replaceOpWithNewOp<tensor::CastOp>(op, resultType,
-                                                  newOp.getResult());
+    if (needsTypeUpdate) {
+      for (auto castOp : foldableCasts) {
+        if (castOp->getBlock())
+          rewriter.replaceOp(castOp, newResult);
+      }
+      if (!opResult.use_empty()) {
+        auto bridgeCast = rewriter.create<tensor::CastOp>(
+            op.getLoc(), resultType, newResult);
+        rewriter.replaceOp(op, bridgeCast.getResult());
+      } else {
+        rewriter.eraseOp(op);
+      }
     } else {
       rewriter.replaceOp(op, newOp.getResults());
     }
