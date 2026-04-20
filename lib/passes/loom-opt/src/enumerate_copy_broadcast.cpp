@@ -212,24 +212,20 @@ computeDimBroadcastCoeff(StringRef dimName,
 }
 
 /**
- * @brief Find and verify the subview operand for a copy operation.
- * @details Every loom.copy must have exactly one operand (source or
- * destination) produced by a loom.subview. Returns the subview only if it has
- * spatial_reuse enabled (broadcast candidate). Returns nullptr otherwise.
+ * @brief Find and verify the source subview for a copy operation.
+ * @details Broadcast analysis is only applicable when the copy source is a
+ * loom.subview (typically DRAM->L1 load). Destination-only subview cases
+ * (e.g., L1->DRAM write-back) are intentionally excluded.
  */
-static loom::SubviewOp findSubviewSource(loom::CopyOp copyOp) {
+static loom::SubviewOp findSourceSubviewForBroadcast(loom::CopyOp copyOp) {
   auto srcSubview = copyOp.getSource().getDefiningOp<loom::SubviewOp>();
-  auto dstSubview = copyOp.getDestination().getDefiningOp<loom::SubviewOp>();
-  assert((srcSubview || dstSubview) &&
-         "loom.copy must have a loom.subview operand");
-
-  // For broadcast analysis, prefer the source subview (load direction)
-  loom::SubviewOp subviewOp = srcSubview ? srcSubview : dstSubview;
-
-  if (!subviewOp.getSpatialReuse())
+  if (!srcSubview)
     return nullptr;
 
-  return subviewOp;
+  if (!srcSubview.getSpatialReuse())
+    return nullptr;
+
+  return srcSubview;
 }
 
 /**
@@ -277,7 +273,7 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp /*outerModule*/,
     return candidates;
   }
 
-  auto subviewOp = findSubviewSource(copyOp);
+  auto subviewOp = findSourceSubviewForBroadcast(copyOp);
   if (!subviewOp)
     return candidates;
 
