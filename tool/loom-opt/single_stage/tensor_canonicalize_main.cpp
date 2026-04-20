@@ -55,6 +55,16 @@ int main(int argc, char **argv) {
     return 2;
   }
 
+  // Step-2 (memory_binding) intentionally does not register the cf dialect.
+  // Strip cf.assert guards here so Step-1 output is cf-free.
+  SmallVector<Operation *> assertsToErase;
+  module->walk([&](Operation *op) {
+    if (op->getName().getStringRef() == "cf.assert")
+      assertsToErase.push_back(op);
+  });
+  for (Operation *op : assertsToErase)
+    op->erase();
+
   loom::driver::printModule(*module);
   return 0;
 }
