@@ -816,6 +816,41 @@ def GatherOp : Loom_Op<"gather", [
   }];
 }
 
+def BroadcastOp : Loom_Op<"broadcast", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = "Broadcast a source tensor/memref into a destination buffer (DPS)";
+  let description = [{
+    The `loom.broadcast` operation applies a broadcast transform from `ins`
+    into `outs` with respect to axis `dim`.
+
+    Operand convention (mirrors linalg DPS):
+    - ins: source tensor/memref
+    - outs: destination tensor/memref
+    - dim: broadcast axis (with respect to output tensor rank)
+
+    Tensor mode returns a tensor result aliasing `outs`. Memref mode has no
+    results and operates directly on buffers.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$ins,
+    AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$init,
+    Index:$dim
+  );
+
+  let results = (outs Variadic<AnyRankedTensor>:$result);
+
+  let assemblyFormat = [{
+    `ins` `(` $ins `:` type($ins) `)`
+    `outs` `(` $init `:` type($init) `)`
+    `dim` `(` $dim `:` type($dim) `)`
+    attr-dict (`->` type($result)^ )?
+  }];
+
+  let hasCanonicalizer = 1;
+}
+
 def SyncOp : Loom_Op<"sync", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
   DestinationStyleOpInterface
