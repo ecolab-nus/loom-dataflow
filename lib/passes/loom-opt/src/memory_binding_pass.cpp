@@ -529,19 +529,35 @@ private:
           // Handle any DPS op (linalg AND loom ops like loom.gather).
           auto dpsOp =
               dyn_cast_or_null<mlir::DestinationStyleOpInterface>(member->definingOp);
-          if (!dpsOp)
-            continue;
-
-          for (OpOperand &outsOp : dpsOp.getDpsInitsMutable()) {
-            if (outsOp.get().getDefiningOp<tensor::EmptyOp>()) {
-              // If this VB has an iterarg AND the op is inside the loop,
-              // use iterarg as the outs to preserve SSA chain.
-              if (iterArg && loopOp && loopOp->isProperAncestor(member->definingOp)) {
-                outsOp.set(iterArg);
-              } else {
-                outsOp.set(getOrCreateInitTensor(allocVal, semaphore));
+          if (dpsOp) {
+            for (OpOperand &outsOp : dpsOp.getDpsInitsMutable()) {
+              if (outsOp.get().getDefiningOp<tensor::EmptyOp>()) {
+                // If this VB has an iterarg AND the op is inside the loop,
+                // use iterarg as the outs to preserve SSA chain.
+                if (iterArg && loopOp &&
+                    loopOp->isProperAncestor(member->definingOp)) {
+                  outsOp.set(iterArg);
+                } else {
+                  outsOp.set(getOrCreateInitTensor(allocVal, semaphore));
+                }
               }
             }
+            continue;
+          }
+
+          // loom.broadcast is DPS-like but does not implement DSOI in our setup.
+          if (auto broadcastOp =
+                  dyn_cast_or_null<loom::BroadcastOp>(member->definingOp)) {
+            Value init = broadcastOp.getInit();
+            if (!init.getDefiningOp<tensor::EmptyOp>())
+              continue;
+
+            Value newInit;
+            if (iterArg && loopOp && loopOp->isProperAncestor(broadcastOp))
+              newInit = iterArg;
+            else
+              newInit = getOrCreateInitTensor(allocVal, semaphore);
+            broadcastOp.getInitMutable().assign(newInit);
           }
         }
       }
@@ -624,6 +640,20 @@ private:
                 outsOperand.set(getOrCreateInitTensor(allocVal, semaphore));
                 linalgOp->getResult(0).setType(outsOperand.get().getType());
               }
+            }
+          } else if (auto broadcastOp = dyn_cast_or_null<loom::BroadcastOp>(defOp)) {
+            Value semaphore = vbIdToSemaphoreMap.lookup(vb->id);
+            if (!semaphore)
+              continue;
+
+            Value outsTensor = broadcastOp.getInit();
+            Value currentAlloc = traceOutsToAlloc(outsTensor);
+            if (currentAlloc && currentAlloc != allocVal) {
+              broadcastOp.getInitMutable().assign(
+                  getOrCreateInitTensor(allocVal, semaphore));
+            } else if (!currentAlloc) {
+              broadcastOp.getInitMutable().assign(
+                  getOrCreateInitTensor(allocVal, semaphore));
             }
           }
         }
