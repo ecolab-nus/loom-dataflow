@@ -227,6 +227,13 @@ void loom::GatherOp::getEffects(
   effects.emplace_back(MemoryEffects::Write::get());
 }
 
+void loom::BroadcastOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(MemoryEffects::Read::get());
+  effects.emplace_back(MemoryEffects::Write::get());
+}
+
 void loom::SyncOp::getEffects(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects) {
@@ -707,6 +714,56 @@ struct StaticizeGather : public OpRewritePattern<GatherOp> {
   }
 };
 
+/// Staticize loom.broadcast by peeking through tensor.cast on ins/init and
+/// updating result type to the fully static init type when available.
+struct StaticizeBroadcast : public OpRewritePattern<BroadcastOp> {
+  using OpRewritePattern<BroadcastOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(BroadcastOp op,
+                                PatternRewriter &rewriter) const override {
+    Value ins = op.getIns();
+    if (auto cast = ins.getDefiningOp<tensor::CastOp>())
+      ins = cast.getSource();
+
+    Value init = op.getInit();
+    if (auto cast = init.getDefiningOp<tensor::CastOp>())
+      init = cast.getSource();
+
+    if (op->getNumResults() == 0)
+      return failure();
+
+    auto initType = llvm::dyn_cast<RankedTensorType>(init.getType());
+    if (!initType)
+      return failure();
+
+    auto resultType =
+        llvm::dyn_cast<RankedTensorType>(op->getResultTypes()[0]);
+    if (!resultType)
+      return failure();
+
+    bool needsInsUpdate = (ins != op.getIns());
+    bool needsInitUpdate = (init != op.getInit());
+    bool needsTypeUpdate =
+        initType.hasStaticShape() && !resultType.hasStaticShape();
+
+    if (!needsInsUpdate && !needsInitUpdate && !needsTypeUpdate)
+      return failure();
+
+    Type newResultType = needsTypeUpdate ? Type(initType) : Type(resultType);
+
+    auto newOp = rewriter.create<BroadcastOp>(op.getLoc(), newResultType, ins,
+                                              init, op.getDim());
+
+    if (newResultType != resultType) {
+      rewriter.replaceOpWithNewOp<tensor::CastOp>(op, resultType,
+                                                  newOp.getResult());
+    } else {
+      rewriter.replaceOp(op, newOp.getResults());
+    }
+    return success();
+  }
+};
+
 struct StaticizeReduceSum : public OpRewritePattern<ReduceSumOp> {
   using OpRewritePattern<ReduceSumOp>::OpRewritePattern;
 
@@ -828,6 +885,11 @@ void ReduceSumOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void GatherOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                            MLIRContext *context) {
   results.add<StaticizeGather>(context);
+}
+
+void BroadcastOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                              MLIRContext *context) {
+  results.add<StaticizeBroadcast>(context);
 }
 
 //===----------------------------------------------------------------------===//
