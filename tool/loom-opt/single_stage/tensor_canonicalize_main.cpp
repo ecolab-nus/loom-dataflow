@@ -35,22 +35,19 @@ int main(int argc, char **argv) {
   // clean, but skip fusions that would produce a leading-reduction generic
   // (unsupported on target hardware).
   pm.addPass(loom::passes::createLinalgGuardedElementwiseOpFusionPass());
-  pm.addPass(mlir::createLinalgFoldUnitExtentDimsPass());
-  pm.addPass(mlir::createCanonicalizerPass());
+  // pm.addPass(mlir::createLinalgFoldUnitExtentDimsPass());
 
   // Destination specialization (with guards for post matmul accumulations).
   pm.addPass(loom::passes::createLinalgDestinationSpecializationPass());
 
-  // Postprocessing: remove dead producers and final cleanup
-  pm.addPass(mlir::createSymbolDCEPass());
-  pm.addPass(mlir::createCanonicalizerPass());
-
   // Eliminate redundant tensor.extract_slice surviving fusion/canonicalization
   pm.addPass(loom::passes::createFoldRedundantExtractSlicePass());
+  pm.addPass(mlir::createSymbolDCEPass());
   pm.addPass(mlir::createCanonicalizerPass());
 
   // De-CSE: clone and sink all linalg.fill ops to ensure unique SSA chains
   // for initialized tensors, eliminating cross-scope fill sharing.
+
   pm.addPass(loom::passes::createSinkFillOpsPass());
 
   if (failed(pm.run(*module))) {
