@@ -35,28 +35,35 @@ int main(int argc, char **argv) {
   // clean, but skip fusions that would produce a leading-reduction generic
   // (unsupported on target hardware).
   pm.addPass(loom::passes::createLinalgGuardedElementwiseOpFusionPass());
-  pm.addPass(mlir::createLinalgFoldUnitExtentDimsPass());
-  pm.addPass(mlir::createCanonicalizerPass());
+  // pm.addPass(mlir::createLinalgFoldUnitExtentDimsPass());
 
-  // Our destination specialization - now works on simplified/fused IR
+  // Destination specialization (with guards for post matmul accumulations).
   pm.addPass(loom::passes::createLinalgDestinationSpecializationPass());
-
-  // Postprocessing: remove dead producers and final cleanup
-  pm.addPass(mlir::createSymbolDCEPass());
-  pm.addPass(mlir::createCanonicalizerPass());
 
   // Eliminate redundant tensor.extract_slice surviving fusion/canonicalization
   pm.addPass(loom::passes::createFoldRedundantExtractSlicePass());
+  pm.addPass(mlir::createSymbolDCEPass());
   pm.addPass(mlir::createCanonicalizerPass());
 
   // De-CSE: clone and sink all linalg.fill ops to ensure unique SSA chains
   // for initialized tensors, eliminating cross-scope fill sharing.
+
   pm.addPass(loom::passes::createSinkFillOpsPass());
 
   if (failed(pm.run(*module))) {
     llvm::errs() << "LOOM tensor canonicalization pipeline failed\n";
     return 2;
   }
+
+  // Step-2 (memory_binding) intentionally does not register the cf dialect.
+  // Strip cf.assert guards here so Step-1 output is cf-free.
+  SmallVector<Operation *> assertsToErase;
+  module->walk([&](Operation *op) {
+    if (op->getName().getStringRef() == "cf.assert")
+      assertsToErase.push_back(op);
+  });
+  for (Operation *op : assertsToErase)
+    op->erase();
 
   loom::driver::printModule(*module);
   return 0;

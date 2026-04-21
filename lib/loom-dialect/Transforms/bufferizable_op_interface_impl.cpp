@@ -252,6 +252,76 @@ struct GatherOpInterface
   }
 };
 
+/// BroadcastOp bufferizes with in-place semantics on the init/outs buffer.
+struct BroadcastOpInterface
+    : public BufferizableOpInterface::ExternalModel<BroadcastOpInterface,
+                                                    loom::BroadcastOp> {
+  bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
+                              const AnalysisState & /*state*/) const {
+    auto broadcastOp = cast<loom::BroadcastOp>(op);
+    // DPS-style: broadcast reads source and writes destination.
+    // `init` is destination-only and should not force preservation copies.
+    return opOperand.get() == broadcastOp.getIns();
+  }
+
+  bool bufferizesToMemoryWrite(Operation *op, OpOperand &opOperand,
+                               const AnalysisState & /*state*/) const {
+    auto broadcastOp = cast<loom::BroadcastOp>(op);
+    return opOperand.get() == broadcastOp.getInit();
+  }
+
+  AliasingValueList getAliasingValues(Operation *op, OpOperand &opOperand,
+                                      const AnalysisState & /*state*/) const {
+    auto broadcastOp = cast<loom::BroadcastOp>(op);
+    if (opOperand.get() != broadcastOp.getInit())
+      return {};
+    if (op->getNumResults() == 0)
+      return {};
+    // Broadcast result is a view of destination buffer with possibly different
+    // logical shape/strides. It is a definite alias, but not necessarily
+    // equivalent type/layout to init.
+    return {AliasingValue(op->getOpResult(0), BufferRelation::Unknown,
+                          /*isDefinite=*/true)};
+  }
+
+  LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
+                          const BufferizationOptions &options,
+                          BufferizationState &state) const {
+    auto broadcastOp = cast<loom::BroadcastOp>(op);
+
+    FailureOr<Value> insBuffer =
+        getBuffer(rewriter, broadcastOp.getIns(), options, state);
+    if (failed(insBuffer))
+      return failure();
+
+    FailureOr<Value> initBuffer =
+        getBuffer(rewriter, broadcastOp.getInit(), options, state);
+    if (failed(initBuffer))
+      return failure();
+
+    SmallVector<Type> resultTypes;
+    if (op->getNumResults() != 0) {
+      auto resultTensorType =
+          dyn_cast<TensorType>(op->getResult(0).getType());
+      if (!resultTensorType)
+        return failure();
+      resultTypes.push_back(getMemRefType(resultTensorType, options));
+    }
+
+    auto newOp = loom::BroadcastOp::create(rewriter, op->getLoc(), resultTypes,
+                                           *insBuffer, *initBuffer,
+                                           broadcastOp.getDimAttr());
+
+    if (op->getNumResults() == 0) {
+      rewriter.eraseOp(op);
+      return success();
+    }
+
+    replaceOpWithBufferizedValues(rewriter, op, newOp->getResults());
+    return success();
+  }
+};
+
 /// SyncOp implements DestinationStyleOpInterface and bufferizes to a memref
 /// form (no results) while preserving DPS in-place semantics.
 struct SyncOpInterface
@@ -296,5 +366,6 @@ void loom::registerBufferizableOpInterfaceExternalModels(MLIRContext *ctx) {
   loom::BufferizeToMemrefOp::attachInterface<BufferizeToMemrefOpInterface>(
       *ctx);
   loom::GatherOp::attachInterface<GatherOpInterface>(*ctx);
+  loom::BroadcastOp::attachInterface<BroadcastOpInterface>(*ctx);
   loom::SyncOp::attachInterface<SyncOpInterface>(*ctx);
 }

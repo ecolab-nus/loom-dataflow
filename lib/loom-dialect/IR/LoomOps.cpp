@@ -227,6 +227,13 @@ void loom::GatherOp::getEffects(
   effects.emplace_back(MemoryEffects::Write::get());
 }
 
+void loom::BroadcastOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(MemoryEffects::Read::get());
+  effects.emplace_back(MemoryEffects::Write::get());
+}
+
 void loom::SyncOp::getEffects(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects) {
@@ -707,6 +714,80 @@ struct StaticizeGather : public OpRewritePattern<GatherOp> {
   }
 };
 
+/// Staticize loom.broadcast by peeking through tensor.cast on ins/init and
+/// unwrapping casts on ins/init. Broadcast may intentionally have init/outs
+/// type different from result type, so we never derive result type from init.
+/// Instead, if users apply tensor.cast to a more-static ranked tensor type,
+/// migrate that cast target type onto broadcast's result directly.
+struct StaticizeBroadcast : public OpRewritePattern<BroadcastOp> {
+  using OpRewritePattern<BroadcastOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(BroadcastOp op,
+                                PatternRewriter &rewriter) const override {
+    Value ins = op.getIns();
+    if (auto cast = ins.getDefiningOp<tensor::CastOp>())
+      ins = cast.getSource();
+
+    Value init = op.getInit();
+    if (auto cast = init.getDefiningOp<tensor::CastOp>())
+      init = cast.getSource();
+
+    if (op->getNumResults() == 0)
+      return failure();
+
+    auto resultType = llvm::dyn_cast<RankedTensorType>(op->getResultTypes()[0]);
+    if (!resultType)
+      return failure();
+
+    RankedTensorType migratedResultType = resultType;
+    SmallVector<tensor::CastOp> foldableCasts;
+
+    Value opResult = op->getResult(0);
+    for (Operation *user : opResult.getUsers()) {
+      auto castOp = dyn_cast<tensor::CastOp>(user);
+      if (!castOp || castOp.getSource() != opResult)
+        continue;
+      auto castType = llvm::dyn_cast<RankedTensorType>(castOp.getType());
+      if (!castType)
+        continue;
+      if (castType.hasStaticShape()) {
+        if (migratedResultType == resultType || migratedResultType == castType) {
+          migratedResultType = castType;
+          foldableCasts.push_back(castOp);
+        }
+      }
+    }
+
+    bool needsInsUpdate = (ins != op.getIns());
+    bool needsInitUpdate = (init != op.getInit());
+    bool needsTypeUpdate = (migratedResultType != resultType);
+
+    if (!needsInsUpdate && !needsInitUpdate && !needsTypeUpdate)
+      return failure();
+
+    auto newOp = rewriter.create<BroadcastOp>(
+        op.getLoc(), TypeRange{migratedResultType}, ins, init, op.getDimAttr());
+    Value newResult = newOp->getResult(0);
+
+    if (needsTypeUpdate) {
+      for (auto castOp : foldableCasts) {
+        if (castOp->getBlock())
+          rewriter.replaceOp(castOp, newResult);
+      }
+      if (!opResult.use_empty()) {
+        auto bridgeCast = rewriter.create<tensor::CastOp>(
+            op.getLoc(), resultType, newResult);
+        rewriter.replaceOp(op, bridgeCast.getResult());
+      } else {
+        rewriter.eraseOp(op);
+      }
+    } else {
+      rewriter.replaceOp(op, newOp.getResults());
+    }
+    return success();
+  }
+};
+
 struct StaticizeReduceSum : public OpRewritePattern<ReduceSumOp> {
   using OpRewritePattern<ReduceSumOp>::OpRewritePattern;
 
@@ -828,6 +909,11 @@ void ReduceSumOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void GatherOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                            MLIRContext *context) {
   results.add<StaticizeGather>(context);
+}
+
+void BroadcastOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                              MLIRContext *context) {
+  results.add<StaticizeBroadcast>(context);
 }
 
 //===----------------------------------------------------------------------===//

@@ -431,6 +431,11 @@ SmallVector<SymbolicDim, 4> traceShape(Value v) {
   else if (auto gatherOp = mlir::dyn_cast<loom::GatherOp>(op)) {
     return traceShape(gatherOp.getInit());
   }
+  // Case H: loom.broadcast — output view may differ from init staticness.
+  // For memory planning we must follow the physical destination tensor (init).
+  else if (auto broadcastOp = mlir::dyn_cast<loom::BroadcastOp>(op)) {
+    return traceShape(broadcastOp.getInit());
+  }
   // Fallback
   else {
     rawDims = getMixedSizesFromType(v.getType());
