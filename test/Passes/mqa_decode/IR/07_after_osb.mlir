@@ -56,7 +56,6 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           %32 = loom.semaphore_take %30 : memref<1x32x1xf16> -> memref<1x32x1xf16>
           %33 = loom.semaphore_take %30 : memref<1x32x1xf16> -> memref<1x32x1xf16>
           linalg.fill ins(%cst_0 : f16) outs(%33 : memref<1x32x1xf16>)
-          %cast = memref.cast %33 : memref<1x32x1xf16> to memref<?x32x1xf16>
           %34 = loom.alloc [1, 32, 1] on @L1 : memref<1x32x1xf16>
           %35 = loom.semaphore_take %34 : memref<1x32x1xf16> -> memref<1x32x1xf16>
           %36 = loom.semaphore_take %34 : memref<1x32x1xf16> -> memref<1x32x1xf16>
@@ -123,9 +122,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
               %74 = math.exp %73 : f16
               linalg.yield %74 : f16
             }
-            %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x32x1xf16>
-            memref.copy %33, %alloc : memref<1x32x1xf16> to memref<1x32x1xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%alloc, %44, %42 : memref<1x32x1xf16>, memref<1x32x1xf16>, memref<1x32x1xf16>) outs(%33 : memref<1x32x1xf16>) {
+            linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%33, %44, %42 : memref<1x32x1xf16>, memref<1x32x1xf16>, memref<1x32x1xf16>) outs(%33 : memref<1x32x1xf16>) {
             ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
               %73 = arith.mulf %in, %in_5 : f16
               %74 = arith.addf %73, %in_6 : f16
@@ -152,7 +149,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
             loom.semaphore_give %38 : memref<1x32x128xf16>
             linalg.copy ins(%40 : memref<1x32x1xf16>) outs(%36 : memref<1x32x1xf16>)
             loom.semaphore_give %40 : memref<1x32x1xf16>
-          } {loom.iter_type = #loom.iter_type<sequential>}
+          }
           loom.semaphore_give %25 : memref<1x32x128xf16>
           linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%33, %36 : memref<1x32x1xf16>, memref<1x32x1xf16>) outs(%35 : memref<1x32x1xf16>) {
           ^bb0(%in: f16, %in_3: f16, %out: f16):
@@ -161,7 +158,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
             linalg.yield %66 : f16
           }
           loom.semaphore_give %36 : memref<1x32x1xf16>
-          %55 = loom.broadcast ins(%cast : memref<?x32x1xf16>) outs(%50 : memref<1x32x32xf16>) dim(2) -> memref<1x32x128xf16, strided<[?, ?, ?], offset: ?>>
+          %55 = loom.broadcast ins(%33 : memref<1x32x1xf16>) outs(%50 : memref<1x32x32xf16>) dim(2) -> memref<1x32x128xf16, strided<[?, ?, ?], offset: ?>>
           loom.semaphore_give %33 : memref<1x32x1xf16>
           linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%29, %55 : memref<1x32x128xf16>, memref<1x32x128xf16, strided<[?, ?, ?], offset: ?>>) outs(%24 : memref<1x32x128xf16>) {
           ^bb0(%in: f16, %in_3: f16, %out: f16):
