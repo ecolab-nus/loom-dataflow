@@ -829,8 +829,8 @@ def BroadcastOp : Loom_Op<"broadcast", [
     - outs: destination tensor/memref
     - dim: broadcast axis (with respect to output tensor rank)
 
-    Tensor mode returns a tensor result aliasing `outs`. Memref mode has no
-    results and operates directly on buffers.
+    Tensor mode returns a tensor result. Memref mode may return a memref
+    result with broadcasted logical shape for downstream consumers.
   }];
 
   let arguments = (ins
@@ -839,7 +839,7 @@ def BroadcastOp : Loom_Op<"broadcast", [
     Index:$dim
   );
 
-  let results = (outs Variadic<AnyRankedTensor>:$result);
+  let results = (outs Variadic<AnyTypeOf<[AnyRankedTensor, AnyMemRef]>>:$result);
 
   let assemblyFormat = [{
     `ins` `(` $ins `:` type($ins) `)`
