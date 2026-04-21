@@ -2957,7 +2957,7 @@ private:
 
   void emitInputSemaphores() {
     for (const CopyBindingInfo &binding : copyBindings) {
-      if (!binding.isInput)
+      if (!binding.isInput || !binding.hasBroadcastRegion)
         continue;
       emitLine("auto " + binding.bindingName +
                "_mcast_sender_semaphore_addr = "
@@ -3179,15 +3179,7 @@ private:
       }
 
       const std::string &prefix = binding.bindingName;
-      if (binding.hasBroadcastRegion) {
-        emitLine(prefix + "_multicast_dest_noc_start_x,");
-        emitLine(prefix + "_multicast_dest_noc_start_y,");
-        emitLine(prefix + "_multicast_dest_noc_end_x,");
-        emitLine(prefix + "_multicast_dest_noc_end_y,");
-        emitLine(prefix + "_multicast_dest_num,");
-        emitLine(prefix + "_multicast_sender_noc_x,");
-        emitLine(prefix + "_multicast_sender_noc_y,");
-      } else {
+      if (!binding.hasBroadcastRegion) {
         emitLine("0,");
         emitLine("0,");
         emitLine("0,");
@@ -3195,8 +3187,18 @@ private:
         emitLine("0,");
         emitLine("0,");
         emitLine("0,");
+        emitLine("0,");
+        emitLine("0,");
+        return;
       }
 
+      emitLine(prefix + "_multicast_dest_noc_start_x,");
+      emitLine(prefix + "_multicast_dest_noc_start_y,");
+      emitLine(prefix + "_multicast_dest_noc_end_x,");
+      emitLine(prefix + "_multicast_dest_noc_end_y,");
+      emitLine(prefix + "_multicast_dest_num,");
+      emitLine(prefix + "_multicast_sender_noc_x,");
+      emitLine(prefix + "_multicast_sender_noc_y,");
       emitLine(prefix + "_mcast_sender_semaphore_addr,");
       emitLine(prefix + "_mcast_receiver_semaphore_addr,");
     };

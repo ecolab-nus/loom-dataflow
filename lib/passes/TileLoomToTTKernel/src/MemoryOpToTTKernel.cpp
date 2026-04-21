@@ -1510,7 +1510,6 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
       bool hasVerticalBroadcast = yBroadcast > 1;
       isBroadcast = hasHorizontalBroadcast || hasVerticalBroadcast;
     }
-
     if (isBroadcast) {
       Operation *parentFunc = op->getParentOfType<func::FuncOp>();
       Value coreX;
