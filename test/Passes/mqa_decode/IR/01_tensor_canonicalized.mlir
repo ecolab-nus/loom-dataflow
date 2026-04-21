@@ -127,7 +127,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           %37 = arith.divf %in, %in_4 : f16
           linalg.yield %37 : f16
         } -> tensor<?x?x32x1xf16>
-        %30 = tensor.empty(%1, %0) : tensor<?x?x32x32xf16>
+        %30 = tensor.empty(%4, %0) : tensor<?x?x32x32xf16>
         %31 = loom.broadcast ins(%29 : tensor<?x?x32x1xf16>) outs(%30 : tensor<?x?x32x32xf16>) dim(3) -> tensor<?x?x32x128xf16>
         %32 = arith.cmpi eq, %4, %1 : index
         %33 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>], iterator_types = ["parallel", "parallel", "parallel", "parallel"]} ins(%22, %31 : tensor<?x?x32x128xf16>, tensor<?x?x32x128xf16>) outs(%21 : tensor<?x?x32x128xf16>) {
