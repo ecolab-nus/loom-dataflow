@@ -20,7 +20,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
   %18 = adl.processor.dmover @proc_dram_l1_bcst_h, [(%2, %7), (%7, %2)], with [%3]
   %19 = adl.arch.compose "arch_system", arch[%15, %16, %17, %18], mem[%2]
   module attributes {loom.pass_name = "Materialize", loom.tile_b = {is_reduction = false, upper_bound = 2 : index}, loom.tile_c = {is_reduction = false, upper_bound = 8 : index}, loom.tile_h = {is_reduction = false, upper_bound = 64 : index}, loom.tile_k = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}} {
-    func.func @helion_mamba2_chunk_scan_kernel__x2x4_y2y2y2__d0i1_d1i2_d2i3_d3i4_d4i0__f01234__dim_y_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_x_level1_bc8_dim_y_level1_bc4_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
+    func.func @helion_mamba2_chunk_scan_kernel__x2x4_y2y2y2__d0i1_d1i2_d2i3_d3i4_d4i0__f01234__dim_y_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_n_n_n_n_dim_x_level1_bc8_dim_y_level1_bc4_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
       %c1024 = arith.constant 1024 : index
       %c3 = arith.constant 3 : index
       %c7 = arith.constant 7 : index
@@ -122,18 +122,18 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                       %99 = arith.muli %arg15, %c64 : index
                       %100 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 524288 + d1 * 65536 + d2 * 65536 + d3 * 256 + d4)>(%arg11, %23, %44, %24, %99)
                       %reinterpret_cast_7 = memref.reinterpret_cast %arg0 to offset: [%100], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-                      loom.copy %reinterpret_cast_7, %69 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%29, %32], LR : [%29, %34]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+                      loom.copy %reinterpret_cast_7, %69 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%29, %55], LR : [%29, %55]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
                       %101 = loom.bufferize_to_tensor %69[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
                       %102 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %22, %23, %99)
                       %reinterpret_cast_8 = memref.reinterpret_cast %arg1 to offset: [%102], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                      loom.copy %reinterpret_cast_8, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 2] region : (UL : [%28, %32], LR : [%53, %34]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                      loom.copy %reinterpret_cast_8, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%29, %55], LR : [%29, %55]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                       %103 = loom.bufferize_to_tensor %73[64] : memref<64xf16> -> tensor<64xf16>
                       %104 = loom.broadcast ins(%35 : tensor<64xf16>) outs(%38 : tensor<64x32xf16>) dim(1) -> tensor<64x64xf16>
                       %105 = loom.broadcast ins(%103 : tensor<64xf16>) outs(%76 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                       loom.semaphore_give %73 : memref<64xf16>
                       %106 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %22, %23, %99)
                       %reinterpret_cast_9 = memref.reinterpret_cast %arg2 to offset: [%106], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                      loom.copy %reinterpret_cast_9, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 2] region : (UL : [%28, %32], LR : [%53, %34]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                      loom.copy %reinterpret_cast_9, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%29, %55], LR : [%29, %55]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                       %107 = loom.bufferize_to_tensor %72[64] : memref<64xf16> -> tensor<64xf16>
                       %108 = loom.broadcast ins(%107 : tensor<64xf16>) outs(%79 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                       loom.semaphore_give %72 : memref<64xf16>
@@ -151,7 +151,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                       %110 = arith.addi %99, %42 : index
                       %111 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 8388608 + d1 * 4096 + d2 * 64 + d3)>(%arg11, %110, %22, %49)
                       %reinterpret_cast_10 = memref.reinterpret_cast %arg3 to offset: [%111], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-                      loom.copy %reinterpret_cast_10, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%28, %55], LR : [%53, %55]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+                      loom.copy %reinterpret_cast_10, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%29, %55], LR : [%29, %55]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
                       %112 = loom.bufferize_to_tensor %81[64, 32] : memref<64x32xf16> -> tensor<64x32xf16>
                       %113 = linalg.matmul ins(%109, %112 : tensor<64x64xf16>, tensor<64x32xf16>) outs(%arg16 : tensor<64x32xf16>) -> tensor<64x32xf16>
                       loom.semaphore_give %81 : memref<64x32xf16>
@@ -201,7 +201,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
     }
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_b = {is_reduction = false, upper_bound = 2 : index}, loom.tile_c = {is_reduction = false, upper_bound = 8 : index}, loom.tile_h = {is_reduction = false, upper_bound = 64 : index}, loom.tile_k = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}} {
-    func.func @helion_mamba2_chunk_scan_kernel__x2x4_y2y2y2__d0i1_d1i2_d2i4_d3i3_d4i0__f01234__dim_y_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_x_level1_bc8_dim_y_level1_bc4_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
+    func.func @helion_mamba2_chunk_scan_kernel__x2x4_y2y2y2__d0i1_d1i2_d2i4_d3i3_d4i0__f01234__dim_y_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_n_n_n_n_dim_x_level1_bc8_dim_y_level1_bc4_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
       %c1024 = arith.constant 1024 : index
       %c3 = arith.constant 3 : index
       %c7 = arith.constant 7 : index
@@ -303,18 +303,18 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                       %99 = arith.muli %arg15, %c64 : index
                       %100 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 524288 + d1 * 65536 + d2 * 65536 + d3 * 256 + d4)>(%arg11, %23, %44, %24, %99)
                       %reinterpret_cast_7 = memref.reinterpret_cast %arg0 to offset: [%100], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-                      loom.copy %reinterpret_cast_7, %69 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%29, %32], LR : [%29, %34]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+                      loom.copy %reinterpret_cast_7, %69 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%29, %55], LR : [%29, %55]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
                       %101 = loom.bufferize_to_tensor %69[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
                       %102 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %22, %23, %99)
                       %reinterpret_cast_8 = memref.reinterpret_cast %arg1 to offset: [%102], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                      loom.copy %reinterpret_cast_8, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 2] region : (UL : [%28, %32], LR : [%53, %34]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                      loom.copy %reinterpret_cast_8, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%29, %55], LR : [%29, %55]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                       %103 = loom.bufferize_to_tensor %73[64] : memref<64xf16> -> tensor<64xf16>
                       %104 = loom.broadcast ins(%35 : tensor<64xf16>) outs(%38 : tensor<64x32xf16>) dim(1) -> tensor<64x64xf16>
                       %105 = loom.broadcast ins(%103 : tensor<64xf16>) outs(%76 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                       loom.semaphore_give %73 : memref<64xf16>
                       %106 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %22, %23, %99)
                       %reinterpret_cast_9 = memref.reinterpret_cast %arg2 to offset: [%106], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                      loom.copy %reinterpret_cast_9, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 2] region : (UL : [%28, %32], LR : [%53, %34]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                      loom.copy %reinterpret_cast_9, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%29, %55], LR : [%29, %55]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                       %107 = loom.bufferize_to_tensor %72[64] : memref<64xf16> -> tensor<64xf16>
                       %108 = loom.broadcast ins(%107 : tensor<64xf16>) outs(%79 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                       loom.semaphore_give %72 : memref<64xf16>
@@ -332,7 +332,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                       %110 = arith.addi %99, %42 : index
                       %111 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 8388608 + d1 * 4096 + d2 * 64 + d3)>(%arg11, %110, %22, %49)
                       %reinterpret_cast_10 = memref.reinterpret_cast %arg3 to offset: [%111], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-                      loom.copy %reinterpret_cast_10, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%28, %55], LR : [%53, %55]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+                      loom.copy %reinterpret_cast_10, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%29, %55], LR : [%29, %55]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
                       %112 = loom.bufferize_to_tensor %81[64, 32] : memref<64x32xf16> -> tensor<64x32xf16>
                       %113 = linalg.matmul ins(%109, %112 : tensor<64x64xf16>, tensor<64x32xf16>) outs(%arg16 : tensor<64x32xf16>) -> tensor<64x32xf16>
                       loom.semaphore_give %81 : memref<64x32xf16>
@@ -382,7 +382,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
     }
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_b = {is_reduction = false, upper_bound = 2 : index}, loom.tile_c = {is_reduction = false, upper_bound = 8 : index}, loom.tile_h = {is_reduction = false, upper_bound = 64 : index}, loom.tile_k = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}} {
-    func.func @helion_mamba2_chunk_scan_kernel__x4x2_y2y2y2__d0i1_d1i2_d2i3_d3i4_d4i0__f01234__dim_y_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc4_dim_y_level0_bc2_dim_x_level0_bc4_dim_y_level0_bc2_dim_x_level0_bc4_dim_y_level0_bc2_dim_x_level0_bc4_dim_x_level1_bc8_dim_y_level1_bc4_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
+    func.func @helion_mamba2_chunk_scan_kernel__x4x2_y2y2y2__d0i1_d1i2_d2i3_d3i4_d4i0__f01234__dim_y_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc4_n_n_n_n_dim_x_level1_bc8_dim_y_level1_bc4_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
       %c1024 = arith.constant 1024 : index
       %c7 = arith.constant 7 : index
       %c3 = arith.constant 3 : index
@@ -482,18 +482,18 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                     %98 = arith.muli %arg14, %c64 : index
                     %99 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 524288 + d1 * 65536 + d2 * 65536 + d3 * 256 + d4)>(%arg11, %22, %43, %23, %98)
                     %reinterpret_cast_7 = memref.reinterpret_cast %arg0 to offset: [%99], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-                    loom.copy %reinterpret_cast_7, %68 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%28, %31], LR : [%28, %33]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+                    loom.copy %reinterpret_cast_7, %68 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%28, %54], LR : [%28, %54]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
                     %100 = loom.bufferize_to_tensor %68[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
                     %101 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %21, %22, %98)
                     %reinterpret_cast_8 = memref.reinterpret_cast %arg1 to offset: [%101], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                    loom.copy %reinterpret_cast_8, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 2] region : (UL : [%27, %31], LR : [%52, %33]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                    loom.copy %reinterpret_cast_8, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%28, %54], LR : [%28, %54]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                     %102 = loom.bufferize_to_tensor %72[64] : memref<64xf16> -> tensor<64xf16>
                     %103 = loom.broadcast ins(%34 : tensor<64xf16>) outs(%37 : tensor<64x32xf16>) dim(1) -> tensor<64x64xf16>
                     %104 = loom.broadcast ins(%102 : tensor<64xf16>) outs(%75 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                     loom.semaphore_give %72 : memref<64xf16>
                     %105 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %21, %22, %98)
                     %reinterpret_cast_9 = memref.reinterpret_cast %arg2 to offset: [%105], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                    loom.copy %reinterpret_cast_9, %71 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 2] region : (UL : [%27, %31], LR : [%52, %33]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                    loom.copy %reinterpret_cast_9, %71 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%28, %54], LR : [%28, %54]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                     %106 = loom.bufferize_to_tensor %71[64] : memref<64xf16> -> tensor<64xf16>
                     %107 = loom.broadcast ins(%106 : tensor<64xf16>) outs(%78 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                     loom.semaphore_give %71 : memref<64xf16>
@@ -511,7 +511,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                     %109 = arith.addi %98, %41 : index
                     %110 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 8388608 + d1 * 4096 + d2 * 64 + d3)>(%arg11, %109, %21, %48)
                     %reinterpret_cast_10 = memref.reinterpret_cast %arg3 to offset: [%110], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-                    loom.copy %reinterpret_cast_10, %80 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 1] region : (UL : [%27, %54], LR : [%52, %54]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+                    loom.copy %reinterpret_cast_10, %80 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%28, %54], LR : [%28, %54]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
                     %111 = loom.bufferize_to_tensor %80[64, 32] : memref<64x32xf16> -> tensor<64x32xf16>
                     %112 = linalg.matmul ins(%108, %111 : tensor<64x64xf16>, tensor<64x32xf16>) outs(%arg15 : tensor<64x32xf16>) -> tensor<64x32xf16>
                     loom.semaphore_give %80 : memref<64x32xf16>
@@ -560,7 +560,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
     }
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_b = {is_reduction = false, upper_bound = 2 : index}, loom.tile_c = {is_reduction = false, upper_bound = 8 : index}, loom.tile_h = {is_reduction = false, upper_bound = 64 : index}, loom.tile_k = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}} {
-    func.func @helion_mamba2_chunk_scan_kernel__x4x2_y2y2y2__d0i1_d1i2_d2i4_d3i3_d4i0__f01234__dim_y_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc4_dim_y_level0_bc2_dim_x_level0_bc4_dim_y_level0_bc2_dim_x_level0_bc4_dim_y_level0_bc2_dim_x_level0_bc4_dim_x_level1_bc8_dim_y_level1_bc4_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
+    func.func @helion_mamba2_chunk_scan_kernel__x4x2_y2y2y2__d0i1_d1i2_d2i4_d3i3_d4i0__f01234__dim_y_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc4_n_n_n_n_dim_x_level1_bc8_dim_y_level1_bc4_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
       %c1024 = arith.constant 1024 : index
       %c7 = arith.constant 7 : index
       %c3 = arith.constant 3 : index
@@ -660,18 +660,18 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                     %98 = arith.muli %arg14, %c64 : index
                     %99 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 524288 + d1 * 65536 + d2 * 65536 + d3 * 256 + d4)>(%arg11, %22, %43, %23, %98)
                     %reinterpret_cast_7 = memref.reinterpret_cast %arg0 to offset: [%99], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-                    loom.copy %reinterpret_cast_7, %68 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%28, %31], LR : [%28, %33]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+                    loom.copy %reinterpret_cast_7, %68 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%28, %54], LR : [%28, %54]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
                     %100 = loom.bufferize_to_tensor %68[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
                     %101 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %21, %22, %98)
                     %reinterpret_cast_8 = memref.reinterpret_cast %arg1 to offset: [%101], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                    loom.copy %reinterpret_cast_8, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 2] region : (UL : [%27, %31], LR : [%52, %33]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                    loom.copy %reinterpret_cast_8, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%28, %54], LR : [%28, %54]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                     %102 = loom.bufferize_to_tensor %72[64] : memref<64xf16> -> tensor<64xf16>
                     %103 = loom.broadcast ins(%34 : tensor<64xf16>) outs(%37 : tensor<64x32xf16>) dim(1) -> tensor<64x64xf16>
                     %104 = loom.broadcast ins(%102 : tensor<64xf16>) outs(%75 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                     loom.semaphore_give %72 : memref<64xf16>
                     %105 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %21, %22, %98)
                     %reinterpret_cast_9 = memref.reinterpret_cast %arg2 to offset: [%105], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                    loom.copy %reinterpret_cast_9, %71 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 2] region : (UL : [%27, %31], LR : [%52, %33]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                    loom.copy %reinterpret_cast_9, %71 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%28, %54], LR : [%28, %54]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                     %106 = loom.bufferize_to_tensor %71[64] : memref<64xf16> -> tensor<64xf16>
                     %107 = loom.broadcast ins(%106 : tensor<64xf16>) outs(%78 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                     loom.semaphore_give %71 : memref<64xf16>
@@ -689,7 +689,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                     %109 = arith.addi %98, %41 : index
                     %110 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 8388608 + d1 * 4096 + d2 * 64 + d3)>(%arg11, %109, %21, %48)
                     %reinterpret_cast_10 = memref.reinterpret_cast %arg3 to offset: [%110], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-                    loom.copy %reinterpret_cast_10, %80 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 1] region : (UL : [%27, %54], LR : [%52, %54]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+                    loom.copy %reinterpret_cast_10, %80 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%28, %54], LR : [%28, %54]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
                     %111 = loom.bufferize_to_tensor %80[64, 32] : memref<64x32xf16> -> tensor<64x32xf16>
                     %112 = linalg.matmul ins(%108, %111 : tensor<64x64xf16>, tensor<64x32xf16>) outs(%arg15 : tensor<64x32xf16>) -> tensor<64x32xf16>
                     loom.semaphore_give %80 : memref<64x32xf16>
@@ -738,7 +738,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
     }
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_b = {is_reduction = false, upper_bound = 2 : index}, loom.tile_c = {is_reduction = false, upper_bound = 8 : index}, loom.tile_h = {is_reduction = false, upper_bound = 64 : index}, loom.tile_k = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}} {
-    func.func @helion_mamba2_chunk_scan_kernel__x2x2x2_y2y4__d0i1_d1i2_d2i3_d3i4_d4i0__f01234__dim_y_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_x_level1_bc4_dim_y_level1_bc8_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
+    func.func @helion_mamba2_chunk_scan_kernel__x2x2x2_y2y4__d0i1_d1i2_d2i3_d3i4_d4i0__f01234__dim_y_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_n_n_n_n_dim_x_level1_bc4_dim_y_level1_bc8_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
       %c1024 = arith.constant 1024 : index
       %c7 = arith.constant 7 : index
       %c3 = arith.constant 3 : index
@@ -840,18 +840,18 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                       %99 = arith.muli %arg15, %c64 : index
                       %100 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 524288 + d1 * 65536 + d2 * 65536 + d3 * 256 + d4)>(%arg11, %23, %43, %24, %99)
                       %reinterpret_cast_7 = memref.reinterpret_cast %arg0 to offset: [%100], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-                      loom.copy %reinterpret_cast_7, %69 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%31, %32], LR : [%31, %33]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+                      loom.copy %reinterpret_cast_7, %69 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
                       %101 = loom.bufferize_to_tensor %69[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
                       %102 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %22, %23, %99)
                       %reinterpret_cast_8 = memref.reinterpret_cast %arg1 to offset: [%102], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                      loom.copy %reinterpret_cast_8, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 2] region : (UL : [%52, %32], LR : [%54, %33]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                      loom.copy %reinterpret_cast_8, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                       %103 = loom.bufferize_to_tensor %73[64] : memref<64xf16> -> tensor<64xf16>
                       %104 = loom.broadcast ins(%34 : tensor<64xf16>) outs(%37 : tensor<64x32xf16>) dim(1) -> tensor<64x64xf16>
                       %105 = loom.broadcast ins(%103 : tensor<64xf16>) outs(%76 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                       loom.semaphore_give %73 : memref<64xf16>
                       %106 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %22, %23, %99)
                       %reinterpret_cast_9 = memref.reinterpret_cast %arg2 to offset: [%106], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                      loom.copy %reinterpret_cast_9, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 2] region : (UL : [%52, %32], LR : [%54, %33]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                      loom.copy %reinterpret_cast_9, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                       %107 = loom.bufferize_to_tensor %72[64] : memref<64xf16> -> tensor<64xf16>
                       %108 = loom.broadcast ins(%107 : tensor<64xf16>) outs(%79 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                       loom.semaphore_give %72 : memref<64xf16>
@@ -869,7 +869,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                       %110 = arith.addi %99, %41 : index
                       %111 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 8388608 + d1 * 4096 + d2 * 64 + d3)>(%arg11, %110, %22, %48)
                       %reinterpret_cast_10 = memref.reinterpret_cast %arg3 to offset: [%111], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-                      loom.copy %reinterpret_cast_10, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%52, %55], LR : [%54, %55]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+                      loom.copy %reinterpret_cast_10, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
                       %112 = loom.bufferize_to_tensor %81[64, 32] : memref<64x32xf16> -> tensor<64x32xf16>
                       %113 = linalg.matmul ins(%109, %112 : tensor<64x64xf16>, tensor<64x32xf16>) outs(%arg16 : tensor<64x32xf16>) -> tensor<64x32xf16>
                       loom.semaphore_give %81 : memref<64x32xf16>
@@ -919,7 +919,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
     }
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_b = {is_reduction = false, upper_bound = 2 : index}, loom.tile_c = {is_reduction = false, upper_bound = 8 : index}, loom.tile_h = {is_reduction = false, upper_bound = 64 : index}, loom.tile_k = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}} {
-    func.func @helion_mamba2_chunk_scan_kernel__x2x2x2_y2y4__d0i1_d1i2_d2i4_d3i3_d4i0__f01234__dim_y_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_dim_x_level1_bc4_dim_y_level1_bc8_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
+    func.func @helion_mamba2_chunk_scan_kernel__x2x2x2_y2y4__d0i1_d1i2_d2i4_d3i3_d4i0__f01234__dim_y_level0_bc2_dim_y_level0_bc2_dim_x_level0_bc2_n_n_n_n_dim_x_level1_bc4_dim_y_level1_bc8_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
       %c1024 = arith.constant 1024 : index
       %c7 = arith.constant 7 : index
       %c3 = arith.constant 3 : index
@@ -1021,18 +1021,18 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                       %99 = arith.muli %arg15, %c64 : index
                       %100 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 524288 + d1 * 65536 + d2 * 65536 + d3 * 256 + d4)>(%arg11, %23, %43, %24, %99)
                       %reinterpret_cast_7 = memref.reinterpret_cast %arg0 to offset: [%100], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-                      loom.copy %reinterpret_cast_7, %69 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%31, %32], LR : [%31, %33]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+                      loom.copy %reinterpret_cast_7, %69 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
                       %101 = loom.bufferize_to_tensor %69[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
                       %102 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %22, %23, %99)
                       %reinterpret_cast_8 = memref.reinterpret_cast %arg1 to offset: [%102], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                      loom.copy %reinterpret_cast_8, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 2] region : (UL : [%52, %32], LR : [%54, %33]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                      loom.copy %reinterpret_cast_8, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                       %103 = loom.bufferize_to_tensor %73[64] : memref<64xf16> -> tensor<64xf16>
                       %104 = loom.broadcast ins(%34 : tensor<64xf16>) outs(%37 : tensor<64x32xf16>) dim(1) -> tensor<64x64xf16>
                       %105 = loom.broadcast ins(%103 : tensor<64xf16>) outs(%76 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                       loom.semaphore_give %73 : memref<64xf16>
                       %106 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %22, %23, %99)
                       %reinterpret_cast_9 = memref.reinterpret_cast %arg2 to offset: [%106], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                      loom.copy %reinterpret_cast_9, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 2] region : (UL : [%52, %32], LR : [%54, %33]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                      loom.copy %reinterpret_cast_9, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                       %107 = loom.bufferize_to_tensor %72[64] : memref<64xf16> -> tensor<64xf16>
                       %108 = loom.broadcast ins(%107 : tensor<64xf16>) outs(%79 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                       loom.semaphore_give %72 : memref<64xf16>
@@ -1050,7 +1050,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                       %110 = arith.addi %99, %41 : index
                       %111 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 8388608 + d1 * 4096 + d2 * 64 + d3)>(%arg11, %110, %22, %48)
                       %reinterpret_cast_10 = memref.reinterpret_cast %arg3 to offset: [%111], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-                      loom.copy %reinterpret_cast_10, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%52, %55], LR : [%54, %55]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+                      loom.copy %reinterpret_cast_10, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
                       %112 = loom.bufferize_to_tensor %81[64, 32] : memref<64x32xf16> -> tensor<64x32xf16>
                       %113 = linalg.matmul ins(%109, %112 : tensor<64x64xf16>, tensor<64x32xf16>) outs(%arg16 : tensor<64x32xf16>) -> tensor<64x32xf16>
                       loom.semaphore_give %81 : memref<64x32xf16>
@@ -1100,7 +1100,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
     }
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_b = {is_reduction = false, upper_bound = 2 : index}, loom.tile_c = {is_reduction = false, upper_bound = 8 : index}, loom.tile_h = {is_reduction = false, upper_bound = 64 : index}, loom.tile_k = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}} {
-    func.func @helion_mamba2_chunk_scan_kernel__x2x2x2_y4y2__d0i1_d1i2_d2i3_d3i4_d4i0__f01234__dim_y_level0_bc4_dim_y_level0_bc4_dim_x_level0_bc2_dim_y_level0_bc4_dim_x_level0_bc2_dim_y_level0_bc4_dim_x_level0_bc2_dim_y_level0_bc4_dim_x_level0_bc2_dim_x_level1_bc4_dim_y_level1_bc8_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
+    func.func @helion_mamba2_chunk_scan_kernel__x2x2x2_y4y2__d0i1_d1i2_d2i3_d3i4_d4i0__f01234__dim_y_level0_bc4_dim_y_level0_bc4_dim_x_level0_bc2_n_n_n_n_dim_x_level1_bc4_dim_y_level1_bc8_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
       %c1024 = arith.constant 1024 : index
       %c7 = arith.constant 7 : index
       %c3 = arith.constant 3 : index
@@ -1202,18 +1202,18 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                       %99 = arith.muli %arg15, %c64 : index
                       %100 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 524288 + d1 * 65536 + d2 * 65536 + d3 * 256 + d4)>(%arg11, %23, %43, %24, %99)
                       %reinterpret_cast_7 = memref.reinterpret_cast %arg0 to offset: [%100], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-                      loom.copy %reinterpret_cast_7, %69 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 4] region : (UL : [%31, %32], LR : [%31, %33]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+                      loom.copy %reinterpret_cast_7, %69 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
                       %101 = loom.bufferize_to_tensor %69[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
                       %102 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %22, %23, %99)
                       %reinterpret_cast_8 = memref.reinterpret_cast %arg1 to offset: [%102], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                      loom.copy %reinterpret_cast_8, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 4] region : (UL : [%52, %32], LR : [%54, %33]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                      loom.copy %reinterpret_cast_8, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                       %103 = loom.bufferize_to_tensor %73[64] : memref<64xf16> -> tensor<64xf16>
                       %104 = loom.broadcast ins(%34 : tensor<64xf16>) outs(%37 : tensor<64x32xf16>) dim(1) -> tensor<64x64xf16>
                       %105 = loom.broadcast ins(%103 : tensor<64xf16>) outs(%76 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                       loom.semaphore_give %73 : memref<64xf16>
                       %106 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %22, %23, %99)
                       %reinterpret_cast_9 = memref.reinterpret_cast %arg2 to offset: [%106], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                      loom.copy %reinterpret_cast_9, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 4] region : (UL : [%52, %32], LR : [%54, %33]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                      loom.copy %reinterpret_cast_9, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                       %107 = loom.bufferize_to_tensor %72[64] : memref<64xf16> -> tensor<64xf16>
                       %108 = loom.broadcast ins(%107 : tensor<64xf16>) outs(%79 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                       loom.semaphore_give %72 : memref<64xf16>
@@ -1231,7 +1231,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                       %110 = arith.addi %99, %41 : index
                       %111 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 8388608 + d1 * 4096 + d2 * 64 + d3)>(%arg11, %110, %22, %48)
                       %reinterpret_cast_10 = memref.reinterpret_cast %arg3 to offset: [%111], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-                      loom.copy %reinterpret_cast_10, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%52, %55], LR : [%54, %55]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+                      loom.copy %reinterpret_cast_10, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
                       %112 = loom.bufferize_to_tensor %81[64, 32] : memref<64x32xf16> -> tensor<64x32xf16>
                       %113 = linalg.matmul ins(%109, %112 : tensor<64x64xf16>, tensor<64x32xf16>) outs(%arg16 : tensor<64x32xf16>) -> tensor<64x32xf16>
                       loom.semaphore_give %81 : memref<64x32xf16>
@@ -1281,7 +1281,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
     }
   }
   module attributes {loom.pass_name = "Materialize", loom.tile_b = {is_reduction = false, upper_bound = 2 : index}, loom.tile_c = {is_reduction = false, upper_bound = 8 : index}, loom.tile_h = {is_reduction = false, upper_bound = 64 : index}, loom.tile_k = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_m = {is_reduction = false, upper_bound = 256 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}} {
-    func.func @helion_mamba2_chunk_scan_kernel__x2x2x2_y4y2__d0i1_d1i2_d2i4_d3i3_d4i0__f01234__dim_y_level0_bc4_dim_y_level0_bc4_dim_x_level0_bc2_dim_y_level0_bc4_dim_x_level0_bc2_dim_y_level0_bc4_dim_x_level0_bc2_dim_y_level0_bc4_dim_x_level0_bc2_dim_x_level1_bc4_dim_y_level1_bc8_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
+    func.func @helion_mamba2_chunk_scan_kernel__x2x2x2_y4y2__d0i1_d1i2_d2i4_d3i3_d4i0__f01234__dim_y_level0_bc4_dim_y_level0_bc4_dim_x_level0_bc2_n_n_n_n_dim_x_level1_bc4_dim_y_level1_bc8_n_n__tile_b1__tile_c4__tile_h8__tile_k64__tile_m64__tile_n32(%arg0: memref<2x8x1x256x256xf16>, %arg1: memref<2x64x8x256xf16>, %arg2: memref<2x64x8x256xf16>, %arg3: memref<2x2048x64x64xf16>, %arg4: memref<2x2048x1x64xf16>, %arg5: memref<2x8x64x64x64xf16>, %arg6: memref<64xf16>, %arg7: memref<2x2048x64x64xf16>) {
       %c1024 = arith.constant 1024 : index
       %c7 = arith.constant 7 : index
       %c3 = arith.constant 3 : index
@@ -1383,18 +1383,18 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                       %99 = arith.muli %arg15, %c64 : index
                       %100 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0 * 524288 + d1 * 65536 + d2 * 65536 + d3 * 256 + d4)>(%arg11, %23, %43, %24, %99)
                       %reinterpret_cast_7 = memref.reinterpret_cast %arg0 to offset: [%100], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-                      loom.copy %reinterpret_cast_7, %69 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 4] region : (UL : [%31, %32], LR : [%31, %33]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+                      loom.copy %reinterpret_cast_7, %69 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
                       %101 = loom.bufferize_to_tensor %69[64, 64] : memref<64x64xf16> -> tensor<64x64xf16>
                       %102 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %22, %23, %99)
                       %reinterpret_cast_8 = memref.reinterpret_cast %arg1 to offset: [%102], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                      loom.copy %reinterpret_cast_8, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 4] region : (UL : [%52, %32], LR : [%54, %33]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                      loom.copy %reinterpret_cast_8, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                       %103 = loom.bufferize_to_tensor %73[64] : memref<64xf16> -> tensor<64xf16>
                       %104 = loom.broadcast ins(%34 : tensor<64xf16>) outs(%37 : tensor<64x32xf16>) dim(1) -> tensor<64x64xf16>
                       %105 = loom.broadcast ins(%103 : tensor<64xf16>) outs(%76 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                       loom.semaphore_give %73 : memref<64xf16>
                       %106 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 131072 + d1 * 2048 + d2 * 256 + d3)>(%arg11, %22, %23, %99)
                       %reinterpret_cast_9 = memref.reinterpret_cast %arg2 to offset: [%106], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-                      loom.copy %reinterpret_cast_9, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 4] region : (UL : [%52, %32], LR : [%54, %33]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+                      loom.copy %reinterpret_cast_9, %72 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
                       %107 = loom.bufferize_to_tensor %72[64] : memref<64xf16> -> tensor<64xf16>
                       %108 = loom.broadcast ins(%107 : tensor<64xf16>) outs(%79 : tensor<32x64xf16>) dim(0) -> tensor<64x64xf16>
                       loom.semaphore_give %72 : memref<64xf16>
@@ -1412,7 +1412,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                       %110 = arith.addi %99, %41 : index
                       %111 = affine.apply affine_map<(d0, d1, d2, d3) -> (d0 * 8388608 + d1 * 4096 + d2 * 64 + d3)>(%arg11, %110, %22, %48)
                       %reinterpret_cast_10 = memref.reinterpret_cast %arg3 to offset: [%111], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-                      loom.copy %reinterpret_cast_10, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%52, %55], LR : [%54, %55]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+                      loom.copy %reinterpret_cast_10, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%31, %55], LR : [%31, %55]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
                       %112 = loom.bufferize_to_tensor %81[64, 32] : memref<64x32xf16> -> tensor<64x32xf16>
                       %113 = linalg.matmul ins(%109, %112 : tensor<64x64xf16>, tensor<64x32xf16>) outs(%arg16 : tensor<64x32xf16>) -> tensor<64x32xf16>
                       loom.semaphore_give %81 : memref<64x32xf16>
