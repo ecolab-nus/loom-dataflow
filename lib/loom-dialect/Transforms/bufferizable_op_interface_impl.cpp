@@ -308,7 +308,7 @@ struct BroadcastOpInterface
 
     auto newOp = loom::BroadcastOp::create(rewriter, op->getLoc(), resultTypes,
                                            *insBuffer, *initBuffer,
-                                           broadcastOp.getDim());
+                                           broadcastOp.getDimAttr());
 
     if (op->getNumResults() == 0) {
       rewriter.eraseOp(op);
