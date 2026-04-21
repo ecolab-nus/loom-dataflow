@@ -179,8 +179,8 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           loom.gather ins(%61 : memref<1x32x128xf16>) outs(%60 : memref<8x1x32x128xf16>) across(%arg5 : index) region : (UL : [%c0, %arg4], LR : [%c7, %arg4])
           loom.semaphore_give %61 : memref<1x32x128xf16>
           loom.semaphore_give %24 : memref<1x32x128xf16>
-          %62 = loom.alloc [1024, 1, 32, 32] on @L1 : memref<1024x1x32x32xf16>
-          %63 = loom.semaphore_take %62 : memref<1024x1x32x32xf16> -> memref<1024x1x32x32xf16>
+          %62 = loom.alloc [8, 1, 32, 32] on @L1 : memref<8x1x32x32xf16>
+          %63 = loom.semaphore_take %62 : memref<8x1x32x32xf16> -> memref<8x1x32x32xf16>
           %64 = arith.cmpi eq, %arg5, %c0 : index
           scf.if %64 {
             linalg.fill ins(%cst_1 : f16) outs(%32 : memref<1x32x1xf16>)
@@ -210,7 +210,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
               linalg.yield %69 : f16
             }
             loom.semaphore_give %31 : memref<1x32x1xf16>
-            %66 = loom.broadcast ins(%57 : memref<8x1x32x1xf16>) outs(%63 : memref<1024x1x32x32xf16>) dim(3) -> memref<8x1x32x128xf16, strided<[?, ?, ?, ?], offset: ?>>
+            %66 = loom.broadcast ins(%57 : memref<8x1x32x1xf16>) outs(%63 : memref<8x1x32x32xf16>) dim(3) -> memref<8x1x32x128xf16, strided<[?, ?, ?, ?], offset: ?>>
             loom.semaphore_give %65 : memref<8x1x32x1xf16>
             loom.semaphore_give %57 : memref<8x1x32x1xf16>
             %67 = loom.semaphore_take %59 : memref<8x1x32x128xf16> -> memref<8x1x32x128xf16>
@@ -220,7 +220,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
               %69 = arith.mulf %in, %in_4 : f16
               linalg.yield %69 : f16
             }
-            loom.semaphore_give %63 : memref<1024x1x32x32xf16>
+            loom.semaphore_give %63 : memref<8x1x32x32xf16>
             linalg.fill ins(%cst : f16) outs(%23 : memref<1x32x128xf16>)
             linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d1, d2, d3)>], iterator_types = ["reduction", "parallel", "parallel", "parallel"]} ins(%60 : memref<8x1x32x128xf16>) outs(%23 : memref<1x32x128xf16>) {
             ^bb0(%in: f16, %out: f16):

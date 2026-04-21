@@ -176,7 +176,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           %41 = arith.divf %in, %in_4 : f16
           linalg.yield %41 : f16
         } -> tensor<?x?x32x1xf16>
-        %35 = tensor.empty(%1, %0) : tensor<?x?x32x32xf16>
+        %35 = tensor.empty(%4, %0) : tensor<?x?x32x32xf16>
         %36 = "loom.broadcast"(%34, %35) {dim = 3 : i64} : (tensor<?x?x32x1xf16>, tensor<?x?x32x32xf16>) -> tensor<?x?x32x128xf16>
         %37 = arith.cmpi eq, %4, %1 : index
         cf.assert %37, "mismatched size for broadcast"

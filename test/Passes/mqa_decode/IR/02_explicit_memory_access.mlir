@@ -177,9 +177,9 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       loom.semaphore_give %74 : memref<?x32x128xf16>
       loom.semaphore_give %9 : memref<?x32x128xf16>
       %78 = arith.cmpi eq, %arg5, %c0 : index
-      %79 = loom.alloc [%1, %0, 32, 32] on @L1 : memref<?x?x32x32xf16>
+      %79 = loom.alloc [%4, %0, 32, 32] on @L1 : memref<?x?x32x32xf16>
       %80 = loom.semaphore_take %79 : memref<?x?x32x32xf16> -> memref<?x?x32x32xf16>
-      %81 = loom.init_tensor %80[%1, %0, 32, 32] : memref<?x?x32x32xf16> -> tensor<?x?x32x32xf16>
+      %81 = loom.init_tensor %80[%4, %0, 32, 32] : memref<?x?x32x32xf16> -> tensor<?x?x32x32xf16>
       scf.if %78 {
         %82 = linalg.fill ins(%cst_1 : f16) outs(%24 : tensor<?x32x1xf16>) -> tensor<?x32x1xf16>
         %83 = loom.semaphore_take %64 : memref<?x?x32x1xf16> -> memref<?x?x32x1xf16>
