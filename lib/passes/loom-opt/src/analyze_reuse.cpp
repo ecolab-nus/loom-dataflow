@@ -95,6 +95,35 @@ public:
         dynamicOffsets.push_back(offsetVal);
       }
 
+      // Gather enclosing affine.parallel IVs. These are used to detect
+      // scf.for loops whose upper bounds vary across spatial blocks.
+      SmallVector<Value, 8> enclosingParallelIVs;
+      for (Operation *parent = op->getParentOp(); parent;
+           parent = parent->getParentOp()) {
+        if (auto par = dyn_cast<affine::AffineParallelOp>(parent)) {
+          for (Value iv : par.getIVs())
+            enclosingParallelIVs.push_back(iv);
+        }
+      }
+
+      // If a subview is under an scf.for whose upper bound depends on any
+      // enclosing affine.parallel IV, skip spatial reuse marking.
+      bool skipSpatialReuse = false;
+      for (Operation *parent = op->getParentOp(); parent;
+           parent = parent->getParentOp()) {
+        auto scfFor = dyn_cast<scf::ForOp>(parent);
+        if (!scfFor)
+          continue;
+
+        Value ub = scfFor.getUpperBound();
+        if (llvm::any_of(enclosingParallelIVs, [&](Value parIV) {
+              return loom::utils::dependsOn(ub, parIV);
+            })) {
+          skipSpatialReuse = true;
+          break;
+        }
+      }
+
       // Collect enclosing loops in lexical order (outermost to innermost).
       SmallVector<Operation *, 8> loopStack;
       for (Operation *parent = op->getParentOp(); parent;
@@ -119,6 +148,11 @@ public:
           continue;
 
         loom::IterType iterType = iterTypeAttr.getValue();
+
+        // Under variable trip-count sequential loops that depend on spatial
+        // placement, force non-spatial reuse.
+        if (skipSpatialReuse && iterType == loom::IterType::Spatial)
+          continue;
 
         // Get induction variables (IVs) for the loop.
         SmallVector<Value, 4> ivs;
