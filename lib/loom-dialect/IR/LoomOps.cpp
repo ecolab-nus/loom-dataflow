@@ -766,7 +766,7 @@ struct StaticizeBroadcast : public OpRewritePattern<BroadcastOp> {
       return failure();
 
     auto newOp = rewriter.create<BroadcastOp>(
-        op.getLoc(), TypeRange{migratedResultType}, ins, init, op.getDim());
+        op.getLoc(), TypeRange{migratedResultType}, ins, init, op.getDimAttr());
     Value newResult = newOp->getResult(0);
 
     if (needsTypeUpdate) {

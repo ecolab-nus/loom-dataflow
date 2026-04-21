@@ -827,7 +827,7 @@ def BroadcastOp : Loom_Op<"broadcast", [
     Operand convention (mirrors linalg DPS):
     - ins: source tensor/memref
     - outs: destination tensor/memref
-    - dim: broadcast axis (with respect to output tensor rank)
+    - dim: static broadcast axis (with respect to output tensor rank)
 
     Tensor mode returns a tensor result. Memref mode may return a memref
     result with broadcasted logical shape for downstream consumers.
@@ -836,7 +836,7 @@ def BroadcastOp : Loom_Op<"broadcast", [
   let arguments = (ins
     AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$ins,
     AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$init,
-    Index:$dim
+    I64Attr:$dim
   );
 
   let results = (outs Variadic<AnyTypeOf<[AnyRankedTensor, AnyMemRef]>>:$result);
@@ -844,7 +844,7 @@ def BroadcastOp : Loom_Op<"broadcast", [
   let assemblyFormat = [{
     `ins` `(` $ins `:` type($ins) `)`
     `outs` `(` $init `:` type($init) `)`
-    `dim` `(` $dim `:` type($dim) `)`
+    `dim` `(` $dim `)`
     attr-dict (`->` type($result)^ )?
   }];
 
