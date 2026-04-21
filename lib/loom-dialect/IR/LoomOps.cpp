@@ -4,10 +4,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -455,18 +455,19 @@ struct FoldInitTensorConstants : public OpRewritePattern<InitTensorOp> {
   }
 };
 
-/// Pattern to update affine.for iter_args and results when init args are
+/// Pattern to update scf.for iter_args and results when init args are
 /// staticized.
-struct StaticizeAffineFor : public OpRewritePattern<affine::AffineForOp> {
-  using OpRewritePattern<affine::AffineForOp>::OpRewritePattern;
+struct StaticizeScfFor : public OpRewritePattern<scf::ForOp> {
+  using OpRewritePattern<scf::ForOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(affine::AffineForOp op,
+  LogicalResult matchAndRewrite(scf::ForOp op,
                                 PatternRewriter &rewriter) const override {
     bool needsUpdate = false;
     SmallVector<Type> newIterTypes;
     SmallVector<Value> newInits;
 
-    for (auto [initArg, result] : llvm::zip(op.getInits(), op.getResults())) {
+    for (auto [initArg, result] :
+         llvm::zip(op.getInitArgs(), op.getResults())) {
       Value source = initArg;
       Type sourceType = initArg.getType();
 
@@ -494,13 +495,14 @@ struct StaticizeAffineFor : public OpRewritePattern<affine::AffineForOp> {
     if (!needsUpdate)
       return failure();
 
-    // Create new for loop with updated types
-    int64_t step = op.getStep().getSExtValue();
-    auto newForOp = rewriter.create<affine::AffineForOp>(
-        op.getLoc(), op.getLowerBoundOperands(), op.getLowerBoundMap(),
-        op.getUpperBoundOperands(), op.getUpperBoundMap(), step, newInits);
+    // Create new for loop with updated types. scf.for uses SSA values for
+    // lower/upper/step.
+    auto newForOp = rewriter.create<scf::ForOp>(
+        op.getLoc(), op.getLowerBound(), op.getUpperBound(), op.getStep(),
+        newInits);
 
-    // Move the body of the old loop to the new one
+    // Move the body of the old loop to the new one, overwriting the default
+    // entry block (with its auto-inserted scf.yield) that ForOp::create made.
     newForOp.getRegion().takeBody(op.getRegion());
 
     // Update block argument types for the iteration arguments
@@ -509,8 +511,7 @@ struct StaticizeAffineFor : public OpRewritePattern<affine::AffineForOp> {
     }
 
     // Update the yield inside the loop to use the static types
-    auto yieldOp =
-        cast<affine::AffineYieldOp>(newForOp.getBody()->getTerminator());
+    auto yieldOp = cast<scf::YieldOp>(newForOp.getBody()->getTerminator());
     rewriter.setInsertionPoint(yieldOp);
     SmallVector<Value> newYieldOperands;
     for (auto [idx, yieldVal] : llvm::enumerate(yieldOp.getOperands())) {
@@ -532,8 +533,7 @@ struct StaticizeAffineFor : public OpRewritePattern<affine::AffineForOp> {
         newYieldOperands.push_back(yieldVal);
       }
     }
-    rewriter.replaceOpWithNewOp<affine::AffineYieldOp>(yieldOp,
-                                                       newYieldOperands);
+    rewriter.replaceOpWithNewOp<scf::YieldOp>(yieldOp, newYieldOperands);
 
     // Replace old results with casts from new results
     rewriter.setInsertionPointAfter(newForOp);
@@ -878,7 +878,7 @@ void AllocOp::getCanonicalizationPatterns(RewritePatternSet &results,
 
 void InitTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                                MLIRContext *context) {
-  results.add<FoldInitTensorConstants, StaticizeAffineFor>(context);
+  results.add<FoldInitTensorConstants, StaticizeScfFor>(context);
 }
 
 void CopyFromTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,

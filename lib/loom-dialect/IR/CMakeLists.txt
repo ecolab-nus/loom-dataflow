@@ -31,7 +31,7 @@ add_mlir_dialect_library(loomDialect
   LINK_LIBS PUBLIC
   MLIRIR
   MLIRMemRefDialect
-  MLIRAffineDialect
+  MLIRSCFDialect
   MLIRDestinationStyleOpInterface
 )
 
