@@ -1,22 +1,18 @@
 #include "Passes.h"
 
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Dominance.h"
-#include "mlir/IR/PatternMatch.h"
 #include "mlir/Pass/Pass.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include <optional>
 
-#include "ssa_utils.h"
+#include "utils.h"
 
-#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -104,99 +100,20 @@ static FailureOr<WriteOutChain> buildL1ToDramCopyChain(loom::CopyOp copyOp) {
   return chain;
 }
 
-static Value traceToSemaphore(Value value) {
-  if (!value)
-    return nullptr;
+static FailureOr<WriteOutChain> buildWriteBackCopyChain(memref::CopyOp copyOp) {
+  auto toBuffer = copyOp.getSource().getDefiningOp<bufferization::ToBufferOp>();
+  if (!toBuffer)
+    return failure();
 
-  llvm::SmallPtrSet<Value, 32> visited;
-  llvm::SmallVector<Value, 32> worklist = {value};
+  auto tensorType = dyn_cast<RankedTensorType>(toBuffer.getTensor().getType());
+  if (!tensorType)
+    return failure();
 
-  while (!worklist.empty()) {
-    Value current = worklist.pop_back_val();
-    if (!current || !visited.insert(current).second)
-      continue;
-
-    if (auto semTake = current.getDefiningOp<loom::SemaphoreTakeOp>())
-      return semTake.getResult();
-
-    if (auto blockArg = dyn_cast<BlockArgument>(current)) {
-      Operation *parent = blockArg.getOwner()->getParentOp();
-
-      if (auto scfFor = dyn_cast<scf::ForOp>(parent)) {
-        unsigned argNum = blockArg.getArgNumber();
-        if (argNum > 0 && argNum - 1 < scfFor.getInits().size())
-          worklist.push_back(scfFor.getInits()[argNum - 1]);
-      } else if (auto affFor = dyn_cast<affine::AffineForOp>(parent)) {
-        unsigned bodyArgs = affFor.getBody()->getNumArguments();
-        unsigned iterCount = affFor.getNumIterOperands();
-        unsigned firstIterArg = bodyArgs - iterCount;
-        unsigned argNum = blockArg.getArgNumber();
-        if (argNum >= firstIterArg) {
-          unsigned iterIdx = argNum - firstIterArg;
-          if (iterIdx < affFor.getInits().size())
-            worklist.push_back(affFor.getInits()[iterIdx]);
-        }
-      } else if (auto affPar = dyn_cast<affine::AffineParallelOp>(parent)) {
-        unsigned argNum = blockArg.getArgNumber();
-        if (argNum < affPar.getInits().size())
-          worklist.push_back(affPar.getInits()[argNum]);
-      }
-      continue;
-    }
-
-    Operation *defOp = current.getDefiningOp();
-    if (!defOp)
-      continue;
-
-    if (auto init = dyn_cast<loom::InitTensorOp>(defOp)) {
-      worklist.push_back(init.getBuffer());
-      continue;
-    }
-    if (auto copyToTensor = dyn_cast<loom::CopyToTensorOp>(defOp)) {
-      worklist.push_back(copyToTensor.getBuffer());
-      continue;
-    }
-    if (auto toTensor = dyn_cast<loom::BufferizeToTensorOp>(defOp)) {
-      worklist.push_back(toTensor.getSource());
-      continue;
-    }
-    if (auto toMemref = dyn_cast<loom::BufferizeToMemrefOp>(defOp)) {
-      worklist.push_back(toMemref.getSource());
-      continue;
-    }
-    if (auto toTensor = dyn_cast<bufferization::ToTensorOp>(defOp)) {
-      worklist.push_back(toTensor.getBuffer());
-      continue;
-    }
-    if (auto toBuffer = dyn_cast<bufferization::ToBufferOp>(defOp)) {
-      worklist.push_back(toBuffer.getTensor());
-      continue;
-    }
-    if (auto mcast = dyn_cast<memref::CastOp>(defOp)) {
-      worklist.push_back(mcast.getSource());
-      continue;
-    }
-    if (auto tcast = dyn_cast<tensor::CastOp>(defOp)) {
-      worklist.push_back(tcast.getSource());
-      continue;
-    }
-
-    if (auto dps = dyn_cast<DestinationStyleOpInterface>(defOp)) {
-      if (auto res = dyn_cast<OpResult>(current)) {
-        unsigned resIdx = res.getResultNumber();
-        ValueRange inits = dps.getDpsInits();
-        if (resIdx < inits.size()) {
-          worklist.push_back(inits[resIdx]);
-          continue;
-        }
-      }
-    }
-
-    for (Value operand : defOp->getOperands())
-      worklist.push_back(operand);
-  }
-
-  return nullptr;
+  WriteOutChain chain;
+  chain.ops.push_back(toBuffer.getOperation());
+  chain.ops.push_back(copyOp.getOperation());
+  chain.targetTensor = toBuffer.getTensor();
+  return chain;
 }
 
 class WriteOutSyncInsertionPass
@@ -209,7 +126,7 @@ public:
   }
 
   StringRef getDescription() const override {
-    return "Insert loom.sync and semaphore lifecycle around write-out chains";
+    return "Insert tensor.empty + loom.sync before write-out chain heads";
   }
 
   void runOnOperation() override {
@@ -225,6 +142,12 @@ public:
           chains.push_back(*chain);
         if (auto chain = buildGatherFirstConsumerChain(gatherOp))
           chains.push_back(*chain);
+        return;
+      }
+      if (auto memCopyOp = dyn_cast<memref::CopyOp>(op)) {
+        auto chainOr = buildWriteBackCopyChain(memCopyOp);
+        if (succeeded(chainOr))
+          chains.push_back(*chainOr);
         return;
       }
       if (auto copyOp = dyn_cast<loom::CopyOp>(op)) {
@@ -253,68 +176,50 @@ public:
         return;
       }
 
-      Value alloc = loom::utils::traceToRootAlloc(chain.targetTensor);
-      if (!alloc) {
-        chain.first()->emitError(
-            "failed to trace write-out chain target to root loom.alloc");
-        signalPassFailure();
-        return;
-      }
+      OpBuilder beforeBuilder(chain.first());
+      beforeBuilder.setInsertionPoint(chain.first());
 
-      auto allocOp = alloc.getDefiningOp<loom::AllocOp>();
-      auto allocType = dyn_cast<MemRefType>(alloc.getType());
-      if (!allocOp || !allocType) {
-        chain.first()->emitError("traceToRootAlloc must return loom.alloc memref");
-        signalPassFailure();
-        return;
-      }
-
-      if (allocType.getRank() != tensorType.getRank()) {
-        chain.first()->emitError(
-            "alloc rank does not match write-out chain target tensor rank");
-        signalPassFailure();
-        return;
-      }
-
-      SmallVector<int64_t, 4> staticSizes(tensorType.getShape().begin(),
-                                          tensorType.getShape().end());
+      SmallVector<loom::utils::SymbolicDim, 4> tracedShape =
+          loom::utils::traceShape(chain.targetTensor);
 
       SmallVector<Value, 4> dynamicSizes;
-      auto allocDyn = allocOp.getSizes();
-      unsigned allocDynIdx = 0;
-      for (int64_t dim : allocType.getShape()) {
-        if (dim == ShapedType::kDynamic) {
-          if (allocDynIdx >= allocDyn.size()) {
-            chain.first()->emitError("alloc dynamic sizes are inconsistent");
-            signalPassFailure();
-            return;
+      for (auto [idx, dim] : llvm::enumerate(tensorType.getShape())) {
+        if (dim != ShapedType::kDynamic)
+          continue;
+
+        Value dynSizeVal = nullptr;
+        if (idx < tracedShape.size()) {
+          if (auto tracedVal = llvm::dyn_cast<Value>(tracedShape[idx])) {
+            Operation *def = tracedVal.getDefiningOp();
+            if (!def || dominance.dominates(def, chain.first()))
+              dynSizeVal = tracedVal;
+          } else if (auto tracedAttr =
+                         llvm::dyn_cast<Attribute>(tracedShape[idx])) {
+            if (auto intAttr = dyn_cast<IntegerAttr>(tracedAttr)) {
+              if (intAttr.getInt() >= 0) {
+                dynSizeVal = arith::ConstantIndexOp::create(
+                    beforeBuilder, chain.first()->getLoc(), intAttr.getInt());
+              }
+            }
           }
-          dynamicSizes.push_back(allocDyn[allocDynIdx++]);
         }
+
+        if (!dynSizeVal) {
+          auto cstIdx = arith::ConstantIndexOp::create(
+              beforeBuilder, chain.first()->getLoc(), idx);
+          dynSizeVal = tensor::DimOp::create(beforeBuilder, chain.first()->getLoc(),
+                                             chain.targetTensor, cstIdx);
+        }
+        dynamicSizes.push_back(dynSizeVal);
       }
 
-      unsigned expectedDyn = llvm::count_if(
-          staticSizes, [](int64_t d) { return d == ShapedType::kDynamic; });
-      if (dynamicSizes.size() < expectedDyn) {
-        chain.first()->emitError(
-            "target tensor expects more dynamic sizes than alloc provides");
-        signalPassFailure();
-        return;
-      }
-      if (dynamicSizes.size() > expectedDyn)
-        dynamicSizes.resize(expectedDyn);
-
-      OpBuilder beforeBuilder(chain.first());
-      auto semTake = loom::SemaphoreTakeOp::create(beforeBuilder,
-                                                   chain.first()->getLoc(),
-                                                   allocType, alloc);
-      auto initTensor = loom::InitTensorOp::create(
-          beforeBuilder, chain.first()->getLoc(), tensorType,
-          semTake.getResult(),
-          dynamicSizes, beforeBuilder.getDenseI64ArrayAttr(staticSizes));
+      auto empty = tensor::EmptyOp::create(beforeBuilder, chain.first()->getLoc(),
+                                           tensorType.getShape(),
+                                           tensorType.getElementType(),
+                                           dynamicSizes);
       auto sync = loom::SyncOp::create(beforeBuilder, chain.first()->getLoc(),
                                        TypeRange{tensorType}, chain.targetTensor,
-                                       initTensor.getResult());
+                                       empty.getResult());
 
       bool rewiredAnyUse = false;
       Value targetTensor = chain.targetTensor;
@@ -329,38 +234,7 @@ public:
             }
             return false;
           });
-      if (!rewiredAnyUse) {
-        chain.first()->emitError(
-            "failed to rewire any dominated use of sync target tensor");
-        signalPassFailure();
-        return;
-      }
-
-      Value originalSemaphore = traceToSemaphore(chain.targetTensor);
-      if (!originalSemaphore) {
-        chain.first()->emitError(
-            "failed to trace write-out chain target to source semaphore");
-        signalPassFailure();
-        return;
-      }
-
-      loom::SemaphoreGiveOp originalGive;
-      for (Operation *user : originalSemaphore.getUsers()) {
-        if (auto semGive = dyn_cast<loom::SemaphoreGiveOp>(user)) {
-          originalGive = semGive;
-          break;
-        }
-      }
-      if (!originalGive) {
-        chain.first()->emitError(
-            "failed to find semaphore_give for write-out chain source semaphore");
-        signalPassFailure();
-        return;
-      }
-
-      OpBuilder giveBuilder(originalGive);
-      loom::SemaphoreGiveOp::create(giveBuilder, originalGive.getLoc(),
-                                    semTake.getResult());
+      (void)rewiredAnyUse;
     }
   }
 };

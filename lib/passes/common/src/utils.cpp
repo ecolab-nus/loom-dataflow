@@ -434,6 +434,10 @@ SmallVector<SymbolicDim, 4> traceShape(Value v) {
   else if (auto broadcastOp = mlir::dyn_cast<loom::BroadcastOp>(op)) {
     return traceShape(broadcastOp.getInit());
   }
+  // Case I: loom.sync — output shape follows DPS init (outs) tensor.
+  else if (auto syncOp = mlir::dyn_cast<loom::SyncOp>(op)) {
+    return traceShape(syncOp.getInit());
+  }
   // Fallback
   else {
     rawDims = getMixedSizesFromType(v.getType());

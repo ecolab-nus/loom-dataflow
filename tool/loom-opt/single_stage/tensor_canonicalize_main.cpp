@@ -49,6 +49,7 @@ int main(int argc, char **argv) {
   // for initialized tensors, eliminating cross-scope fill sharing.
 
   pm.addPass(loom::passes::createSinkFillOpsPass());
+  pm.addPass(loom::passes::createWriteOutSyncInsertionPass());
 
   if (failed(pm.run(*module))) {
     llvm::errs() << "LOOM tensor canonicalization pipeline failed\n";

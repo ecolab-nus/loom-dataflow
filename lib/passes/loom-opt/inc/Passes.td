@@ -121,13 +121,13 @@ def LowerAffineWithAttr : Pass<"loom-lower-affine-with-attr", "mlir::ModuleOp"> 
 }
 
 def WriteOutSyncInsertionPass : Pass<"loom-writeout-sync-insertion", "mlir::ModuleOp"> {
-  let summary = "Insert loom.sync and semaphore lifecycle around write-out chains";
+  let summary = "Insert tensor.empty + loom.sync around write-out chains";
   let description = [{
     Discover write-out chains:
     - tensor-mode loom.gather (single-op chain)
     - loom.bufferize_to_memref + loom.copy with L1->DRAM attrs (two-op chain)
-    and insert semaphore_take + init_tensor + loom.sync before chain start,
-    then semaphore_give after chain end.
+    and insert tensor.empty + loom.sync before chain head, then rewrite uses
+    of the sync input tensor to the sync result when dominated.
   }];
   let constructor = "loom::passes::createWriteOutSyncInsertionPass()";
 }
