@@ -48,6 +48,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/SmallVector.h"
 
 #include <fstream>
 #include <string>
@@ -173,7 +174,8 @@ namespace pipeline {
 std::tuple<std::string, std::string, std::string>
 runExplorationPipeline(const std::string &input_mlir_text,
                        const std::string &hw_spec_file,
-                       bool produce_etg) {
+                       bool produce_etg,
+                       bool skip_etg) {
   // --- Set up MLIRContext with all required dialects ---
   DialectRegistry registry;
   registry.insert<BuiltinDialect, func::FuncDialect, affine::AffineDialect,
@@ -218,29 +220,44 @@ runExplorationPipeline(const std::string &input_mlir_text,
     return {"Failed to parse DF MLIR file: " + hw_spec_file, "", ""};
 
   // ================================================================
-  // Phase A: tensor_canonicalize + memory_binding (stages 0→2)
+  // Phase A1: tensor_canonicalize (stage 0→1)
   // ================================================================
-  // The input module is wrapped in an outer module { module { func ... } }.
-  // The passes operate on the inner module's func ops.
   {
     PassManager pm(&context);
 
-    // -- tensor_canonicalize passes --
-    pm.addPass(createLinalgElementwiseOpFusionPass());
-    pm.addPass(createLinalgFoldUnitExtentDimsPass());
-    pm.addPass(createCanonicalizerPass());
+    // Match tensor_canonicalize_main.cpp.
+    pm.addPass(loom::passes::createLinalgGuardedElementwiseOpFusionPass());
     pm.addPass(loom::passes::createLinalgDestinationSpecializationPass());
+    pm.addPass(loom::passes::createFoldRedundantExtractSlicePass());
     pm.addPass(createSymbolDCEPass());
     pm.addPass(createCanonicalizerPass());
-    pm.addPass(loom::passes::createFoldRedundantExtractSlicePass());
-    pm.addPass(createCanonicalizerPass());
     pm.addPass(loom::passes::createSinkFillOpsPass());
-
-    // -- memory_binding pass --
-    pm.addPass(loom::passes::createMemoryBindingPass());
+    pm.addPass(loom::passes::createWriteOutSyncInsertionPass());
 
     if (failed(pm.run(*inputModule)))
-      return {"Phase A (tensor_canonicalize + memory_binding) failed", "", ""};
+      return {"Phase A1 (tensor_canonicalize) failed", "", ""};
+  }
+
+  // Strip cf.assert guards so memory_binding can run cf-free, mirroring
+  // tensor_canonicalize_main.cpp output contract.
+  {
+    SmallVector<Operation *> assertsToErase;
+    inputModule->walk([&](Operation *op) {
+      if (op->getName().getStringRef() == "cf.assert")
+        assertsToErase.push_back(op);
+    });
+    for (Operation *op : assertsToErase)
+      op->erase();
+  }
+
+  // ================================================================
+  // Phase A2: memory_binding (stage 1→2)
+  // ================================================================
+  {
+    PassManager pm(&context);
+    pm.addPass(loom::passes::createMemoryBindingPass());
+    if (failed(pm.run(*inputModule)))
+      return {"Phase A2 (memory_binding) failed", "", ""};
   }
 
   // ================================================================
@@ -288,6 +305,15 @@ runExplorationPipeline(const std::string &input_mlir_text,
       builder.clone(op, mapping);
   }
 
+  // Clean up merged output, matching enumerate_hw_mapping_main.cpp.
+  {
+    PassManager pm(&context);
+    pm.addPass(mlir::createCSEPass());
+    pm.addPass(mlir::createCanonicalizerPass());
+    if (failed(pm.run(*merged)))
+      return {"enumerate_hw_mapping cleanup failed", "", ""};
+  }
+
   // Release intermediate modules to free memory.
   inputModule = nullptr;
   enumerated = nullptr;
@@ -297,12 +323,11 @@ runExplorationPipeline(const std::string &input_mlir_text,
   // ================================================================
   {
     PassManager pm(&context);
-    // Cleanup the generated code with CSE and DCE (Canonicalizer)
-    pm.addPass(mlir::createCSEPass());
-    pm.addPass(mlir::createCanonicalizerPass());
-
     pm.addPass(loom::passes::createAnnotateSubviewReusePass());
     pm.addPass(loom::passes::createEnumerateCopyBroadcastPass());
+    // Match enumerate_copy_broadcast_main.cpp post-pass cleanup.
+    pm.addPass(mlir::createCSEPass());
+    pm.addPass(mlir::createCanonicalizerPass());
 
     if (failed(pm.run(*merged)))
       return {"Phase B (analyze_reuse + enumerate_copy_broadcast) failed",
@@ -313,7 +338,8 @@ runExplorationPipeline(const std::string &input_mlir_text,
   // Optional: Build staged ETG JSON
   // ================================================================
   std::string etg_json;
-  if (produce_etg) {
+  const bool shouldProduceEtg = produce_etg && !skip_etg;
+  if (shouldProduceEtg) {
     auto [etgErr, etgText] = buildETGString(*merged, computeRegistry);
     if (!etgErr.empty())
       return {etgErr, "", ""};
