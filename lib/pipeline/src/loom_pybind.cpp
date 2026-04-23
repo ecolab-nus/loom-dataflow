@@ -24,6 +24,7 @@ PYBIND11_MODULE(_loom_pipeline, m) {
       py::arg("input_mlir_text"),
       py::arg("hw_spec_file"),
       py::arg("produce_etg") = true,
+      py::arg("skip_etg") = false,
       R"doc(Run the exploration pipeline (stages 0-5).
 
       Consolidates tensor_canonicalize, memory_binding, enumerate_hw_mapping,
@@ -34,10 +35,11 @@ PYBIND11_MODULE(_loom_pipeline, m) {
           hw_spec_file: Path to hardware specification MLIR file containing
               hardware description and compute/data mover components.
           produce_etg: Whether to produce ETG JSON (default True).
+          skip_etg: When True, skip staged ETG generation.
 
       Returns:
           Tuple of (error, output_mlir, etg_json).
-          error is empty on success.
+          error is empty on success; etg_json is empty when ETG is skipped.
       )doc",
       py::call_guard<py::gil_scoped_release>());
 

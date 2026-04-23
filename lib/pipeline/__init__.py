@@ -54,6 +54,7 @@ def run_exploration(
     input_mlir: str,
     hw_spec_file: str | Path,
     produce_etg: bool = True,
+    skip_etg: bool = False,
 ) -> tuple[str, str]:
     """Run the exploration pipeline (stages 0→5).
 
@@ -66,16 +67,17 @@ def run_exploration(
         hw_spec_file:      Path to hardware specification MLIR file containing
                            hardware description and compute/data mover components.
         produce_etg:       Whether to generate ETG JSON (default True).
+        skip_etg:          When True, skip staged ETG generation.
 
     Returns:
         Tuple of (output_mlir, etg_json).  etg_json is empty when
-        produce_etg is False.
+        produce_etg is False or skip_etg is True.
 
     Raises:
         RuntimeError: If the C++ pipeline fails.
     """
     err, output_mlir, etg_json = _loom_pipeline.run_exploration_pipeline(
-        input_mlir, str(hw_spec_file), produce_etg
+        input_mlir, str(hw_spec_file), produce_etg, skip_etg
     )
     if err:
         raise RuntimeError(f"Exploration pipeline failed: {err}")

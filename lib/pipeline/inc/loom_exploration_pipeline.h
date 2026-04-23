@@ -17,13 +17,16 @@ namespace pipeline {
 /// @param hw_spec_file      Path to hardware specification MLIR file containing
 ///                          hardware description and compute/data mover components.
 /// @param produce_etg       Whether to generate ETG JSON output.
+/// @param skip_etg          When true, skip staged ETG generation regardless
+///                          of produce_etg.
 /// @return tuple of (error, output_mlir, etg_json).
 ///         error is empty on success; etg_json is empty when produce_etg
-///         is false.
+///         is false or skip_etg is true.
 std::tuple<std::string, std::string, std::string>
 runExplorationPipeline(const std::string &input_mlir_text,
                        const std::string &hw_spec_file,
-                       bool produce_etg);
+                       bool produce_etg = true,
+                       bool skip_etg = false);
 
 } // namespace pipeline
 } // namespace loom
