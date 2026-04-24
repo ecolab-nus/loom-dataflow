@@ -71,24 +71,40 @@ static std::optional<int64_t> ceilDiv32(int64_t value) {
 }
 
 /**
- * @brief Compute the total number of 32x32 tiles needed for a shaped type.
+ * @brief Compute total tile count for a shaped type.
  *
- * @details For each static dimension $d_i$ of the shaped type, this computes
- *          $\lceil d_i / 32 \rceil$ and returns the product across all
- *          dimensions. Dynamic or non-shaped types yield std::nullopt.
+ * @details Dimensions before the innermost two are treated as tile-domain
+ *          multiplicity and multiplied directly. Only the innermost two
+ *          dimensions are element-domain extents and use ceil-div(32).
+ *          Dynamic or non-shaped types yield std::nullopt.
  *
  * @param type The shaped type (e.g., tensor/memref) describing the logical data.
- * @return Total number of tiles required, or nullopt if the shape is not
- *         statically known.
+ * @return Total number of tiles required, or nullopt for invalid/non-static
+ *         shape.
  */
 static std::optional<int64_t> getNumTilesFromShapedType(Type type) {
   auto shaped = dyn_cast<ShapedType>(type);
   if (!shaped || !shaped.hasStaticShape())
     return std::nullopt;
 
+  ArrayRef<int64_t> shape = shaped.getShape();
+  unsigned rank = shape.size();
+  if (rank == 0)
+    return std::nullopt;
+
   int64_t tiles = 1;
-  for (int64_t dim : shaped.getShape()) {
-    auto dimTiles = ceilDiv32(dim);
+
+  // Dimensions before the innermost two are already tile-domain extents.
+  for (unsigned i = 0; i + 2 < rank; ++i) {
+    if (shape[i] <= 0)
+      return std::nullopt;
+    tiles *= shape[i];
+  }
+
+  // Innermost dimensions are element-domain extents and require 32x32 tiling.
+  unsigned tiledStart = rank > 1 ? rank - 2 : 0;
+  for (unsigned i = tiledStart; i < rank; ++i) {
+    auto dimTiles = ceilDiv32(shape[i]);
     if (!dimTiles)
       return std::nullopt;
     tiles *= *dimTiles;

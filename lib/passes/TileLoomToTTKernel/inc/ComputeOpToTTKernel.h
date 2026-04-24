@@ -11,6 +11,7 @@
 
 namespace loom {
 class SyncOp;
+class BroadcastOp;
 } // namespace loom
 
 namespace mlir::loom {
@@ -66,5 +67,8 @@ bool shouldConvertComputeLinalgTranspose(mlir::linalg::TransposeOp op);
 
 /// Returns true when this `loom.sync` should be lowered in compute kernels.
 bool shouldConvertComputeLoomSync(::loom::SyncOp op);
+
+/// Returns true when this `loom.broadcast` should be lowered in compute kernels.
+bool shouldConvertComputeLoomBroadcast(::loom::BroadcastOp op);
 
 } // namespace mlir::loom

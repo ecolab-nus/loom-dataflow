@@ -14,6 +14,7 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Interfaces/ViewLikeInterface.h"
 #include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -82,10 +83,8 @@ struct ElementwiseAnalysis {
   SmallVector<std::optional<ElementwiseBroadcastInfo>, 4> broadcastsByInput;
   SmallVector<int64_t, 4> inputWaitTiles;
   llvm::SmallBitVector usedInputs;
-  llvm::SmallBitVector unaryBcastInputs;
 
   bool needsBinopWithScalar = false;
-  bool needsUnaryBcast = false;
   bool needsSubBinary = false;
   bool needsAddBinary = false;
   bool needsMulBinary = false;
@@ -93,11 +92,14 @@ struct ElementwiseAnalysis {
   bool needsPowBinary = false;
   bool needsRecip = false;
   bool needsLog = false;
+  bool needsExp = false;
 };
 
 constexpr llvm::StringLiteral kVecTilesAttrName = "loom.ttkernel.vec_tiles";
 constexpr llvm::StringLiteral kScalarSiteIdAttrName =
     "loom.ttkernel.scalar_site_id";
+constexpr llvm::StringLiteral kBroadcastDimAttrName =
+    "loom.ttkernel.broadcast_dim";
 
 static std::optional<int64_t> ceilDiv32(int64_t value) {
   if (value <= 0)
@@ -294,6 +296,7 @@ struct TileGenericExprAnalysis {
   bool needsPowBinary = false;
   bool needsRecip = false;
   bool needsLog = false;
+  bool needsExp = false;
 };
 
 /**
@@ -368,11 +371,21 @@ static LogicalResult tileGenericOp(
   }
 
   int64_t outTiles = 1;
-  for (int64_t dim : outShape) {
-    auto dimTiles = ceilDiv32(dim);
-    if (!dimTiles || *dimTiles <= 0)
+  unsigned outRank = outShape.size();
+  unsigned tiledStartDim = outRank > 2 ? outRank - 2 : 0;
+  for (unsigned dim = 0; dim < outRank; ++dim) {
+    int64_t dimSize = outShape[dim];
+    if (dimSize <= 0)
       return failure();
-    outTiles *= *dimTiles;
+
+    if (dim >= tiledStartDim) {
+      auto dimTiles = ceilDiv32(dimSize);
+      if (!dimTiles || *dimTiles <= 0)
+        return failure();
+      outTiles *= *dimTiles;
+    } else {
+      outTiles *= dimSize;
+    }
   }
   int64_t reduceSlices = inShape[0];
   int64_t inputTiles = reduceSlices * outTiles;
@@ -423,6 +436,8 @@ static LogicalResult tileGenericOp(
     rewriter.create<RecipTileInitOp>(loc);
   if (analysis.needsLog)
     rewriter.create<LogTileInitOp>(loc);
+  if (analysis.needsExp)
+    rewriter.create<ExpTileInitOp>(loc);
 
   scf::ForOp outTileLoop =
       scf::ForOp::create(rewriter, loc, zeroI32, outTilesV, oneI32);
@@ -586,6 +601,58 @@ static std::optional<unsigned> getBodyInputIndex(linalg::GenericOp op, Value val
   if (blockArg.getArgNumber() >= op.getNumDpsInputs())
     return std::nullopt;
   return blockArg.getArgNumber();
+}
+
+static std::optional<unsigned> getProducerBroadcastDim(Value value) {
+  Value current = value;
+  llvm::SmallPtrSet<Value, 8> visited;
+  while (current && visited.insert(current).second) {
+    if (auto broadcastOp = current.getDefiningOp<::loom::BroadcastOp>())
+      return static_cast<unsigned>(broadcastOp.getDim());
+
+    if (auto castOp = current.getDefiningOp<UnrealizedConversionCastOp>()) {
+      if (auto dimAttr =
+              castOp->getAttrOfType<IntegerAttr>(kBroadcastDimAttrName)) {
+        int64_t dim = dimAttr.getInt();
+        if (dim < 0)
+          return std::nullopt;
+        return static_cast<unsigned>(dim);
+      }
+      if (castOp.getNumOperands() == 1) {
+        current = castOp.getOperand(0);
+        continue;
+      }
+      break;
+    }
+
+    if (auto cast = current.getDefiningOp<memref::CastOp>()) {
+      current = cast.getSource();
+      continue;
+    }
+    if (auto sem = current.getDefiningOp<::loom::SemaphoreTakeOp>()) {
+      current = sem.getSource();
+      continue;
+    }
+    if (auto viewLike = current.getDefiningOp<ViewLikeOpInterface>()) {
+      current = viewLike.getViewSource();
+      continue;
+    }
+    break;
+  }
+  return std::nullopt;
+}
+
+/// Unwrap temporary CB-type bridges created for loom.broadcast logical views.
+static Value stripBroadcastBridgeCast(Value value) {
+  auto cast = value.getDefiningOp<UnrealizedConversionCastOp>();
+  if (!cast || cast.getNumOperands() != 1)
+    return value;
+  if (!cast->hasAttr(kBroadcastDimAttrName))
+    return value;
+  Value source = cast.getOperand(0);
+  if (!isa<CBType>(source.getType()))
+    return value;
+  return source;
 }
 
 static std::optional<float> getConstFloatValue(Value value) {
@@ -1157,6 +1224,7 @@ enum class GenericExprFeature {
   PowBinary,
   Recip,
   Log,
+  Exp,
   Fill
 };
 
@@ -1236,6 +1304,11 @@ static LogicalResult analyzeGenericExprTree(
     if (auto logOp = dyn_cast<math::LogOp>(defOp)) {
       setFlag(GenericExprFeature::Log);
       return self(self, logOp.getOperand());
+    }
+
+    if (auto expOp = dyn_cast<math::ExpOp>(defOp)) {
+      setFlag(GenericExprFeature::Exp);
+      return self(self, expOp.getOperand());
     }
 
     if (auto maxOp = dyn_cast<arith::MaximumFOp>(defOp)) {
@@ -1323,6 +1396,9 @@ static LogicalResult analyzeTileGenericExpr(Value exprValue, linalg::GenericOp o
       return;
     case GenericExprFeature::Log:
       analysis.needsLog = true;
+      return;
+    case GenericExprFeature::Exp:
+      analysis.needsExp = true;
       return;
     case GenericExprFeature::Fill:
       analysis.needsFill = true;
@@ -1542,6 +1618,16 @@ static LogicalResult emitGenericExprToRegImpl(
       return success();
     }
 
+    if (auto expOp = dyn_cast<math::ExpOp>(defOp)) {
+      if (failed(self(self, expOp.getOperand(), curDstReg, curTmpRegA,
+                      curTmpRegB)))
+        return failure();
+      if (emitInlineInitOps)
+        rewriter.create<ExpTileInitOp>(loc);
+      rewriter.create<ExpTileOp>(loc, curDstRegVal);
+      return success();
+    }
+
     auto emitBinaryMax = [&](Value lhs, Value rhs) -> LogicalResult {
       bool emitRhsFirst = emitRhsFirstForOperands(lhs, rhs);
       if (emitRhsFirst) {
@@ -1664,6 +1750,9 @@ static LogicalResult analyzeElementwiseExpr(Value exprValue, linalg::GenericOp o
     case GenericExprFeature::Log:
       analysis.needsLog = true;
       return;
+    case GenericExprFeature::Exp:
+      analysis.needsExp = true;
+      return;
     case GenericExprFeature::Fill:
       return;
     }
@@ -1694,8 +1783,6 @@ static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
 
   unsigned numInputs = op.getNumDpsInputs();
   analysis.broadcastsByInput.assign(numInputs, std::nullopt);
-  analysis.unaryBcastInputs.resize(numInputs);
-  analysis.unaryBcastInputs.reset();
 
   bool allIdentity = hasAllIdentityMapsForRank(op, rank);
   if (!allIdentity) {
@@ -1734,10 +1821,12 @@ static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
         info.kind = classifyElementwiseBroadcastKind(*droppedDim, rank);
         info.droppedDimTiles = droppedDimTiles;
         info.suffixTiles = *suffixTiles;
+        // Intra-tile row/col broadcast is lowered by loom.broadcast. Keep
+        // linalg.generic focused on scalar and tile-domain batch broadcasts.
+        if (info.kind != ElementwiseBroadcastKind::BatchBroadcast)
+          return failure();
       }
       analysis.broadcastsByInput[i] = info;
-      if (!info.isScalar && info.kind != ElementwiseBroadcastKind::BatchBroadcast)
-        analysis.unaryBcastInputs.set(i);
     }
 
     // Non-identity elementwise maps must all be supported pure broadcasts.
@@ -1746,6 +1835,36 @@ static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
     });
     if (!foundBroadcast)
       return failure();
+  }
+
+  // Identity-mapped inputs can still be logical broadcasts when produced by
+  // loom.broadcast. Use producer metadata to recover dropped dimension info.
+  for (unsigned i = 0; i < numInputs; ++i) {
+    if (analysis.broadcastsByInput[i])
+      continue;
+
+    auto producerDim = getProducerBroadcastDim(op.getDpsInputs()[i]);
+    if (!producerDim)
+      continue;
+    if (*producerDim >= rank)
+      return failure();
+
+    auto suffixTiles = getSuffixTilesAfterDim(outTileShape, *producerDim);
+    if (!suffixTiles || *suffixTiles <= 0)
+      return failure();
+
+    int64_t droppedDimTiles = outTileShape[*producerDim];
+    if (droppedDimTiles <= 0)
+      return failure();
+
+    ElementwiseBroadcastInfo info;
+    info.inputIdx = i;
+    info.isScalar = false;
+    info.droppedDim = *producerDim;
+    info.kind = classifyElementwiseBroadcastKind(*producerDim, rank);
+    info.droppedDimTiles = droppedDimTiles;
+    info.suffixTiles = *suffixTiles;
+    analysis.broadcastsByInput[i] = info;
   }
 
   if (outTileInfo->totalTiles <= 0)
@@ -1786,95 +1905,15 @@ static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
   if (failed(analyzeElementwiseExpr(analysis.yieldValue, op, analysis)))
     return failure();
 
-  for (unsigned i = 0; i < numInputs; ++i) {
-    if (analysis.usedInputs.test(i) && analysis.unaryBcastInputs.test(i)) {
-      analysis.needsUnaryBcast = true;
-      break;
-    }
-  }
-
   return success();
-}
-
-static bool exprContainsBodyInput(Value exprValue, linalg::GenericOp op,
-                                  unsigned inputIdx) {
-  if (auto idx = getBodyInputIndex(op, exprValue))
-    return *idx == inputIdx;
-
-  if (getConstFloatValue(exprValue).has_value())
-    return false;
-
-  Operation *defOp = exprValue.getDefiningOp();
-  if (!defOp || defOp->getBlock() != &op.getRegion().front())
-    return false;
-
-  if (auto mulOp = dyn_cast<arith::MulFOp>(defOp))
-    return exprContainsBodyInput(mulOp.getLhs(), op, inputIdx) ||
-           exprContainsBodyInput(mulOp.getRhs(), op, inputIdx);
-
-  if (auto addOp = dyn_cast<arith::AddFOp>(defOp))
-    return exprContainsBodyInput(addOp.getLhs(), op, inputIdx) ||
-           exprContainsBodyInput(addOp.getRhs(), op, inputIdx);
-
-  if (auto subOp = dyn_cast<arith::SubFOp>(defOp))
-    return exprContainsBodyInput(subOp.getLhs(), op, inputIdx) ||
-           exprContainsBodyInput(subOp.getRhs(), op, inputIdx);
-
-  if (auto divOp = dyn_cast<arith::DivFOp>(defOp))
-    return exprContainsBodyInput(divOp.getLhs(), op, inputIdx) ||
-           exprContainsBodyInput(divOp.getRhs(), op, inputIdx);
-
-  if (auto powOp = dyn_cast<math::PowFOp>(defOp))
-    return exprContainsBodyInput(powOp.getLhs(), op, inputIdx) ||
-           exprContainsBodyInput(powOp.getRhs(), op, inputIdx);
-
-  if (auto logOp = dyn_cast<math::LogOp>(defOp))
-    return exprContainsBodyInput(logOp.getOperand(), op, inputIdx);
-
-  if (auto selectOp = dyn_cast<arith::SelectOp>(defOp)) {
-    Value lhs;
-    Value rhs;
-    if (!matchMaxSelect(selectOp, lhs, rhs))
-      return false;
-    return exprContainsBodyInput(lhs, op, inputIdx) ||
-           exprContainsBodyInput(rhs, op, inputIdx);
-  }
-
-  return false;
-}
-
-static bool exprContainsAnyBodyInput(Value exprValue, linalg::GenericOp op,
-                                     const llvm::SmallBitVector &inputsMask) {
-  if (inputsMask.none())
-    return false;
-  for (int idx = inputsMask.find_first(); idx >= 0;
-       idx = inputsMask.find_next(idx)) {
-    if (exprContainsBodyInput(exprValue, op, static_cast<unsigned>(idx)))
-      return true;
-  }
-  return false;
-}
-
-static bool shouldEmitRhsFirstForBroadcast(
-    Value lhs, Value rhs, linalg::GenericOp op,
-    const llvm::SmallBitVector &unaryBcastInputs, bool emitInlineInitOps) {
-  if (!emitInlineInitOps || unaryBcastInputs.none())
-    return false;
-  bool lhsUsesUnaryBcast = exprContainsAnyBodyInput(lhs, op, unaryBcastInputs);
-  bool rhsUsesUnaryBcast = exprContainsAnyBodyInput(rhs, op, unaryBcastInputs);
-  return rhsUsesUnaryBcast && !lhsUsesUnaryBcast;
 }
 
 static LogicalResult emitElementwiseExprToReg(
     Value exprValue, int dstReg, int tmpRegA, int tmpRegB, linalg::GenericOp op,
     linalg::GenericOp::Adaptor adaptor, ConversionPatternRewriter &rewriter,
-    Location loc, Value tileIdx,
+    Location loc, ArrayRef<Value> inputCbs, Value tileIdx,
     ArrayRef<std::optional<Value>> broadcastTileIdxByInput,
-    ArrayRef<std::optional<BcastType>> bcastTypeByInput,
-    ArrayRef<std::optional<Value>> runtimeScalarBitsByInput,
-    bool emitInlineInitOps,
-    ArrayRef<std::optional<unsigned>> bcastRefInputByInput,
-    const llvm::SmallBitVector &unaryBcastInputs) {
+    ArrayRef<std::optional<Value>> runtimeScalarBitsByInput) {
   auto emitLeaf = [&](Value value, int reg, bool &handled) -> LogicalResult {
     auto inputIdx = getBodyInputIndex(op, value);
     if (!inputIdx) {
@@ -1891,43 +1930,20 @@ static LogicalResult emitElementwiseExprToReg(
     if (*inputIdx < broadcastTileIdxByInput.size() &&
         broadcastTileIdxByInput[*inputIdx].has_value()) {
       Value bcastTileIdx = *broadcastTileIdxByInput[*inputIdx];
-      std::optional<BcastType> bcastType;
-      if (*inputIdx < bcastTypeByInput.size())
-        bcastType = bcastTypeByInput[*inputIdx];
-
-      if (bcastType) {
-        if (emitInlineInitOps) {
-          if (*inputIdx >= bcastRefInputByInput.size() ||
-              !bcastRefInputByInput[*inputIdx].has_value())
-            return failure();
-          unsigned refInput = *bcastRefInputByInput[*inputIdx];
-          if (refInput >= adaptor.getInputs().size())
-            return failure();
-          rewriter.create<UnaryBcastInitOp>(loc, adaptor.getInputs()[*inputIdx],
-                                            adaptor.getInputs()[refInput],
-                                            *bcastType);
-        }
-        rewriter.create<UnaryBcastTileOp>(
-            loc, adaptor.getInputs()[*inputIdx], bcastTileIdx, regVal, *bcastType);
-      } else {
-        if (emitInlineInitOps)
-          rewriter.create<CopyTileInitOp>(loc, adaptor.getInputs()[*inputIdx]);
-        rewriter.create<CopyTileOp>(loc, adaptor.getInputs()[*inputIdx],
-                                    bcastTileIdx, regVal);
-      }
+      rewriter.create<CopyTileOp>(loc, inputCbs[*inputIdx],
+                                  bcastTileIdx, regVal);
       return success();
     }
 
-    if (emitInlineInitOps)
-      rewriter.create<CopyTileInitOp>(loc, adaptor.getInputs()[*inputIdx]);
-    rewriter.create<CopyTileOp>(loc, adaptor.getInputs()[*inputIdx], tileIdx,
+    rewriter.create<CopyTileOp>(loc, inputCbs[*inputIdx], tileIdx,
                                 regVal);
     return success();
   };
 
   auto emitRhsFirstForOperands = [&](Value lhs, Value rhs) -> bool {
-    return shouldEmitRhsFirstForBroadcast(lhs, rhs, op, unaryBcastInputs,
-                                         emitInlineInitOps);
+    (void)lhs;
+    (void)rhs;
+    return false;
   };
   auto lookupRuntimeScalarBits = [&](Value value) -> Value {
     auto inputIdx = getBodyInputIndex(op, value);
@@ -1939,7 +1955,7 @@ static LogicalResult emitElementwiseExprToReg(
 
   return emitGenericExprToRegImpl(
       exprValue, dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter, loc,
-      emitInlineInitOps, /*allowMaximumFOp=*/false, emitLeaf,
+      /*emitInlineInitOps=*/false, /*allowMaximumFOp=*/false, emitLeaf,
       emitRhsFirstForOperands, lookupRuntimeScalarBits);
 }
 
@@ -1968,22 +1984,31 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
 
   auto inType = dyn_cast<ShapedType>(op.getDpsInputs()[0].getType());
   auto outType = dyn_cast<ShapedType>(op.getDpsInits()[0].getType());
-  if (!inType || !outType || inType.getRank() != 3 || outType.getRank() != 2)
+  if (!inType || !outType || !inType.hasStaticShape() ||
+      !outType.hasStaticShape() || inType.getRank() != 3)
+    return failure();
+  if (outType.getRank() != 2 && outType.getRank() != 3)
+    return failure();
+  if (outType.getRank() == 3 && outType.getShape()[2] != 1)
     return failure();
 
-  auto bTiles = getTileDim(inType, 0);
+  // Rank-3 reduction input uses [batch, m, n] where batch is already
+  // tile-domain multiplicity (not an element-domain extent).
+  int64_t bTiles = inType.getShape()[0];
   auto mTiles = getTileDim(inType, 1);
   auto nTiles = getTileDim(inType, 2);
   auto outTiles = getNumTilesFromShapedType(outType);
-  if (!bTiles || !mTiles || !nTiles || !outTiles)
+  if (bTiles <= 0 || !mTiles || !nTiles || !outTiles)
     return failure();
 
-  int64_t rows = (*bTiles) * (*mTiles);
+  int64_t rows = bTiles * (*mTiles);
   int64_t cols = *nTiles;
   int64_t numTiles = rows * cols;
+  if (*outTiles != rows)
+    return failure();
 
   Location loc = op.getLoc();
-  Value outTilesV = i32Const(rewriter, loc, rows);
+  Value outTilesV = i32Const(rewriter, loc, *outTiles);
   Value zeroI32 = i32Const(rewriter, loc, 0);
   Value oneI32 = i32Const(rewriter, loc, 1);
 
@@ -2055,12 +2080,20 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
   Value outCb = adaptor.getOutputs()[0];
   if (!isa<CBType>(outCb.getType()))
     return failure();
-  for (Value inputCb : adaptor.getInputs())
+  SmallVector<Value, 4> inputCbs;
+  inputCbs.reserve(adaptor.getInputs().size());
+  for (Value inputCb : adaptor.getInputs()) {
+    Value effectiveInputCb = stripBroadcastBridgeCast(inputCb);
+    if (!isa<CBType>(effectiveInputCb.getType()))
+      return failure();
+    inputCbs.push_back(effectiveInputCb);
+  }
+  for (Value inputCb : inputCbs)
     if (!isa<CBType>(inputCb.getType()))
       return failure();
 
   Location loc = op.getLoc();
-  bool outAliasesInput = hasOutputAlias(outCb, adaptor.getInputs());
+  bool outAliasesInput = hasOutputAlias(outCb, inputCbs);
   unsigned numInputs = adaptor.getInputs().size();
   SmallVector<std::optional<Value>, 4> runtimeScalarBitsByInput(numInputs,
                                                                  std::nullopt);
@@ -2085,7 +2118,7 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
     }
   }
 
-  for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
+  for (auto [idx, inputCb] : llvm::enumerate(inputCbs)) {
     if (!analysis.usedInputs.test(idx))
       continue;
     if (idx < runtimeScalarBitsByInput.size() &&
@@ -2106,7 +2139,7 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
                             i32Const(rewriter, loc, analysis.outTiles));
 
   Value inCbForInit = outCb;
-  for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
+  for (auto [idx, inputCb] : llvm::enumerate(inputCbs)) {
     if (analysis.usedInputs.test(idx) &&
         !(idx < runtimeScalarBitsByInput.size() &&
           runtimeScalarBitsByInput[idx].has_value())) {
@@ -2115,60 +2148,34 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
     }
   }
   rewriter.create<InitSFPUOp>(loc, inCbForInit, outCb);
-  bool emitInlineInitOps = analysis.needsUnaryBcast;
-  SmallVector<std::optional<BcastType>, 4> bcastTypeByInput(numInputs,
-                                                             std::nullopt);
-  SmallVector<std::optional<unsigned>, 4> bcastRefInputByInput(numInputs,
-                                                                std::nullopt);
-  for (unsigned i = 0; i < numInputs; ++i) {
-    if (!analysis.usedInputs.test(i))
+  for (auto [idx, inputCb] : llvm::enumerate(inputCbs)) {
+    if (!analysis.usedInputs.test(idx))
       continue;
-    if (i >= analysis.broadcastsByInput.size() || !analysis.broadcastsByInput[i])
+    if (idx < runtimeScalarBitsByInput.size() &&
+        runtimeScalarBitsByInput[idx].has_value())
       continue;
-    const ElementwiseBroadcastInfo &broadcastInfo = *analysis.broadcastsByInput[i];
-    auto unaryBcastType = getUnaryBcastType(broadcastInfo.kind);
-    if (!unaryBcastType)
-      continue;
-    bcastTypeByInput[i] = *unaryBcastType;
-
-    unsigned refInput = i;
-    for (unsigned j = 0; j < numInputs; ++j) {
-      if (j != i && analysis.usedInputs.test(j)) {
-        refInput = j;
-        break;
-      }
-    }
-    bcastRefInputByInput[i] = refInput;
+    rewriter.create<CopyTileInitOp>(loc, inputCb);
   }
-
-  if (!emitInlineInitOps) {
-    for (auto [idx, inputCb] : llvm::enumerate(adaptor.getInputs())) {
-      if (!analysis.usedInputs.test(idx))
-        continue;
-      if (idx < runtimeScalarBitsByInput.size() &&
-          runtimeScalarBitsByInput[idx].has_value())
-        continue;
-      rewriter.create<CopyTileInitOp>(loc, inputCb);
-    }
-    if (analysis.needsBinopWithScalar)
-      rewriter.create<BinopWithScalarTileInitOp>(loc);
-    if (analysis.needsSubBinary)
-      rewriter.create<SubBinaryTilesInitOp>(loc);
-    if (analysis.needsAddBinary)
-      rewriter.create<AddBinaryTilesInitOp>(loc);
-    if (analysis.needsMulBinary)
-      rewriter.create<MulBinaryTilesInitOp>(loc);
-    if (analysis.needsBinaryMax)
-      rewriter.create<BinaryMaxTileInitOp>(loc);
-    if (analysis.needsPowBinary) {
-      rewriter.create<FillTileInitOp>(loc);
-      rewriter.create<PowBinaryTilesInitOp>(loc);
-    }
-    if (analysis.needsRecip)
-      rewriter.create<RecipTileInitOp>(loc);
-    if (analysis.needsLog)
-      rewriter.create<LogTileInitOp>(loc);
+  if (analysis.needsBinopWithScalar)
+    rewriter.create<BinopWithScalarTileInitOp>(loc);
+  if (analysis.needsSubBinary)
+    rewriter.create<SubBinaryTilesInitOp>(loc);
+  if (analysis.needsAddBinary)
+    rewriter.create<AddBinaryTilesInitOp>(loc);
+  if (analysis.needsMulBinary)
+    rewriter.create<MulBinaryTilesInitOp>(loc);
+  if (analysis.needsBinaryMax)
+    rewriter.create<BinaryMaxTileInitOp>(loc);
+  if (analysis.needsPowBinary) {
+    rewriter.create<FillTileInitOp>(loc);
+    rewriter.create<PowBinaryTilesInitOp>(loc);
   }
+  if (analysis.needsRecip)
+    rewriter.create<RecipTileInitOp>(loc);
+  if (analysis.needsLog)
+    rewriter.create<LogTileInitOp>(loc);
+  if (analysis.needsExp)
+    rewriter.create<ExpTileInitOp>(loc);
 
   LogicalResult result = emitElementwiseTiles(
       rewriter, loc, outCb, analysis.outTiles, [&](Value tileIdx) -> LogicalResult {
@@ -2201,10 +2208,8 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
         }
         return emitElementwiseExprToReg(
             analysis.yieldValue, /*dstReg=*/0, /*tmpRegA=*/1, /*tmpRegB=*/2, op,
-            adaptor, rewriter, loc, tileIdx, broadcastTileIdxByInput,
-            bcastTypeByInput, runtimeScalarBitsByInput, emitInlineInitOps,
-            bcastRefInputByInput,
-            analysis.unaryBcastInputs);
+            adaptor, rewriter, loc, inputCbs, tileIdx, broadcastTileIdxByInput,
+            runtimeScalarBitsByInput);
       });
   if (failed(result))
     return failure();
@@ -2568,6 +2573,117 @@ public:
   }
 };
 
+class ConvertLoomBroadcastOp : public OpConversionPattern<::loom::BroadcastOp> {
+public:
+  using OpConversionPattern<::loom::BroadcastOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(::loom::BroadcastOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (!mlir::loom::shouldConvertComputeLoomBroadcast(op))
+      return failure();
+    if (adaptor.getOperands().size() != 2)
+      return failure();
+
+    Value inCb = adaptor.getOperands()[0];
+    Value outCb = adaptor.getOperands()[1];
+    if (!isa<CBType>(inCb.getType()) || !isa<CBType>(outCb.getType()))
+      return failure();
+
+    auto inTiles = getNumTilesFromShapedType(op.getIns().getType());
+    auto outTiles = getNumTilesFromShapedType(op.getInit().getType());
+    if (!inTiles || !outTiles || *inTiles != *outTiles)
+      return failure();
+
+    unsigned rank = 0;
+    if (op.getNumResults() > 0) {
+      if (op.getNumResults() != 1)
+        return failure();
+      auto resultType = dyn_cast<ShapedType>(op->getResult(0).getType());
+      if (!resultType || !resultType.hasStaticShape())
+        return failure();
+      rank = resultType.getRank();
+    } else {
+      auto outType = dyn_cast<ShapedType>(op.getInit().getType());
+      if (!outType || !outType.hasStaticShape())
+        return failure();
+      rank = outType.getRank();
+    }
+
+    int64_t dim = op.getDim();
+    if (dim < 0 || static_cast<unsigned>(dim) >= rank)
+      return failure();
+
+    auto kind = classifyElementwiseBroadcastKind(static_cast<unsigned>(dim), rank);
+    std::optional<BcastType> bcastType = getUnaryBcastType(kind);
+    auto finalizeReplacement = [&]() -> LogicalResult {
+      if (op.getNumResults() == 0) {
+        rewriter.eraseOp(op);
+        return success();
+      }
+
+      Type convertedResultType =
+          getTypeConverter()->convertType(op->getResult(0).getType());
+      if (!convertedResultType)
+        return failure();
+      if (convertedResultType == outCb.getType()) {
+        rewriter.replaceOp(op, ValueRange{outCb});
+        return success();
+      }
+
+      auto cast = rewriter.create<UnrealizedConversionCastOp>(
+          op.getLoc(), TypeRange{convertedResultType}, outCb);
+      cast->setAttr(kBroadcastDimAttrName, rewriter.getI64IntegerAttr(dim));
+      rewriter.replaceOp(op, cast.getResults());
+      return success();
+    };
+
+    if (inCb == outCb && !bcastType)
+      return finalizeReplacement();
+    if (inCb == outCb && bcastType)
+      return failure();
+
+    Location loc = op.getLoc();
+    Value tileCount = i32Const(rewriter, loc, *inTiles);
+    Value zero = i32Const(rewriter, loc, 0);
+    Value one = i32Const(rewriter, loc, 1);
+    CBWaitFrontOp::create(rewriter, loc, inCb, tileCount);
+    if (inCb != outCb)
+      CBReserveBackOp::create(rewriter, loc, outCb, tileCount);
+
+    if (bcastType)
+      rewriter.create<UnaryBcastInitOp>(loc, inCb, outCb, *bcastType);
+    else
+      rewriter.create<CopyTileInitOp>(loc, inCb);
+
+    scf::ForOp tileLoop =
+        scf::ForOp::create(rewriter, loc, zero, tileCount, one);
+    {
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPointToStart(tileLoop.getBody());
+      Value tileIdx = tileLoop.getInductionVar();
+      TileRegsAcquireOp::create(rewriter, loc);
+      if (bcastType) {
+        rewriter.create<UnaryBcastTileOp>(loc, inCb, tileIdx, zero, *bcastType);
+      } else {
+        rewriter.create<CopyTileOp>(loc, inCb, tileIdx, zero);
+      }
+      TileRegsCommitOp::create(rewriter, loc);
+      TileRegsWaitOp::create(rewriter, loc);
+      if (inCb != outCb)
+        PackTileOp::create(rewriter, loc, zero, outCb, tileIdx);
+      TileRegsReleaseOp::create(rewriter, loc);
+    }
+
+    if (inCb != outCb) {
+      //CBPopFrontOp::create(rewriter, loc, inCb, tileCount);
+      CBPushBackOp::create(rewriter, loc, outCb, tileCount);
+    }
+
+    return finalizeReplacement();
+  }
+};
+
 /**
  * @brief Map a source reduce op to its combine kind.
  *
@@ -2779,6 +2895,40 @@ bool mlir::loom::shouldConvertComputeLoomSync(::loom::SyncOp op) {
   return inTiles && outTiles && *inTiles == *outTiles;
 }
 
+bool mlir::loom::shouldConvertComputeLoomBroadcast(::loom::BroadcastOp op) {
+  if (!isComputeKernel(op.getOperation()))
+    return false;
+
+  auto inTiles = getNumTilesFromShapedType(op.getIns().getType());
+  auto outTiles = getNumTilesFromShapedType(op.getInit().getType());
+  if (!inTiles || !outTiles || *inTiles != *outTiles)
+    return false;
+
+  int64_t dim = op.getDim();
+  if (dim < 0)
+    return false;
+
+  unsigned rank = 0;
+  if (op.getNumResults() > 0) {
+    if (op.getNumResults() != 1)
+      return false;
+    auto resultType = dyn_cast<ShapedType>(op->getResult(0).getType());
+    if (!resultType || !resultType.hasStaticShape())
+      return false;
+    auto resultTiles = getNumTilesFromShapedType(resultType);
+    if (!resultTiles || *resultTiles < *outTiles || *resultTiles % *outTiles != 0)
+      return false;
+    rank = resultType.getRank();
+  } else {
+    auto initType = dyn_cast<ShapedType>(op.getInit().getType());
+    if (!initType || !initType.hasStaticShape())
+      return false;
+    rank = initType.getRank();
+  }
+
+  return static_cast<unsigned>(dim) < rank;
+}
+
 void mlir::loom::populateComputeOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker,
@@ -2788,6 +2938,7 @@ void mlir::loom::populateComputeOpConversionPatterns(
   patterns.add<ConvertLinalgCopyOp>(typeConverter, context);
   patterns.add<ConvertLinalgTransposeOp>(typeConverter, context);
   patterns.add<ConvertLoomSyncOp>(typeConverter, context);
+  patterns.add<ConvertLoomBroadcastOp>(typeConverter, context);
   patterns.add<ConvertLinalgBatchMatmulOp>(typeConverter, context);
   patterns.add<ConvertMemrefCollapseShapeOp>(typeConverter, context);
   patterns.add<ConvertMemrefExpandShapeOp>(typeConverter, context);

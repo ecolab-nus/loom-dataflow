@@ -856,10 +856,14 @@ struct StaticizeCopy : public OpRewritePattern<CopyOp> {
       return failure();
     }
 
-    rewriter.replaceOpWithNewOp<CopyOp>(
-        op, source, destination, op.getSrcMemSpaceAttr(),
-        op.getDstMemSpaceAttr(), op.getBroadcastAttr(),
-        op.getUlX(), op.getUlY(), op.getLrX(), op.getLrY());
+    auto newOp = rewriter.create<CopyOp>(
+        op.getLoc(), source, destination, op.getSrcMemSpaceAttr(),
+        op.getDstMemSpaceAttr(), op.getBroadcastAttr(), op.getUlX(),
+        op.getUlY(), op.getLrX(), op.getLrY());
+    // Preserve pass-injected metadata (e.g. loom.ttkernel.copy_binding_slot)
+    // when canonicalization rebuilds loom.copy with stripped cast operands.
+    newOp->setAttrs(op->getAttrs());
+    rewriter.eraseOp(op);
     return success();
   }
 };

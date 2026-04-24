@@ -12,7 +12,9 @@ fi
 
 #/root/loom-dataflow/build/tool/tileloom-to-ttkernel/tileloom_to_ttkernel_opt "${TILELOOM_PASS_ARG}" /root/loom-dataflow/test/Passes/flash_decode/test.mlir -o kernel_ttkernel.mlir
 
-/root/loom-dataflow/build/tool/tileloom-to-ttkernel/tileloom_to_ttkernel_opt "${TILELOOM_PASS_ARG}" /root/loom-dataflow/test/Passes/flash_decode/test.mlir -o kernel_ttkernel.mlir
+#/root/loom-dataflow/build/tool/tileloom-to-ttkernel/tileloom_to_ttkernel_opt "${TILELOOM_PASS_ARG}" /root/loom-dataflow/test/Passes/flash_decode/test.mlir -o kernel_ttkernel.mlir
+
+/root/loom-dataflow/build/tool/tileloom-to-ttkernel/tileloom_to_ttkernel_opt "${TILELOOM_PASS_ARG}" /root/loom-monorepo/test/mqa_decode_wh/B16_H64_L14096_D64/IRs/p03_bufferized.mlir -o kernel_ttkernel.mlir
 
 python3 replace.py kernel_ttkernel.mlir
 

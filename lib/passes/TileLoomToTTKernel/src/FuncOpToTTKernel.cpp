@@ -1690,6 +1690,27 @@ static bool containsGatherOp(func::FuncOp func) {
   return hasReduce;
 }
 
+static bool isSpecializedKernelName(StringRef name) {
+  return name.ends_with("__compute") || name.ends_with("__reader") ||
+         name.ends_with("__writer") || name.ends_with("__host") ||
+         name.ends_with("__host_cpp") || name.ends_with("__host_pybind");
+}
+
+/// Find the first user authoured entry function regardless of nesting level.
+static func::FuncOp findFirstEntryFunc(ModuleOp module) {
+  func::FuncOp firstEntry;
+  module.walk([&](func::FuncOp func) {
+    if (firstEntry)
+      return;
+    if (func.isExternal())
+      return;
+    if (isSpecializedKernelName(func.getName()))
+      return;
+    firstEntry = func;
+  });
+  return firstEntry;
+}
+
 /// Returns true when @p op is a gather transport op.
 static bool isGatherTransportOp(Operation *op) {
   return isa<::loom::GatherOp>(op);
@@ -3438,86 +3459,64 @@ private:
 } // namespace
 
 LogicalResult mlir::loom::prepareMatmulBReaderMerge(ModuleOp module) {
-  for (func::FuncOp func : module.getOps<func::FuncOp>()) {
-    StringRef name = func.getName();
-    if (name.ends_with("__compute") || name.ends_with("__reader") ||
-        name.ends_with("__writer") || name.ends_with("__host") ||
-        name.ends_with("__host_cpp") || name.ends_with("__host_pybind")) {
-      continue;
-    }
+  func::FuncOp func = findFirstEntryFunc(module);
+  if (!func)
+    return success();
 
-    if (func.isExternal())
-      continue;
-
-    if (failed(annotateMatmulBReaderMerge(func)))
-      return failure();
-  }
+  if (failed(annotateMatmulBReaderMerge(func)))
+    return failure();
 
   return success();
 }
 
 LogicalResult mlir::loom::annotateVecLoadUsage(ModuleOp module) {
-  for (func::FuncOp func : module.getOps<func::FuncOp>()) {
-    StringRef name = func.getName();
-    if (name.ends_with("__compute") || name.ends_with("__reader") ||
-        name.ends_with("__writer") || name.ends_with("__host") ||
-        name.ends_with("__host_cpp") || name.ends_with("__host_pybind")) {
-      continue;
-    }
+  func::FuncOp func = findFirstEntryFunc(module);
+  if (!func)
+    return success();
 
-    if (func.isExternal())
-      continue;
-
-    auto annotated = annotateVecLoadUsageInFunc(func);
-    if (failed(annotated))
-      return failure();
-  }
+  auto annotated = annotateVecLoadUsageInFunc(func);
+  if (failed(annotated))
+    return failure();
   return success();
 }
 
 void mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
-  // Collect functions to specialize (use make_early_inc_range since we modify
-  // the module during iteration)
-  for (func::FuncOp func :
-       llvm::make_early_inc_range(module.getOps<func::FuncOp>())) {
-    // Skip functions that are already specialized
-    StringRef name = func.getName();
-    if (name.ends_with("__compute") || name.ends_with("__reader") ||
-        name.ends_with("__writer") || name.ends_with("__host") ||
-        name.ends_with("__host_cpp") || name.ends_with("__host_pybind"))
-      continue;
+  func::FuncOp func = findFirstEntryFunc(module);
+  if (!func)
+    return;
 
-    // Skip external/declaration-only functions
-    if (func.isExternal())
-      continue;
+  // Mark scalar load-copy sites so host/device scalar runtime-arg
+  // extraction remains in per-copy-site order.
+  annotateScalarRuntimeSites(func);
 
-    // Mark scalar load-copy sites so host/device scalar runtime-arg
-    // extraction remains in per-copy-site order.
-    annotateScalarRuntimeSites(func);
+  // Ensure every reduction generic has a dedicated scaler semaphore input.
+  // This avoids reusing reduction outputs as scaler CBs during compute lowering.
+  ensureReductionScaleInputs(func);
 
-    // Ensure every reduction generic has a dedicated scaler semaphore input.
-    // This avoids reusing reduction outputs as scaler CBs during compute lowering.
-    ensureReductionScaleInputs(func);
+  // Temporary scalar path: replace scalar alloc/semaphore memory chains with
+  // direct function inputs before function specialization.
+  preprocessScalarMemoryOpsTmp(func);
 
-    // Temporary scalar path: replace scalar alloc/semaphore memory chains with
-    // direct function inputs before function specialization.
-    preprocessScalarMemoryOpsTmp(func);
-
-    if (failed(annotateCopyBindingSlots(func))) {
-      func.emitError("failed to annotate DRAM/L1 copy binding slots");
-      return;
-    }
-
-    // Assign stable per-semaphore internal CB slots before cloning so
-    // specialized kernels share deterministic runtime-arg bindings.
-    annotateSemaphoreSlots(func);
-
-    // Create specialized versions
-    FunctionSpecializer specializer(module, func);
-
-    // Erase the original function
-    func.erase();
+  if (failed(annotateCopyBindingSlots(func))) {
+    func.emitError("failed to annotate DRAM/L1 copy binding slots");
+    return;
   }
+
+  // Assign stable per-semaphore internal CB slots before cloning so
+  // specialized kernels share deterministic runtime-arg bindings.
+  annotateSemaphoreSlots(func);
+
+  ModuleOp parentModule = func->getParentOfType<ModuleOp>();
+  if (!parentModule) {
+    func.emitError("failed to locate parent module for specialization");
+    return;
+  }
+
+  // Create specialized versions adjacent to the source function.
+  FunctionSpecializer specializer(parentModule, func);
+
+  // Erase the original function.
+  func.erase();
 }
 
 LogicalResult mlir::loom::removeAllFunctionArguments(func::FuncOp func) {

@@ -117,8 +117,14 @@ static bool isGeneratedHostFuncName(StringRef name) {
          name.ends_with("__host_pybind");
 }
 
+static SmallVector<func::FuncOp, 8> collectAllFuncOps(ModuleOp module) {
+  SmallVector<func::FuncOp, 8> funcs;
+  module.walk([&](func::FuncOp func) { funcs.push_back(func); });
+  return funcs;
+}
+
 static void eraseHostLoweringArtifacts(ModuleOp module) {
-  for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+  for (func::FuncOp func : collectAllFuncOps(module)) {
     StringRef name = func.getName();
     if (!isGeneratedHostFuncName(name) && !name.ends_with("__writer") &&
         !name.ends_with("__reader") && !name.ends_with("__compute"))
@@ -177,7 +183,7 @@ static bool isDeadRemovableRuntimeSetupOp(Operation *op) {
 }
 
 static void eraseDeadRuntimeSetupArtifacts(ModuleOp module) {
-  for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+  for (func::FuncOp func : collectAllFuncOps(module)) {
     if (!isKernelRuntimeSetupCleanupTarget(func))
       continue;
 
@@ -429,7 +435,7 @@ public:
   void runOnOperation() override {
     ModuleOp module = getOperation();
 
-    for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+    for (func::FuncOp func : collectAllFuncOps(module)) {
       if (!isComputeKernelFunc(func))
         continue;
 
@@ -795,7 +801,7 @@ public:
     // - Memref types (DRAM pointers): create CB and base address values
     // This is done AFTER cleanup passes to avoid dangling value references.
     OpBuilder builder(context);
-    for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+    for (func::FuncOp func : collectAllFuncOps(module)) {
       if (failed(replaceFuncArgsWithCompileArgs(func, compileArgTracker,
                                                  typeConverter, builder))) {
         signalPassFailure();
@@ -877,6 +883,10 @@ public:
         [&](::loom::SyncOp op) {
           return !mlir::loom::shouldConvertComputeLoomSync(op);
         });
+    target.addDynamicallyLegalOp<::loom::BroadcastOp>(
+        [&](::loom::BroadcastOp op) {
+          return !mlir::loom::shouldConvertComputeLoomBroadcast(op);
+        });
     target.addDynamicallyLegalOp<::loom::CopyOp>(
         [&](::loom::CopyOp op) {
           return false;
@@ -913,6 +923,10 @@ public:
         });
     target.addLegalDialect<mlir::tt::ttkernel::TTKernelDialect,
                            mlir::emitc::EmitCDialect>();
+    // Allow temporary type-bridge casts introduced during conversion (e.g.,
+    // loom.broadcast logical-result CB view). These are cleaned up later when
+    // they become dead.
+    target.addLegalOp<UnrealizedConversionCastOp>();
 
     // Populate conversion patterns
     RewritePatternSet patterns(context);
@@ -971,7 +985,7 @@ public:
     // After conversion, memref args used in reinterpret_cast should be dead
     // (the conversion patterns emit GetArgValOp for base addresses).
     // Index args were already replaced before conversion.
-    for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+    for (func::FuncOp func : collectAllFuncOps(module)) {
       if (failed(removeAllFunctionArguments(func))) {
         // Some argument still has uses - emit a warning but continue.
         // This might happen if some conversion pattern didn't run.
@@ -1040,7 +1054,7 @@ public:
         emitc::OpaqueType::get(ctx, "const ttnn::Tensor&");
     Type coreCoordType = emitc::OpaqueType::get(ctx, "uint32_t");
 
-    for (func::FuncOp func : module.getOps<func::FuncOp>()) {
+    for (func::FuncOp func : collectAllFuncOps(module)) {
       bool isHostCpp =
           func.getName().ends_with("__host_cpp") ||
           func.getName().ends_with("__host");
