@@ -12,13 +12,13 @@ fi
 
 #/root/loom-dataflow/build/tool/tileloom-to-ttkernel/tileloom_to_ttkernel_opt "${TILELOOM_PASS_ARG}" /root/loom-dataflow/test/Passes/flash_decode/test.mlir -o kernel_ttkernel.mlir
 
-#/root/loom-dataflow/build/tool/tileloom-to-ttkernel/tileloom_to_ttkernel_opt "${TILELOOM_PASS_ARG}" /root/loom-dataflow/test/Passes/flash_decode/test.mlir -o kernel_ttkernel.mlir
+/root/loom-dataflow/build/tool/tileloom-to-ttkernel/tileloom_to_ttkernel_opt "${TILELOOM_PASS_ARG}" /root/loom-dataflow/test/Passes/mamba_chunk_scan/test.mlir -o kernel_ttkernel.mlir
 
-/root/loom-dataflow/build/tool/tileloom-to-ttkernel/tileloom_to_ttkernel_opt "${TILELOOM_PASS_ARG}" /root/loom-monorepo/test/mqa_decode_wh/B16_H64_L14096_D64/IRs/p03_bufferized.mlir -o kernel_ttkernel.mlir
+#/root/loom-dataflow/build/tool/tileloom-to-ttkernel/tileloom_to_ttkernel_opt "${TILELOOM_PASS_ARG}" /root/loom-monorepo/test/mqa_decode_wh/B16_H64_L14096_D64/IRs/p03_bufferized.mlir -o kernel_ttkernel.mlir
 
 python3 replace.py kernel_ttkernel.mlir
 
-/root/tt-mlir/build/bin/ttmlir-opt --convert-ttkernel-to-emitc -canonicalize -cse -canonicalize -sccp -canonicalize kernel_ttkernel.mlir -o kernel_emitc.mlir
+/root/tt-mlir/build/bin/ttmlir-opt -canonicalize -cse -canonicalize --convert-ttkernel-to-emitc -canonicalize -cse -canonicalize -sccp -canonicalize kernel_ttkernel.mlir -o kernel_emitc.mlir
 
 # Fold EmitC SSA temporaries (especially cast chains like i32<->ui32/ptrdiff_t)
 # into expressions so generated C++ is substantially cleaner.
@@ -29,5 +29,5 @@ mv kernel_emitc_formexpr.mlir kernel_emitc.mlir
 
 /root/tt-mlir/build/bin/ttmlir-translate --ttkernel-to-cpp kernel_emitc_hostsig.mlir -o kernel.cpp
 
-#python3 split_kernel.py kernel.cpp -o /tt-metal/ttnn/cpp/ttnn/operations/transformer/mlir_sdpa/device/kernels/
-python3 split_kernel.py kernel.cpp
+python3 split_kernel.py kernel.cpp -o /tt-metal/ttnn/cpp/ttnn/operations/transformer/mlir_sdpa/device/kernels/
+#python3 split_kernel.py kernel.cpp

@@ -2443,25 +2443,13 @@ public:
     }
 
     Location loc = op.getLoc();
-    Value zero = i32Const(rewriter, loc, 0);
     Value tileCount = i32Const(rewriter, loc, *inTiles);
 
     CBPopFrontOp::create(rewriter, loc, outCb, tileCount);
-    CBWaitFrontOp::create(rewriter, loc, inCb, tileCount);
-    CBReserveBackOp::create(rewriter, loc, outCb, tileCount);
-    rewriter.create<CopyTileInitOp>(loc, inCb);
-    
-    //TODO: maybe need to redesign the tileIdx of input/output cb and DST here
-    for (int64_t i = 0; i < *inTiles; ++i) {
-      Value tileIdx = i32Const(rewriter, loc, i);
-      TileRegsAcquireOp::create(rewriter, loc);
-      rewriter.create<CopyTileOp>(loc, inCb, tileIdx, zero);
-      TileRegsCommitOp::create(rewriter, loc);
-      TileRegsWaitOp::create(rewriter, loc);
-      PackTileOp::create(rewriter, loc, zero, outCb, tileIdx);
-      TileRegsReleaseOp::create(rewriter, loc);
-    }
-
+    // Preserve current linalg.copy ownership semantics:
+    // - destination window is explicitly rotated (pop+push here)
+    // - source consumption is handled elsewhere (no cb_pop_front on inCb here)
+    copyTile(rewriter, loc, inCb, outCb, tileCount, /*popInputCb=*/false);
     CBPushBackOp::create(rewriter, loc, outCb, tileCount);
     rewriter.eraseOp(op);
     return success();
