@@ -11,7 +11,10 @@
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #include "mlir/Support/LLVM.h"
 #include "llvm/ADT/Hashing.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include <cassert>
+#include <limits>
 
 // Note: Reusing generated LoomOps if needed
 #define GET_OP_CLASSES
@@ -414,6 +417,107 @@ InterferenceGraph::InterferenceGraph(const Bucket &bucket,
                                      const MemoryAnalysisContext &ctx)
     : bucket_(bucket), ctx_(ctx) {}
 
+static const TensorNode *findNode(const Bucket &bucket, Value value) {
+  for (const TensorNode &node : bucket.nodes) {
+    if (node.value == value)
+      return &node;
+  }
+  return nullptr;
+}
+
+static const VirtualBuffer *findVBById(const Bucket &bucket, int vbId) {
+  for (const auto &vb : bucket.virtualBuffers) {
+    if (vb->id == vbId)
+      return vb.get();
+  }
+  return nullptr;
+}
+
+void InterferenceGraph::buildColorNodes() {
+  colorNodes_.clear();
+  vbToColorNodeId_.clear();
+
+  int n = bucket_.virtualBuffers.size();
+  llvm::DenseMap<int, int> vbIdToIndex;
+  std::vector<int> parent(n);
+  for (int i = 0; i < n; ++i) {
+    parent[i] = i;
+    vbIdToIndex[bucket_.virtualBuffers[i]->id] = i;
+  }
+
+  auto findRoot = [&](int x) {
+    int root = x;
+    while (parent[root] != root)
+      root = parent[root];
+    while (parent[x] != x) {
+      int p = parent[x];
+      parent[x] = root;
+      x = p;
+    }
+    return root;
+  };
+
+  auto unite = [&](int lhs, int rhs) {
+    int lhsRoot = findRoot(lhs);
+    int rhsRoot = findRoot(rhs);
+    if (lhsRoot != rhsRoot)
+      parent[rhsRoot] = lhsRoot;
+  };
+
+  for (const TensorNode &node : bucket_.nodes) {
+    auto syncOp = dyn_cast_or_null<loom::SyncOp>(node.definingOp);
+    if (!syncOp || syncOp->getNumResults() == 0 ||
+        node.value != syncOp->getResult(0))
+      continue;
+
+    const TensorNode *inputNode = findNode(bucket_, syncOp.getIns());
+    if (!inputNode || !node.mappedVBId.has_value() ||
+        !inputNode->mappedVBId.has_value())
+      continue;
+
+    const VirtualBuffer *inputVB = findVBById(bucket_, *inputNode->mappedVBId);
+    const VirtualBuffer *resultVB = findVBById(bucket_, *node.mappedVBId);
+    if (!inputVB || !resultVB)
+      llvm::report_fatal_error("loom.sync coalescing found missing VB");
+
+    if (inputVB->liveness.death > resultVB->liveness.birth) {
+      llvm::errs() << "Invalid loom.sync coalescing: input VB#" << inputVB->id
+                   << " dies at " << inputVB->liveness.death
+                   << " after result VB#" << resultVB->id << " is born at "
+                   << resultVB->liveness.birth << "\n";
+      assert(false &&
+             "loom.sync input VB must die before or at sync result VB birth");
+      llvm::report_fatal_error(
+          "loom.sync input VB dies after sync result VB birth");
+    }
+
+    auto inputIdxIt = vbIdToIndex.find(inputVB->id);
+    auto resultIdxIt = vbIdToIndex.find(resultVB->id);
+    if (inputIdxIt == vbIdToIndex.end() || resultIdxIt == vbIdToIndex.end())
+      llvm::report_fatal_error("loom.sync coalescing found unmapped VB");
+    unite(inputIdxIt->second, resultIdxIt->second);
+  }
+
+  llvm::DenseMap<int, int> rootToColorNode;
+  for (const auto &vb : bucket_.virtualBuffers) {
+    int root = findRoot(vbIdToIndex.lookup(vb->id));
+    auto it = rootToColorNode.find(root);
+    int colorNodeId;
+    if (it == rootToColorNode.end()) {
+      colorNodeId = colorNodes_.size();
+      rootToColorNode[root] = colorNodeId;
+      ColorNode node;
+      node.id = colorNodeId;
+      colorNodes_.push_back(std::move(node));
+    } else {
+      colorNodeId = it->second;
+    }
+
+    colorNodes_[colorNodeId].vbIds.push_back(vb->id);
+    vbToColorNodeId_[vb->id] = colorNodeId;
+  }
+}
+
 int InterferenceGraph::classifyOverlap(const VirtualBuffer &vbA,
                                        const VirtualBuffer &vbB) const {
   const VirtualBuffer *a = &vbA;
@@ -509,6 +613,8 @@ bool InterferenceGraph::canRelay(const VirtualBuffer &vbA,
 }
 
 void InterferenceGraph::build() {
+  buildColorNodes();
+
   int n = bucket_.virtualBuffers.size();
   for (int i = 0; i < n; ++i) {
     for (int j = i + 1; j < n; ++j) {
@@ -529,24 +635,59 @@ void InterferenceGraph::build() {
       }
 
       if (interfere) {
-        edges_.insert({std::min(vbI.id, vbJ.id), std::max(vbI.id, vbJ.id)});
+        int colorNodeI = getColorNodeForVB(vbI.id);
+        int colorNodeJ = getColorNodeForVB(vbJ.id);
+        if (colorNodeI == colorNodeJ)
+          continue;
+        colorNodeEdges_.insert({std::min(colorNodeI, colorNodeJ),
+                                std::max(colorNodeI, colorNodeJ)});
       }
     }
   }
 }
 
 void InterferenceGraph::dump(llvm::raw_ostream &os) const {
-  if (edges_.empty())
+  if (colorNodeEdges_.empty() && colorNodes_.empty())
     return;
   os << "    --- Interference Graph (" << bucket_.virtualBuffers.size()
-     << " VBs, " << edges_.size() << " edges) ---\n";
-  for (auto &edge : edges_) {
-    os << "      VB#" << edge.first << " -- VB#" << edge.second << "\n";
+     << " VBs, " << colorNodes_.size() << " color nodes, "
+     << colorNodeEdges_.size() << " edges) ---\n";
+  for (const ColorNode &node : colorNodes_) {
+    if (node.vbIds.size() < 2)
+      continue;
+    os << "      ColorNode#" << node.id << ": ";
+    for (size_t i = 0; i < node.vbIds.size(); ++i) {
+      os << "VB#" << node.vbIds[i];
+      if (i + 1 < node.vbIds.size())
+        os << ", ";
+    }
+    os << "\n";
+  }
+  for (auto &edge : colorNodeEdges_) {
+    os << "      ColorNode#" << edge.first << " -- ColorNode#" << edge.second
+       << "\n";
   }
 }
 
 bool InterferenceGraph::interferes(int vbIdA, int vbIdB) const {
-  return edges_.count({std::min(vbIdA, vbIdB), std::max(vbIdA, vbIdB)});
+  int colorNodeA = getColorNodeForVB(vbIdA);
+  int colorNodeB = getColorNodeForVB(vbIdB);
+  if (colorNodeA == colorNodeB)
+    return false;
+  return colorNodesInterfere(colorNodeA, colorNodeB);
+}
+
+bool InterferenceGraph::colorNodesInterfere(int colorNodeA,
+                                            int colorNodeB) const {
+  return colorNodeEdges_.count(
+      {std::min(colorNodeA, colorNodeB), std::max(colorNodeA, colorNodeB)});
+}
+
+int InterferenceGraph::getColorNodeForVB(int vbId) const {
+  auto it = vbToColorNodeId_.find(vbId);
+  if (it == vbToColorNodeId_.end())
+    return -1;
+  return it->second;
 }
 
 void MemoryAnalysisContext::buildInterferenceGraphs() {
@@ -597,11 +738,71 @@ void MemoryAnalysisContext::buildAllocationPlan() {
 ColoringSolver::ColoringSolver(Bucket &bucket) : bucket_(bucket) {}
 
 int ColoringSolver::solve() {
-  // 1. Gather pointers to all VBs
+  // 1. Gather pointers to all VBs.
   std::vector<VirtualBuffer *> sorted;
   sorted.reserve(bucket_.virtualBuffers.size());
   for (auto &vb : bucket_.virtualBuffers)
     sorted.push_back(vb.get());
+
+  llvm::DenseMap<int, VirtualBuffer *> vbById;
+  for (VirtualBuffer *vb : sorted)
+    vbById[vb->id] = vb;
+
+  if (bucket_.interferenceGraph &&
+      !bucket_.interferenceGraph->getColorNodes().empty()) {
+    std::vector<const ColorNode *> colorNodes;
+    colorNodes.reserve(bucket_.interferenceGraph->getColorNodes().size());
+    for (const ColorNode &node : bucket_.interferenceGraph->getColorNodes())
+      colorNodes.push_back(&node);
+
+    auto nodeBirth = [&](const ColorNode *node) {
+      int birth = std::numeric_limits<int>::max();
+      for (int vbId : node->vbIds)
+        birth = std::min(birth, vbById.lookup(vbId)->liveness.birth);
+      return birth;
+    };
+    auto nodeDeath = [&](const ColorNode *node) {
+      int death = std::numeric_limits<int>::min();
+      for (int vbId : node->vbIds)
+        death = std::max(death, vbById.lookup(vbId)->liveness.death);
+      return death;
+    };
+
+    std::sort(colorNodes.begin(), colorNodes.end(),
+              [&](const ColorNode *a, const ColorNode *b) {
+                int birthA = nodeBirth(a);
+                int birthB = nodeBirth(b);
+                if (birthA != birthB)
+                  return birthA < birthB;
+                return (nodeDeath(a) - birthA) > (nodeDeath(b) - birthB);
+              });
+
+    int maxColor = -1;
+    llvm::DenseMap<int, int> colorByNode;
+    for (const ColorNode *node : colorNodes) {
+      std::set<int> usedColors;
+      for (const auto &[otherNodeId, otherColor] : colorByNode) {
+        if (bucket_.interferenceGraph->colorNodesInterfere(node->id,
+                                                           otherNodeId)) {
+          usedColors.insert(otherColor);
+        }
+      }
+
+      int c = 0;
+      while (usedColors.count(c))
+        ++c;
+
+      colorByNode[node->id] = c;
+      if (c > maxColor)
+        maxColor = c;
+      for (int vbId : node->vbIds)
+        vbById.lookup(vbId)->color = c;
+    }
+
+    int numColors = maxColor + 1;
+    bucket_.maxColorsRequired = numColors;
+    return numColors;
+  }
 
   // 2. Sort: ascending by liveness.birth, then descending by duration
   // (liveness.end - liveness.start)

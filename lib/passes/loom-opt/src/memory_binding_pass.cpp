@@ -13,6 +13,8 @@
 #include "mlir/Interfaces/ViewLikeInterface.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
+#include "llvm/Support/ErrorHandling.h"
+#include <cassert>
 
 // Loom dialect and analysis headers
 #include "LoomDialect.h.inc"
@@ -436,13 +438,17 @@ private:
         // Compute dynamic/static sizes first so we can check dominance below.
         SmallVector<Value> dynamicSizes;
         SmallVector<int64_t> staticSizes;
-        bool hasUnresolvableDim = false;
         for (const auto &dim : sig.dims) {
           if (auto attr = dim.dyn_cast<Attribute>()) {
             int64_t v = cast<IntegerAttr>(attr).getInt();
-            if (v < 0) { // unresolvable dynamic dim (e.g. getMixedSizesFromType fallback)
-              hasUnresolvableDim = true;
-              break;
+            if (v < 0) {
+              bucket.scopeOp->emitError()
+                  << "allocation planning found unresolved dynamic dimension "
+                  << "in shape signature";
+              assert(false &&
+                     "allocation planning found unresolved dynamic dimension");
+              llvm::report_fatal_error(
+                  "allocation planning found unresolved dynamic dimension");
             }
             staticSizes.push_back(v);
           } else {
@@ -450,8 +456,6 @@ private:
             dynamicSizes.push_back(dim.dyn_cast<Value>());
           }
         }
-        if (hasUnresolvableDim)
-          continue;
 
         OpBuilder builder(context);
         builder.setInsertionPointToStart(&bucket.scopeOp->getRegion(0).front());

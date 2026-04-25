@@ -16,6 +16,8 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "llvm/Support/ErrorHandling.h"
+#include <cassert>
 
 // Include the generated Loom dialect headers
 #include "LoomDialect.h.inc"
@@ -367,8 +369,14 @@ SmallVector<SymbolicDim, 4> traceShape(Value v) {
   }
 
   Operation *op = v.getDefiningOp();
-  if (!op)
+  if (!op) {
+    if (auto tensorType = mlir::dyn_cast<RankedTensorType>(v.getType());
+        tensorType && tensorType.getRank() == 0)
+      return {};
+    assert(false && "traceShape cannot trace block argument shape");
+    llvm::report_fatal_error("traceShape cannot trace block argument shape");
     return {};
+  }
 
   SmallVector<SymbolicDim, 4> rawDims;
 
@@ -404,6 +412,14 @@ SmallVector<SymbolicDim, 4> traceShape(Value v) {
       rawDims = getMixedSizesFromType(memref.getType());
     }
   }
+  // Case B2: loom.init_tensor carries explicit mixed sizes.
+  else if (auto initTensor = mlir::dyn_cast<loom::InitTensorOp>(op)) {
+    rawDims = initTensor.getMixedSizes();
+  }
+  // Case B3: loom.bufferize_to_tensor carries explicit mixed sizes.
+  else if (auto toTensor = mlir::dyn_cast<loom::BufferizeToTensorOp>(op)) {
+    rawDims = toTensor.getMixedSizes();
+  }
   // Case C: linalg.op (DPS)
   else if (auto linalgOp = mlir::dyn_cast<linalg::LinalgOp>(op)) {
     unsigned resultIdx = mlir::cast<OpResult>(v).getResultNumber();
@@ -438,15 +454,31 @@ SmallVector<SymbolicDim, 4> traceShape(Value v) {
   else if (auto syncOp = mlir::dyn_cast<loom::SyncOp>(op)) {
     return traceShape(syncOp.getInit());
   }
-  // Fallback
   else {
-    rawDims = getMixedSizesFromType(v.getType());
+    if (auto tensorType = mlir::dyn_cast<RankedTensorType>(v.getType());
+        tensorType && tensorType.getRank() == 0)
+      return {};
+    op->emitError() << "traceShape has no shape rule for op '"
+                    << op->getName() << "'";
+    assert(false && "traceShape missing explicit shape rule");
+    llvm::report_fatal_error("traceShape missing explicit shape rule");
   }
 
   // Canonicalize all dimensions to ensure consistent Attribute types
   SmallVector<SymbolicDim, 4> canonicalDims;
   for (auto dim : rawDims) {
-    canonicalDims.push_back(canonicalizeOFR(dim, v.getContext()));
+    auto canonical = canonicalizeOFR(dim, v.getContext());
+    if (auto attr = mlir::dyn_cast<Attribute>(canonical)) {
+      if (auto intAttr = mlir::dyn_cast<IntegerAttr>(attr)) {
+        if (intAttr.getInt() < 0) {
+          op->emitError() << "traceShape produced unresolved dynamic dimension";
+          assert(false && "traceShape produced unresolved dynamic dimension");
+          llvm::report_fatal_error(
+              "traceShape produced unresolved dynamic dimension");
+        }
+      }
+    }
+    canonicalDims.push_back(canonical);
   }
   return canonicalDims;
 }

@@ -6,6 +6,7 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/Value.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallVector.h"
@@ -127,6 +128,11 @@ struct Bucket {
   TensorNode *findNode(mlir::Value v);
 };
 
+struct ColorNode {
+  int id = -1;
+  llvm::SmallVector<int, 2> vbIds;
+};
+
 class InterferenceGraph {
 public:
   InterferenceGraph(const Bucket &bucket,
@@ -135,14 +141,20 @@ public:
   void build();
   void dump(llvm::raw_ostream &os) const;
   bool interferes(int vbIdA, int vbIdB) const;
+  bool colorNodesInterfere(int colorNodeA, int colorNodeB) const;
+  int getColorNodeForVB(int vbId) const;
+  llvm::ArrayRef<ColorNode> getColorNodes() const { return colorNodes_; }
   bool canRelay(const VirtualBuffer &vbA, const VirtualBuffer &vbB) const;
 
 private:
   const Bucket &bucket_;
   const class MemoryAnalysisContext &ctx_;
-  std::set<std::pair<int, int>> edges_;
+  std::set<std::pair<int, int>> colorNodeEdges_;
+  llvm::SmallVector<ColorNode, 8> colorNodes_;
+  llvm::DenseMap<int, int> vbToColorNodeId_;
 
   int classifyOverlap(const VirtualBuffer &vbA, const VirtualBuffer &vbB) const;
+  void buildColorNodes();
   mlir::OpOperand *findOperandRelation(const VirtualBuffer &vbA,
                                        const VirtualBuffer &vbB) const;
   bool checkHandoffInterference(const VirtualBuffer &vbA,

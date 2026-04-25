@@ -325,6 +325,26 @@ struct BroadcastOpInterface
 struct SyncOpInterface
     : public bufferization::DstBufferizableOpInterfaceExternalModel<
           SyncOpInterface, loom::SyncOp> {
+  bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
+                              const AnalysisState & /*state*/) const {
+    (void)op;
+    return opOperand.getOperandNumber() == 0;
+  }
+
+  bool bufferizesToMemoryWrite(Operation *op, OpOperand &opOperand,
+                               const AnalysisState & /*state*/) const {
+    (void)op;
+    return opOperand.getOperandNumber() == 1;
+  }
+
+  AliasingValueList getAliasingValues(Operation *op, OpOperand &opOperand,
+                                      const AnalysisState & /*state*/) const {
+    if (opOperand.getOperandNumber() != 1 || op->getNumResults() == 0)
+      return {};
+
+    return {AliasingValue(op->getOpResult(0), BufferRelation::Equivalent,
+                          /*isDefinite=*/true)};
+  }
 
   LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
                           const BufferizationOptions &options,
