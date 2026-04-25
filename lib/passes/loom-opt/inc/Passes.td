@@ -120,16 +120,17 @@ def LowerAffineWithAttr : Pass<"loom-lower-affine-with-attr", "mlir::ModuleOp"> 
   let constructor = "loom::passes::createLowerAffineWithAttrPass()";
 }
 
-def WriteOutSyncInsertionPass : Pass<"loom-writeout-sync-insertion", "mlir::ModuleOp"> {
-  let summary = "Insert tensor.empty + loom.sync around write-out chains";
+def HandoffSyncInsertionPass : Pass<"loom-handoff-sync-insertion", "mlir::ModuleOp"> {
+  let summary = "Insert tensor.empty + loom.sync around execution-core handoffs";
   let description = [{
-    Discover write-out chains:
+    Discover execution-core handoff boundaries:
+    - bufferization.to_tensor
     - tensor-mode loom.gather (single-op chain)
     - loom.bufferize_to_memref + loom.copy with L1->DRAM attrs (two-op chain)
-    and insert tensor.empty + loom.sync before chain head, then rewrite uses
-    of the sync input tensor to the sync result when dominated.
+    and insert tensor.empty + loom.sync around those boundaries, then rewrite
+    uses of the sync input tensor to the sync result when dominated.
   }];
-  let constructor = "loom::passes::createWriteOutSyncInsertionPass()";
+  let constructor = "loom::passes::createHandoffSyncInsertionPass()";
 }
 
 #endif // LOOM_TRITON_SHARED_PASSES
