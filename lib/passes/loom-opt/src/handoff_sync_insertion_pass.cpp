@@ -9,6 +9,8 @@
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/ErrorHandling.h"
+#include <cassert>
 #include <optional>
 
 #include "utils.h"
@@ -163,11 +165,12 @@ static LogicalResult insertSyncForTensor(Value targetTensor,
     }
 
     if (!dynSizeVal) {
-      auto cstIdx = arith::ConstantIndexOp::create(builder,
-                                                   insertionAnchor->getLoc(),
-                                                   idx);
-      dynSizeVal = tensor::DimOp::create(builder, insertionAnchor->getLoc(),
-                                         targetTensor, cstIdx);
+      insertionAnchor->emitError()
+          << diagnosticName << " could not resolve dynamic dimension " << idx
+          << " for sync init tensor without falling back to tensor.dim";
+      assert(false && "unresolved loom.sync init dynamic dimension");
+      llvm::report_fatal_error(
+          "unresolved loom.sync init dynamic dimension");
     }
     dynamicSizes.push_back(dynSizeVal);
   }
