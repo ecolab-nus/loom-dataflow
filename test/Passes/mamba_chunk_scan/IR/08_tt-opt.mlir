@@ -53,160 +53,187 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
             %25 = arith.muli %23, %c64 : index
             %26 = loom.alloc [64] on @L1 : memref<64xf16>
             %27 = loom.semaphore_take %26 : memref<64xf16> -> memref<64xf16>
-            %28 = arith.muli %arg11, %c131072 overflow<nsw> : index
-            %29 = arith.muli %21, %c16384 : index
-            %30 = arith.addi %28, %29 : index
-            %31 = arith.muli %arg12, %c1024 : index
-            %32 = arith.addi %30, %31 : index
-            %33 = arith.addi %32, %25 : index
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%33], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-            %34 = arith.muli %arg11, %c2 : index
-            %35 = arith.addi %arg9, %34 : index
-            %36 = arith.muli %arg12, %c2 : index
-            %37 = arith.muli %arg8, %c4 : index
-            %38 = arith.addi %36, %37 : index
-            %39 = arith.addi %36, %c1 : index
-            %40 = arith.addi %39, %37 : index
-            loom.copy %reinterpret_cast, %27 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%35, %38], LR : [%35, %40]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-            %41 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %42 = loom.semaphore_take %41 : memref<64x32xf16> -> memref<64x32xf16>
-            %43 = loom.semaphore_take %41 : memref<64x32xf16> -> memref<64x32xf16>
-            %44 = loom.broadcast ins(%27 : memref<64xf16>) outs(%43 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
-            %45 = arith.addi %25, %31 : index
-            %46 = arith.divui %24, %c64 : index
-            %47 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-            %48 = loom.semaphore_take %47 : memref<64x64xf16> -> memref<64x64xf16>
-            %49 = arith.muli %45, %c64 overflow<nsw> : index
-            %50 = arith.addi %28, %49 : index
-            %51 = arith.muli %46, %c64 overflow<nsw> : index
-            %52 = arith.addi %50, %51 : index
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%52], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
-            loom.copy %reinterpret_cast_0, %48 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%35, %38], LR : [%35, %40]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
-            %53 = arith.muli %arg10, %c32 : index
-            %54 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %55 = loom.semaphore_take %54 : memref<64x32xf16> -> memref<64x32xf16>
-            %56 = arith.muli %arg11, %c2097152 overflow<nsw> : index
-            %57 = arith.muli %arg12, %c1048576 : index
-            %58 = arith.addi %56, %57 : index
-            %59 = arith.muli %21, %c32768 : index
-            %60 = arith.addi %58, %59 : index
-            %61 = arith.addi %60, %53 : index
-            %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%61], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
-            %62 = arith.addi %34, %c1 : index
-            %63 = arith.addi %arg10, %36 : index
-            %64 = arith.addi %63, %37 : index
-            loom.copy %reinterpret_cast_1, %55 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%34, %64], LR : [%62, %64]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
-            %65 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %66 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            %67 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            %68 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            loom.matmul ins(%48, %55 : memref<64x64xf16>, memref<64x32xf16>) outs(%67 : memref<64x32xf16>)
-            loom.semaphore_give %55 : memref<64x32xf16>
-            loom.semaphore_give %48 : memref<64x64xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%67, %44 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%68 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_5: f16, %out: f16):
-              %95 = math.exp %in_5 : f16
-              %96 = arith.mulf %in, %95 : f16
-              linalg.yield %96 : f16
-            }
-            loom.semaphore_give %67 : memref<64x32xf16>
-            loom.semaphore_give %43 : memref<64x32xf16>
-            %69 = arith.addi %23, %c1 : index
-            %70 = arith.muli %69, %c64 : index
-            %71 = arith.ceildivui %70, %c64 : index
-            %72 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %73 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
-            %74 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
-            %75 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-            %76 = loom.semaphore_take %75 : memref<64x64xf16> -> memref<64x64xf16>
-            %77 = loom.alloc [64] on @L1 : memref<64xf16>
-            %78 = loom.semaphore_take %77 : memref<64xf16> -> memref<64xf16>
-            %79 = loom.semaphore_take %77 : memref<64xf16> -> memref<64xf16>
-            %80 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-            %81 = loom.semaphore_take %80 : memref<32x64xf16> -> memref<32x64xf16>
-            %82 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-            %83 = loom.semaphore_take %82 : memref<32x64xf16> -> memref<32x64xf16>
-            %84 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %85 = loom.semaphore_take %84 : memref<64x32xf16> -> memref<64x32xf16>
-            scf.for %arg15 = %c0 to %71 step %c1 {
-              %95 = arith.muli %arg15, %c64 : index
-              %96 = arith.muli %arg11, %c524288 overflow<nsw> : index
-              %97 = arith.muli %arg12, %c262144 : index
-              %98 = arith.addi %96, %97 : index
-              %99 = arith.muli %46, %c65536 overflow<nsw> : index
-              %100 = arith.addi %98, %99 : index
-              %101 = arith.muli %23, %c16384 : index
-              %102 = arith.addi %100, %101 : index
-              %103 = arith.addi %102, %95 : index
-              %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%103], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-              loom.copy %reinterpret_cast_5, %76 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%35, %64], LR : [%35, %64]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
-              %104 = arith.addi %32, %95 : index
-              %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%104], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-              loom.copy %reinterpret_cast_6, %79 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%35, %64], LR : [%35, %64]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-              %105 = loom.broadcast ins(%27 : memref<64xf16>) outs(%42 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              %106 = loom.broadcast ins(%79 : memref<64xf16>) outs(%81 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              loom.semaphore_give %79 : memref<64xf16>
-              %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%104], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-              loom.copy %reinterpret_cast_7, %78 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%35, %64], LR : [%35, %64]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-              %107 = loom.broadcast ins(%78 : memref<64xf16>) outs(%83 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              loom.semaphore_give %78 : memref<64xf16>
-              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%76, %105, %106, %107 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%76 : memref<64x64xf16>) {
-              ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
-                %115 = arith.subf %in_9, %in_10 : f16
-                %116 = math.exp %115 : f16
-                %117 = arith.mulf %in, %116 : f16
-                %118 = arith.mulf %117, %in_11 : f16
-                linalg.yield %118 : f16
-              }
-              loom.semaphore_give %83 : memref<32x64xf16>
-              loom.semaphore_give %81 : memref<32x64xf16>
-              loom.semaphore_give %42 : memref<64x32xf16>
-              %108 = arith.addi %95, %31 : index
-              %109 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-              %110 = arith.muli %108, %c4096 overflow<nsw> : index
-              %111 = arith.addi %109, %110 : index
-              %112 = arith.muli %21, %c512 : index
-              %113 = arith.addi %111, %112 : index
-              %114 = arith.addi %113, %53 : index
-              %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%114], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-              loom.copy %reinterpret_cast_8, %85 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%35, %64], LR : [%35, %64]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-              loom.matmul ins(%76, %85 : memref<64x64xf16>, memref<64x32xf16>) outs(%74 : memref<64x32xf16>)
-              loom.semaphore_give %85 : memref<64x32xf16>
-              loom.semaphore_give %76 : memref<64x64xf16>
-              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %74 : memref<64x32xf16>, memref<64x32xf16>) outs(%68 : memref<64x32xf16>) {
-              ^bb0(%in: f16, %in_9: f16, %out: f16):
-                %115 = arith.addf %in, %in_9 : f16
-                linalg.yield %115 : f16
-              }
-              loom.semaphore_give %74 : memref<64x32xf16>
-            } {loom.iter_type = #loom.iter_type<sequential>}
+            %28 = loom.semaphore_take %26 : memref<64xf16> -> memref<64xf16>
+            %29 = arith.muli %arg11, %c131072 overflow<nsw> : index
+            %30 = arith.muli %21, %c16384 : index
+            %31 = arith.addi %29, %30 : index
+            %32 = arith.muli %arg12, %c1024 : index
+            %33 = arith.addi %31, %32 : index
+            %34 = arith.addi %33, %25 : index
+            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%34], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+            %35 = arith.muli %arg11, %c2 : index
+            %36 = arith.addi %arg9, %35 : index
+            %37 = arith.muli %arg12, %c2 : index
+            %38 = arith.muli %arg8, %c4 : index
+            %39 = arith.addi %37, %38 : index
+            %40 = arith.addi %37, %c1 : index
+            %41 = arith.addi %40, %38 : index
+            loom.copy %reinterpret_cast, %27 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%36, %39], LR : [%36, %41]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+            loom.sync ins(%27 : memref<64xf16>) outs(%28 : memref<64xf16>)
             loom.semaphore_give %27 : memref<64xf16>
-            %86 = loom.alloc [1] on @L1 : memref<f16>
-            %87 = loom.semaphore_take %86 : memref<f16> -> memref<f16>
-            %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%24], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
-            %88 = arith.addi %37, %c3 : index
-            loom.copy %reinterpret_cast_2, %87 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [8, 4] region : (UL : [%c0, %37], LR : [%c7, %88]) : memref<f16, strided<[], offset: ?>> to memref<f16>
-            %89 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-            %90 = arith.muli %45, %c4096 overflow<nsw> : index
-            %91 = arith.addi %89, %90 : index
-            %92 = arith.muli %21, %c512 : index
-            %93 = arith.addi %91, %92 : index
-            %94 = arith.addi %93, %53 : index
-            %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%94], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %reinterpret_cast_3, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%35, %64], LR : [%35, %64]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %73, %87 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%73 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
-              %95 = arith.mulf %in_5, %in_6 : f16
-              %96 = arith.addf %in, %95 : f16
-              linalg.yield %96 : f16
+            %42 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %43 = loom.semaphore_take %42 : memref<64x32xf16> -> memref<64x32xf16>
+            %44 = loom.semaphore_take %42 : memref<64x32xf16> -> memref<64x32xf16>
+            %45 = loom.broadcast ins(%28 : memref<64xf16>) outs(%44 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
+            %46 = arith.addi %25, %32 : index
+            %47 = arith.divui %24, %c64 : index
+            %48 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+            %49 = loom.semaphore_take %48 : memref<64x64xf16> -> memref<64x64xf16>
+            %50 = loom.semaphore_take %48 : memref<64x64xf16> -> memref<64x64xf16>
+            %51 = arith.muli %46, %c64 overflow<nsw> : index
+            %52 = arith.addi %29, %51 : index
+            %53 = arith.muli %47, %c64 overflow<nsw> : index
+            %54 = arith.addi %52, %53 : index
+            %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%54], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
+            loom.copy %reinterpret_cast_0, %50 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%36, %39], LR : [%36, %41]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
+            loom.sync ins(%50 : memref<64x64xf16>) outs(%49 : memref<64x64xf16>)
+            loom.semaphore_give %50 : memref<64x64xf16>
+            %55 = arith.muli %arg10, %c32 : index
+            %56 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %57 = loom.semaphore_take %56 : memref<64x32xf16> -> memref<64x32xf16>
+            %58 = loom.semaphore_take %56 : memref<64x32xf16> -> memref<64x32xf16>
+            %59 = arith.muli %arg11, %c2097152 overflow<nsw> : index
+            %60 = arith.muli %arg12, %c1048576 : index
+            %61 = arith.addi %59, %60 : index
+            %62 = arith.muli %21, %c32768 : index
+            %63 = arith.addi %61, %62 : index
+            %64 = arith.addi %63, %55 : index
+            %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%64], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
+            %65 = arith.addi %35, %c1 : index
+            %66 = arith.addi %arg10, %37 : index
+            %67 = arith.addi %66, %38 : index
+            loom.copy %reinterpret_cast_1, %58 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%35, %67], LR : [%65, %67]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%58 : memref<64x32xf16>) outs(%57 : memref<64x32xf16>)
+            loom.semaphore_give %58 : memref<64x32xf16>
+            %68 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %69 = loom.semaphore_take %68 : memref<64x32xf16> -> memref<64x32xf16>
+            %70 = loom.semaphore_take %68 : memref<64x32xf16> -> memref<64x32xf16>
+            loom.matmul ins(%49, %57 : memref<64x64xf16>, memref<64x32xf16>) outs(%69 : memref<64x32xf16>)
+            loom.semaphore_give %57 : memref<64x32xf16>
+            loom.semaphore_give %49 : memref<64x64xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%69, %45 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%70 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_5: f16, %out: f16):
+              %104 = math.exp %in_5 : f16
+              %105 = arith.mulf %in, %104 : f16
+              linalg.yield %105 : f16
             }
-            loom.semaphore_give %87 : memref<f16>
-            loom.semaphore_give %68 : memref<64x32xf16>
-            loom.sync ins(%73 : memref<64x32xf16>) outs(%66 : memref<64x32xf16>)
-            loom.semaphore_give %73 : memref<64x32xf16>
-            %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%94], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %66, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%35, %64], LR : [%35, %64]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.semaphore_give %66 : memref<64x32xf16>
+            loom.semaphore_give %69 : memref<64x32xf16>
+            loom.semaphore_give %44 : memref<64x32xf16>
+            %71 = arith.addi %23, %c1 : index
+            %72 = arith.muli %71, %c64 : index
+            %73 = arith.ceildivui %72, %c64 : index
+            %74 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %75 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %76 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %77 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %78 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %79 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+            %80 = loom.semaphore_take %79 : memref<64x64xf16> -> memref<64x64xf16>
+            %81 = loom.semaphore_take %79 : memref<64x64xf16> -> memref<64x64xf16>
+            %82 = loom.alloc [64] on @L1 : memref<64xf16>
+            %83 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %84 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %85 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %86 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %87 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+            %88 = loom.semaphore_take %87 : memref<32x64xf16> -> memref<32x64xf16>
+            %89 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+            %90 = loom.semaphore_take %89 : memref<32x64xf16> -> memref<32x64xf16>
+            %91 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %92 = loom.semaphore_take %91 : memref<64x32xf16> -> memref<64x32xf16>
+            %93 = loom.semaphore_take %91 : memref<64x32xf16> -> memref<64x32xf16>
+            scf.for %arg15 = %c0 to %73 step %c1 {
+              %104 = arith.muli %arg15, %c64 : index
+              %105 = arith.muli %arg11, %c524288 overflow<nsw> : index
+              %106 = arith.muli %arg12, %c262144 : index
+              %107 = arith.addi %105, %106 : index
+              %108 = arith.muli %47, %c65536 overflow<nsw> : index
+              %109 = arith.addi %107, %108 : index
+              %110 = arith.muli %23, %c16384 : index
+              %111 = arith.addi %109, %110 : index
+              %112 = arith.addi %111, %104 : index
+              %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%112], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
+              loom.copy %reinterpret_cast_5, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%36, %67], LR : [%36, %67]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+              loom.sync ins(%81 : memref<64x64xf16>) outs(%80 : memref<64x64xf16>)
+              loom.semaphore_give %81 : memref<64x64xf16>
+              %113 = arith.addi %33, %104 : index
+              %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%113], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+              loom.copy %reinterpret_cast_6, %86 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%36, %67], LR : [%36, %67]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+              loom.sync ins(%86 : memref<64xf16>) outs(%85 : memref<64xf16>)
+              loom.semaphore_give %86 : memref<64xf16>
+              %114 = loom.broadcast ins(%28 : memref<64xf16>) outs(%43 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              %115 = loom.broadcast ins(%85 : memref<64xf16>) outs(%88 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              loom.semaphore_give %85 : memref<64xf16>
+              %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%113], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+              loom.copy %reinterpret_cast_7, %84 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%36, %67], LR : [%36, %67]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+              loom.sync ins(%84 : memref<64xf16>) outs(%83 : memref<64xf16>)
+              loom.semaphore_give %84 : memref<64xf16>
+              %116 = loom.broadcast ins(%83 : memref<64xf16>) outs(%90 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              loom.semaphore_give %83 : memref<64xf16>
+              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%80, %114, %115, %116 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%80 : memref<64x64xf16>) {
+              ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
+                %124 = arith.subf %in_9, %in_10 : f16
+                %125 = math.exp %124 : f16
+                %126 = arith.mulf %in, %125 : f16
+                %127 = arith.mulf %126, %in_11 : f16
+                linalg.yield %127 : f16
+              }
+              loom.semaphore_give %90 : memref<32x64xf16>
+              loom.semaphore_give %88 : memref<32x64xf16>
+              loom.semaphore_give %43 : memref<64x32xf16>
+              %117 = arith.addi %104, %32 : index
+              %118 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+              %119 = arith.muli %117, %c4096 overflow<nsw> : index
+              %120 = arith.addi %118, %119 : index
+              %121 = arith.muli %21, %c512 : index
+              %122 = arith.addi %120, %121 : index
+              %123 = arith.addi %122, %55 : index
+              %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%123], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+              loom.copy %reinterpret_cast_8, %93 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%36, %67], LR : [%36, %67]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+              loom.sync ins(%93 : memref<64x32xf16>) outs(%92 : memref<64x32xf16>)
+              loom.semaphore_give %93 : memref<64x32xf16>
+              loom.matmul ins(%80, %92 : memref<64x64xf16>, memref<64x32xf16>) outs(%78 : memref<64x32xf16>)
+              loom.semaphore_give %92 : memref<64x32xf16>
+              loom.semaphore_give %80 : memref<64x64xf16>
+              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%70, %78 : memref<64x32xf16>, memref<64x32xf16>) outs(%70 : memref<64x32xf16>) {
+              ^bb0(%in: f16, %in_9: f16, %out: f16):
+                %124 = arith.addf %in, %in_9 : f16
+                linalg.yield %124 : f16
+              }
+              loom.semaphore_give %78 : memref<64x32xf16>
+            } {loom.iter_type = #loom.iter_type<sequential>}
+            loom.semaphore_give %28 : memref<64xf16>
+            %94 = loom.alloc [1] on @L1 : memref<f16>
+            %95 = loom.semaphore_take %94 : memref<f16> -> memref<f16>
+            %96 = loom.semaphore_take %94 : memref<f16> -> memref<f16>
+            %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%24], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
+            %97 = arith.addi %38, %c3 : index
+            loom.copy %reinterpret_cast_2, %96 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [8, 4] region : (UL : [%c0, %38], LR : [%c7, %97]) : memref<f16, strided<[], offset: ?>> to memref<f16>
+            loom.sync ins(%96 : memref<f16>) outs(%95 : memref<f16>)
+            loom.semaphore_give %96 : memref<f16>
+            %98 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+            %99 = arith.muli %46, %c4096 overflow<nsw> : index
+            %100 = arith.addi %98, %99 : index
+            %101 = arith.muli %21, %c512 : index
+            %102 = arith.addi %100, %101 : index
+            %103 = arith.addi %102, %55 : index
+            %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%103], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_3, %77 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%36, %67], LR : [%36, %67]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%77 : memref<64x32xf16>) outs(%76 : memref<64x32xf16>)
+            loom.semaphore_give %77 : memref<64x32xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%70, %76, %95 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%76 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
+              %104 = arith.mulf %in_5, %in_6 : f16
+              %105 = arith.addf %in, %104 : f16
+              linalg.yield %105 : f16
+            }
+            loom.semaphore_give %95 : memref<f16>
+            loom.semaphore_give %70 : memref<64x32xf16>
+            loom.sync ins(%76 : memref<64x32xf16>) outs(%75 : memref<64x32xf16>)
+            loom.semaphore_give %76 : memref<64x32xf16>
+            %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%103], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %75, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%36, %67], LR : [%36, %67]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.semaphore_give %75 : memref<64x32xf16>
           } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
         } {loom.block_sym = @tile_h, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
@@ -248,160 +275,187 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
             %25 = arith.muli %23, %c64 : index
             %26 = loom.alloc [64] on @L1 : memref<64xf16>
             %27 = loom.semaphore_take %26 : memref<64xf16> -> memref<64xf16>
-            %28 = arith.muli %arg11, %c131072 overflow<nsw> : index
-            %29 = arith.muli %21, %c16384 : index
-            %30 = arith.addi %28, %29 : index
-            %31 = arith.muli %arg12, %c1024 : index
-            %32 = arith.addi %30, %31 : index
-            %33 = arith.addi %32, %25 : index
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%33], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-            %34 = arith.muli %arg12, %c2 : index
-            %35 = arith.addi %arg9, %34 : index
-            %36 = arith.muli %arg11, %c2 : index
-            %37 = arith.muli %arg8, %c4 : index
-            %38 = arith.addi %36, %37 : index
-            %39 = arith.addi %36, %c1 : index
-            %40 = arith.addi %39, %37 : index
-            loom.copy %reinterpret_cast, %27 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%35, %38], LR : [%35, %40]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-            %41 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %42 = loom.semaphore_take %41 : memref<64x32xf16> -> memref<64x32xf16>
-            %43 = loom.semaphore_take %41 : memref<64x32xf16> -> memref<64x32xf16>
-            %44 = loom.broadcast ins(%27 : memref<64xf16>) outs(%43 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
-            %45 = arith.addi %25, %31 : index
-            %46 = arith.divui %24, %c64 : index
-            %47 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-            %48 = loom.semaphore_take %47 : memref<64x64xf16> -> memref<64x64xf16>
-            %49 = arith.muli %45, %c64 overflow<nsw> : index
-            %50 = arith.addi %28, %49 : index
-            %51 = arith.muli %46, %c64 overflow<nsw> : index
-            %52 = arith.addi %50, %51 : index
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%52], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
-            loom.copy %reinterpret_cast_0, %48 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%35, %38], LR : [%35, %40]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
-            %53 = arith.muli %arg10, %c32 : index
-            %54 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %55 = loom.semaphore_take %54 : memref<64x32xf16> -> memref<64x32xf16>
-            %56 = arith.muli %arg11, %c2097152 overflow<nsw> : index
-            %57 = arith.muli %arg12, %c1048576 : index
-            %58 = arith.addi %56, %57 : index
-            %59 = arith.muli %21, %c32768 : index
-            %60 = arith.addi %58, %59 : index
-            %61 = arith.addi %60, %53 : index
-            %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%61], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
-            %62 = arith.addi %34, %c1 : index
-            %63 = arith.addi %arg10, %36 : index
-            %64 = arith.addi %63, %37 : index
-            loom.copy %reinterpret_cast_1, %55 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%34, %64], LR : [%62, %64]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
-            %65 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %66 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            %67 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            %68 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            loom.matmul ins(%48, %55 : memref<64x64xf16>, memref<64x32xf16>) outs(%67 : memref<64x32xf16>)
-            loom.semaphore_give %55 : memref<64x32xf16>
-            loom.semaphore_give %48 : memref<64x64xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%67, %44 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%68 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_5: f16, %out: f16):
-              %95 = math.exp %in_5 : f16
-              %96 = arith.mulf %in, %95 : f16
-              linalg.yield %96 : f16
-            }
-            loom.semaphore_give %67 : memref<64x32xf16>
-            loom.semaphore_give %43 : memref<64x32xf16>
-            %69 = arith.addi %23, %c1 : index
-            %70 = arith.muli %69, %c64 : index
-            %71 = arith.ceildivui %70, %c64 : index
-            %72 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %73 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
-            %74 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
-            %75 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-            %76 = loom.semaphore_take %75 : memref<64x64xf16> -> memref<64x64xf16>
-            %77 = loom.alloc [64] on @L1 : memref<64xf16>
-            %78 = loom.semaphore_take %77 : memref<64xf16> -> memref<64xf16>
-            %79 = loom.semaphore_take %77 : memref<64xf16> -> memref<64xf16>
-            %80 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-            %81 = loom.semaphore_take %80 : memref<32x64xf16> -> memref<32x64xf16>
-            %82 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-            %83 = loom.semaphore_take %82 : memref<32x64xf16> -> memref<32x64xf16>
-            %84 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %85 = loom.semaphore_take %84 : memref<64x32xf16> -> memref<64x32xf16>
-            scf.for %arg15 = %c0 to %71 step %c1 {
-              %95 = arith.muli %arg15, %c64 : index
-              %96 = arith.muli %arg11, %c524288 overflow<nsw> : index
-              %97 = arith.muli %arg12, %c262144 : index
-              %98 = arith.addi %96, %97 : index
-              %99 = arith.muli %46, %c65536 overflow<nsw> : index
-              %100 = arith.addi %98, %99 : index
-              %101 = arith.muli %23, %c16384 : index
-              %102 = arith.addi %100, %101 : index
-              %103 = arith.addi %102, %95 : index
-              %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%103], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-              loom.copy %reinterpret_cast_5, %76 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%35, %64], LR : [%35, %64]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
-              %104 = arith.addi %32, %95 : index
-              %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%104], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-              loom.copy %reinterpret_cast_6, %79 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%35, %64], LR : [%35, %64]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-              %105 = loom.broadcast ins(%27 : memref<64xf16>) outs(%42 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              %106 = loom.broadcast ins(%79 : memref<64xf16>) outs(%81 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              loom.semaphore_give %79 : memref<64xf16>
-              %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%104], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-              loom.copy %reinterpret_cast_7, %78 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%35, %64], LR : [%35, %64]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-              %107 = loom.broadcast ins(%78 : memref<64xf16>) outs(%83 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              loom.semaphore_give %78 : memref<64xf16>
-              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%76, %105, %106, %107 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%76 : memref<64x64xf16>) {
-              ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
-                %115 = arith.subf %in_9, %in_10 : f16
-                %116 = math.exp %115 : f16
-                %117 = arith.mulf %in, %116 : f16
-                %118 = arith.mulf %117, %in_11 : f16
-                linalg.yield %118 : f16
-              }
-              loom.semaphore_give %83 : memref<32x64xf16>
-              loom.semaphore_give %81 : memref<32x64xf16>
-              loom.semaphore_give %42 : memref<64x32xf16>
-              %108 = arith.addi %95, %31 : index
-              %109 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-              %110 = arith.muli %108, %c4096 overflow<nsw> : index
-              %111 = arith.addi %109, %110 : index
-              %112 = arith.muli %21, %c512 : index
-              %113 = arith.addi %111, %112 : index
-              %114 = arith.addi %113, %53 : index
-              %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%114], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-              loom.copy %reinterpret_cast_8, %85 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%35, %64], LR : [%35, %64]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-              loom.matmul ins(%76, %85 : memref<64x64xf16>, memref<64x32xf16>) outs(%74 : memref<64x32xf16>)
-              loom.semaphore_give %85 : memref<64x32xf16>
-              loom.semaphore_give %76 : memref<64x64xf16>
-              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %74 : memref<64x32xf16>, memref<64x32xf16>) outs(%68 : memref<64x32xf16>) {
-              ^bb0(%in: f16, %in_9: f16, %out: f16):
-                %115 = arith.addf %in, %in_9 : f16
-                linalg.yield %115 : f16
-              }
-              loom.semaphore_give %74 : memref<64x32xf16>
-            } {loom.iter_type = #loom.iter_type<sequential>}
+            %28 = loom.semaphore_take %26 : memref<64xf16> -> memref<64xf16>
+            %29 = arith.muli %arg11, %c131072 overflow<nsw> : index
+            %30 = arith.muli %21, %c16384 : index
+            %31 = arith.addi %29, %30 : index
+            %32 = arith.muli %arg12, %c1024 : index
+            %33 = arith.addi %31, %32 : index
+            %34 = arith.addi %33, %25 : index
+            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%34], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+            %35 = arith.muli %arg12, %c2 : index
+            %36 = arith.addi %arg9, %35 : index
+            %37 = arith.muli %arg11, %c2 : index
+            %38 = arith.muli %arg8, %c4 : index
+            %39 = arith.addi %37, %38 : index
+            %40 = arith.addi %37, %c1 : index
+            %41 = arith.addi %40, %38 : index
+            loom.copy %reinterpret_cast, %27 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%36, %39], LR : [%36, %41]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+            loom.sync ins(%27 : memref<64xf16>) outs(%28 : memref<64xf16>)
             loom.semaphore_give %27 : memref<64xf16>
-            %86 = loom.alloc [1] on @L1 : memref<f16>
-            %87 = loom.semaphore_take %86 : memref<f16> -> memref<f16>
-            %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%24], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
-            %88 = arith.addi %37, %c3 : index
-            loom.copy %reinterpret_cast_2, %87 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [8, 4] region : (UL : [%c0, %37], LR : [%c7, %88]) : memref<f16, strided<[], offset: ?>> to memref<f16>
-            %89 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-            %90 = arith.muli %45, %c4096 overflow<nsw> : index
-            %91 = arith.addi %89, %90 : index
-            %92 = arith.muli %21, %c512 : index
-            %93 = arith.addi %91, %92 : index
-            %94 = arith.addi %93, %53 : index
-            %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%94], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %reinterpret_cast_3, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%35, %64], LR : [%35, %64]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %73, %87 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%73 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
-              %95 = arith.mulf %in_5, %in_6 : f16
-              %96 = arith.addf %in, %95 : f16
-              linalg.yield %96 : f16
+            %42 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %43 = loom.semaphore_take %42 : memref<64x32xf16> -> memref<64x32xf16>
+            %44 = loom.semaphore_take %42 : memref<64x32xf16> -> memref<64x32xf16>
+            %45 = loom.broadcast ins(%28 : memref<64xf16>) outs(%44 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
+            %46 = arith.addi %25, %32 : index
+            %47 = arith.divui %24, %c64 : index
+            %48 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+            %49 = loom.semaphore_take %48 : memref<64x64xf16> -> memref<64x64xf16>
+            %50 = loom.semaphore_take %48 : memref<64x64xf16> -> memref<64x64xf16>
+            %51 = arith.muli %46, %c64 overflow<nsw> : index
+            %52 = arith.addi %29, %51 : index
+            %53 = arith.muli %47, %c64 overflow<nsw> : index
+            %54 = arith.addi %52, %53 : index
+            %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%54], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
+            loom.copy %reinterpret_cast_0, %50 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%36, %39], LR : [%36, %41]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
+            loom.sync ins(%50 : memref<64x64xf16>) outs(%49 : memref<64x64xf16>)
+            loom.semaphore_give %50 : memref<64x64xf16>
+            %55 = arith.muli %arg10, %c32 : index
+            %56 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %57 = loom.semaphore_take %56 : memref<64x32xf16> -> memref<64x32xf16>
+            %58 = loom.semaphore_take %56 : memref<64x32xf16> -> memref<64x32xf16>
+            %59 = arith.muli %arg11, %c2097152 overflow<nsw> : index
+            %60 = arith.muli %arg12, %c1048576 : index
+            %61 = arith.addi %59, %60 : index
+            %62 = arith.muli %21, %c32768 : index
+            %63 = arith.addi %61, %62 : index
+            %64 = arith.addi %63, %55 : index
+            %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%64], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
+            %65 = arith.addi %35, %c1 : index
+            %66 = arith.addi %arg10, %37 : index
+            %67 = arith.addi %66, %38 : index
+            loom.copy %reinterpret_cast_1, %58 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%35, %67], LR : [%65, %67]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%58 : memref<64x32xf16>) outs(%57 : memref<64x32xf16>)
+            loom.semaphore_give %58 : memref<64x32xf16>
+            %68 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %69 = loom.semaphore_take %68 : memref<64x32xf16> -> memref<64x32xf16>
+            %70 = loom.semaphore_take %68 : memref<64x32xf16> -> memref<64x32xf16>
+            loom.matmul ins(%49, %57 : memref<64x64xf16>, memref<64x32xf16>) outs(%69 : memref<64x32xf16>)
+            loom.semaphore_give %57 : memref<64x32xf16>
+            loom.semaphore_give %49 : memref<64x64xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%69, %45 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%70 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_5: f16, %out: f16):
+              %104 = math.exp %in_5 : f16
+              %105 = arith.mulf %in, %104 : f16
+              linalg.yield %105 : f16
             }
-            loom.semaphore_give %87 : memref<f16>
-            loom.semaphore_give %68 : memref<64x32xf16>
-            loom.sync ins(%73 : memref<64x32xf16>) outs(%66 : memref<64x32xf16>)
-            loom.semaphore_give %73 : memref<64x32xf16>
-            %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%94], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %66, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%35, %64], LR : [%35, %64]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.semaphore_give %66 : memref<64x32xf16>
+            loom.semaphore_give %69 : memref<64x32xf16>
+            loom.semaphore_give %44 : memref<64x32xf16>
+            %71 = arith.addi %23, %c1 : index
+            %72 = arith.muli %71, %c64 : index
+            %73 = arith.ceildivui %72, %c64 : index
+            %74 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %75 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %76 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %77 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %78 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %79 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+            %80 = loom.semaphore_take %79 : memref<64x64xf16> -> memref<64x64xf16>
+            %81 = loom.semaphore_take %79 : memref<64x64xf16> -> memref<64x64xf16>
+            %82 = loom.alloc [64] on @L1 : memref<64xf16>
+            %83 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %84 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %85 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %86 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %87 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+            %88 = loom.semaphore_take %87 : memref<32x64xf16> -> memref<32x64xf16>
+            %89 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+            %90 = loom.semaphore_take %89 : memref<32x64xf16> -> memref<32x64xf16>
+            %91 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %92 = loom.semaphore_take %91 : memref<64x32xf16> -> memref<64x32xf16>
+            %93 = loom.semaphore_take %91 : memref<64x32xf16> -> memref<64x32xf16>
+            scf.for %arg15 = %c0 to %73 step %c1 {
+              %104 = arith.muli %arg15, %c64 : index
+              %105 = arith.muli %arg11, %c524288 overflow<nsw> : index
+              %106 = arith.muli %arg12, %c262144 : index
+              %107 = arith.addi %105, %106 : index
+              %108 = arith.muli %47, %c65536 overflow<nsw> : index
+              %109 = arith.addi %107, %108 : index
+              %110 = arith.muli %23, %c16384 : index
+              %111 = arith.addi %109, %110 : index
+              %112 = arith.addi %111, %104 : index
+              %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%112], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
+              loom.copy %reinterpret_cast_5, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%36, %67], LR : [%36, %67]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+              loom.sync ins(%81 : memref<64x64xf16>) outs(%80 : memref<64x64xf16>)
+              loom.semaphore_give %81 : memref<64x64xf16>
+              %113 = arith.addi %33, %104 : index
+              %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%113], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+              loom.copy %reinterpret_cast_6, %86 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%36, %67], LR : [%36, %67]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+              loom.sync ins(%86 : memref<64xf16>) outs(%85 : memref<64xf16>)
+              loom.semaphore_give %86 : memref<64xf16>
+              %114 = loom.broadcast ins(%28 : memref<64xf16>) outs(%43 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              %115 = loom.broadcast ins(%85 : memref<64xf16>) outs(%88 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              loom.semaphore_give %85 : memref<64xf16>
+              %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%113], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+              loom.copy %reinterpret_cast_7, %84 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%36, %67], LR : [%36, %67]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+              loom.sync ins(%84 : memref<64xf16>) outs(%83 : memref<64xf16>)
+              loom.semaphore_give %84 : memref<64xf16>
+              %116 = loom.broadcast ins(%83 : memref<64xf16>) outs(%90 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              loom.semaphore_give %83 : memref<64xf16>
+              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%80, %114, %115, %116 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%80 : memref<64x64xf16>) {
+              ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
+                %124 = arith.subf %in_9, %in_10 : f16
+                %125 = math.exp %124 : f16
+                %126 = arith.mulf %in, %125 : f16
+                %127 = arith.mulf %126, %in_11 : f16
+                linalg.yield %127 : f16
+              }
+              loom.semaphore_give %90 : memref<32x64xf16>
+              loom.semaphore_give %88 : memref<32x64xf16>
+              loom.semaphore_give %43 : memref<64x32xf16>
+              %117 = arith.addi %104, %32 : index
+              %118 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+              %119 = arith.muli %117, %c4096 overflow<nsw> : index
+              %120 = arith.addi %118, %119 : index
+              %121 = arith.muli %21, %c512 : index
+              %122 = arith.addi %120, %121 : index
+              %123 = arith.addi %122, %55 : index
+              %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%123], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+              loom.copy %reinterpret_cast_8, %93 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%36, %67], LR : [%36, %67]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+              loom.sync ins(%93 : memref<64x32xf16>) outs(%92 : memref<64x32xf16>)
+              loom.semaphore_give %93 : memref<64x32xf16>
+              loom.matmul ins(%80, %92 : memref<64x64xf16>, memref<64x32xf16>) outs(%78 : memref<64x32xf16>)
+              loom.semaphore_give %92 : memref<64x32xf16>
+              loom.semaphore_give %80 : memref<64x64xf16>
+              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%70, %78 : memref<64x32xf16>, memref<64x32xf16>) outs(%70 : memref<64x32xf16>) {
+              ^bb0(%in: f16, %in_9: f16, %out: f16):
+                %124 = arith.addf %in, %in_9 : f16
+                linalg.yield %124 : f16
+              }
+              loom.semaphore_give %78 : memref<64x32xf16>
+            } {loom.iter_type = #loom.iter_type<sequential>}
+            loom.semaphore_give %28 : memref<64xf16>
+            %94 = loom.alloc [1] on @L1 : memref<f16>
+            %95 = loom.semaphore_take %94 : memref<f16> -> memref<f16>
+            %96 = loom.semaphore_take %94 : memref<f16> -> memref<f16>
+            %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%24], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
+            %97 = arith.addi %38, %c3 : index
+            loom.copy %reinterpret_cast_2, %96 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [8, 4] region : (UL : [%c0, %38], LR : [%c7, %97]) : memref<f16, strided<[], offset: ?>> to memref<f16>
+            loom.sync ins(%96 : memref<f16>) outs(%95 : memref<f16>)
+            loom.semaphore_give %96 : memref<f16>
+            %98 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+            %99 = arith.muli %46, %c4096 overflow<nsw> : index
+            %100 = arith.addi %98, %99 : index
+            %101 = arith.muli %21, %c512 : index
+            %102 = arith.addi %100, %101 : index
+            %103 = arith.addi %102, %55 : index
+            %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%103], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_3, %77 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%36, %67], LR : [%36, %67]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%77 : memref<64x32xf16>) outs(%76 : memref<64x32xf16>)
+            loom.semaphore_give %77 : memref<64x32xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%70, %76, %95 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%76 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
+              %104 = arith.mulf %in_5, %in_6 : f16
+              %105 = arith.addf %in, %104 : f16
+              linalg.yield %105 : f16
+            }
+            loom.semaphore_give %95 : memref<f16>
+            loom.semaphore_give %70 : memref<64x32xf16>
+            loom.sync ins(%76 : memref<64x32xf16>) outs(%75 : memref<64x32xf16>)
+            loom.semaphore_give %76 : memref<64x32xf16>
+            %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%103], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %75, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%36, %67], LR : [%36, %67]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.semaphore_give %75 : memref<64x32xf16>
           } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
         } {loom.block_sym = @tile_h, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
@@ -440,160 +494,187 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           %23 = arith.muli %arg9, %c64 : index
           %24 = loom.alloc [64] on @L1 : memref<64xf16>
           %25 = loom.semaphore_take %24 : memref<64xf16> -> memref<64xf16>
-          %26 = arith.muli %arg11, %c131072 overflow<nsw> : index
-          %27 = arith.muli %21, %c16384 : index
-          %28 = arith.addi %26, %27 : index
-          %29 = arith.muli %arg12, %c1024 : index
-          %30 = arith.addi %28, %29 : index
-          %31 = arith.addi %30, %23 : index
-          %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-          %32 = arith.muli %arg11, %c4 : index
-          %33 = arith.addi %arg9, %32 : index
-          %34 = arith.muli %arg12, %c2 : index
-          %35 = arith.muli %arg8, %c4 : index
-          %36 = arith.addi %34, %35 : index
-          %37 = arith.addi %34, %c1 : index
-          %38 = arith.addi %37, %35 : index
-          loom.copy %reinterpret_cast, %25 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%33, %36], LR : [%33, %38]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-          %39 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-          %40 = loom.semaphore_take %39 : memref<64x32xf16> -> memref<64x32xf16>
-          %41 = loom.semaphore_take %39 : memref<64x32xf16> -> memref<64x32xf16>
-          %42 = loom.broadcast ins(%25 : memref<64xf16>) outs(%41 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
-          %43 = arith.addi %23, %29 : index
-          %44 = arith.divui %22, %c64 : index
-          %45 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-          %46 = loom.semaphore_take %45 : memref<64x64xf16> -> memref<64x64xf16>
-          %47 = arith.muli %43, %c64 overflow<nsw> : index
-          %48 = arith.addi %26, %47 : index
-          %49 = arith.muli %44, %c64 overflow<nsw> : index
-          %50 = arith.addi %48, %49 : index
-          %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%50], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
-          loom.copy %reinterpret_cast_0, %46 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%33, %36], LR : [%33, %38]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
-          %51 = arith.muli %arg10, %c32 : index
-          %52 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-          %53 = loom.semaphore_take %52 : memref<64x32xf16> -> memref<64x32xf16>
-          %54 = arith.muli %arg11, %c2097152 overflow<nsw> : index
-          %55 = arith.muli %arg12, %c1048576 : index
-          %56 = arith.addi %54, %55 : index
-          %57 = arith.muli %21, %c32768 : index
-          %58 = arith.addi %56, %57 : index
-          %59 = arith.addi %58, %51 : index
-          %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%59], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
-          %60 = arith.addi %32, %c3 : index
-          %61 = arith.addi %arg10, %34 : index
-          %62 = arith.addi %61, %35 : index
-          loom.copy %reinterpret_cast_1, %53 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 1] region : (UL : [%32, %62], LR : [%60, %62]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
-          %63 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-          %64 = loom.semaphore_take %63 : memref<64x32xf16> -> memref<64x32xf16>
-          %65 = loom.semaphore_take %63 : memref<64x32xf16> -> memref<64x32xf16>
-          %66 = loom.semaphore_take %63 : memref<64x32xf16> -> memref<64x32xf16>
-          loom.matmul ins(%46, %53 : memref<64x64xf16>, memref<64x32xf16>) outs(%65 : memref<64x32xf16>)
-          loom.semaphore_give %53 : memref<64x32xf16>
-          loom.semaphore_give %46 : memref<64x64xf16>
-          linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%65, %42 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%66 : memref<64x32xf16>) {
-          ^bb0(%in: f16, %in_5: f16, %out: f16):
-            %93 = math.exp %in_5 : f16
-            %94 = arith.mulf %in, %93 : f16
-            linalg.yield %94 : f16
-          }
-          loom.semaphore_give %65 : memref<64x32xf16>
-          loom.semaphore_give %41 : memref<64x32xf16>
-          %67 = arith.addi %arg9, %c1 : index
-          %68 = arith.muli %67, %c64 : index
-          %69 = arith.ceildivui %68, %c64 : index
-          %70 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-          %71 = loom.semaphore_take %70 : memref<64x32xf16> -> memref<64x32xf16>
-          %72 = loom.semaphore_take %70 : memref<64x32xf16> -> memref<64x32xf16>
-          %73 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-          %74 = loom.semaphore_take %73 : memref<64x64xf16> -> memref<64x64xf16>
-          %75 = loom.alloc [64] on @L1 : memref<64xf16>
-          %76 = loom.semaphore_take %75 : memref<64xf16> -> memref<64xf16>
-          %77 = loom.semaphore_take %75 : memref<64xf16> -> memref<64xf16>
-          %78 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-          %79 = loom.semaphore_take %78 : memref<32x64xf16> -> memref<32x64xf16>
-          %80 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-          %81 = loom.semaphore_take %80 : memref<32x64xf16> -> memref<32x64xf16>
-          %82 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-          %83 = loom.semaphore_take %82 : memref<64x32xf16> -> memref<64x32xf16>
-          scf.for %arg14 = %c0 to %69 step %c1 {
-            %93 = arith.muli %arg14, %c64 : index
-            %94 = arith.muli %arg11, %c524288 overflow<nsw> : index
-            %95 = arith.muli %arg12, %c262144 : index
-            %96 = arith.addi %94, %95 : index
-            %97 = arith.muli %44, %c65536 overflow<nsw> : index
-            %98 = arith.addi %96, %97 : index
-            %99 = arith.muli %arg9, %c16384 : index
-            %100 = arith.addi %98, %99 : index
-            %101 = arith.addi %100, %93 : index
-            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%101], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-            loom.copy %reinterpret_cast_5, %74 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%33, %62], LR : [%33, %62]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
-            %102 = arith.addi %30, %93 : index
-            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%102], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-            loom.copy %reinterpret_cast_6, %77 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%33, %62], LR : [%33, %62]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-            %103 = loom.broadcast ins(%25 : memref<64xf16>) outs(%40 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-            %104 = loom.broadcast ins(%77 : memref<64xf16>) outs(%79 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-            loom.semaphore_give %77 : memref<64xf16>
-            %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%102], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-            loom.copy %reinterpret_cast_7, %76 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%33, %62], LR : [%33, %62]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-            %105 = loom.broadcast ins(%76 : memref<64xf16>) outs(%81 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-            loom.semaphore_give %76 : memref<64xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%74, %103, %104, %105 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%74 : memref<64x64xf16>) {
-            ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
-              %113 = arith.subf %in_9, %in_10 : f16
-              %114 = math.exp %113 : f16
-              %115 = arith.mulf %in, %114 : f16
-              %116 = arith.mulf %115, %in_11 : f16
-              linalg.yield %116 : f16
-            }
-            loom.semaphore_give %81 : memref<32x64xf16>
-            loom.semaphore_give %79 : memref<32x64xf16>
-            loom.semaphore_give %40 : memref<64x32xf16>
-            %106 = arith.addi %93, %29 : index
-            %107 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-            %108 = arith.muli %106, %c4096 overflow<nsw> : index
-            %109 = arith.addi %107, %108 : index
-            %110 = arith.muli %21, %c512 : index
-            %111 = arith.addi %109, %110 : index
-            %112 = arith.addi %111, %51 : index
-            %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%112], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %reinterpret_cast_8, %83 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%33, %62], LR : [%33, %62]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-            loom.matmul ins(%74, %83 : memref<64x64xf16>, memref<64x32xf16>) outs(%72 : memref<64x32xf16>)
-            loom.semaphore_give %83 : memref<64x32xf16>
-            loom.semaphore_give %74 : memref<64x64xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%66, %72 : memref<64x32xf16>, memref<64x32xf16>) outs(%66 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_9: f16, %out: f16):
-              %113 = arith.addf %in, %in_9 : f16
-              linalg.yield %113 : f16
-            }
-            loom.semaphore_give %72 : memref<64x32xf16>
-          } {loom.iter_type = #loom.iter_type<sequential>}
+          %26 = loom.semaphore_take %24 : memref<64xf16> -> memref<64xf16>
+          %27 = arith.muli %arg11, %c131072 overflow<nsw> : index
+          %28 = arith.muli %21, %c16384 : index
+          %29 = arith.addi %27, %28 : index
+          %30 = arith.muli %arg12, %c1024 : index
+          %31 = arith.addi %29, %30 : index
+          %32 = arith.addi %31, %23 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%32], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+          %33 = arith.muli %arg11, %c4 : index
+          %34 = arith.addi %arg9, %33 : index
+          %35 = arith.muli %arg12, %c2 : index
+          %36 = arith.muli %arg8, %c4 : index
+          %37 = arith.addi %35, %36 : index
+          %38 = arith.addi %35, %c1 : index
+          %39 = arith.addi %38, %36 : index
+          loom.copy %reinterpret_cast, %25 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%34, %37], LR : [%34, %39]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+          loom.sync ins(%25 : memref<64xf16>) outs(%26 : memref<64xf16>)
           loom.semaphore_give %25 : memref<64xf16>
-          %84 = loom.alloc [1] on @L1 : memref<f16>
-          %85 = loom.semaphore_take %84 : memref<f16> -> memref<f16>
-          %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%22], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
-          %86 = arith.addi %35, %c3 : index
-          loom.copy %reinterpret_cast_2, %85 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [8, 4] region : (UL : [%c0, %35], LR : [%c7, %86]) : memref<f16, strided<[], offset: ?>> to memref<f16>
-          %87 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-          %88 = arith.muli %43, %c4096 overflow<nsw> : index
-          %89 = arith.addi %87, %88 : index
-          %90 = arith.muli %21, %c512 : index
-          %91 = arith.addi %89, %90 : index
-          %92 = arith.addi %91, %51 : index
-          %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%92], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-          loom.copy %reinterpret_cast_3, %71 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%33, %62], LR : [%33, %62]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-          linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%66, %71, %85 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%71 : memref<64x32xf16>) {
-          ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
-            %93 = arith.mulf %in_5, %in_6 : f16
-            %94 = arith.addf %in, %93 : f16
-            linalg.yield %94 : f16
+          %40 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+          %41 = loom.semaphore_take %40 : memref<64x32xf16> -> memref<64x32xf16>
+          %42 = loom.semaphore_take %40 : memref<64x32xf16> -> memref<64x32xf16>
+          %43 = loom.broadcast ins(%26 : memref<64xf16>) outs(%42 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
+          %44 = arith.addi %23, %30 : index
+          %45 = arith.divui %22, %c64 : index
+          %46 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+          %47 = loom.semaphore_take %46 : memref<64x64xf16> -> memref<64x64xf16>
+          %48 = loom.semaphore_take %46 : memref<64x64xf16> -> memref<64x64xf16>
+          %49 = arith.muli %44, %c64 overflow<nsw> : index
+          %50 = arith.addi %27, %49 : index
+          %51 = arith.muli %45, %c64 overflow<nsw> : index
+          %52 = arith.addi %50, %51 : index
+          %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%52], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
+          loom.copy %reinterpret_cast_0, %48 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%34, %37], LR : [%34, %39]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
+          loom.sync ins(%48 : memref<64x64xf16>) outs(%47 : memref<64x64xf16>)
+          loom.semaphore_give %48 : memref<64x64xf16>
+          %53 = arith.muli %arg10, %c32 : index
+          %54 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+          %55 = loom.semaphore_take %54 : memref<64x32xf16> -> memref<64x32xf16>
+          %56 = loom.semaphore_take %54 : memref<64x32xf16> -> memref<64x32xf16>
+          %57 = arith.muli %arg11, %c2097152 overflow<nsw> : index
+          %58 = arith.muli %arg12, %c1048576 : index
+          %59 = arith.addi %57, %58 : index
+          %60 = arith.muli %21, %c32768 : index
+          %61 = arith.addi %59, %60 : index
+          %62 = arith.addi %61, %53 : index
+          %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%62], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
+          %63 = arith.addi %33, %c3 : index
+          %64 = arith.addi %arg10, %35 : index
+          %65 = arith.addi %64, %36 : index
+          loom.copy %reinterpret_cast_1, %56 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 1] region : (UL : [%33, %65], LR : [%63, %65]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
+          loom.sync ins(%56 : memref<64x32xf16>) outs(%55 : memref<64x32xf16>)
+          loom.semaphore_give %56 : memref<64x32xf16>
+          %66 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+          %67 = loom.semaphore_take %66 : memref<64x32xf16> -> memref<64x32xf16>
+          %68 = loom.semaphore_take %66 : memref<64x32xf16> -> memref<64x32xf16>
+          loom.matmul ins(%47, %55 : memref<64x64xf16>, memref<64x32xf16>) outs(%67 : memref<64x32xf16>)
+          loom.semaphore_give %55 : memref<64x32xf16>
+          loom.semaphore_give %47 : memref<64x64xf16>
+          linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%67, %43 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%68 : memref<64x32xf16>) {
+          ^bb0(%in: f16, %in_5: f16, %out: f16):
+            %102 = math.exp %in_5 : f16
+            %103 = arith.mulf %in, %102 : f16
+            linalg.yield %103 : f16
           }
-          loom.semaphore_give %85 : memref<f16>
-          loom.semaphore_give %66 : memref<64x32xf16>
-          loom.sync ins(%71 : memref<64x32xf16>) outs(%64 : memref<64x32xf16>)
-          loom.semaphore_give %71 : memref<64x32xf16>
-          %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%92], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-          loom.copy %64, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%33, %62], LR : [%33, %62]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-          loom.semaphore_give %64 : memref<64x32xf16>
+          loom.semaphore_give %67 : memref<64x32xf16>
+          loom.semaphore_give %42 : memref<64x32xf16>
+          %69 = arith.addi %arg9, %c1 : index
+          %70 = arith.muli %69, %c64 : index
+          %71 = arith.ceildivui %70, %c64 : index
+          %72 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+          %73 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
+          %74 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
+          %75 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
+          %76 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
+          %77 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+          %78 = loom.semaphore_take %77 : memref<64x64xf16> -> memref<64x64xf16>
+          %79 = loom.semaphore_take %77 : memref<64x64xf16> -> memref<64x64xf16>
+          %80 = loom.alloc [64] on @L1 : memref<64xf16>
+          %81 = loom.semaphore_take %80 : memref<64xf16> -> memref<64xf16>
+          %82 = loom.semaphore_take %80 : memref<64xf16> -> memref<64xf16>
+          %83 = loom.semaphore_take %80 : memref<64xf16> -> memref<64xf16>
+          %84 = loom.semaphore_take %80 : memref<64xf16> -> memref<64xf16>
+          %85 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+          %86 = loom.semaphore_take %85 : memref<32x64xf16> -> memref<32x64xf16>
+          %87 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+          %88 = loom.semaphore_take %87 : memref<32x64xf16> -> memref<32x64xf16>
+          %89 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+          %90 = loom.semaphore_take %89 : memref<64x32xf16> -> memref<64x32xf16>
+          %91 = loom.semaphore_take %89 : memref<64x32xf16> -> memref<64x32xf16>
+          scf.for %arg14 = %c0 to %71 step %c1 {
+            %102 = arith.muli %arg14, %c64 : index
+            %103 = arith.muli %arg11, %c524288 overflow<nsw> : index
+            %104 = arith.muli %arg12, %c262144 : index
+            %105 = arith.addi %103, %104 : index
+            %106 = arith.muli %45, %c65536 overflow<nsw> : index
+            %107 = arith.addi %105, %106 : index
+            %108 = arith.muli %arg9, %c16384 : index
+            %109 = arith.addi %107, %108 : index
+            %110 = arith.addi %109, %102 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%110], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %79 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%34, %65], LR : [%34, %65]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+            loom.sync ins(%79 : memref<64x64xf16>) outs(%78 : memref<64x64xf16>)
+            loom.semaphore_give %79 : memref<64x64xf16>
+            %111 = arith.addi %31, %102 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%111], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %84 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%34, %65], LR : [%34, %65]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+            loom.sync ins(%84 : memref<64xf16>) outs(%83 : memref<64xf16>)
+            loom.semaphore_give %84 : memref<64xf16>
+            %112 = loom.broadcast ins(%26 : memref<64xf16>) outs(%41 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+            %113 = loom.broadcast ins(%83 : memref<64xf16>) outs(%86 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+            loom.semaphore_give %83 : memref<64xf16>
+            %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%111], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+            loom.copy %reinterpret_cast_7, %82 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%34, %65], LR : [%34, %65]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+            loom.sync ins(%82 : memref<64xf16>) outs(%81 : memref<64xf16>)
+            loom.semaphore_give %82 : memref<64xf16>
+            %114 = loom.broadcast ins(%81 : memref<64xf16>) outs(%88 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+            loom.semaphore_give %81 : memref<64xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%78, %112, %113, %114 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%78 : memref<64x64xf16>) {
+            ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
+              %122 = arith.subf %in_9, %in_10 : f16
+              %123 = math.exp %122 : f16
+              %124 = arith.mulf %in, %123 : f16
+              %125 = arith.mulf %124, %in_11 : f16
+              linalg.yield %125 : f16
+            }
+            loom.semaphore_give %88 : memref<32x64xf16>
+            loom.semaphore_give %86 : memref<32x64xf16>
+            loom.semaphore_give %41 : memref<64x32xf16>
+            %115 = arith.addi %102, %30 : index
+            %116 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+            %117 = arith.muli %115, %c4096 overflow<nsw> : index
+            %118 = arith.addi %116, %117 : index
+            %119 = arith.muli %21, %c512 : index
+            %120 = arith.addi %118, %119 : index
+            %121 = arith.addi %120, %53 : index
+            %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%121], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_8, %91 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%34, %65], LR : [%34, %65]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%91 : memref<64x32xf16>) outs(%90 : memref<64x32xf16>)
+            loom.semaphore_give %91 : memref<64x32xf16>
+            loom.matmul ins(%78, %90 : memref<64x64xf16>, memref<64x32xf16>) outs(%76 : memref<64x32xf16>)
+            loom.semaphore_give %90 : memref<64x32xf16>
+            loom.semaphore_give %78 : memref<64x64xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %76 : memref<64x32xf16>, memref<64x32xf16>) outs(%68 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_9: f16, %out: f16):
+              %122 = arith.addf %in, %in_9 : f16
+              linalg.yield %122 : f16
+            }
+            loom.semaphore_give %76 : memref<64x32xf16>
+          } {loom.iter_type = #loom.iter_type<sequential>}
+          loom.semaphore_give %26 : memref<64xf16>
+          %92 = loom.alloc [1] on @L1 : memref<f16>
+          %93 = loom.semaphore_take %92 : memref<f16> -> memref<f16>
+          %94 = loom.semaphore_take %92 : memref<f16> -> memref<f16>
+          %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%22], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
+          %95 = arith.addi %36, %c3 : index
+          loom.copy %reinterpret_cast_2, %94 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [8, 4] region : (UL : [%c0, %36], LR : [%c7, %95]) : memref<f16, strided<[], offset: ?>> to memref<f16>
+          loom.sync ins(%94 : memref<f16>) outs(%93 : memref<f16>)
+          loom.semaphore_give %94 : memref<f16>
+          %96 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+          %97 = arith.muli %44, %c4096 overflow<nsw> : index
+          %98 = arith.addi %96, %97 : index
+          %99 = arith.muli %21, %c512 : index
+          %100 = arith.addi %98, %99 : index
+          %101 = arith.addi %100, %53 : index
+          %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%101], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+          loom.copy %reinterpret_cast_3, %75 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%34, %65], LR : [%34, %65]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+          loom.sync ins(%75 : memref<64x32xf16>) outs(%74 : memref<64x32xf16>)
+          loom.semaphore_give %75 : memref<64x32xf16>
+          linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %74, %93 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%74 : memref<64x32xf16>) {
+          ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
+            %102 = arith.mulf %in_5, %in_6 : f16
+            %103 = arith.addf %in, %102 : f16
+            linalg.yield %103 : f16
+          }
+          loom.semaphore_give %93 : memref<f16>
+          loom.semaphore_give %68 : memref<64x32xf16>
+          loom.sync ins(%74 : memref<64x32xf16>) outs(%73 : memref<64x32xf16>)
+          loom.semaphore_give %74 : memref<64x32xf16>
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%101], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+          loom.copy %73, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%34, %65], LR : [%34, %65]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+          loom.semaphore_give %73 : memref<64x32xf16>
         } {loom.block_sym = @tile_h, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
       } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [2, 0, 0, 1, 1], loom.physical_dims = [@dim_y, @dim_x, @dim_y, @dim_x, @dim_y]}
@@ -631,160 +712,187 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           %23 = arith.muli %arg9, %c64 : index
           %24 = loom.alloc [64] on @L1 : memref<64xf16>
           %25 = loom.semaphore_take %24 : memref<64xf16> -> memref<64xf16>
-          %26 = arith.muli %arg11, %c131072 overflow<nsw> : index
-          %27 = arith.muli %21, %c16384 : index
-          %28 = arith.addi %26, %27 : index
-          %29 = arith.muli %arg12, %c1024 : index
-          %30 = arith.addi %28, %29 : index
-          %31 = arith.addi %30, %23 : index
-          %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%31], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-          %32 = arith.muli %arg12, %c4 : index
-          %33 = arith.addi %arg9, %32 : index
-          %34 = arith.muli %arg11, %c2 : index
-          %35 = arith.muli %arg8, %c4 : index
-          %36 = arith.addi %34, %35 : index
-          %37 = arith.addi %34, %c1 : index
-          %38 = arith.addi %37, %35 : index
-          loom.copy %reinterpret_cast, %25 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%33, %36], LR : [%33, %38]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-          %39 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-          %40 = loom.semaphore_take %39 : memref<64x32xf16> -> memref<64x32xf16>
-          %41 = loom.semaphore_take %39 : memref<64x32xf16> -> memref<64x32xf16>
-          %42 = loom.broadcast ins(%25 : memref<64xf16>) outs(%41 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
-          %43 = arith.addi %23, %29 : index
-          %44 = arith.divui %22, %c64 : index
-          %45 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-          %46 = loom.semaphore_take %45 : memref<64x64xf16> -> memref<64x64xf16>
-          %47 = arith.muli %43, %c64 overflow<nsw> : index
-          %48 = arith.addi %26, %47 : index
-          %49 = arith.muli %44, %c64 overflow<nsw> : index
-          %50 = arith.addi %48, %49 : index
-          %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%50], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
-          loom.copy %reinterpret_cast_0, %46 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%33, %36], LR : [%33, %38]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
-          %51 = arith.muli %arg10, %c32 : index
-          %52 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-          %53 = loom.semaphore_take %52 : memref<64x32xf16> -> memref<64x32xf16>
-          %54 = arith.muli %arg11, %c2097152 overflow<nsw> : index
-          %55 = arith.muli %arg12, %c1048576 : index
-          %56 = arith.addi %54, %55 : index
-          %57 = arith.muli %21, %c32768 : index
-          %58 = arith.addi %56, %57 : index
-          %59 = arith.addi %58, %51 : index
-          %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%59], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
-          %60 = arith.addi %32, %c3 : index
-          %61 = arith.addi %arg10, %34 : index
-          %62 = arith.addi %61, %35 : index
-          loom.copy %reinterpret_cast_1, %53 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 1] region : (UL : [%32, %62], LR : [%60, %62]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
-          %63 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-          %64 = loom.semaphore_take %63 : memref<64x32xf16> -> memref<64x32xf16>
-          %65 = loom.semaphore_take %63 : memref<64x32xf16> -> memref<64x32xf16>
-          %66 = loom.semaphore_take %63 : memref<64x32xf16> -> memref<64x32xf16>
-          loom.matmul ins(%46, %53 : memref<64x64xf16>, memref<64x32xf16>) outs(%65 : memref<64x32xf16>)
-          loom.semaphore_give %53 : memref<64x32xf16>
-          loom.semaphore_give %46 : memref<64x64xf16>
-          linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%65, %42 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%66 : memref<64x32xf16>) {
-          ^bb0(%in: f16, %in_5: f16, %out: f16):
-            %93 = math.exp %in_5 : f16
-            %94 = arith.mulf %in, %93 : f16
-            linalg.yield %94 : f16
-          }
-          loom.semaphore_give %65 : memref<64x32xf16>
-          loom.semaphore_give %41 : memref<64x32xf16>
-          %67 = arith.addi %arg9, %c1 : index
-          %68 = arith.muli %67, %c64 : index
-          %69 = arith.ceildivui %68, %c64 : index
-          %70 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-          %71 = loom.semaphore_take %70 : memref<64x32xf16> -> memref<64x32xf16>
-          %72 = loom.semaphore_take %70 : memref<64x32xf16> -> memref<64x32xf16>
-          %73 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-          %74 = loom.semaphore_take %73 : memref<64x64xf16> -> memref<64x64xf16>
-          %75 = loom.alloc [64] on @L1 : memref<64xf16>
-          %76 = loom.semaphore_take %75 : memref<64xf16> -> memref<64xf16>
-          %77 = loom.semaphore_take %75 : memref<64xf16> -> memref<64xf16>
-          %78 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-          %79 = loom.semaphore_take %78 : memref<32x64xf16> -> memref<32x64xf16>
-          %80 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-          %81 = loom.semaphore_take %80 : memref<32x64xf16> -> memref<32x64xf16>
-          %82 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-          %83 = loom.semaphore_take %82 : memref<64x32xf16> -> memref<64x32xf16>
-          scf.for %arg14 = %c0 to %69 step %c1 {
-            %93 = arith.muli %arg14, %c64 : index
-            %94 = arith.muli %arg11, %c524288 overflow<nsw> : index
-            %95 = arith.muli %arg12, %c262144 : index
-            %96 = arith.addi %94, %95 : index
-            %97 = arith.muli %44, %c65536 overflow<nsw> : index
-            %98 = arith.addi %96, %97 : index
-            %99 = arith.muli %arg9, %c16384 : index
-            %100 = arith.addi %98, %99 : index
-            %101 = arith.addi %100, %93 : index
-            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%101], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-            loom.copy %reinterpret_cast_5, %74 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%33, %62], LR : [%33, %62]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
-            %102 = arith.addi %30, %93 : index
-            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%102], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-            loom.copy %reinterpret_cast_6, %77 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%33, %62], LR : [%33, %62]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-            %103 = loom.broadcast ins(%25 : memref<64xf16>) outs(%40 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-            %104 = loom.broadcast ins(%77 : memref<64xf16>) outs(%79 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-            loom.semaphore_give %77 : memref<64xf16>
-            %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%102], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-            loom.copy %reinterpret_cast_7, %76 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%33, %62], LR : [%33, %62]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-            %105 = loom.broadcast ins(%76 : memref<64xf16>) outs(%81 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-            loom.semaphore_give %76 : memref<64xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%74, %103, %104, %105 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%74 : memref<64x64xf16>) {
-            ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
-              %113 = arith.subf %in_9, %in_10 : f16
-              %114 = math.exp %113 : f16
-              %115 = arith.mulf %in, %114 : f16
-              %116 = arith.mulf %115, %in_11 : f16
-              linalg.yield %116 : f16
-            }
-            loom.semaphore_give %81 : memref<32x64xf16>
-            loom.semaphore_give %79 : memref<32x64xf16>
-            loom.semaphore_give %40 : memref<64x32xf16>
-            %106 = arith.addi %93, %29 : index
-            %107 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-            %108 = arith.muli %106, %c4096 overflow<nsw> : index
-            %109 = arith.addi %107, %108 : index
-            %110 = arith.muli %21, %c512 : index
-            %111 = arith.addi %109, %110 : index
-            %112 = arith.addi %111, %51 : index
-            %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%112], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %reinterpret_cast_8, %83 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%33, %62], LR : [%33, %62]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-            loom.matmul ins(%74, %83 : memref<64x64xf16>, memref<64x32xf16>) outs(%72 : memref<64x32xf16>)
-            loom.semaphore_give %83 : memref<64x32xf16>
-            loom.semaphore_give %74 : memref<64x64xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%66, %72 : memref<64x32xf16>, memref<64x32xf16>) outs(%66 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_9: f16, %out: f16):
-              %113 = arith.addf %in, %in_9 : f16
-              linalg.yield %113 : f16
-            }
-            loom.semaphore_give %72 : memref<64x32xf16>
-          } {loom.iter_type = #loom.iter_type<sequential>}
+          %26 = loom.semaphore_take %24 : memref<64xf16> -> memref<64xf16>
+          %27 = arith.muli %arg11, %c131072 overflow<nsw> : index
+          %28 = arith.muli %21, %c16384 : index
+          %29 = arith.addi %27, %28 : index
+          %30 = arith.muli %arg12, %c1024 : index
+          %31 = arith.addi %29, %30 : index
+          %32 = arith.addi %31, %23 : index
+          %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%32], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+          %33 = arith.muli %arg12, %c4 : index
+          %34 = arith.addi %arg9, %33 : index
+          %35 = arith.muli %arg11, %c2 : index
+          %36 = arith.muli %arg8, %c4 : index
+          %37 = arith.addi %35, %36 : index
+          %38 = arith.addi %35, %c1 : index
+          %39 = arith.addi %38, %36 : index
+          loom.copy %reinterpret_cast, %25 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%34, %37], LR : [%34, %39]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+          loom.sync ins(%25 : memref<64xf16>) outs(%26 : memref<64xf16>)
           loom.semaphore_give %25 : memref<64xf16>
-          %84 = loom.alloc [1] on @L1 : memref<f16>
-          %85 = loom.semaphore_take %84 : memref<f16> -> memref<f16>
-          %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%22], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
-          %86 = arith.addi %35, %c3 : index
-          loom.copy %reinterpret_cast_2, %85 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [8, 4] region : (UL : [%c0, %35], LR : [%c7, %86]) : memref<f16, strided<[], offset: ?>> to memref<f16>
-          %87 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-          %88 = arith.muli %43, %c4096 overflow<nsw> : index
-          %89 = arith.addi %87, %88 : index
-          %90 = arith.muli %21, %c512 : index
-          %91 = arith.addi %89, %90 : index
-          %92 = arith.addi %91, %51 : index
-          %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%92], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-          loom.copy %reinterpret_cast_3, %71 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%33, %62], LR : [%33, %62]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-          linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%66, %71, %85 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%71 : memref<64x32xf16>) {
-          ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
-            %93 = arith.mulf %in_5, %in_6 : f16
-            %94 = arith.addf %in, %93 : f16
-            linalg.yield %94 : f16
+          %40 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+          %41 = loom.semaphore_take %40 : memref<64x32xf16> -> memref<64x32xf16>
+          %42 = loom.semaphore_take %40 : memref<64x32xf16> -> memref<64x32xf16>
+          %43 = loom.broadcast ins(%26 : memref<64xf16>) outs(%42 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
+          %44 = arith.addi %23, %30 : index
+          %45 = arith.divui %22, %c64 : index
+          %46 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+          %47 = loom.semaphore_take %46 : memref<64x64xf16> -> memref<64x64xf16>
+          %48 = loom.semaphore_take %46 : memref<64x64xf16> -> memref<64x64xf16>
+          %49 = arith.muli %44, %c64 overflow<nsw> : index
+          %50 = arith.addi %27, %49 : index
+          %51 = arith.muli %45, %c64 overflow<nsw> : index
+          %52 = arith.addi %50, %51 : index
+          %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%52], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
+          loom.copy %reinterpret_cast_0, %48 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%34, %37], LR : [%34, %39]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
+          loom.sync ins(%48 : memref<64x64xf16>) outs(%47 : memref<64x64xf16>)
+          loom.semaphore_give %48 : memref<64x64xf16>
+          %53 = arith.muli %arg10, %c32 : index
+          %54 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+          %55 = loom.semaphore_take %54 : memref<64x32xf16> -> memref<64x32xf16>
+          %56 = loom.semaphore_take %54 : memref<64x32xf16> -> memref<64x32xf16>
+          %57 = arith.muli %arg11, %c2097152 overflow<nsw> : index
+          %58 = arith.muli %arg12, %c1048576 : index
+          %59 = arith.addi %57, %58 : index
+          %60 = arith.muli %21, %c32768 : index
+          %61 = arith.addi %59, %60 : index
+          %62 = arith.addi %61, %53 : index
+          %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%62], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
+          %63 = arith.addi %33, %c3 : index
+          %64 = arith.addi %arg10, %35 : index
+          %65 = arith.addi %64, %36 : index
+          loom.copy %reinterpret_cast_1, %56 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 1] region : (UL : [%33, %65], LR : [%63, %65]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
+          loom.sync ins(%56 : memref<64x32xf16>) outs(%55 : memref<64x32xf16>)
+          loom.semaphore_give %56 : memref<64x32xf16>
+          %66 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+          %67 = loom.semaphore_take %66 : memref<64x32xf16> -> memref<64x32xf16>
+          %68 = loom.semaphore_take %66 : memref<64x32xf16> -> memref<64x32xf16>
+          loom.matmul ins(%47, %55 : memref<64x64xf16>, memref<64x32xf16>) outs(%67 : memref<64x32xf16>)
+          loom.semaphore_give %55 : memref<64x32xf16>
+          loom.semaphore_give %47 : memref<64x64xf16>
+          linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%67, %43 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%68 : memref<64x32xf16>) {
+          ^bb0(%in: f16, %in_5: f16, %out: f16):
+            %102 = math.exp %in_5 : f16
+            %103 = arith.mulf %in, %102 : f16
+            linalg.yield %103 : f16
           }
-          loom.semaphore_give %85 : memref<f16>
-          loom.semaphore_give %66 : memref<64x32xf16>
-          loom.sync ins(%71 : memref<64x32xf16>) outs(%64 : memref<64x32xf16>)
-          loom.semaphore_give %71 : memref<64x32xf16>
-          %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%92], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-          loom.copy %64, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%33, %62], LR : [%33, %62]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-          loom.semaphore_give %64 : memref<64x32xf16>
+          loom.semaphore_give %67 : memref<64x32xf16>
+          loom.semaphore_give %42 : memref<64x32xf16>
+          %69 = arith.addi %arg9, %c1 : index
+          %70 = arith.muli %69, %c64 : index
+          %71 = arith.ceildivui %70, %c64 : index
+          %72 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+          %73 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
+          %74 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
+          %75 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
+          %76 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
+          %77 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+          %78 = loom.semaphore_take %77 : memref<64x64xf16> -> memref<64x64xf16>
+          %79 = loom.semaphore_take %77 : memref<64x64xf16> -> memref<64x64xf16>
+          %80 = loom.alloc [64] on @L1 : memref<64xf16>
+          %81 = loom.semaphore_take %80 : memref<64xf16> -> memref<64xf16>
+          %82 = loom.semaphore_take %80 : memref<64xf16> -> memref<64xf16>
+          %83 = loom.semaphore_take %80 : memref<64xf16> -> memref<64xf16>
+          %84 = loom.semaphore_take %80 : memref<64xf16> -> memref<64xf16>
+          %85 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+          %86 = loom.semaphore_take %85 : memref<32x64xf16> -> memref<32x64xf16>
+          %87 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+          %88 = loom.semaphore_take %87 : memref<32x64xf16> -> memref<32x64xf16>
+          %89 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+          %90 = loom.semaphore_take %89 : memref<64x32xf16> -> memref<64x32xf16>
+          %91 = loom.semaphore_take %89 : memref<64x32xf16> -> memref<64x32xf16>
+          scf.for %arg14 = %c0 to %71 step %c1 {
+            %102 = arith.muli %arg14, %c64 : index
+            %103 = arith.muli %arg11, %c524288 overflow<nsw> : index
+            %104 = arith.muli %arg12, %c262144 : index
+            %105 = arith.addi %103, %104 : index
+            %106 = arith.muli %45, %c65536 overflow<nsw> : index
+            %107 = arith.addi %105, %106 : index
+            %108 = arith.muli %arg9, %c16384 : index
+            %109 = arith.addi %107, %108 : index
+            %110 = arith.addi %109, %102 : index
+            %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%110], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
+            loom.copy %reinterpret_cast_5, %79 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%34, %65], LR : [%34, %65]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+            loom.sync ins(%79 : memref<64x64xf16>) outs(%78 : memref<64x64xf16>)
+            loom.semaphore_give %79 : memref<64x64xf16>
+            %111 = arith.addi %31, %102 : index
+            %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%111], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+            loom.copy %reinterpret_cast_6, %84 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%34, %65], LR : [%34, %65]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+            loom.sync ins(%84 : memref<64xf16>) outs(%83 : memref<64xf16>)
+            loom.semaphore_give %84 : memref<64xf16>
+            %112 = loom.broadcast ins(%26 : memref<64xf16>) outs(%41 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+            %113 = loom.broadcast ins(%83 : memref<64xf16>) outs(%86 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+            loom.semaphore_give %83 : memref<64xf16>
+            %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%111], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+            loom.copy %reinterpret_cast_7, %82 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%34, %65], LR : [%34, %65]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+            loom.sync ins(%82 : memref<64xf16>) outs(%81 : memref<64xf16>)
+            loom.semaphore_give %82 : memref<64xf16>
+            %114 = loom.broadcast ins(%81 : memref<64xf16>) outs(%88 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+            loom.semaphore_give %81 : memref<64xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%78, %112, %113, %114 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%78 : memref<64x64xf16>) {
+            ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
+              %122 = arith.subf %in_9, %in_10 : f16
+              %123 = math.exp %122 : f16
+              %124 = arith.mulf %in, %123 : f16
+              %125 = arith.mulf %124, %in_11 : f16
+              linalg.yield %125 : f16
+            }
+            loom.semaphore_give %88 : memref<32x64xf16>
+            loom.semaphore_give %86 : memref<32x64xf16>
+            loom.semaphore_give %41 : memref<64x32xf16>
+            %115 = arith.addi %102, %30 : index
+            %116 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+            %117 = arith.muli %115, %c4096 overflow<nsw> : index
+            %118 = arith.addi %116, %117 : index
+            %119 = arith.muli %21, %c512 : index
+            %120 = arith.addi %118, %119 : index
+            %121 = arith.addi %120, %53 : index
+            %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%121], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_8, %91 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%34, %65], LR : [%34, %65]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%91 : memref<64x32xf16>) outs(%90 : memref<64x32xf16>)
+            loom.semaphore_give %91 : memref<64x32xf16>
+            loom.matmul ins(%78, %90 : memref<64x64xf16>, memref<64x32xf16>) outs(%76 : memref<64x32xf16>)
+            loom.semaphore_give %90 : memref<64x32xf16>
+            loom.semaphore_give %78 : memref<64x64xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %76 : memref<64x32xf16>, memref<64x32xf16>) outs(%68 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_9: f16, %out: f16):
+              %122 = arith.addf %in, %in_9 : f16
+              linalg.yield %122 : f16
+            }
+            loom.semaphore_give %76 : memref<64x32xf16>
+          } {loom.iter_type = #loom.iter_type<sequential>}
+          loom.semaphore_give %26 : memref<64xf16>
+          %92 = loom.alloc [1] on @L1 : memref<f16>
+          %93 = loom.semaphore_take %92 : memref<f16> -> memref<f16>
+          %94 = loom.semaphore_take %92 : memref<f16> -> memref<f16>
+          %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%22], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
+          %95 = arith.addi %36, %c3 : index
+          loom.copy %reinterpret_cast_2, %94 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [8, 4] region : (UL : [%c0, %36], LR : [%c7, %95]) : memref<f16, strided<[], offset: ?>> to memref<f16>
+          loom.sync ins(%94 : memref<f16>) outs(%93 : memref<f16>)
+          loom.semaphore_give %94 : memref<f16>
+          %96 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+          %97 = arith.muli %44, %c4096 overflow<nsw> : index
+          %98 = arith.addi %96, %97 : index
+          %99 = arith.muli %21, %c512 : index
+          %100 = arith.addi %98, %99 : index
+          %101 = arith.addi %100, %53 : index
+          %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%101], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+          loom.copy %reinterpret_cast_3, %75 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%34, %65], LR : [%34, %65]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+          loom.sync ins(%75 : memref<64x32xf16>) outs(%74 : memref<64x32xf16>)
+          loom.semaphore_give %75 : memref<64x32xf16>
+          linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %74, %93 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%74 : memref<64x32xf16>) {
+          ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
+            %102 = arith.mulf %in_5, %in_6 : f16
+            %103 = arith.addf %in, %102 : f16
+            linalg.yield %103 : f16
+          }
+          loom.semaphore_give %93 : memref<f16>
+          loom.semaphore_give %68 : memref<64x32xf16>
+          loom.sync ins(%74 : memref<64x32xf16>) outs(%73 : memref<64x32xf16>)
+          loom.semaphore_give %74 : memref<64x32xf16>
+          %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%101], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+          loom.copy %73, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%34, %65], LR : [%34, %65]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+          loom.semaphore_give %73 : memref<64x32xf16>
         } {loom.block_sym = @tile_h, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
       } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [2, 0, 0, 1, 1], loom.physical_dims = [@dim_y, @dim_x, @dim_y, @dim_y, @dim_x]}
@@ -825,160 +933,187 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
             %25 = arith.muli %23, %c64 : index
             %26 = loom.alloc [64] on @L1 : memref<64xf16>
             %27 = loom.semaphore_take %26 : memref<64xf16> -> memref<64xf16>
-            %28 = arith.muli %arg11, %c131072 overflow<nsw> : index
-            %29 = arith.muli %21, %c16384 : index
-            %30 = arith.addi %28, %29 : index
-            %31 = arith.muli %arg12, %c1024 : index
-            %32 = arith.addi %30, %31 : index
-            %33 = arith.addi %32, %25 : index
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%33], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-            %34 = arith.muli %arg11, %c2 : index
-            %35 = arith.addi %arg9, %34 : index
-            %36 = arith.muli %arg8, %c4 : index
-            %37 = arith.addi %35, %36 : index
-            %38 = arith.muli %arg12, %c2 : index
-            %39 = arith.addi %38, %c1 : index
-            loom.copy %reinterpret_cast, %27 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%37, %38], LR : [%37, %39]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-            %40 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %41 = loom.semaphore_take %40 : memref<64x32xf16> -> memref<64x32xf16>
-            %42 = loom.semaphore_take %40 : memref<64x32xf16> -> memref<64x32xf16>
-            %43 = loom.broadcast ins(%27 : memref<64xf16>) outs(%42 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
-            %44 = arith.addi %25, %31 : index
-            %45 = arith.divui %24, %c64 : index
-            %46 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-            %47 = loom.semaphore_take %46 : memref<64x64xf16> -> memref<64x64xf16>
-            %48 = arith.muli %44, %c64 overflow<nsw> : index
-            %49 = arith.addi %28, %48 : index
-            %50 = arith.muli %45, %c64 overflow<nsw> : index
-            %51 = arith.addi %49, %50 : index
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%51], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
-            loom.copy %reinterpret_cast_0, %47 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%37, %38], LR : [%37, %39]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
-            %52 = arith.muli %arg10, %c32 : index
-            %53 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %54 = loom.semaphore_take %53 : memref<64x32xf16> -> memref<64x32xf16>
-            %55 = arith.muli %arg11, %c2097152 overflow<nsw> : index
-            %56 = arith.muli %arg12, %c1048576 : index
-            %57 = arith.addi %55, %56 : index
-            %58 = arith.muli %21, %c32768 : index
-            %59 = arith.addi %57, %58 : index
-            %60 = arith.addi %59, %52 : index
-            %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%60], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
-            %61 = arith.addi %34, %36 : index
-            %62 = arith.addi %34, %c1 : index
-            %63 = arith.addi %62, %36 : index
-            %64 = arith.addi %arg10, %38 : index
-            loom.copy %reinterpret_cast_1, %54 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%61, %64], LR : [%63, %64]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
-            %65 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %66 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            %67 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            %68 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            loom.matmul ins(%47, %54 : memref<64x64xf16>, memref<64x32xf16>) outs(%67 : memref<64x32xf16>)
-            loom.semaphore_give %54 : memref<64x32xf16>
-            loom.semaphore_give %47 : memref<64x64xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%67, %43 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%68 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_5: f16, %out: f16):
-              %95 = math.exp %in_5 : f16
-              %96 = arith.mulf %in, %95 : f16
-              linalg.yield %96 : f16
-            }
-            loom.semaphore_give %67 : memref<64x32xf16>
-            loom.semaphore_give %42 : memref<64x32xf16>
-            %69 = arith.addi %23, %c1 : index
-            %70 = arith.muli %69, %c64 : index
-            %71 = arith.ceildivui %70, %c64 : index
-            %72 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %73 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
-            %74 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
-            %75 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-            %76 = loom.semaphore_take %75 : memref<64x64xf16> -> memref<64x64xf16>
-            %77 = loom.alloc [64] on @L1 : memref<64xf16>
-            %78 = loom.semaphore_take %77 : memref<64xf16> -> memref<64xf16>
-            %79 = loom.semaphore_take %77 : memref<64xf16> -> memref<64xf16>
-            %80 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-            %81 = loom.semaphore_take %80 : memref<32x64xf16> -> memref<32x64xf16>
-            %82 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-            %83 = loom.semaphore_take %82 : memref<32x64xf16> -> memref<32x64xf16>
-            %84 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %85 = loom.semaphore_take %84 : memref<64x32xf16> -> memref<64x32xf16>
-            scf.for %arg15 = %c0 to %71 step %c1 {
-              %95 = arith.muli %arg15, %c64 : index
-              %96 = arith.muli %arg11, %c524288 overflow<nsw> : index
-              %97 = arith.muli %arg12, %c262144 : index
-              %98 = arith.addi %96, %97 : index
-              %99 = arith.muli %45, %c65536 overflow<nsw> : index
-              %100 = arith.addi %98, %99 : index
-              %101 = arith.muli %23, %c16384 : index
-              %102 = arith.addi %100, %101 : index
-              %103 = arith.addi %102, %95 : index
-              %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%103], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-              loom.copy %reinterpret_cast_5, %76 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
-              %104 = arith.addi %32, %95 : index
-              %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%104], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-              loom.copy %reinterpret_cast_6, %79 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-              %105 = loom.broadcast ins(%27 : memref<64xf16>) outs(%41 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              %106 = loom.broadcast ins(%79 : memref<64xf16>) outs(%81 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              loom.semaphore_give %79 : memref<64xf16>
-              %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%104], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-              loom.copy %reinterpret_cast_7, %78 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-              %107 = loom.broadcast ins(%78 : memref<64xf16>) outs(%83 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              loom.semaphore_give %78 : memref<64xf16>
-              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%76, %105, %106, %107 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%76 : memref<64x64xf16>) {
-              ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
-                %115 = arith.subf %in_9, %in_10 : f16
-                %116 = math.exp %115 : f16
-                %117 = arith.mulf %in, %116 : f16
-                %118 = arith.mulf %117, %in_11 : f16
-                linalg.yield %118 : f16
-              }
-              loom.semaphore_give %83 : memref<32x64xf16>
-              loom.semaphore_give %81 : memref<32x64xf16>
-              loom.semaphore_give %41 : memref<64x32xf16>
-              %108 = arith.addi %95, %31 : index
-              %109 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-              %110 = arith.muli %108, %c4096 overflow<nsw> : index
-              %111 = arith.addi %109, %110 : index
-              %112 = arith.muli %21, %c512 : index
-              %113 = arith.addi %111, %112 : index
-              %114 = arith.addi %113, %52 : index
-              %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%114], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-              loom.copy %reinterpret_cast_8, %85 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-              loom.matmul ins(%76, %85 : memref<64x64xf16>, memref<64x32xf16>) outs(%74 : memref<64x32xf16>)
-              loom.semaphore_give %85 : memref<64x32xf16>
-              loom.semaphore_give %76 : memref<64x64xf16>
-              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %74 : memref<64x32xf16>, memref<64x32xf16>) outs(%68 : memref<64x32xf16>) {
-              ^bb0(%in: f16, %in_9: f16, %out: f16):
-                %115 = arith.addf %in, %in_9 : f16
-                linalg.yield %115 : f16
-              }
-              loom.semaphore_give %74 : memref<64x32xf16>
-            } {loom.iter_type = #loom.iter_type<sequential>}
+            %28 = loom.semaphore_take %26 : memref<64xf16> -> memref<64xf16>
+            %29 = arith.muli %arg11, %c131072 overflow<nsw> : index
+            %30 = arith.muli %21, %c16384 : index
+            %31 = arith.addi %29, %30 : index
+            %32 = arith.muli %arg12, %c1024 : index
+            %33 = arith.addi %31, %32 : index
+            %34 = arith.addi %33, %25 : index
+            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%34], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+            %35 = arith.muli %arg11, %c2 : index
+            %36 = arith.addi %arg9, %35 : index
+            %37 = arith.muli %arg8, %c4 : index
+            %38 = arith.addi %36, %37 : index
+            %39 = arith.muli %arg12, %c2 : index
+            %40 = arith.addi %39, %c1 : index
+            loom.copy %reinterpret_cast, %27 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%38, %39], LR : [%38, %40]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+            loom.sync ins(%27 : memref<64xf16>) outs(%28 : memref<64xf16>)
             loom.semaphore_give %27 : memref<64xf16>
-            %86 = loom.alloc [1] on @L1 : memref<f16>
-            %87 = loom.semaphore_take %86 : memref<f16> -> memref<f16>
-            %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%24], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
-            %88 = arith.addi %36, %c3 : index
-            loom.copy %reinterpret_cast_2, %87 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 8] region : (UL : [%36, %c0], LR : [%88, %c7]) : memref<f16, strided<[], offset: ?>> to memref<f16>
-            %89 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-            %90 = arith.muli %44, %c4096 overflow<nsw> : index
-            %91 = arith.addi %89, %90 : index
-            %92 = arith.muli %21, %c512 : index
-            %93 = arith.addi %91, %92 : index
-            %94 = arith.addi %93, %52 : index
-            %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%94], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %reinterpret_cast_3, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %73, %87 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%73 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
-              %95 = arith.mulf %in_5, %in_6 : f16
-              %96 = arith.addf %in, %95 : f16
-              linalg.yield %96 : f16
+            %41 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %42 = loom.semaphore_take %41 : memref<64x32xf16> -> memref<64x32xf16>
+            %43 = loom.semaphore_take %41 : memref<64x32xf16> -> memref<64x32xf16>
+            %44 = loom.broadcast ins(%28 : memref<64xf16>) outs(%43 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
+            %45 = arith.addi %25, %32 : index
+            %46 = arith.divui %24, %c64 : index
+            %47 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+            %48 = loom.semaphore_take %47 : memref<64x64xf16> -> memref<64x64xf16>
+            %49 = loom.semaphore_take %47 : memref<64x64xf16> -> memref<64x64xf16>
+            %50 = arith.muli %45, %c64 overflow<nsw> : index
+            %51 = arith.addi %29, %50 : index
+            %52 = arith.muli %46, %c64 overflow<nsw> : index
+            %53 = arith.addi %51, %52 : index
+            %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%53], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
+            loom.copy %reinterpret_cast_0, %49 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%38, %39], LR : [%38, %40]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
+            loom.sync ins(%49 : memref<64x64xf16>) outs(%48 : memref<64x64xf16>)
+            loom.semaphore_give %49 : memref<64x64xf16>
+            %54 = arith.muli %arg10, %c32 : index
+            %55 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %56 = loom.semaphore_take %55 : memref<64x32xf16> -> memref<64x32xf16>
+            %57 = loom.semaphore_take %55 : memref<64x32xf16> -> memref<64x32xf16>
+            %58 = arith.muli %arg11, %c2097152 overflow<nsw> : index
+            %59 = arith.muli %arg12, %c1048576 : index
+            %60 = arith.addi %58, %59 : index
+            %61 = arith.muli %21, %c32768 : index
+            %62 = arith.addi %60, %61 : index
+            %63 = arith.addi %62, %54 : index
+            %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%63], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
+            %64 = arith.addi %35, %37 : index
+            %65 = arith.addi %35, %c1 : index
+            %66 = arith.addi %65, %37 : index
+            %67 = arith.addi %arg10, %39 : index
+            loom.copy %reinterpret_cast_1, %57 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%64, %67], LR : [%66, %67]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%57 : memref<64x32xf16>) outs(%56 : memref<64x32xf16>)
+            loom.semaphore_give %57 : memref<64x32xf16>
+            %68 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %69 = loom.semaphore_take %68 : memref<64x32xf16> -> memref<64x32xf16>
+            %70 = loom.semaphore_take %68 : memref<64x32xf16> -> memref<64x32xf16>
+            loom.matmul ins(%48, %56 : memref<64x64xf16>, memref<64x32xf16>) outs(%69 : memref<64x32xf16>)
+            loom.semaphore_give %56 : memref<64x32xf16>
+            loom.semaphore_give %48 : memref<64x64xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%69, %44 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%70 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_5: f16, %out: f16):
+              %104 = math.exp %in_5 : f16
+              %105 = arith.mulf %in, %104 : f16
+              linalg.yield %105 : f16
             }
-            loom.semaphore_give %87 : memref<f16>
-            loom.semaphore_give %68 : memref<64x32xf16>
-            loom.sync ins(%73 : memref<64x32xf16>) outs(%66 : memref<64x32xf16>)
-            loom.semaphore_give %73 : memref<64x32xf16>
-            %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%94], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %66, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.semaphore_give %66 : memref<64x32xf16>
+            loom.semaphore_give %69 : memref<64x32xf16>
+            loom.semaphore_give %43 : memref<64x32xf16>
+            %71 = arith.addi %23, %c1 : index
+            %72 = arith.muli %71, %c64 : index
+            %73 = arith.ceildivui %72, %c64 : index
+            %74 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %75 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %76 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %77 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %78 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %79 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+            %80 = loom.semaphore_take %79 : memref<64x64xf16> -> memref<64x64xf16>
+            %81 = loom.semaphore_take %79 : memref<64x64xf16> -> memref<64x64xf16>
+            %82 = loom.alloc [64] on @L1 : memref<64xf16>
+            %83 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %84 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %85 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %86 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %87 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+            %88 = loom.semaphore_take %87 : memref<32x64xf16> -> memref<32x64xf16>
+            %89 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+            %90 = loom.semaphore_take %89 : memref<32x64xf16> -> memref<32x64xf16>
+            %91 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %92 = loom.semaphore_take %91 : memref<64x32xf16> -> memref<64x32xf16>
+            %93 = loom.semaphore_take %91 : memref<64x32xf16> -> memref<64x32xf16>
+            scf.for %arg15 = %c0 to %73 step %c1 {
+              %104 = arith.muli %arg15, %c64 : index
+              %105 = arith.muli %arg11, %c524288 overflow<nsw> : index
+              %106 = arith.muli %arg12, %c262144 : index
+              %107 = arith.addi %105, %106 : index
+              %108 = arith.muli %46, %c65536 overflow<nsw> : index
+              %109 = arith.addi %107, %108 : index
+              %110 = arith.muli %23, %c16384 : index
+              %111 = arith.addi %109, %110 : index
+              %112 = arith.addi %111, %104 : index
+              %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%112], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
+              loom.copy %reinterpret_cast_5, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+              loom.sync ins(%81 : memref<64x64xf16>) outs(%80 : memref<64x64xf16>)
+              loom.semaphore_give %81 : memref<64x64xf16>
+              %113 = arith.addi %33, %104 : index
+              %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%113], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+              loom.copy %reinterpret_cast_6, %86 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+              loom.sync ins(%86 : memref<64xf16>) outs(%85 : memref<64xf16>)
+              loom.semaphore_give %86 : memref<64xf16>
+              %114 = loom.broadcast ins(%28 : memref<64xf16>) outs(%42 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              %115 = loom.broadcast ins(%85 : memref<64xf16>) outs(%88 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              loom.semaphore_give %85 : memref<64xf16>
+              %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%113], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+              loom.copy %reinterpret_cast_7, %84 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+              loom.sync ins(%84 : memref<64xf16>) outs(%83 : memref<64xf16>)
+              loom.semaphore_give %84 : memref<64xf16>
+              %116 = loom.broadcast ins(%83 : memref<64xf16>) outs(%90 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              loom.semaphore_give %83 : memref<64xf16>
+              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%80, %114, %115, %116 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%80 : memref<64x64xf16>) {
+              ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
+                %124 = arith.subf %in_9, %in_10 : f16
+                %125 = math.exp %124 : f16
+                %126 = arith.mulf %in, %125 : f16
+                %127 = arith.mulf %126, %in_11 : f16
+                linalg.yield %127 : f16
+              }
+              loom.semaphore_give %90 : memref<32x64xf16>
+              loom.semaphore_give %88 : memref<32x64xf16>
+              loom.semaphore_give %42 : memref<64x32xf16>
+              %117 = arith.addi %104, %32 : index
+              %118 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+              %119 = arith.muli %117, %c4096 overflow<nsw> : index
+              %120 = arith.addi %118, %119 : index
+              %121 = arith.muli %21, %c512 : index
+              %122 = arith.addi %120, %121 : index
+              %123 = arith.addi %122, %54 : index
+              %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%123], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+              loom.copy %reinterpret_cast_8, %93 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+              loom.sync ins(%93 : memref<64x32xf16>) outs(%92 : memref<64x32xf16>)
+              loom.semaphore_give %93 : memref<64x32xf16>
+              loom.matmul ins(%80, %92 : memref<64x64xf16>, memref<64x32xf16>) outs(%78 : memref<64x32xf16>)
+              loom.semaphore_give %92 : memref<64x32xf16>
+              loom.semaphore_give %80 : memref<64x64xf16>
+              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%70, %78 : memref<64x32xf16>, memref<64x32xf16>) outs(%70 : memref<64x32xf16>) {
+              ^bb0(%in: f16, %in_9: f16, %out: f16):
+                %124 = arith.addf %in, %in_9 : f16
+                linalg.yield %124 : f16
+              }
+              loom.semaphore_give %78 : memref<64x32xf16>
+            } {loom.iter_type = #loom.iter_type<sequential>}
+            loom.semaphore_give %28 : memref<64xf16>
+            %94 = loom.alloc [1] on @L1 : memref<f16>
+            %95 = loom.semaphore_take %94 : memref<f16> -> memref<f16>
+            %96 = loom.semaphore_take %94 : memref<f16> -> memref<f16>
+            %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%24], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
+            %97 = arith.addi %37, %c3 : index
+            loom.copy %reinterpret_cast_2, %96 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 8] region : (UL : [%37, %c0], LR : [%97, %c7]) : memref<f16, strided<[], offset: ?>> to memref<f16>
+            loom.sync ins(%96 : memref<f16>) outs(%95 : memref<f16>)
+            loom.semaphore_give %96 : memref<f16>
+            %98 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+            %99 = arith.muli %45, %c4096 overflow<nsw> : index
+            %100 = arith.addi %98, %99 : index
+            %101 = arith.muli %21, %c512 : index
+            %102 = arith.addi %100, %101 : index
+            %103 = arith.addi %102, %54 : index
+            %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%103], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_3, %77 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%77 : memref<64x32xf16>) outs(%76 : memref<64x32xf16>)
+            loom.semaphore_give %77 : memref<64x32xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%70, %76, %95 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%76 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
+              %104 = arith.mulf %in_5, %in_6 : f16
+              %105 = arith.addf %in, %104 : f16
+              linalg.yield %105 : f16
+            }
+            loom.semaphore_give %95 : memref<f16>
+            loom.semaphore_give %70 : memref<64x32xf16>
+            loom.sync ins(%76 : memref<64x32xf16>) outs(%75 : memref<64x32xf16>)
+            loom.semaphore_give %76 : memref<64x32xf16>
+            %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%103], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %75, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.semaphore_give %75 : memref<64x32xf16>
           } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
         } {loom.block_sym = @tile_h, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
@@ -1020,160 +1155,187 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
             %25 = arith.muli %23, %c64 : index
             %26 = loom.alloc [64] on @L1 : memref<64xf16>
             %27 = loom.semaphore_take %26 : memref<64xf16> -> memref<64xf16>
-            %28 = arith.muli %arg11, %c131072 overflow<nsw> : index
-            %29 = arith.muli %21, %c16384 : index
-            %30 = arith.addi %28, %29 : index
-            %31 = arith.muli %arg12, %c1024 : index
-            %32 = arith.addi %30, %31 : index
-            %33 = arith.addi %32, %25 : index
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%33], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-            %34 = arith.muli %arg12, %c2 : index
-            %35 = arith.addi %arg9, %34 : index
-            %36 = arith.muli %arg8, %c4 : index
-            %37 = arith.addi %35, %36 : index
-            %38 = arith.muli %arg11, %c2 : index
-            %39 = arith.addi %38, %c1 : index
-            loom.copy %reinterpret_cast, %27 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%37, %38], LR : [%37, %39]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-            %40 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %41 = loom.semaphore_take %40 : memref<64x32xf16> -> memref<64x32xf16>
-            %42 = loom.semaphore_take %40 : memref<64x32xf16> -> memref<64x32xf16>
-            %43 = loom.broadcast ins(%27 : memref<64xf16>) outs(%42 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
-            %44 = arith.addi %25, %31 : index
-            %45 = arith.divui %24, %c64 : index
-            %46 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-            %47 = loom.semaphore_take %46 : memref<64x64xf16> -> memref<64x64xf16>
-            %48 = arith.muli %44, %c64 overflow<nsw> : index
-            %49 = arith.addi %28, %48 : index
-            %50 = arith.muli %45, %c64 overflow<nsw> : index
-            %51 = arith.addi %49, %50 : index
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%51], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
-            loom.copy %reinterpret_cast_0, %47 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%37, %38], LR : [%37, %39]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
-            %52 = arith.muli %arg10, %c32 : index
-            %53 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %54 = loom.semaphore_take %53 : memref<64x32xf16> -> memref<64x32xf16>
-            %55 = arith.muli %arg11, %c2097152 overflow<nsw> : index
-            %56 = arith.muli %arg12, %c1048576 : index
-            %57 = arith.addi %55, %56 : index
-            %58 = arith.muli %21, %c32768 : index
-            %59 = arith.addi %57, %58 : index
-            %60 = arith.addi %59, %52 : index
-            %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%60], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
-            %61 = arith.addi %34, %36 : index
-            %62 = arith.addi %34, %c1 : index
-            %63 = arith.addi %62, %36 : index
-            %64 = arith.addi %arg10, %38 : index
-            loom.copy %reinterpret_cast_1, %54 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%61, %64], LR : [%63, %64]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
-            %65 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %66 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            %67 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            %68 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            loom.matmul ins(%47, %54 : memref<64x64xf16>, memref<64x32xf16>) outs(%67 : memref<64x32xf16>)
-            loom.semaphore_give %54 : memref<64x32xf16>
-            loom.semaphore_give %47 : memref<64x64xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%67, %43 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%68 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_5: f16, %out: f16):
-              %95 = math.exp %in_5 : f16
-              %96 = arith.mulf %in, %95 : f16
-              linalg.yield %96 : f16
-            }
-            loom.semaphore_give %67 : memref<64x32xf16>
-            loom.semaphore_give %42 : memref<64x32xf16>
-            %69 = arith.addi %23, %c1 : index
-            %70 = arith.muli %69, %c64 : index
-            %71 = arith.ceildivui %70, %c64 : index
-            %72 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %73 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
-            %74 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
-            %75 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-            %76 = loom.semaphore_take %75 : memref<64x64xf16> -> memref<64x64xf16>
-            %77 = loom.alloc [64] on @L1 : memref<64xf16>
-            %78 = loom.semaphore_take %77 : memref<64xf16> -> memref<64xf16>
-            %79 = loom.semaphore_take %77 : memref<64xf16> -> memref<64xf16>
-            %80 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-            %81 = loom.semaphore_take %80 : memref<32x64xf16> -> memref<32x64xf16>
-            %82 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-            %83 = loom.semaphore_take %82 : memref<32x64xf16> -> memref<32x64xf16>
-            %84 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %85 = loom.semaphore_take %84 : memref<64x32xf16> -> memref<64x32xf16>
-            scf.for %arg15 = %c0 to %71 step %c1 {
-              %95 = arith.muli %arg15, %c64 : index
-              %96 = arith.muli %arg11, %c524288 overflow<nsw> : index
-              %97 = arith.muli %arg12, %c262144 : index
-              %98 = arith.addi %96, %97 : index
-              %99 = arith.muli %45, %c65536 overflow<nsw> : index
-              %100 = arith.addi %98, %99 : index
-              %101 = arith.muli %23, %c16384 : index
-              %102 = arith.addi %100, %101 : index
-              %103 = arith.addi %102, %95 : index
-              %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%103], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-              loom.copy %reinterpret_cast_5, %76 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
-              %104 = arith.addi %32, %95 : index
-              %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%104], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-              loom.copy %reinterpret_cast_6, %79 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-              %105 = loom.broadcast ins(%27 : memref<64xf16>) outs(%41 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              %106 = loom.broadcast ins(%79 : memref<64xf16>) outs(%81 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              loom.semaphore_give %79 : memref<64xf16>
-              %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%104], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-              loom.copy %reinterpret_cast_7, %78 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-              %107 = loom.broadcast ins(%78 : memref<64xf16>) outs(%83 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              loom.semaphore_give %78 : memref<64xf16>
-              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%76, %105, %106, %107 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%76 : memref<64x64xf16>) {
-              ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
-                %115 = arith.subf %in_9, %in_10 : f16
-                %116 = math.exp %115 : f16
-                %117 = arith.mulf %in, %116 : f16
-                %118 = arith.mulf %117, %in_11 : f16
-                linalg.yield %118 : f16
-              }
-              loom.semaphore_give %83 : memref<32x64xf16>
-              loom.semaphore_give %81 : memref<32x64xf16>
-              loom.semaphore_give %41 : memref<64x32xf16>
-              %108 = arith.addi %95, %31 : index
-              %109 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-              %110 = arith.muli %108, %c4096 overflow<nsw> : index
-              %111 = arith.addi %109, %110 : index
-              %112 = arith.muli %21, %c512 : index
-              %113 = arith.addi %111, %112 : index
-              %114 = arith.addi %113, %52 : index
-              %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%114], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-              loom.copy %reinterpret_cast_8, %85 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-              loom.matmul ins(%76, %85 : memref<64x64xf16>, memref<64x32xf16>) outs(%74 : memref<64x32xf16>)
-              loom.semaphore_give %85 : memref<64x32xf16>
-              loom.semaphore_give %76 : memref<64x64xf16>
-              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %74 : memref<64x32xf16>, memref<64x32xf16>) outs(%68 : memref<64x32xf16>) {
-              ^bb0(%in: f16, %in_9: f16, %out: f16):
-                %115 = arith.addf %in, %in_9 : f16
-                linalg.yield %115 : f16
-              }
-              loom.semaphore_give %74 : memref<64x32xf16>
-            } {loom.iter_type = #loom.iter_type<sequential>}
+            %28 = loom.semaphore_take %26 : memref<64xf16> -> memref<64xf16>
+            %29 = arith.muli %arg11, %c131072 overflow<nsw> : index
+            %30 = arith.muli %21, %c16384 : index
+            %31 = arith.addi %29, %30 : index
+            %32 = arith.muli %arg12, %c1024 : index
+            %33 = arith.addi %31, %32 : index
+            %34 = arith.addi %33, %25 : index
+            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%34], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+            %35 = arith.muli %arg12, %c2 : index
+            %36 = arith.addi %arg9, %35 : index
+            %37 = arith.muli %arg8, %c4 : index
+            %38 = arith.addi %36, %37 : index
+            %39 = arith.muli %arg11, %c2 : index
+            %40 = arith.addi %39, %c1 : index
+            loom.copy %reinterpret_cast, %27 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%38, %39], LR : [%38, %40]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+            loom.sync ins(%27 : memref<64xf16>) outs(%28 : memref<64xf16>)
             loom.semaphore_give %27 : memref<64xf16>
-            %86 = loom.alloc [1] on @L1 : memref<f16>
-            %87 = loom.semaphore_take %86 : memref<f16> -> memref<f16>
-            %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%24], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
-            %88 = arith.addi %36, %c3 : index
-            loom.copy %reinterpret_cast_2, %87 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 8] region : (UL : [%36, %c0], LR : [%88, %c7]) : memref<f16, strided<[], offset: ?>> to memref<f16>
-            %89 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-            %90 = arith.muli %44, %c4096 overflow<nsw> : index
-            %91 = arith.addi %89, %90 : index
-            %92 = arith.muli %21, %c512 : index
-            %93 = arith.addi %91, %92 : index
-            %94 = arith.addi %93, %52 : index
-            %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%94], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %reinterpret_cast_3, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %73, %87 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%73 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
-              %95 = arith.mulf %in_5, %in_6 : f16
-              %96 = arith.addf %in, %95 : f16
-              linalg.yield %96 : f16
+            %41 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %42 = loom.semaphore_take %41 : memref<64x32xf16> -> memref<64x32xf16>
+            %43 = loom.semaphore_take %41 : memref<64x32xf16> -> memref<64x32xf16>
+            %44 = loom.broadcast ins(%28 : memref<64xf16>) outs(%43 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
+            %45 = arith.addi %25, %32 : index
+            %46 = arith.divui %24, %c64 : index
+            %47 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+            %48 = loom.semaphore_take %47 : memref<64x64xf16> -> memref<64x64xf16>
+            %49 = loom.semaphore_take %47 : memref<64x64xf16> -> memref<64x64xf16>
+            %50 = arith.muli %45, %c64 overflow<nsw> : index
+            %51 = arith.addi %29, %50 : index
+            %52 = arith.muli %46, %c64 overflow<nsw> : index
+            %53 = arith.addi %51, %52 : index
+            %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%53], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
+            loom.copy %reinterpret_cast_0, %49 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 2] region : (UL : [%38, %39], LR : [%38, %40]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
+            loom.sync ins(%49 : memref<64x64xf16>) outs(%48 : memref<64x64xf16>)
+            loom.semaphore_give %49 : memref<64x64xf16>
+            %54 = arith.muli %arg10, %c32 : index
+            %55 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %56 = loom.semaphore_take %55 : memref<64x32xf16> -> memref<64x32xf16>
+            %57 = loom.semaphore_take %55 : memref<64x32xf16> -> memref<64x32xf16>
+            %58 = arith.muli %arg11, %c2097152 overflow<nsw> : index
+            %59 = arith.muli %arg12, %c1048576 : index
+            %60 = arith.addi %58, %59 : index
+            %61 = arith.muli %21, %c32768 : index
+            %62 = arith.addi %60, %61 : index
+            %63 = arith.addi %62, %54 : index
+            %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%63], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
+            %64 = arith.addi %35, %37 : index
+            %65 = arith.addi %35, %c1 : index
+            %66 = arith.addi %65, %37 : index
+            %67 = arith.addi %arg10, %39 : index
+            loom.copy %reinterpret_cast_1, %57 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%64, %67], LR : [%66, %67]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%57 : memref<64x32xf16>) outs(%56 : memref<64x32xf16>)
+            loom.semaphore_give %57 : memref<64x32xf16>
+            %68 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %69 = loom.semaphore_take %68 : memref<64x32xf16> -> memref<64x32xf16>
+            %70 = loom.semaphore_take %68 : memref<64x32xf16> -> memref<64x32xf16>
+            loom.matmul ins(%48, %56 : memref<64x64xf16>, memref<64x32xf16>) outs(%69 : memref<64x32xf16>)
+            loom.semaphore_give %56 : memref<64x32xf16>
+            loom.semaphore_give %48 : memref<64x64xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%69, %44 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%70 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_5: f16, %out: f16):
+              %104 = math.exp %in_5 : f16
+              %105 = arith.mulf %in, %104 : f16
+              linalg.yield %105 : f16
             }
-            loom.semaphore_give %87 : memref<f16>
-            loom.semaphore_give %68 : memref<64x32xf16>
-            loom.sync ins(%73 : memref<64x32xf16>) outs(%66 : memref<64x32xf16>)
-            loom.semaphore_give %73 : memref<64x32xf16>
-            %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%94], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %66, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.semaphore_give %66 : memref<64x32xf16>
+            loom.semaphore_give %69 : memref<64x32xf16>
+            loom.semaphore_give %43 : memref<64x32xf16>
+            %71 = arith.addi %23, %c1 : index
+            %72 = arith.muli %71, %c64 : index
+            %73 = arith.ceildivui %72, %c64 : index
+            %74 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %75 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %76 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %77 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %78 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %79 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+            %80 = loom.semaphore_take %79 : memref<64x64xf16> -> memref<64x64xf16>
+            %81 = loom.semaphore_take %79 : memref<64x64xf16> -> memref<64x64xf16>
+            %82 = loom.alloc [64] on @L1 : memref<64xf16>
+            %83 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %84 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %85 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %86 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %87 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+            %88 = loom.semaphore_take %87 : memref<32x64xf16> -> memref<32x64xf16>
+            %89 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+            %90 = loom.semaphore_take %89 : memref<32x64xf16> -> memref<32x64xf16>
+            %91 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %92 = loom.semaphore_take %91 : memref<64x32xf16> -> memref<64x32xf16>
+            %93 = loom.semaphore_take %91 : memref<64x32xf16> -> memref<64x32xf16>
+            scf.for %arg15 = %c0 to %73 step %c1 {
+              %104 = arith.muli %arg15, %c64 : index
+              %105 = arith.muli %arg11, %c524288 overflow<nsw> : index
+              %106 = arith.muli %arg12, %c262144 : index
+              %107 = arith.addi %105, %106 : index
+              %108 = arith.muli %46, %c65536 overflow<nsw> : index
+              %109 = arith.addi %107, %108 : index
+              %110 = arith.muli %23, %c16384 : index
+              %111 = arith.addi %109, %110 : index
+              %112 = arith.addi %111, %104 : index
+              %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%112], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
+              loom.copy %reinterpret_cast_5, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+              loom.sync ins(%81 : memref<64x64xf16>) outs(%80 : memref<64x64xf16>)
+              loom.semaphore_give %81 : memref<64x64xf16>
+              %113 = arith.addi %33, %104 : index
+              %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%113], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+              loom.copy %reinterpret_cast_6, %86 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+              loom.sync ins(%86 : memref<64xf16>) outs(%85 : memref<64xf16>)
+              loom.semaphore_give %86 : memref<64xf16>
+              %114 = loom.broadcast ins(%28 : memref<64xf16>) outs(%42 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              %115 = loom.broadcast ins(%85 : memref<64xf16>) outs(%88 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              loom.semaphore_give %85 : memref<64xf16>
+              %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%113], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+              loom.copy %reinterpret_cast_7, %84 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+              loom.sync ins(%84 : memref<64xf16>) outs(%83 : memref<64xf16>)
+              loom.semaphore_give %84 : memref<64xf16>
+              %116 = loom.broadcast ins(%83 : memref<64xf16>) outs(%90 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              loom.semaphore_give %83 : memref<64xf16>
+              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%80, %114, %115, %116 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%80 : memref<64x64xf16>) {
+              ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
+                %124 = arith.subf %in_9, %in_10 : f16
+                %125 = math.exp %124 : f16
+                %126 = arith.mulf %in, %125 : f16
+                %127 = arith.mulf %126, %in_11 : f16
+                linalg.yield %127 : f16
+              }
+              loom.semaphore_give %90 : memref<32x64xf16>
+              loom.semaphore_give %88 : memref<32x64xf16>
+              loom.semaphore_give %42 : memref<64x32xf16>
+              %117 = arith.addi %104, %32 : index
+              %118 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+              %119 = arith.muli %117, %c4096 overflow<nsw> : index
+              %120 = arith.addi %118, %119 : index
+              %121 = arith.muli %21, %c512 : index
+              %122 = arith.addi %120, %121 : index
+              %123 = arith.addi %122, %54 : index
+              %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%123], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+              loom.copy %reinterpret_cast_8, %93 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+              loom.sync ins(%93 : memref<64x32xf16>) outs(%92 : memref<64x32xf16>)
+              loom.semaphore_give %93 : memref<64x32xf16>
+              loom.matmul ins(%80, %92 : memref<64x64xf16>, memref<64x32xf16>) outs(%78 : memref<64x32xf16>)
+              loom.semaphore_give %92 : memref<64x32xf16>
+              loom.semaphore_give %80 : memref<64x64xf16>
+              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%70, %78 : memref<64x32xf16>, memref<64x32xf16>) outs(%70 : memref<64x32xf16>) {
+              ^bb0(%in: f16, %in_9: f16, %out: f16):
+                %124 = arith.addf %in, %in_9 : f16
+                linalg.yield %124 : f16
+              }
+              loom.semaphore_give %78 : memref<64x32xf16>
+            } {loom.iter_type = #loom.iter_type<sequential>}
+            loom.semaphore_give %28 : memref<64xf16>
+            %94 = loom.alloc [1] on @L1 : memref<f16>
+            %95 = loom.semaphore_take %94 : memref<f16> -> memref<f16>
+            %96 = loom.semaphore_take %94 : memref<f16> -> memref<f16>
+            %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%24], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
+            %97 = arith.addi %37, %c3 : index
+            loom.copy %reinterpret_cast_2, %96 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 8] region : (UL : [%37, %c0], LR : [%97, %c7]) : memref<f16, strided<[], offset: ?>> to memref<f16>
+            loom.sync ins(%96 : memref<f16>) outs(%95 : memref<f16>)
+            loom.semaphore_give %96 : memref<f16>
+            %98 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+            %99 = arith.muli %45, %c4096 overflow<nsw> : index
+            %100 = arith.addi %98, %99 : index
+            %101 = arith.muli %21, %c512 : index
+            %102 = arith.addi %100, %101 : index
+            %103 = arith.addi %102, %54 : index
+            %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%103], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_3, %77 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%77 : memref<64x32xf16>) outs(%76 : memref<64x32xf16>)
+            loom.semaphore_give %77 : memref<64x32xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%70, %76, %95 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%76 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
+              %104 = arith.mulf %in_5, %in_6 : f16
+              %105 = arith.addf %in, %104 : f16
+              linalg.yield %105 : f16
+            }
+            loom.semaphore_give %95 : memref<f16>
+            loom.semaphore_give %70 : memref<64x32xf16>
+            loom.sync ins(%76 : memref<64x32xf16>) outs(%75 : memref<64x32xf16>)
+            loom.semaphore_give %76 : memref<64x32xf16>
+            %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%103], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %75, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.semaphore_give %75 : memref<64x32xf16>
           } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
         } {loom.block_sym = @tile_h, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
@@ -1215,160 +1377,187 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
             %25 = arith.muli %23, %c64 : index
             %26 = loom.alloc [64] on @L1 : memref<64xf16>
             %27 = loom.semaphore_take %26 : memref<64xf16> -> memref<64xf16>
-            %28 = arith.muli %arg11, %c131072 overflow<nsw> : index
-            %29 = arith.muli %21, %c16384 : index
-            %30 = arith.addi %28, %29 : index
-            %31 = arith.muli %arg12, %c1024 : index
-            %32 = arith.addi %30, %31 : index
-            %33 = arith.addi %32, %25 : index
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%33], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-            %34 = arith.muli %arg11, %c2 : index
-            %35 = arith.addi %arg9, %34 : index
-            %36 = arith.muli %arg8, %c4 : index
-            %37 = arith.addi %35, %36 : index
-            %38 = arith.muli %arg12, %c4 : index
-            %39 = arith.addi %38, %c3 : index
-            loom.copy %reinterpret_cast, %27 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 4] region : (UL : [%37, %38], LR : [%37, %39]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-            %40 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %41 = loom.semaphore_take %40 : memref<64x32xf16> -> memref<64x32xf16>
-            %42 = loom.semaphore_take %40 : memref<64x32xf16> -> memref<64x32xf16>
-            %43 = loom.broadcast ins(%27 : memref<64xf16>) outs(%42 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
-            %44 = arith.addi %25, %31 : index
-            %45 = arith.divui %24, %c64 : index
-            %46 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-            %47 = loom.semaphore_take %46 : memref<64x64xf16> -> memref<64x64xf16>
-            %48 = arith.muli %44, %c64 overflow<nsw> : index
-            %49 = arith.addi %28, %48 : index
-            %50 = arith.muli %45, %c64 overflow<nsw> : index
-            %51 = arith.addi %49, %50 : index
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%51], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
-            loom.copy %reinterpret_cast_0, %47 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 4] region : (UL : [%37, %38], LR : [%37, %39]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
-            %52 = arith.muli %arg10, %c32 : index
-            %53 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %54 = loom.semaphore_take %53 : memref<64x32xf16> -> memref<64x32xf16>
-            %55 = arith.muli %arg11, %c2097152 overflow<nsw> : index
-            %56 = arith.muli %arg12, %c1048576 : index
-            %57 = arith.addi %55, %56 : index
-            %58 = arith.muli %21, %c32768 : index
-            %59 = arith.addi %57, %58 : index
-            %60 = arith.addi %59, %52 : index
-            %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%60], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
-            %61 = arith.addi %34, %36 : index
-            %62 = arith.addi %34, %c1 : index
-            %63 = arith.addi %62, %36 : index
-            %64 = arith.addi %arg10, %38 : index
-            loom.copy %reinterpret_cast_1, %54 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%61, %64], LR : [%63, %64]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
-            %65 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %66 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            %67 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            %68 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            loom.matmul ins(%47, %54 : memref<64x64xf16>, memref<64x32xf16>) outs(%67 : memref<64x32xf16>)
-            loom.semaphore_give %54 : memref<64x32xf16>
-            loom.semaphore_give %47 : memref<64x64xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%67, %43 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%68 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_5: f16, %out: f16):
-              %95 = math.exp %in_5 : f16
-              %96 = arith.mulf %in, %95 : f16
-              linalg.yield %96 : f16
-            }
-            loom.semaphore_give %67 : memref<64x32xf16>
-            loom.semaphore_give %42 : memref<64x32xf16>
-            %69 = arith.addi %23, %c1 : index
-            %70 = arith.muli %69, %c64 : index
-            %71 = arith.ceildivui %70, %c64 : index
-            %72 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %73 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
-            %74 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
-            %75 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-            %76 = loom.semaphore_take %75 : memref<64x64xf16> -> memref<64x64xf16>
-            %77 = loom.alloc [64] on @L1 : memref<64xf16>
-            %78 = loom.semaphore_take %77 : memref<64xf16> -> memref<64xf16>
-            %79 = loom.semaphore_take %77 : memref<64xf16> -> memref<64xf16>
-            %80 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-            %81 = loom.semaphore_take %80 : memref<32x64xf16> -> memref<32x64xf16>
-            %82 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-            %83 = loom.semaphore_take %82 : memref<32x64xf16> -> memref<32x64xf16>
-            %84 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %85 = loom.semaphore_take %84 : memref<64x32xf16> -> memref<64x32xf16>
-            scf.for %arg15 = %c0 to %71 step %c1 {
-              %95 = arith.muli %arg15, %c64 : index
-              %96 = arith.muli %arg11, %c524288 overflow<nsw> : index
-              %97 = arith.muli %arg12, %c262144 : index
-              %98 = arith.addi %96, %97 : index
-              %99 = arith.muli %45, %c65536 overflow<nsw> : index
-              %100 = arith.addi %98, %99 : index
-              %101 = arith.muli %23, %c16384 : index
-              %102 = arith.addi %100, %101 : index
-              %103 = arith.addi %102, %95 : index
-              %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%103], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-              loom.copy %reinterpret_cast_5, %76 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
-              %104 = arith.addi %32, %95 : index
-              %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%104], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-              loom.copy %reinterpret_cast_6, %79 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-              %105 = loom.broadcast ins(%27 : memref<64xf16>) outs(%41 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              %106 = loom.broadcast ins(%79 : memref<64xf16>) outs(%81 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              loom.semaphore_give %79 : memref<64xf16>
-              %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%104], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-              loom.copy %reinterpret_cast_7, %78 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-              %107 = loom.broadcast ins(%78 : memref<64xf16>) outs(%83 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              loom.semaphore_give %78 : memref<64xf16>
-              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%76, %105, %106, %107 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%76 : memref<64x64xf16>) {
-              ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
-                %115 = arith.subf %in_9, %in_10 : f16
-                %116 = math.exp %115 : f16
-                %117 = arith.mulf %in, %116 : f16
-                %118 = arith.mulf %117, %in_11 : f16
-                linalg.yield %118 : f16
-              }
-              loom.semaphore_give %83 : memref<32x64xf16>
-              loom.semaphore_give %81 : memref<32x64xf16>
-              loom.semaphore_give %41 : memref<64x32xf16>
-              %108 = arith.addi %95, %31 : index
-              %109 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-              %110 = arith.muli %108, %c4096 overflow<nsw> : index
-              %111 = arith.addi %109, %110 : index
-              %112 = arith.muli %21, %c512 : index
-              %113 = arith.addi %111, %112 : index
-              %114 = arith.addi %113, %52 : index
-              %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%114], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-              loom.copy %reinterpret_cast_8, %85 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-              loom.matmul ins(%76, %85 : memref<64x64xf16>, memref<64x32xf16>) outs(%74 : memref<64x32xf16>)
-              loom.semaphore_give %85 : memref<64x32xf16>
-              loom.semaphore_give %76 : memref<64x64xf16>
-              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %74 : memref<64x32xf16>, memref<64x32xf16>) outs(%68 : memref<64x32xf16>) {
-              ^bb0(%in: f16, %in_9: f16, %out: f16):
-                %115 = arith.addf %in, %in_9 : f16
-                linalg.yield %115 : f16
-              }
-              loom.semaphore_give %74 : memref<64x32xf16>
-            } {loom.iter_type = #loom.iter_type<sequential>}
+            %28 = loom.semaphore_take %26 : memref<64xf16> -> memref<64xf16>
+            %29 = arith.muli %arg11, %c131072 overflow<nsw> : index
+            %30 = arith.muli %21, %c16384 : index
+            %31 = arith.addi %29, %30 : index
+            %32 = arith.muli %arg12, %c1024 : index
+            %33 = arith.addi %31, %32 : index
+            %34 = arith.addi %33, %25 : index
+            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%34], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+            %35 = arith.muli %arg11, %c2 : index
+            %36 = arith.addi %arg9, %35 : index
+            %37 = arith.muli %arg8, %c4 : index
+            %38 = arith.addi %36, %37 : index
+            %39 = arith.muli %arg12, %c4 : index
+            %40 = arith.addi %39, %c3 : index
+            loom.copy %reinterpret_cast, %27 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 4] region : (UL : [%38, %39], LR : [%38, %40]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+            loom.sync ins(%27 : memref<64xf16>) outs(%28 : memref<64xf16>)
             loom.semaphore_give %27 : memref<64xf16>
-            %86 = loom.alloc [1] on @L1 : memref<f16>
-            %87 = loom.semaphore_take %86 : memref<f16> -> memref<f16>
-            %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%24], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
-            %88 = arith.addi %36, %c3 : index
-            loom.copy %reinterpret_cast_2, %87 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 8] region : (UL : [%36, %c0], LR : [%88, %c7]) : memref<f16, strided<[], offset: ?>> to memref<f16>
-            %89 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-            %90 = arith.muli %44, %c4096 overflow<nsw> : index
-            %91 = arith.addi %89, %90 : index
-            %92 = arith.muli %21, %c512 : index
-            %93 = arith.addi %91, %92 : index
-            %94 = arith.addi %93, %52 : index
-            %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%94], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %reinterpret_cast_3, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %73, %87 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%73 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
-              %95 = arith.mulf %in_5, %in_6 : f16
-              %96 = arith.addf %in, %95 : f16
-              linalg.yield %96 : f16
+            %41 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %42 = loom.semaphore_take %41 : memref<64x32xf16> -> memref<64x32xf16>
+            %43 = loom.semaphore_take %41 : memref<64x32xf16> -> memref<64x32xf16>
+            %44 = loom.broadcast ins(%28 : memref<64xf16>) outs(%43 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
+            %45 = arith.addi %25, %32 : index
+            %46 = arith.divui %24, %c64 : index
+            %47 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+            %48 = loom.semaphore_take %47 : memref<64x64xf16> -> memref<64x64xf16>
+            %49 = loom.semaphore_take %47 : memref<64x64xf16> -> memref<64x64xf16>
+            %50 = arith.muli %45, %c64 overflow<nsw> : index
+            %51 = arith.addi %29, %50 : index
+            %52 = arith.muli %46, %c64 overflow<nsw> : index
+            %53 = arith.addi %51, %52 : index
+            %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%53], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
+            loom.copy %reinterpret_cast_0, %49 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 4] region : (UL : [%38, %39], LR : [%38, %40]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
+            loom.sync ins(%49 : memref<64x64xf16>) outs(%48 : memref<64x64xf16>)
+            loom.semaphore_give %49 : memref<64x64xf16>
+            %54 = arith.muli %arg10, %c32 : index
+            %55 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %56 = loom.semaphore_take %55 : memref<64x32xf16> -> memref<64x32xf16>
+            %57 = loom.semaphore_take %55 : memref<64x32xf16> -> memref<64x32xf16>
+            %58 = arith.muli %arg11, %c2097152 overflow<nsw> : index
+            %59 = arith.muli %arg12, %c1048576 : index
+            %60 = arith.addi %58, %59 : index
+            %61 = arith.muli %21, %c32768 : index
+            %62 = arith.addi %60, %61 : index
+            %63 = arith.addi %62, %54 : index
+            %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%63], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
+            %64 = arith.addi %35, %37 : index
+            %65 = arith.addi %35, %c1 : index
+            %66 = arith.addi %65, %37 : index
+            %67 = arith.addi %arg10, %39 : index
+            loom.copy %reinterpret_cast_1, %57 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%64, %67], LR : [%66, %67]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%57 : memref<64x32xf16>) outs(%56 : memref<64x32xf16>)
+            loom.semaphore_give %57 : memref<64x32xf16>
+            %68 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %69 = loom.semaphore_take %68 : memref<64x32xf16> -> memref<64x32xf16>
+            %70 = loom.semaphore_take %68 : memref<64x32xf16> -> memref<64x32xf16>
+            loom.matmul ins(%48, %56 : memref<64x64xf16>, memref<64x32xf16>) outs(%69 : memref<64x32xf16>)
+            loom.semaphore_give %56 : memref<64x32xf16>
+            loom.semaphore_give %48 : memref<64x64xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%69, %44 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%70 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_5: f16, %out: f16):
+              %104 = math.exp %in_5 : f16
+              %105 = arith.mulf %in, %104 : f16
+              linalg.yield %105 : f16
             }
-            loom.semaphore_give %87 : memref<f16>
-            loom.semaphore_give %68 : memref<64x32xf16>
-            loom.sync ins(%73 : memref<64x32xf16>) outs(%66 : memref<64x32xf16>)
-            loom.semaphore_give %73 : memref<64x32xf16>
-            %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%94], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %66, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.semaphore_give %66 : memref<64x32xf16>
+            loom.semaphore_give %69 : memref<64x32xf16>
+            loom.semaphore_give %43 : memref<64x32xf16>
+            %71 = arith.addi %23, %c1 : index
+            %72 = arith.muli %71, %c64 : index
+            %73 = arith.ceildivui %72, %c64 : index
+            %74 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %75 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %76 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %77 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %78 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %79 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+            %80 = loom.semaphore_take %79 : memref<64x64xf16> -> memref<64x64xf16>
+            %81 = loom.semaphore_take %79 : memref<64x64xf16> -> memref<64x64xf16>
+            %82 = loom.alloc [64] on @L1 : memref<64xf16>
+            %83 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %84 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %85 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %86 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %87 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+            %88 = loom.semaphore_take %87 : memref<32x64xf16> -> memref<32x64xf16>
+            %89 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+            %90 = loom.semaphore_take %89 : memref<32x64xf16> -> memref<32x64xf16>
+            %91 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %92 = loom.semaphore_take %91 : memref<64x32xf16> -> memref<64x32xf16>
+            %93 = loom.semaphore_take %91 : memref<64x32xf16> -> memref<64x32xf16>
+            scf.for %arg15 = %c0 to %73 step %c1 {
+              %104 = arith.muli %arg15, %c64 : index
+              %105 = arith.muli %arg11, %c524288 overflow<nsw> : index
+              %106 = arith.muli %arg12, %c262144 : index
+              %107 = arith.addi %105, %106 : index
+              %108 = arith.muli %46, %c65536 overflow<nsw> : index
+              %109 = arith.addi %107, %108 : index
+              %110 = arith.muli %23, %c16384 : index
+              %111 = arith.addi %109, %110 : index
+              %112 = arith.addi %111, %104 : index
+              %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%112], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
+              loom.copy %reinterpret_cast_5, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+              loom.sync ins(%81 : memref<64x64xf16>) outs(%80 : memref<64x64xf16>)
+              loom.semaphore_give %81 : memref<64x64xf16>
+              %113 = arith.addi %33, %104 : index
+              %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%113], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+              loom.copy %reinterpret_cast_6, %86 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+              loom.sync ins(%86 : memref<64xf16>) outs(%85 : memref<64xf16>)
+              loom.semaphore_give %86 : memref<64xf16>
+              %114 = loom.broadcast ins(%28 : memref<64xf16>) outs(%42 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              %115 = loom.broadcast ins(%85 : memref<64xf16>) outs(%88 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              loom.semaphore_give %85 : memref<64xf16>
+              %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%113], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+              loom.copy %reinterpret_cast_7, %84 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+              loom.sync ins(%84 : memref<64xf16>) outs(%83 : memref<64xf16>)
+              loom.semaphore_give %84 : memref<64xf16>
+              %116 = loom.broadcast ins(%83 : memref<64xf16>) outs(%90 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              loom.semaphore_give %83 : memref<64xf16>
+              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%80, %114, %115, %116 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%80 : memref<64x64xf16>) {
+              ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
+                %124 = arith.subf %in_9, %in_10 : f16
+                %125 = math.exp %124 : f16
+                %126 = arith.mulf %in, %125 : f16
+                %127 = arith.mulf %126, %in_11 : f16
+                linalg.yield %127 : f16
+              }
+              loom.semaphore_give %90 : memref<32x64xf16>
+              loom.semaphore_give %88 : memref<32x64xf16>
+              loom.semaphore_give %42 : memref<64x32xf16>
+              %117 = arith.addi %104, %32 : index
+              %118 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+              %119 = arith.muli %117, %c4096 overflow<nsw> : index
+              %120 = arith.addi %118, %119 : index
+              %121 = arith.muli %21, %c512 : index
+              %122 = arith.addi %120, %121 : index
+              %123 = arith.addi %122, %54 : index
+              %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%123], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+              loom.copy %reinterpret_cast_8, %93 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+              loom.sync ins(%93 : memref<64x32xf16>) outs(%92 : memref<64x32xf16>)
+              loom.semaphore_give %93 : memref<64x32xf16>
+              loom.matmul ins(%80, %92 : memref<64x64xf16>, memref<64x32xf16>) outs(%78 : memref<64x32xf16>)
+              loom.semaphore_give %92 : memref<64x32xf16>
+              loom.semaphore_give %80 : memref<64x64xf16>
+              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%70, %78 : memref<64x32xf16>, memref<64x32xf16>) outs(%70 : memref<64x32xf16>) {
+              ^bb0(%in: f16, %in_9: f16, %out: f16):
+                %124 = arith.addf %in, %in_9 : f16
+                linalg.yield %124 : f16
+              }
+              loom.semaphore_give %78 : memref<64x32xf16>
+            } {loom.iter_type = #loom.iter_type<sequential>}
+            loom.semaphore_give %28 : memref<64xf16>
+            %94 = loom.alloc [1] on @L1 : memref<f16>
+            %95 = loom.semaphore_take %94 : memref<f16> -> memref<f16>
+            %96 = loom.semaphore_take %94 : memref<f16> -> memref<f16>
+            %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%24], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
+            %97 = arith.addi %37, %c3 : index
+            loom.copy %reinterpret_cast_2, %96 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 8] region : (UL : [%37, %c0], LR : [%97, %c7]) : memref<f16, strided<[], offset: ?>> to memref<f16>
+            loom.sync ins(%96 : memref<f16>) outs(%95 : memref<f16>)
+            loom.semaphore_give %96 : memref<f16>
+            %98 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+            %99 = arith.muli %45, %c4096 overflow<nsw> : index
+            %100 = arith.addi %98, %99 : index
+            %101 = arith.muli %21, %c512 : index
+            %102 = arith.addi %100, %101 : index
+            %103 = arith.addi %102, %54 : index
+            %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%103], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_3, %77 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%77 : memref<64x32xf16>) outs(%76 : memref<64x32xf16>)
+            loom.semaphore_give %77 : memref<64x32xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%70, %76, %95 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%76 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
+              %104 = arith.mulf %in_5, %in_6 : f16
+              %105 = arith.addf %in, %104 : f16
+              linalg.yield %105 : f16
+            }
+            loom.semaphore_give %95 : memref<f16>
+            loom.semaphore_give %70 : memref<64x32xf16>
+            loom.sync ins(%76 : memref<64x32xf16>) outs(%75 : memref<64x32xf16>)
+            loom.semaphore_give %76 : memref<64x32xf16>
+            %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%103], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %75, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.semaphore_give %75 : memref<64x32xf16>
           } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
         } {loom.block_sym = @tile_h, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
@@ -1410,160 +1599,187 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
             %25 = arith.muli %23, %c64 : index
             %26 = loom.alloc [64] on @L1 : memref<64xf16>
             %27 = loom.semaphore_take %26 : memref<64xf16> -> memref<64xf16>
-            %28 = arith.muli %arg11, %c131072 overflow<nsw> : index
-            %29 = arith.muli %21, %c16384 : index
-            %30 = arith.addi %28, %29 : index
-            %31 = arith.muli %arg12, %c1024 : index
-            %32 = arith.addi %30, %31 : index
-            %33 = arith.addi %32, %25 : index
-            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%33], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-            %34 = arith.muli %arg12, %c2 : index
-            %35 = arith.addi %arg9, %34 : index
-            %36 = arith.muli %arg8, %c4 : index
-            %37 = arith.addi %35, %36 : index
-            %38 = arith.muli %arg11, %c4 : index
-            %39 = arith.addi %38, %c3 : index
-            loom.copy %reinterpret_cast, %27 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 4] region : (UL : [%37, %38], LR : [%37, %39]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-            %40 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %41 = loom.semaphore_take %40 : memref<64x32xf16> -> memref<64x32xf16>
-            %42 = loom.semaphore_take %40 : memref<64x32xf16> -> memref<64x32xf16>
-            %43 = loom.broadcast ins(%27 : memref<64xf16>) outs(%42 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
-            %44 = arith.addi %25, %31 : index
-            %45 = arith.divui %24, %c64 : index
-            %46 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-            %47 = loom.semaphore_take %46 : memref<64x64xf16> -> memref<64x64xf16>
-            %48 = arith.muli %44, %c64 overflow<nsw> : index
-            %49 = arith.addi %28, %48 : index
-            %50 = arith.muli %45, %c64 overflow<nsw> : index
-            %51 = arith.addi %49, %50 : index
-            %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%51], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
-            loom.copy %reinterpret_cast_0, %47 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 4] region : (UL : [%37, %38], LR : [%37, %39]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
-            %52 = arith.muli %arg10, %c32 : index
-            %53 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %54 = loom.semaphore_take %53 : memref<64x32xf16> -> memref<64x32xf16>
-            %55 = arith.muli %arg11, %c2097152 overflow<nsw> : index
-            %56 = arith.muli %arg12, %c1048576 : index
-            %57 = arith.addi %55, %56 : index
-            %58 = arith.muli %21, %c32768 : index
-            %59 = arith.addi %57, %58 : index
-            %60 = arith.addi %59, %52 : index
-            %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%60], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
-            %61 = arith.addi %34, %36 : index
-            %62 = arith.addi %34, %c1 : index
-            %63 = arith.addi %62, %36 : index
-            %64 = arith.addi %arg10, %38 : index
-            loom.copy %reinterpret_cast_1, %54 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%61, %64], LR : [%63, %64]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
-            %65 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %66 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            %67 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            %68 = loom.semaphore_take %65 : memref<64x32xf16> -> memref<64x32xf16>
-            loom.matmul ins(%47, %54 : memref<64x64xf16>, memref<64x32xf16>) outs(%67 : memref<64x32xf16>)
-            loom.semaphore_give %54 : memref<64x32xf16>
-            loom.semaphore_give %47 : memref<64x64xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%67, %43 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%68 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_5: f16, %out: f16):
-              %95 = math.exp %in_5 : f16
-              %96 = arith.mulf %in, %95 : f16
-              linalg.yield %96 : f16
-            }
-            loom.semaphore_give %67 : memref<64x32xf16>
-            loom.semaphore_give %42 : memref<64x32xf16>
-            %69 = arith.addi %23, %c1 : index
-            %70 = arith.muli %69, %c64 : index
-            %71 = arith.ceildivui %70, %c64 : index
-            %72 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %73 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
-            %74 = loom.semaphore_take %72 : memref<64x32xf16> -> memref<64x32xf16>
-            %75 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
-            %76 = loom.semaphore_take %75 : memref<64x64xf16> -> memref<64x64xf16>
-            %77 = loom.alloc [64] on @L1 : memref<64xf16>
-            %78 = loom.semaphore_take %77 : memref<64xf16> -> memref<64xf16>
-            %79 = loom.semaphore_take %77 : memref<64xf16> -> memref<64xf16>
-            %80 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-            %81 = loom.semaphore_take %80 : memref<32x64xf16> -> memref<32x64xf16>
-            %82 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
-            %83 = loom.semaphore_take %82 : memref<32x64xf16> -> memref<32x64xf16>
-            %84 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
-            %85 = loom.semaphore_take %84 : memref<64x32xf16> -> memref<64x32xf16>
-            scf.for %arg15 = %c0 to %71 step %c1 {
-              %95 = arith.muli %arg15, %c64 : index
-              %96 = arith.muli %arg11, %c524288 overflow<nsw> : index
-              %97 = arith.muli %arg12, %c262144 : index
-              %98 = arith.addi %96, %97 : index
-              %99 = arith.muli %45, %c65536 overflow<nsw> : index
-              %100 = arith.addi %98, %99 : index
-              %101 = arith.muli %23, %c16384 : index
-              %102 = arith.addi %100, %101 : index
-              %103 = arith.addi %102, %95 : index
-              %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%103], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
-              loom.copy %reinterpret_cast_5, %76 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
-              %104 = arith.addi %32, %95 : index
-              %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%104], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-              loom.copy %reinterpret_cast_6, %79 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-              %105 = loom.broadcast ins(%27 : memref<64xf16>) outs(%41 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              %106 = loom.broadcast ins(%79 : memref<64xf16>) outs(%81 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              loom.semaphore_give %79 : memref<64xf16>
-              %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%104], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
-              loom.copy %reinterpret_cast_7, %78 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
-              %107 = loom.broadcast ins(%78 : memref<64xf16>) outs(%83 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
-              loom.semaphore_give %78 : memref<64xf16>
-              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%76, %105, %106, %107 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%76 : memref<64x64xf16>) {
-              ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
-                %115 = arith.subf %in_9, %in_10 : f16
-                %116 = math.exp %115 : f16
-                %117 = arith.mulf %in, %116 : f16
-                %118 = arith.mulf %117, %in_11 : f16
-                linalg.yield %118 : f16
-              }
-              loom.semaphore_give %83 : memref<32x64xf16>
-              loom.semaphore_give %81 : memref<32x64xf16>
-              loom.semaphore_give %41 : memref<64x32xf16>
-              %108 = arith.addi %95, %31 : index
-              %109 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-              %110 = arith.muli %108, %c4096 overflow<nsw> : index
-              %111 = arith.addi %109, %110 : index
-              %112 = arith.muli %21, %c512 : index
-              %113 = arith.addi %111, %112 : index
-              %114 = arith.addi %113, %52 : index
-              %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%114], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-              loom.copy %reinterpret_cast_8, %85 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-              loom.matmul ins(%76, %85 : memref<64x64xf16>, memref<64x32xf16>) outs(%74 : memref<64x32xf16>)
-              loom.semaphore_give %85 : memref<64x32xf16>
-              loom.semaphore_give %76 : memref<64x64xf16>
-              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %74 : memref<64x32xf16>, memref<64x32xf16>) outs(%68 : memref<64x32xf16>) {
-              ^bb0(%in: f16, %in_9: f16, %out: f16):
-                %115 = arith.addf %in, %in_9 : f16
-                linalg.yield %115 : f16
-              }
-              loom.semaphore_give %74 : memref<64x32xf16>
-            } {loom.iter_type = #loom.iter_type<sequential>}
+            %28 = loom.semaphore_take %26 : memref<64xf16> -> memref<64xf16>
+            %29 = arith.muli %arg11, %c131072 overflow<nsw> : index
+            %30 = arith.muli %21, %c16384 : index
+            %31 = arith.addi %29, %30 : index
+            %32 = arith.muli %arg12, %c1024 : index
+            %33 = arith.addi %31, %32 : index
+            %34 = arith.addi %33, %25 : index
+            %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%34], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+            %35 = arith.muli %arg12, %c2 : index
+            %36 = arith.addi %arg9, %35 : index
+            %37 = arith.muli %arg8, %c4 : index
+            %38 = arith.addi %36, %37 : index
+            %39 = arith.muli %arg11, %c4 : index
+            %40 = arith.addi %39, %c3 : index
+            loom.copy %reinterpret_cast, %27 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 4] region : (UL : [%38, %39], LR : [%38, %40]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+            loom.sync ins(%27 : memref<64xf16>) outs(%28 : memref<64xf16>)
             loom.semaphore_give %27 : memref<64xf16>
-            %86 = loom.alloc [1] on @L1 : memref<f16>
-            %87 = loom.semaphore_take %86 : memref<f16> -> memref<f16>
-            %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%24], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
-            %88 = arith.addi %36, %c3 : index
-            loom.copy %reinterpret_cast_2, %87 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 8] region : (UL : [%36, %c0], LR : [%88, %c7]) : memref<f16, strided<[], offset: ?>> to memref<f16>
-            %89 = arith.muli %arg11, %c8388608 overflow<nsw> : index
-            %90 = arith.muli %44, %c4096 overflow<nsw> : index
-            %91 = arith.addi %89, %90 : index
-            %92 = arith.muli %21, %c512 : index
-            %93 = arith.addi %91, %92 : index
-            %94 = arith.addi %93, %52 : index
-            %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%94], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %reinterpret_cast_3, %73 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
-            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%68, %73, %87 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%73 : memref<64x32xf16>) {
-            ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
-              %95 = arith.mulf %in_5, %in_6 : f16
-              %96 = arith.addf %in, %95 : f16
-              linalg.yield %96 : f16
+            %41 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %42 = loom.semaphore_take %41 : memref<64x32xf16> -> memref<64x32xf16>
+            %43 = loom.semaphore_take %41 : memref<64x32xf16> -> memref<64x32xf16>
+            %44 = loom.broadcast ins(%28 : memref<64xf16>) outs(%43 : memref<64x32xf16>) dim(1) -> memref<64x32xf16, strided<[?, ?], offset: ?>>
+            %45 = arith.addi %25, %32 : index
+            %46 = arith.divui %24, %c64 : index
+            %47 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+            %48 = loom.semaphore_take %47 : memref<64x64xf16> -> memref<64x64xf16>
+            %49 = loom.semaphore_take %47 : memref<64x64xf16> -> memref<64x64xf16>
+            %50 = arith.muli %45, %c64 overflow<nsw> : index
+            %51 = arith.addi %29, %50 : index
+            %52 = arith.muli %46, %c64 overflow<nsw> : index
+            %53 = arith.addi %51, %52 : index
+            %reinterpret_cast_0 = memref.reinterpret_cast %arg4 to offset: [%53], sizes: [64, 64], strides: [64, 1] : memref<2x2048x1x64xf16> to memref<64x64xf16, strided<[64, 1], offset: ?>>
+            loom.copy %reinterpret_cast_0, %49 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 4] region : (UL : [%38, %39], LR : [%38, %40]) : memref<64x64xf16, strided<[64, 1], offset: ?>> to memref<64x64xf16>
+            loom.sync ins(%49 : memref<64x64xf16>) outs(%48 : memref<64x64xf16>)
+            loom.semaphore_give %49 : memref<64x64xf16>
+            %54 = arith.muli %arg10, %c32 : index
+            %55 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %56 = loom.semaphore_take %55 : memref<64x32xf16> -> memref<64x32xf16>
+            %57 = loom.semaphore_take %55 : memref<64x32xf16> -> memref<64x32xf16>
+            %58 = arith.muli %arg11, %c2097152 overflow<nsw> : index
+            %59 = arith.muli %arg12, %c1048576 : index
+            %60 = arith.addi %58, %59 : index
+            %61 = arith.muli %21, %c32768 : index
+            %62 = arith.addi %60, %61 : index
+            %63 = arith.addi %62, %54 : index
+            %reinterpret_cast_1 = memref.reinterpret_cast %arg5 to offset: [%63], sizes: [64, 32], strides: [64, 1] : memref<2x8x64x64x64xf16> to memref<64x32xf16, strided<[64, 1], offset: ?>>
+            %64 = arith.addi %35, %37 : index
+            %65 = arith.addi %35, %c1 : index
+            %66 = arith.addi %65, %37 : index
+            %67 = arith.addi %arg10, %39 : index
+            loom.copy %reinterpret_cast_1, %57 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [2, 1] region : (UL : [%64, %67], LR : [%66, %67]) : memref<64x32xf16, strided<[64, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%57 : memref<64x32xf16>) outs(%56 : memref<64x32xf16>)
+            loom.semaphore_give %57 : memref<64x32xf16>
+            %68 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %69 = loom.semaphore_take %68 : memref<64x32xf16> -> memref<64x32xf16>
+            %70 = loom.semaphore_take %68 : memref<64x32xf16> -> memref<64x32xf16>
+            loom.matmul ins(%48, %56 : memref<64x64xf16>, memref<64x32xf16>) outs(%69 : memref<64x32xf16>)
+            loom.semaphore_give %56 : memref<64x32xf16>
+            loom.semaphore_give %48 : memref<64x64xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%69, %44 : memref<64x32xf16>, memref<64x32xf16, strided<[?, ?], offset: ?>>) outs(%70 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_5: f16, %out: f16):
+              %104 = math.exp %in_5 : f16
+              %105 = arith.mulf %in, %104 : f16
+              linalg.yield %105 : f16
             }
-            loom.semaphore_give %87 : memref<f16>
-            loom.semaphore_give %68 : memref<64x32xf16>
-            loom.sync ins(%73 : memref<64x32xf16>) outs(%66 : memref<64x32xf16>)
-            loom.semaphore_give %73 : memref<64x32xf16>
-            %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%94], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.copy %66, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%37, %64], LR : [%37, %64]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
-            loom.semaphore_give %66 : memref<64x32xf16>
+            loom.semaphore_give %69 : memref<64x32xf16>
+            loom.semaphore_give %43 : memref<64x32xf16>
+            %71 = arith.addi %23, %c1 : index
+            %72 = arith.muli %71, %c64 : index
+            %73 = arith.ceildivui %72, %c64 : index
+            %74 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %75 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %76 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %77 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %78 = loom.semaphore_take %74 : memref<64x32xf16> -> memref<64x32xf16>
+            %79 = loom.alloc [64, 64] on @L1 : memref<64x64xf16>
+            %80 = loom.semaphore_take %79 : memref<64x64xf16> -> memref<64x64xf16>
+            %81 = loom.semaphore_take %79 : memref<64x64xf16> -> memref<64x64xf16>
+            %82 = loom.alloc [64] on @L1 : memref<64xf16>
+            %83 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %84 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %85 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %86 = loom.semaphore_take %82 : memref<64xf16> -> memref<64xf16>
+            %87 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+            %88 = loom.semaphore_take %87 : memref<32x64xf16> -> memref<32x64xf16>
+            %89 = loom.alloc [32, 64] on @L1 : memref<32x64xf16>
+            %90 = loom.semaphore_take %89 : memref<32x64xf16> -> memref<32x64xf16>
+            %91 = loom.alloc [64, 32] on @L1 : memref<64x32xf16>
+            %92 = loom.semaphore_take %91 : memref<64x32xf16> -> memref<64x32xf16>
+            %93 = loom.semaphore_take %91 : memref<64x32xf16> -> memref<64x32xf16>
+            scf.for %arg15 = %c0 to %73 step %c1 {
+              %104 = arith.muli %arg15, %c64 : index
+              %105 = arith.muli %arg11, %c524288 overflow<nsw> : index
+              %106 = arith.muli %arg12, %c262144 : index
+              %107 = arith.addi %105, %106 : index
+              %108 = arith.muli %46, %c65536 overflow<nsw> : index
+              %109 = arith.addi %107, %108 : index
+              %110 = arith.muli %23, %c16384 : index
+              %111 = arith.addi %109, %110 : index
+              %112 = arith.addi %111, %104 : index
+              %reinterpret_cast_5 = memref.reinterpret_cast %arg0 to offset: [%112], sizes: [64, 64], strides: [256, 1] : memref<2x8x1x256x256xf16> to memref<64x64xf16, strided<[256, 1], offset: ?>>
+              loom.copy %reinterpret_cast_5, %81 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x64xf16, strided<[256, 1], offset: ?>> to memref<64x64xf16>
+              loom.sync ins(%81 : memref<64x64xf16>) outs(%80 : memref<64x64xf16>)
+              loom.semaphore_give %81 : memref<64x64xf16>
+              %113 = arith.addi %33, %104 : index
+              %reinterpret_cast_6 = memref.reinterpret_cast %arg1 to offset: [%113], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+              loom.copy %reinterpret_cast_6, %86 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+              loom.sync ins(%86 : memref<64xf16>) outs(%85 : memref<64xf16>)
+              loom.semaphore_give %86 : memref<64xf16>
+              %114 = loom.broadcast ins(%28 : memref<64xf16>) outs(%42 : memref<64x32xf16>) dim(1) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              %115 = loom.broadcast ins(%85 : memref<64xf16>) outs(%88 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              loom.semaphore_give %85 : memref<64xf16>
+              %reinterpret_cast_7 = memref.reinterpret_cast %arg2 to offset: [%113], sizes: [64], strides: [1] : memref<2x64x8x256xf16> to memref<64xf16, strided<[1], offset: ?>>
+              loom.copy %reinterpret_cast_7, %84 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64xf16, strided<[1], offset: ?>> to memref<64xf16>
+              loom.sync ins(%84 : memref<64xf16>) outs(%83 : memref<64xf16>)
+              loom.semaphore_give %84 : memref<64xf16>
+              %116 = loom.broadcast ins(%83 : memref<64xf16>) outs(%90 : memref<32x64xf16>) dim(0) -> memref<64x64xf16, strided<[?, ?], offset: ?>>
+              loom.semaphore_give %83 : memref<64xf16>
+              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%80, %114, %115, %116 : memref<64x64xf16>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>, memref<64x64xf16, strided<[?, ?], offset: ?>>) outs(%80 : memref<64x64xf16>) {
+              ^bb0(%in: f16, %in_9: f16, %in_10: f16, %in_11: f16, %out: f16):
+                %124 = arith.subf %in_9, %in_10 : f16
+                %125 = math.exp %124 : f16
+                %126 = arith.mulf %in, %125 : f16
+                %127 = arith.mulf %126, %in_11 : f16
+                linalg.yield %127 : f16
+              }
+              loom.semaphore_give %90 : memref<32x64xf16>
+              loom.semaphore_give %88 : memref<32x64xf16>
+              loom.semaphore_give %42 : memref<64x32xf16>
+              %117 = arith.addi %104, %32 : index
+              %118 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+              %119 = arith.muli %117, %c4096 overflow<nsw> : index
+              %120 = arith.addi %118, %119 : index
+              %121 = arith.muli %21, %c512 : index
+              %122 = arith.addi %120, %121 : index
+              %123 = arith.addi %122, %54 : index
+              %reinterpret_cast_8 = memref.reinterpret_cast %arg3 to offset: [%123], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+              loom.copy %reinterpret_cast_8, %93 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+              loom.sync ins(%93 : memref<64x32xf16>) outs(%92 : memref<64x32xf16>)
+              loom.semaphore_give %93 : memref<64x32xf16>
+              loom.matmul ins(%80, %92 : memref<64x64xf16>, memref<64x32xf16>) outs(%78 : memref<64x32xf16>)
+              loom.semaphore_give %92 : memref<64x32xf16>
+              loom.semaphore_give %80 : memref<64x64xf16>
+              linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%70, %78 : memref<64x32xf16>, memref<64x32xf16>) outs(%70 : memref<64x32xf16>) {
+              ^bb0(%in: f16, %in_9: f16, %out: f16):
+                %124 = arith.addf %in, %in_9 : f16
+                linalg.yield %124 : f16
+              }
+              loom.semaphore_give %78 : memref<64x32xf16>
+            } {loom.iter_type = #loom.iter_type<sequential>}
+            loom.semaphore_give %28 : memref<64xf16>
+            %94 = loom.alloc [1] on @L1 : memref<f16>
+            %95 = loom.semaphore_take %94 : memref<f16> -> memref<f16>
+            %96 = loom.semaphore_take %94 : memref<f16> -> memref<f16>
+            %reinterpret_cast_2 = memref.reinterpret_cast %arg6 to offset: [%24], sizes: [], strides: [] : memref<64xf16> to memref<f16, strided<[], offset: ?>>
+            %97 = arith.addi %37, %c3 : index
+            loom.copy %reinterpret_cast_2, %96 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [4, 8] region : (UL : [%37, %c0], LR : [%97, %c7]) : memref<f16, strided<[], offset: ?>> to memref<f16>
+            loom.sync ins(%96 : memref<f16>) outs(%95 : memref<f16>)
+            loom.semaphore_give %96 : memref<f16>
+            %98 = arith.muli %arg11, %c8388608 overflow<nsw> : index
+            %99 = arith.muli %45, %c4096 overflow<nsw> : index
+            %100 = arith.addi %98, %99 : index
+            %101 = arith.muli %21, %c512 : index
+            %102 = arith.addi %100, %101 : index
+            %103 = arith.addi %102, %54 : index
+            %reinterpret_cast_3 = memref.reinterpret_cast %arg3 to offset: [%103], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %reinterpret_cast_3, %77 src_mem_space @mem_DRAM dst_mem_space @mem_L1, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x32xf16, strided<[4096, 1], offset: ?>> to memref<64x32xf16>
+            loom.sync ins(%77 : memref<64x32xf16>) outs(%76 : memref<64x32xf16>)
+            loom.semaphore_give %77 : memref<64x32xf16>
+            linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%70, %76, %95 : memref<64x32xf16>, memref<64x32xf16>, memref<f16>) outs(%76 : memref<64x32xf16>) {
+            ^bb0(%in: f16, %in_5: f16, %in_6: f16, %out: f16):
+              %104 = arith.mulf %in_5, %in_6 : f16
+              %105 = arith.addf %in, %104 : f16
+              linalg.yield %105 : f16
+            }
+            loom.semaphore_give %95 : memref<f16>
+            loom.semaphore_give %70 : memref<64x32xf16>
+            loom.sync ins(%76 : memref<64x32xf16>) outs(%75 : memref<64x32xf16>)
+            loom.semaphore_give %76 : memref<64x32xf16>
+            %reinterpret_cast_4 = memref.reinterpret_cast %arg7 to offset: [%103], sizes: [64, 32], strides: [4096, 1] : memref<2x2048x64x64xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.copy %75, %reinterpret_cast_4 src_mem_space @mem_L1 dst_mem_space @mem_DRAM, broadcast : [1, 1] region : (UL : [%38, %67], LR : [%38, %67]) : memref<64x32xf16> to memref<64x32xf16, strided<[4096, 1], offset: ?>>
+            loom.semaphore_give %75 : memref<64x32xf16>
           } {loom.block_sym = @tile_m, loom.iter_type = #loom.iter_type<temporal>}
         } {loom.block_sym = @tile_h, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
