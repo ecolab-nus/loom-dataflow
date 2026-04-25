@@ -232,7 +232,7 @@ runExplorationPipeline(const std::string &input_mlir_text,
     pm.addPass(createSymbolDCEPass());
     pm.addPass(createCanonicalizerPass());
     pm.addPass(loom::passes::createSinkFillOpsPass());
-    pm.addPass(loom::passes::createWriteOutSyncInsertionPass());
+    pm.addPass(loom::passes::createHandoffSyncInsertionPass());
 
     if (failed(pm.run(*inputModule)))
       return {"Phase A1 (tensor_canonicalize) failed", "", ""};

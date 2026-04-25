@@ -28,6 +28,9 @@ struct WriteOutChain {
   Operation *last() const { return ops.back(); }
 };
 
+// TODO: Generalize the write-out-specific chain model as this pass grows to
+// cover more execution-core handoff boundaries.
+
 static bool isL1ToDramCopy(loom::CopyOp copyOp) {
   auto src = copyOp.getSrcMemSpaceAttr();
   auto dst = copyOp.getDstMemSpaceAttr();
@@ -116,17 +119,103 @@ static FailureOr<WriteOutChain> buildWriteBackCopyChain(memref::CopyOp copyOp) {
   return chain;
 }
 
-class WriteOutSyncInsertionPass
-    : public PassWrapper<WriteOutSyncInsertionPass, OperationPass<ModuleOp>> {
+static LogicalResult insertSyncForTensor(Value targetTensor,
+                                         Operation *insertionAnchor,
+                                         bool insertAfterAnchor,
+                                         DominanceInfo &dominance,
+                                         StringRef diagnosticName) {
+  if (!targetTensor)
+    return success();
+
+  auto tensorType = dyn_cast<RankedTensorType>(targetTensor.getType());
+  if (!tensorType)
+    return insertionAnchor->emitError()
+           << diagnosticName << " target must be ranked tensor";
+
+  OpBuilder builder(insertionAnchor);
+  if (insertAfterAnchor)
+    builder.setInsertionPointAfter(insertionAnchor);
+  else
+    builder.setInsertionPoint(insertionAnchor);
+
+  SmallVector<loom::utils::SymbolicDim, 4> tracedShape =
+      loom::utils::traceShape(targetTensor);
+
+  SmallVector<Value, 4> dynamicSizes;
+  for (auto [idx, dim] : llvm::enumerate(tensorType.getShape())) {
+    if (dim != ShapedType::kDynamic)
+      continue;
+
+    Value dynSizeVal = nullptr;
+    if (idx < tracedShape.size()) {
+      if (auto tracedVal = llvm::dyn_cast<Value>(tracedShape[idx])) {
+        Operation *def = tracedVal.getDefiningOp();
+        if (!def || dominance.dominates(def, insertionAnchor))
+          dynSizeVal = tracedVal;
+      } else if (auto tracedAttr = llvm::dyn_cast<Attribute>(tracedShape[idx])) {
+        if (auto intAttr = dyn_cast<IntegerAttr>(tracedAttr)) {
+          if (intAttr.getInt() >= 0) {
+            dynSizeVal = arith::ConstantIndexOp::create(
+                builder, insertionAnchor->getLoc(), intAttr.getInt());
+          }
+        }
+      }
+    }
+
+    if (!dynSizeVal) {
+      auto cstIdx = arith::ConstantIndexOp::create(builder,
+                                                   insertionAnchor->getLoc(),
+                                                   idx);
+      dynSizeVal = tensor::DimOp::create(builder, insertionAnchor->getLoc(),
+                                         targetTensor, cstIdx);
+    }
+    dynamicSizes.push_back(dynSizeVal);
+  }
+
+  auto empty = tensor::EmptyOp::create(builder, insertionAnchor->getLoc(),
+                                       tensorType.getShape(),
+                                       tensorType.getElementType(),
+                                       dynamicSizes);
+  auto sync = loom::SyncOp::create(builder, insertionAnchor->getLoc(),
+                                   TypeRange{tensorType}, targetTensor,
+                                   empty.getResult());
+
+  bool rewiredAnyUse = false;
+  targetTensor.replaceUsesWithIf(sync->getResult(0), [&](OpOperand &use) {
+    Operation *owner = use.getOwner();
+    if (owner == sync.getOperation())
+      return false;
+    if (dominance.dominates(sync.getOperation(), owner)) {
+      rewiredAnyUse = true;
+      return true;
+    }
+    return false;
+  });
+  (void)rewiredAnyUse;
+  return success();
+}
+
+static LogicalResult handleToTensor(bufferization::ToTensorOp toTensorOp,
+                                    DominanceInfo &dominance) {
+  if (!isa<RankedTensorType>(toTensorOp.getResult().getType()))
+    return success();
+
+  return insertSyncForTensor(toTensorOp.getResult(), toTensorOp.getOperation(),
+                             /*insertAfterAnchor=*/true, dominance,
+                             "bufferization.to_tensor handoff");
+}
+
+class HandoffSyncInsertionPass
+    : public PassWrapper<HandoffSyncInsertionPass, OperationPass<ModuleOp>> {
 public:
-  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(WriteOutSyncInsertionPass)
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(HandoffSyncInsertionPass)
 
   StringRef getArgument() const override {
-    return "loom-writeout-sync-insertion";
+    return "loom-handoff-sync-insertion";
   }
 
   StringRef getDescription() const override {
-    return "Insert tensor.empty + loom.sync before write-out chain heads";
+    return "Insert tensor.empty + loom.sync around execution-core handoffs";
   }
 
   void runOnOperation() override {
@@ -134,9 +223,14 @@ public:
     DominanceInfo dominance(module);
 
     SmallVector<WriteOutChain, 16> chains;
+    SmallVector<bufferization::ToTensorOp, 16> toTensorOps;
     bool hadError = false;
 
     module.walk([&](Operation *op) {
+      if (auto toTensorOp = dyn_cast<bufferization::ToTensorOp>(op)) {
+        toTensorOps.push_back(toTensorOp);
+        return;
+      }
       if (auto gatherOp = dyn_cast<loom::GatherOp>(op)) {
         if (auto chain = buildGatherChain(gatherOp))
           chains.push_back(*chain);
@@ -166,81 +260,25 @@ public:
     }
 
     for (const WriteOutChain &chain : chains) {
-      if (!chain.targetTensor)
-        continue;
-
-      auto tensorType = dyn_cast<RankedTensorType>(chain.targetTensor.getType());
-      if (!tensorType) {
-        chain.first()->emitError("write-out chain target must be ranked tensor");
+      if (failed(insertSyncForTensor(chain.targetTensor, chain.first(),
+                                     /*insertAfterAnchor=*/false, dominance,
+                                     "write-out chain"))) {
         signalPassFailure();
         return;
       }
+    }
 
-      OpBuilder beforeBuilder(chain.first());
-      beforeBuilder.setInsertionPoint(chain.first());
-
-      SmallVector<loom::utils::SymbolicDim, 4> tracedShape =
-          loom::utils::traceShape(chain.targetTensor);
-
-      SmallVector<Value, 4> dynamicSizes;
-      for (auto [idx, dim] : llvm::enumerate(tensorType.getShape())) {
-        if (dim != ShapedType::kDynamic)
-          continue;
-
-        Value dynSizeVal = nullptr;
-        if (idx < tracedShape.size()) {
-          if (auto tracedVal = llvm::dyn_cast<Value>(tracedShape[idx])) {
-            Operation *def = tracedVal.getDefiningOp();
-            if (!def || dominance.dominates(def, chain.first()))
-              dynSizeVal = tracedVal;
-          } else if (auto tracedAttr =
-                         llvm::dyn_cast<Attribute>(tracedShape[idx])) {
-            if (auto intAttr = dyn_cast<IntegerAttr>(tracedAttr)) {
-              if (intAttr.getInt() >= 0) {
-                dynSizeVal = arith::ConstantIndexOp::create(
-                    beforeBuilder, chain.first()->getLoc(), intAttr.getInt());
-              }
-            }
-          }
-        }
-
-        if (!dynSizeVal) {
-          auto cstIdx = arith::ConstantIndexOp::create(
-              beforeBuilder, chain.first()->getLoc(), idx);
-          dynSizeVal = tensor::DimOp::create(beforeBuilder, chain.first()->getLoc(),
-                                             chain.targetTensor, cstIdx);
-        }
-        dynamicSizes.push_back(dynSizeVal);
+    for (bufferization::ToTensorOp toTensorOp : toTensorOps) {
+      if (failed(handleToTensor(toTensorOp, dominance))) {
+        signalPassFailure();
+        return;
       }
-
-      auto empty = tensor::EmptyOp::create(beforeBuilder, chain.first()->getLoc(),
-                                           tensorType.getShape(),
-                                           tensorType.getElementType(),
-                                           dynamicSizes);
-      auto sync = loom::SyncOp::create(beforeBuilder, chain.first()->getLoc(),
-                                       TypeRange{tensorType}, chain.targetTensor,
-                                       empty.getResult());
-
-      bool rewiredAnyUse = false;
-      Value targetTensor = chain.targetTensor;
-      targetTensor.replaceUsesWithIf(
-          sync->getResult(0), [&](OpOperand &use) {
-            Operation *owner = use.getOwner();
-            if (owner == sync.getOperation())
-              return false;
-            if (dominance.dominates(sync.getOperation(), owner)) {
-              rewiredAnyUse = true;
-              return true;
-            }
-            return false;
-          });
-      (void)rewiredAnyUse;
     }
   }
 };
 
 } // namespace
 
-std::unique_ptr<mlir::Pass> loom::passes::createWriteOutSyncInsertionPass() {
-  return std::make_unique<WriteOutSyncInsertionPass>();
+std::unique_ptr<mlir::Pass> loom::passes::createHandoffSyncInsertionPass() {
+  return std::make_unique<HandoffSyncInsertionPass>();
 }
