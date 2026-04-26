@@ -59,7 +59,9 @@ public:
     addConversion([](Type type) { return type; });
     
     // Convert MemRefType to CBType for circular buffers
-    addConversion([](MemRefType memref) -> Type {
+    addConversion([](MemRefType memref) -> std::optional<Type> {
+      if (!memref.hasStaticShape())
+        return std::nullopt;
       // Convert memref to CBType. The CBType wraps the memref and stores
       // the number of elements and element type.
       return CBType::get(memref);

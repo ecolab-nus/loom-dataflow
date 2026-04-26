@@ -837,17 +837,23 @@ static bool isScalarRuntimeSiteArg(func::FuncOp func, BlockArgument arg) {
 // sites via function arguments. We may replace this with a dedicated scalar
 // ABI/lowering path in follow-up work.
 static bool preprocessScalarMemoryOpsTmp(func::FuncOp func) {
-  SmallVector<::loom::SemaphoreTakeOp, 8> scalarSemaphores;
+  SmallVector<Value, 8> scalarAllocs;
+  llvm::DenseMap<Value, SmallVector<::loom::SemaphoreTakeOp, 4>>
+      semaphoresByAlloc;
   func.walk([&](::loom::SemaphoreTakeOp sem) {
     auto semType = dyn_cast<MemRefType>(sem.getResult().getType());
     auto allocOp = sem.getSource().getDefiningOp<::loom::AllocOp>();
     if (!semType || !allocOp || !isScalarMemRefType(semType) ||
         !isScalarMemRefType(allocOp.getType()))
       return;
-    scalarSemaphores.push_back(sem);
+    Value allocValue = allocOp.getResult();
+    auto &semaphores = semaphoresByAlloc[allocValue];
+    if (semaphores.empty())
+      scalarAllocs.push_back(allocValue);
+    semaphores.push_back(sem);
   });
 
-  if (scalarSemaphores.empty()) {
+  if (scalarAllocs.empty()) {
     func->removeAttr(kScalarPreprocessTmpAttrName);
     return false;
   }
@@ -857,9 +863,10 @@ static bool preprocessScalarMemoryOpsTmp(func::FuncOp func) {
   SmallVector<Type, 8> newInputs(oldType.getInputs().begin(),
                                  oldType.getInputs().end());
   SmallVector<MemRefType, 8> scalarTypes;
-  scalarTypes.reserve(scalarSemaphores.size());
-  for (::loom::SemaphoreTakeOp sem : scalarSemaphores) {
-    auto semType = cast<MemRefType>(sem.getResult().getType());
+  scalarTypes.reserve(scalarAllocs.size());
+  for (Value allocValue : scalarAllocs) {
+    auto &semaphores = semaphoresByAlloc[allocValue];
+    auto semType = cast<MemRefType>(semaphores.front().getResult().getType());
     scalarTypes.push_back(semType);
     newInputs.push_back(semType);
   }
@@ -872,23 +879,46 @@ static bool preprocessScalarMemoryOpsTmp(func::FuncOp func) {
   for (MemRefType semType : scalarTypes)
     scalarArgs.push_back(entry.addArgument(semType, func.getLoc()));
 
-  for (auto [sem, scalarArg] : llvm::zip(scalarSemaphores, scalarArgs)) {
-    if (auto siteAttr = sem->getAttrOfType<IntegerAttr>(kScalarSiteIdAttrName))
+  for (auto [allocValue, scalarArg] : llvm::zip(scalarAllocs, scalarArgs)) {
+    auto &semaphores = semaphoresByAlloc[allocValue];
+    IntegerAttr siteAttr;
+    SmallVector<::loom::SemaphoreGiveOp, 4> giveOps;
+    llvm::SmallPtrSet<Operation *, 4> syncOps;
+
+    for (::loom::SemaphoreTakeOp sem : semaphores) {
+      if (!siteAttr)
+        siteAttr = sem->getAttrOfType<IntegerAttr>(kScalarSiteIdAttrName);
+
+      for (Operation *user : sem.getResult().getUsers()) {
+        if (auto giveOp = dyn_cast<::loom::SemaphoreGiveOp>(user)) {
+          giveOps.push_back(giveOp);
+          continue;
+        }
+        if (auto syncOp = dyn_cast<::loom::SyncOp>(user))
+          syncOps.insert(syncOp.getOperation());
+      }
+    }
+
+    if (siteAttr)
       func.setArgAttr(static_cast<unsigned>(scalarArg.getArgNumber()),
                       kScalarSiteIdAttrName, siteAttr);
 
-    SmallVector<::loom::SemaphoreGiveOp, 4> giveOps;
-    for (Operation *user : sem.getResult().getUsers())
-      if (auto giveOp = dyn_cast<::loom::SemaphoreGiveOp>(user))
-        giveOps.push_back(giveOp);
-
-    auto allocOp = sem.getSource().getDefiningOp<::loom::AllocOp>();
-    sem.getResult().replaceAllUsesWith(scalarArg);
+    for (::loom::SemaphoreTakeOp sem : semaphores)
+      sem.getResult().replaceAllUsesWith(scalarArg);
 
     for (::loom::SemaphoreGiveOp giveOp : giveOps)
-      giveOp.erase();
+      if (giveOp->getBlock())
+        giveOp.erase();
 
-    sem.erase();
+    for (Operation *syncOp : syncOps)
+      if (syncOp->getBlock())
+        syncOp->erase();
+
+    for (::loom::SemaphoreTakeOp sem : llvm::reverse(semaphores))
+      if (sem->getBlock())
+        sem.erase();
+
+    auto allocOp = allocValue.getDefiningOp<::loom::AllocOp>();
     if (allocOp && allocOp.getResult().use_empty())
       allocOp.erase();
   }
@@ -906,6 +936,8 @@ static LogicalResult annotateCopyBindingSlots(func::FuncOp func) {
   LogicalResult status = success();
   func.walk([&](::loom::CopyOp copyOp) {
     if (failed(status))
+      return;
+    if (copyOp->hasAttr(kScalarSiteIdAttrName))
       return;
     if (!isDramToL1Copy(copyOp) && !isL1ToDramCopy(copyOp))
       return;
@@ -1064,6 +1096,11 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     if (!cbMemrefType) {
       return copyOp.emitOpError(
           "failed to infer L1 circular-buffer memref type for binding");
+    }
+    if (!cbMemrefType.hasStaticShape()) {
+      return copyOp.emitOpError()
+             << "has dynamic L1 circular-buffer memref type " << cbMemrefType
+             << "; ttkernel CB types require a static element count";
     }
 
     auto accessorIndexIt = memrefArgToTensorAccessorArgsIndex.find(linkedMemrefArg);
@@ -1885,6 +1922,7 @@ public:
     hasReduce = hostFunc->hasAttr(kHasReduceAttrName) ||
                    containsGatherOp(originalFunc);
     inferCoreCoordArgOrder();
+    collectParallelIvExprs();
     collectDramInfos();
     collectScalarRuntimeSites();
     collectReduceRegion();
@@ -1972,6 +2010,7 @@ private:
     unsigned sourceArgIndex = 0;
     std::string offsetExpr;
     std::string inputName;
+    std::string bufferName;
   };
 
   static constexpr unsigned kRuntimeArgsPerBindingTuple =
@@ -2143,6 +2182,8 @@ private:
 
   void collectParallelIvExprs() {
     parallelIvExprByValue.clear();
+    mlirCoreExtentX = std::nullopt;
+    mlirCoreExtentY = std::nullopt;
 
     hostFunc.walk([&](scf::ParallelOp op) {
       auto mappedDims = op->getAttrOfType<ArrayAttr>("loom.physical_dims");
@@ -2209,6 +2250,37 @@ private:
 
       sortByLevelThenIndex(xComponents);
       sortByLevelThenIndex(yComponents);
+
+      auto collectAxisExtent = [&](ArrayRef<AxisComponent> components,
+                                   std::optional<int64_t> &axisExtent) {
+        if (components.empty())
+          return;
+
+        int64_t extentProduct = 1;
+        for (const AxisComponent &component : components) {
+          size_t idx = component.idx;
+          if (idx >= lbs.size() || idx >= ubs.size() || idx >= steps.size())
+            return;
+
+          auto lbConst = evaluateConstInt(lbs[idx]);
+          auto ubConst = evaluateConstInt(ubs[idx]);
+          auto stepConst = evaluateConstInt(steps[idx]);
+          if (!lbConst || !ubConst || !stepConst || *stepConst <= 0)
+            return;
+
+          int64_t spanConst = *ubConst - *lbConst;
+          int64_t extentConst = (spanConst + *stepConst - 1) / *stepConst;
+          if (extentConst <= 0)
+            return;
+
+          extentProduct *= extentConst;
+        }
+
+        if (!axisExtent || extentProduct > *axisExtent)
+          axisExtent = extentProduct;
+      };
+      collectAxisExtent(xComponents, mlirCoreExtentX);
+      collectAxisExtent(yComponents, mlirCoreExtentY);
 
       auto buildAxisIvExprs = [&](ArrayRef<AxisComponent> components,
                                   StringRef axisExpr) {
@@ -2647,7 +2719,8 @@ private:
           siteAttr.getInt(),
           dramInfo->argIndex,
           *offsetExpr,
-          dramInfo->inputName});
+          dramInfo->inputName,
+          dramInfo->bufferName});
     });
 
     std::stable_sort(scalarRuntimeSites.begin(), scalarRuntimeSites.end(),
@@ -2853,6 +2926,8 @@ private:
 
     if (kind == HostProgramKind::Pybind) {
       emitLine("IDevice* device = v1.device();");
+      if (!scalarRuntimeSites.empty())
+        emitLine("CommandQueue& cq = device->command_queue();");
       emitLine("Program program = CreateProgram();");
     } else {
       const size_t deviceArg = dramInfos.size() + 5;
@@ -2861,15 +2936,31 @@ private:
       emitLine("Program program{};");
     }
     emitLine("auto core_grid = device->compute_with_storage_grid_size();");
+    emitLine(
+        "uint32_t default_end_core_x = static_cast<uint32_t>(core_grid.x - 1);");
+    if (mlirCoreExtentX && *mlirCoreExtentX > 0) {
+      emitLine("if (default_end_core_x + 1 > " +
+               std::to_string(*mlirCoreExtentX) +
+               "u) default_end_core_x = " +
+               std::to_string(*mlirCoreExtentX - 1) + "u;");
+    }
+    emitLine(
+        "uint32_t default_end_core_y = static_cast<uint32_t>(core_grid.y - 1);");
+    if (mlirCoreExtentY && *mlirCoreExtentY > 0) {
+      emitLine("if (default_end_core_y + 1 > " +
+               std::to_string(*mlirCoreExtentY) +
+               "u) default_end_core_y = " +
+               std::to_string(*mlirCoreExtentY - 1) + "u;");
+    }
     emitLine("uint32_t start_core_x = (v" + std::to_string(startCoreXArg) +
              " == UINT32_MAX) ? 0u : v" + std::to_string(startCoreXArg) + ";");
     emitLine("uint32_t start_core_y = (v" + std::to_string(startCoreYArg) +
              " == UINT32_MAX) ? 0u : v" + std::to_string(startCoreYArg) + ";");
     emitLine("uint32_t end_core_x = (v" + std::to_string(endCoreXArg) +
-             " == UINT32_MAX) ? static_cast<uint32_t>(core_grid.x - 1) : v" +
+             " == UINT32_MAX) ? default_end_core_x : v" +
              std::to_string(endCoreXArg) + ";");
     emitLine("uint32_t end_core_y = (v" + std::to_string(endCoreYArg) +
-             " == UINT32_MAX) ? static_cast<uint32_t>(core_grid.y - 1) : v" +
+             " == UINT32_MAX) ? default_end_core_y : v" +
              std::to_string(endCoreYArg) + ";");
     emitLine("CoreRangeSet all_cores{ CoreRange{ {start_core_x, start_core_y}, {end_core_x, end_core_y} } };");
     emitLine("constexpr uint32_t single_tile_size = sizeof(bfloat16) * TILE_HEIGHT * TILE_WIDTH;");
@@ -3012,6 +3103,34 @@ private:
     return {};
   }
 
+  void emitScalarRuntimeIndex(const ScalarRuntimeSiteInfo &site,
+                              const std::string &sitePrefix) {
+    emitLine("std::size_t " + sitePrefix +
+             "_index = static_cast<std::size_t>(" + site.offsetExpr + ");");
+  }
+
+  void emitScalarRuntimePybindLoad(const ScalarRuntimeSiteInfo &site,
+                                   const std::string &sitePrefix) {
+    emitLine("std::vector<bfloat16> " + sitePrefix + "_values;");
+    emitLine("EnqueueReadSubBuffer(cq, *" + site.bufferName + ", " +
+             sitePrefix + "_values, BufferRegion(static_cast<DeviceAddr>(" +
+             sitePrefix +
+             "_index * sizeof(bfloat16)), static_cast<DeviceAddr>(sizeof("
+             "bfloat16))), true);");
+    emitLine("bfloat16 " + sitePrefix + "_value = " + sitePrefix +
+             "_values.front();");
+    emitLine("uint32_t " + sitePrefix +
+             "_packed = pack_two_bfloat16_into_uint32({" + sitePrefix +
+             "_value, " + sitePrefix + "_value});");
+  }
+
+  bool scalarRuntimeOffsetsUseCore() const {
+    return llvm::any_of(scalarRuntimeSites,
+                        [](const ScalarRuntimeSiteInfo &site) {
+                          return StringRef(site.offsetExpr).contains("core.");
+                        });
+  }
+
   void emitPybindOverrideRuntimeCallback() {
     if (kind != HostProgramKind::Pybind)
       return;
@@ -3033,6 +3152,12 @@ private:
       emitLine("auto* " + info.bufferName + " = " + tensorExpr + ".buffer();");
     }
 
+    if (!scalarRuntimeSites.empty()) {
+      emitLine("IDevice* device = " + scalarRuntimeSites.front().bufferName +
+               "->device();");
+      emitLine("CommandQueue& cq = device->command_queue();");
+    }
+
     emitLine("auto& reader_args_by_core = GetRuntimeArgs(program, reader_id);");
     emitLine("auto& writer_args_by_core = GetRuntimeArgs(program, writer_id);");
     emitLine(
@@ -3042,6 +3167,8 @@ private:
     emitLine("auto& reader_args = reader_args_by_core[core_x][core_y];");
     emitLine("auto& writer_args = writer_args_by_core[core_x][core_y];");
     emitLine("auto& compute_args = compute_args_by_core[core_x][core_y];");
+    if (scalarRuntimeOffsetsUseCore())
+      emitLine("CoreCoord core{core_x, core_y};");
 
     for (const CopyBindingInfo &binding : copyBindings) {
       const DramBufferInfo &dramInfo = dramInfos[binding.dramInfoIndex];
@@ -3054,6 +3181,18 @@ private:
                "->address();");
       emitLine("compute_args[" + offset + "] = " + dramInfo.bufferName +
                "->address();");
+    }
+
+    unsigned scalarArgIndex =
+        copyBindings.size() * kRuntimeArgsPerBindingTuple + (hasReduce ? 6 : 0);
+    for (const ScalarRuntimeSiteInfo &site : scalarRuntimeSites) {
+      std::string sitePrefix = "scalar_site_" + std::to_string(site.siteId);
+      emitScalarRuntimeIndex(site, sitePrefix);
+      emitScalarRuntimePybindLoad(site, sitePrefix);
+      std::string offset = std::to_string(scalarArgIndex++);
+      emitLine("reader_args[" + offset + "] = " + sitePrefix + "_packed;");
+      emitLine("writer_args[" + offset + "] = " + sitePrefix + "_packed;");
+      emitLine("compute_args[" + offset + "] = " + sitePrefix + "_packed;");
     }
 
     emitLine("}");
@@ -3236,7 +3375,7 @@ private:
                  "_packed = pack_two_bfloat16_into_uint32({" + sitePrefix +
                  "_value, " + sitePrefix + "_value});");
       } else {
-        emitLine("uint32_t " + sitePrefix + "_packed = 0;");
+        emitScalarRuntimePybindLoad(site, sitePrefix);
       }
     }
 
@@ -3359,6 +3498,8 @@ private:
   SmallVector<std::string, 8> emittedTilesVars;
   std::string coreCoordArg0Expr = "core.x";
   std::string coreCoordArg1Expr = "core.y";
+  std::optional<int64_t> mlirCoreExtentX;
+  std::optional<int64_t> mlirCoreExtentY;
   bool hasReduce = false;
   ReduceRegionInfo reduceRegion;
 };
