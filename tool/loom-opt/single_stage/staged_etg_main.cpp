@@ -43,29 +43,18 @@ int main(int argc, char **argv) {
 
   llvm::json::Array json_etgs;
 
-  // Iterate over all functions and variants effectively
+  // Iterate over all functions and build a loop-structure-aware ETG per
+  // variant. The builder walks the function body, recurses into scf.for to
+  // produce nested for_loop_block stages, and walks through affine.parallel
+  // transparently.
   module->walk([&](mlir::func::FuncOp func_op) {
-    mlir::scf::ForOp target_loop = nullptr;
-
-    // Find the scf.for loop with loom.iter_type = sequential
-    func_op.walk([&](mlir::scf::ForOp for_op) {
-      if (for_op->hasAttr("loom.iter_type")) {
-        std::string attr_str;
-        llvm::raw_string_ostream os(attr_str);
-        for_op->getAttr("loom.iter_type").print(os);
-        if (attr_str.find("sequential") != std::string::npos) {
-          target_loop = for_op;
-        }
-      }
-    });
-
-    if (target_loop) {
-      VariantETG etg(func_op.getName(), &registry);
-      etg.buildFromSCFFor(target_loop);
-      etg.buildConstraintScope(func_op);
-      etg.buildL1FootprintConstraint();
-      json_etgs.push_back(etg.toJSON());
-    }
+    if (func_op.isExternal() || func_op.empty())
+      return;
+    VariantETG etg(func_op.getName(), &registry);
+    etg.buildFromFunc(func_op);
+    etg.buildConstraintScope(func_op);
+    etg.buildL1FootprintConstraint();
+    json_etgs.push_back(etg.toJSON());
   });
 
   std::error_code ec;

@@ -135,26 +135,13 @@ buildETGString(ModuleOp module, const loom::lcs::HWOpRegistry &registry) {
   llvm::json::Array json_etgs;
 
   module.walk([&](func::FuncOp func_op) {
-    scf::ForOp target_loop = nullptr;
-
-    func_op.walk([&](scf::ForOp for_op) {
-      if (for_op->hasAttr("loom.iter_type")) {
-        std::string attr_str;
-        llvm::raw_string_ostream os(attr_str);
-        for_op->getAttr("loom.iter_type").print(os);
-        if (attr_str.find("sequential") != std::string::npos) {
-          target_loop = for_op;
-        }
-      }
-    });
-
-    if (target_loop) {
-      loom::lcs::VariantETG etg(func_op.getName(), &registry);
-      etg.buildFromSCFFor(target_loop);
-      etg.buildConstraintScope(func_op);
-      etg.buildL1FootprintConstraint();
-      json_etgs.push_back(etg.toJSON());
-    }
+    if (func_op.isExternal() || func_op.empty())
+      return;
+    loom::lcs::VariantETG etg(func_op.getName(), &registry);
+    etg.buildFromFunc(func_op);
+    etg.buildConstraintScope(func_op);
+    etg.buildL1FootprintConstraint();
+    json_etgs.push_back(etg.toJSON());
   });
 
   std::string result;
