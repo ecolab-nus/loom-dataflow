@@ -186,6 +186,11 @@ std::vector<Expr> traceAllocDimsFromTensor(mlir::Value tensorVal) {
     return {};
   }
 
+  // Case 5: loom.sync — shape-preserving DPS op; trace through init (outs).
+  if (auto syncOp = dyn_cast<loom::SyncOp>(op)) {
+    return traceAllocDimsFromTensor(syncOp.getInit());
+  }
+
   return {};
 }
 

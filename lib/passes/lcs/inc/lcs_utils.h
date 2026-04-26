@@ -45,9 +45,10 @@ std::vector<Expr> formatAllocDims(::loom::AllocOp allocOp);
 
 /**
  * @brief Recursively trace a tensor-typed Value to its underlying AllocOp dims.
- * Handles complex IR patterns: loom ops (copy_to_tensor, init_tensor),
- * linalg operations (fill, copy, generic, matmul), affine loops with iter_args,
- * and block arguments from affine.for / affine.parallel.
+ * Handles complex IR patterns: loom ops (copy_to_tensor, init_tensor,
+ * bufferize_to_tensor, sync), linalg operations (fill, copy, generic, matmul),
+ * scf/affine loops with iter_args, and block arguments from affine.for /
+ * affine.parallel / scf.for.
  *
  * @param tensorVal The tensor SSA value to trace
  * @return Vector of per-dimension Exprs, or empty vector if tracing fails
