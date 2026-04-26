@@ -10,14 +10,16 @@
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace loom {
 namespace lcs {
 
-// Forward declaration
+// Forward declarations
 class HWOpRegistry;
+class WorkloadStageBody;
 
 /// Workload record: operation name, symbolic dimensions, and resource usage.
 /// dims maps hardware symbol names to operator IR symbolic expressions.
@@ -37,31 +39,151 @@ struct HardwareQueue {
   void dump(llvm::raw_ostream &os, int indent = 0) const;
 };
 
-/// A stage groups hardware queues with a symbolic time expression.
-/// Stages represent a level of computation/memory pipeline hierarchy.
-struct Stage {
-  int stage_id;
-  std::map<std::string, HardwareQueue> queues;
+// =============================================================================
+// Stage hierarchy
+// =============================================================================
 
-  Stage(int id);
+/// Polymorphic body of a Stage. A stage is either a workload bundle (the
+/// existing Parallel/Sequential form) or a nested for_loop_block.
+class StageBody {
+public:
+  enum class Kind { Workload, ForLoop };
+
+  virtual ~StageBody() = default;
+
+  /// Discriminator — used in lieu of dynamic_cast (the project builds with
+  /// -fno-rtti).
+  virtual Kind getKind() const = 0;
+
+  /// Returns the single-key object that represents this body, e.g.
+  /// `{"Parallel": [...]}` or `{"for_loop_block": {...}}`. Stage::toJSON()
+  /// adds the `stage_id` field around it.
+  virtual llvm::json::Object toJSONFragment() const = 0;
+
+  virtual void dump(llvm::raw_ostream &os, int indent) const = 0;
+};
+
+/// Workload-stage body: the historical "Parallel of Sequential" form. Holds
+/// hardware queues; lazily groups workloads by resource overlap when emitting.
+class WorkloadStageBody : public StageBody {
+public:
+  Kind getKind() const override { return Kind::Workload; }
+
   void pushWorkload(const std::string &unit_name, const std::string &op,
                     std::map<std::string, Expr> dims,
                     std::vector<std::string> resources);
+
+  llvm::json::Object toJSONFragment() const override;
+  void dump(llvm::raw_ostream &os, int indent) const override;
+
+  bool empty() const { return queues_.empty(); }
+
+private:
+  std::map<std::string, HardwareQueue> queues_;
+};
+
+/// A stage groups hardware queues (or a nested loop block) at a given
+/// dependency depth. The `body` decides which JSON form is emitted.
+struct Stage {
+  int stage_id;
+  std::unique_ptr<StageBody> body;
+
+  explicit Stage(int id) : stage_id(id) {}
+  Stage(int id, std::unique_ptr<StageBody> b)
+      : stage_id(id), body(std::move(b)) {}
+
+  // Move-only.
+  Stage(Stage &&) = default;
+  Stage &operator=(Stage &&) = default;
+  Stage(const Stage &) = delete;
+  Stage &operator=(const Stage &) = delete;
+
   void dump(llvm::raw_ostream &os, int indent = 0) const;
   llvm::json::Value toJSON() const;
 };
 
-/// A scope is a collection of stages.
+/// A scope is a collection of stages keyed by stage_id.
 /// Separates compute and memory operations into distinct scopes.
 struct Scope {
   std::string scope_name;
   std::map<int, Stage> stages;
 
-  Scope(std::string name);
-  Stage &getOrCreateStage(int id);
+  explicit Scope(std::string name);
+
+  /// Get (or create) a stage at `id` whose body is a WorkloadStageBody.
+  /// Asserts that any pre-existing stage at `id` is of workload type.
+  WorkloadStageBody &getOrCreateWorkloadStage(int id);
+
+  /// Insert a stage with a non-workload body (e.g. a for_loop_block) at the
+  /// first free id starting from `min_id`. Returns the chosen id.
+  int placeStage(int min_id, std::unique_ptr<StageBody> body);
+
   void dump(llvm::raw_ostream &os, int indent = 0) const;
   llvm::json::Value toJSON() const;
 };
+
+// =============================================================================
+// FusedOpBlock / KernelBlock / ForLoopBlockStageBody
+// =============================================================================
+
+/// Shared body shape: a compute scope and a memory scope that hold the
+/// modelled workloads of a fused operation. Used by both `KernelBlock`
+/// (variant root) and `ForLoopBlockStageBody` (nested loop level).
+struct FusedOpBlock {
+  Scope compute_scope;
+  Scope memory_scope;
+
+  FusedOpBlock() : compute_scope("ComputeScope"), memory_scope("MemoryScope") {}
+
+  /// Emit `{"compute_scope": ..., "memory_scope": ...}` (without enclosing
+  /// braces of any wrapping object).
+  llvm::json::Object emitScopesJSON() const;
+  void dumpScopes(llvm::raw_ostream &os, int indent) const;
+};
+
+/// Top-level container of a variant. Holds the kernel func's compute and
+/// memory scopes; nested scf.for loops appear as `for_loop_block` stages
+/// inside `compute_scope.stages`.
+class KernelBlock {
+public:
+  FusedOpBlock body;
+
+  llvm::json::Value toJSON() const;
+  void dump(llvm::raw_ostream &os, int indent = 0) const;
+};
+
+/// Loop iteration tag carried by a for_loop_block. Spatial loops
+/// (affine.parallel) are not modelled — they are walked through transparently.
+enum class IterTypeTag { Sequential, Temporal };
+
+/// A stage body that represents a nested scf.for level. Recursively contains
+/// its own compute/memory scopes through `body`.
+class ForLoopBlockStageBody : public StageBody {
+public:
+  ForLoopBlockStageBody(std::string block_sym, IterTypeTag iter_type,
+                        Expr trip_count);
+
+  Kind getKind() const override { return Kind::ForLoop; }
+
+  FusedOpBlock body;
+
+  Scope &computeScope() { return body.compute_scope; }
+  Scope &memoryScope() { return body.memory_scope; }
+  const Scope &computeScope() const { return body.compute_scope; }
+  const Scope &memoryScope() const { return body.memory_scope; }
+
+  llvm::json::Object toJSONFragment() const override;
+  void dump(llvm::raw_ostream &os, int indent) const override;
+
+private:
+  std::string block_sym_;
+  IterTypeTag iter_type_;
+  Expr trip_count_;
+};
+
+// =============================================================================
+// ConstraintScope
+// =============================================================================
 
 /// Per-symbol metadata: type string and optional natural upper bound.
 struct SymbolInfo {
@@ -91,23 +213,29 @@ struct ConstraintScope {
   llvm::json::Value toJSON() const;
 };
 
-/// VariantETG: Execution Task Graph builder for a computation variant.
-/// Analyzes affine.for loops to extract compute and memory workloads,
-/// organizing them into compute and memory scopes with stage-based scheduling.
+// =============================================================================
+// VariantETG
+// =============================================================================
+
+/// VariantETG: Loop-structure-aware Execution Task Graph builder for a
+/// computation variant. The kernel's compute and memory operations are
+/// captured into a `KernelBlock`, with nested scf.for loops recursively
+/// modelled as `for_loop_block` stages.
 class VariantETG {
 public:
   VariantETG(llvm::StringRef name, const HWOpRegistry *registry);
 
   llvm::StringRef getVariantName() const { return variant_name_; }
-  const Scope &getComputeScope() const { return compute_scope_; }
-  const Scope &getMemoryScope() const { return memory_scope_; }
+  const KernelBlock &getKernelBlock() const { return kernel_block_; }
   const ConstraintScope &getConstraintScope() const { return constraint_scope_; }
 
-  /// Build ETG from an scf.for loop body.
-  void buildFromSCFFor(mlir::scf::ForOp for_op);
+  /// Build the kernel's ETG by walking the function body, recursing into
+  /// scf.for loops to produce nested for_loop_block stages and walking
+  /// through affine.parallel loops transparently.
+  void buildFromFunc(mlir::func::FuncOp func_op);
 
   /// Build constraint scope from a func operation.
-  /// Extracts symbolic block sizes and loop iteration counts.
+  /// Extracts symbolic block sizes and global loop iteration counts.
   void buildConstraintScope(mlir::func::FuncOp func_op);
 
   /// Build and push the L1 footprint capacity constraint.
@@ -118,15 +246,21 @@ public:
 
 private:
   std::string variant_name_;
-  Scope compute_scope_;
-  Scope memory_scope_;
+  KernelBlock kernel_block_;
   ConstraintScope constraint_scope_;
   const HWOpRegistry *hw_registry_;
 
-  void dispatchToComputeQueues(mlir::Operation *op, Stage &target_stage);
-  void dispatchNamedOp(mlir::Operation *op, Stage &target_stage);
-  void dispatchGenericOp(mlir::Operation *op, Stage &target_stage);
-  void dispatchToMemoryQueues(mlir::Operation *op, Stage &target_stage);
+  // Recursive scope population. Walks `region`'s direct ops, dispatching
+  // each into the given compute / memory scope according to its kind.
+  void populateScopesFromRegion(mlir::Region &region, Scope &compute_scope,
+                                Scope &memory_scope);
+
+  void dispatchToComputeQueues(mlir::Operation *op,
+                               WorkloadStageBody &target);
+  void dispatchNamedOp(mlir::Operation *op, WorkloadStageBody &target);
+  void dispatchGenericOp(mlir::Operation *op, WorkloadStageBody &target);
+  void dispatchToMemoryQueues(mlir::Operation *op,
+                              WorkloadStageBody &target);
 
   void collectSymbols(mlir::func::FuncOp func_op);
   void analyzeLoopIterations(mlir::func::FuncOp func_op);

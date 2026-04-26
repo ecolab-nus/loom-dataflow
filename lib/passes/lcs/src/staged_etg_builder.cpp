@@ -7,6 +7,7 @@
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #define GET_OP_CLASSES
 #include "ADLOps.h.inc"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -93,6 +94,30 @@ groupWorkloadsByResources(const std::vector<const Workload *> &all_workloads) {
   return groups;
 }
 
+const char *iterTypeTagToString(IterTypeTag t) {
+  switch (t) {
+  case IterTypeTag::Sequential:
+    return "sequential";
+  case IterTypeTag::Temporal:
+    return "temporal";
+  }
+  return "temporal";
+}
+
+IterTypeTag iterTypeFromAttr(mlir::Operation *op) {
+  if (auto attr = op->getAttrOfType<loom::IterTypeAttr>("loom.iter_type")) {
+    if (attr.getValue() == loom::IterType::Sequential)
+      return IterTypeTag::Sequential;
+  }
+  return IterTypeTag::Temporal;
+}
+
+std::string blockSymFromAttr(mlir::Operation *op) {
+  if (auto attr = op->getAttrOfType<mlir::SymbolRefAttr>("loom.block_sym"))
+    return attr.getLeafReference().str();
+  return std::string();
+}
+
 } // namespace
 
 // ==========================================
@@ -146,28 +171,21 @@ void HardwareQueue::dump(llvm::raw_ostream &os, int indent) const {
 }
 
 // ==========================================
-// Stage
+// WorkloadStageBody
 // ==========================================
-Stage::Stage(int id) : stage_id(id) {}
-
-void Stage::pushWorkload(const std::string &unit_name, const std::string &op,
-                         std::map<std::string, Expr> dims,
-                         std::vector<std::string> resources) {
-  if (queues.find(unit_name) == queues.end())
-    queues[unit_name] = HardwareQueue{unit_name, {}};
-  queues[unit_name].workloads.push_back(
+void WorkloadStageBody::pushWorkload(const std::string &unit_name,
+                                     const std::string &op,
+                                     std::map<std::string, Expr> dims,
+                                     std::vector<std::string> resources) {
+  if (queues_.find(unit_name) == queues_.end())
+    queues_[unit_name] = HardwareQueue{unit_name, {}};
+  queues_[unit_name].workloads.push_back(
       Workload{op, std::move(dims), std::move(resources)});
 }
 
-void Stage::dump(llvm::raw_ostream &os, int indent) const {
-  os.indent(indent) << "├── Stage " << stage_id << ":\n";
-  for (auto const &[name, queue] : queues)
-    queue.dump(os, indent + 4);
-}
-
-llvm::json::Value Stage::toJSON() const {
+llvm::json::Object WorkloadStageBody::toJSONFragment() const {
   std::vector<const Workload *> all_workloads;
-  for (auto const &[name, queue] : queues)
+  for (auto const &[name, queue] : queues_)
     for (const auto &w : queue.workloads)
       all_workloads.push_back(&w);
 
@@ -181,19 +199,57 @@ llvm::json::Value Stage::toJSON() const {
                                           {"scenarios", llvm::json::Array{}}}}});
   }
 
-  return llvm::json::Object{{"stage_id", stage_id},
-                            {"Parallel", std::move(parallel_arr)}};
+  return llvm::json::Object{{"Parallel", std::move(parallel_arr)}};
+}
+
+void WorkloadStageBody::dump(llvm::raw_ostream &os, int indent) const {
+  for (auto const &[name, queue] : queues_)
+    queue.dump(os, indent);
+}
+
+// ==========================================
+// Stage
+// ==========================================
+llvm::json::Value Stage::toJSON() const {
+  llvm::json::Object obj =
+      body ? body->toJSONFragment() : llvm::json::Object{};
+  obj["stage_id"] = stage_id;
+  return obj;
+}
+
+void Stage::dump(llvm::raw_ostream &os, int indent) const {
+  os.indent(indent) << "├── Stage " << stage_id << ":\n";
+  if (body)
+    body->dump(os, indent + 4);
 }
 
 // ==========================================
 // Scope
 // ==========================================
-Scope::Scope(std::string name) : scope_name(name) {}
+Scope::Scope(std::string name) : scope_name(std::move(name)) {}
 
-Stage &Scope::getOrCreateStage(int id) {
-  if (stages.find(id) == stages.end())
-    stages.emplace(id, Stage(id));
-  return stages.at(id);
+WorkloadStageBody &Scope::getOrCreateWorkloadStage(int id) {
+  auto it = stages.find(id);
+  if (it == stages.end()) {
+    auto inserted = stages.emplace(
+        std::piecewise_construct, std::forward_as_tuple(id),
+        std::forward_as_tuple(id, std::make_unique<WorkloadStageBody>()));
+    it = inserted.first;
+  }
+  StageBody *raw = it->second.body.get();
+  assert(raw && raw->getKind() == StageBody::Kind::Workload &&
+         "Stage at this id is not a workload stage; cannot mix "
+         "workloads with a for_loop_block at the same stage_id");
+  return *static_cast<WorkloadStageBody *>(raw);
+}
+
+int Scope::placeStage(int min_id, std::unique_ptr<StageBody> body) {
+  int id = min_id;
+  while (stages.count(id))
+    ++id;
+  stages.emplace(std::piecewise_construct, std::forward_as_tuple(id),
+                 std::forward_as_tuple(id, std::move(body)));
+  return id;
 }
 
 void Scope::dump(llvm::raw_ostream &os, int indent) const {
@@ -208,6 +264,52 @@ llvm::json::Value Scope::toJSON() const {
     stages_json.push_back(pair.second.toJSON());
   return llvm::json::Object{{"scope_name", scope_name},
                             {"stages", std::move(stages_json)}};
+}
+
+// ==========================================
+// FusedOpBlock
+// ==========================================
+llvm::json::Object FusedOpBlock::emitScopesJSON() const {
+  return llvm::json::Object{{"compute_scope", compute_scope.toJSON()},
+                            {"memory_scope", memory_scope.toJSON()}};
+}
+
+void FusedOpBlock::dumpScopes(llvm::raw_ostream &os, int indent) const {
+  compute_scope.dump(os, indent);
+  memory_scope.dump(os, indent);
+}
+
+// ==========================================
+// KernelBlock
+// ==========================================
+llvm::json::Value KernelBlock::toJSON() const { return body.emitScopesJSON(); }
+
+void KernelBlock::dump(llvm::raw_ostream &os, int indent) const {
+  os.indent(indent) << "kernel_block:\n";
+  body.dumpScopes(os, indent + 2);
+}
+
+// ==========================================
+// ForLoopBlockStageBody
+// ==========================================
+ForLoopBlockStageBody::ForLoopBlockStageBody(std::string block_sym,
+                                             IterTypeTag iter_type,
+                                             Expr trip_count)
+    : block_sym_(std::move(block_sym)), iter_type_(iter_type),
+      trip_count_(std::move(trip_count)) {}
+
+llvm::json::Object ForLoopBlockStageBody::toJSONFragment() const {
+  llvm::json::Object inner = body.emitScopesJSON();
+  inner["block_sym"] = block_sym_;
+  inner["iter_type"] = iterTypeTagToString(iter_type_);
+  inner["trip_count"] = trip_count_.toJSON();
+  return llvm::json::Object{{"for_loop_block", std::move(inner)}};
+}
+
+void ForLoopBlockStageBody::dump(llvm::raw_ostream &os, int indent) const {
+  os.indent(indent) << "for_loop_block [" << block_sym_ << ", "
+                    << iterTypeTagToString(iter_type_) << "]:\n";
+  body.dumpScopes(os, indent + 2);
 }
 
 // ==========================================
@@ -257,78 +359,146 @@ llvm::json::Value ConstraintScope::toJSON() const {
 // VariantETG — construction
 // ==========================================
 VariantETG::VariantETG(llvm::StringRef name, const HWOpRegistry *registry)
-    : variant_name_(name.str()), compute_scope_("ComputeScope"),
-      memory_scope_("MemoryScope"), hw_registry_(registry) {}
+    : variant_name_(name.str()), hw_registry_(registry) {}
 
 // ==========================================
 // VariantETG — ETG building
 // ==========================================
-void VariantETG::buildFromSCFFor(mlir::scf::ForOp for_op) {
+void VariantETG::buildFromFunc(mlir::func::FuncOp func_op) {
+  if (func_op.isExternal() || func_op.empty())
+    return;
+  populateScopesFromRegion(func_op.getRegion(),
+                           kernel_block_.body.compute_scope,
+                           kernel_block_.body.memory_scope);
+}
+
+void VariantETG::populateScopesFromRegion(mlir::Region &region,
+                                          Scope &compute_scope,
+                                          Scope &memory_scope) {
+  if (region.empty())
+    return;
+
+  // Per-region readiness map; seeded with this region's block arguments at
+  // stage 0 (matching the original walk semantics).
   llvm::DenseMap<mlir::Value, int> value_ready_stage;
+  for (mlir::Block &block : region)
+    for (mlir::Value arg : block.getArguments())
+      value_ready_stage[arg] = 0;
 
-  for (mlir::Value block_arg : for_op.getBody()->getArguments())
-    value_ready_stage[block_arg] = 0;
+  // Recursively walk a block. For nested scf.for, build a child for_loop_block
+  // and recurse with fresh scopes. For affine.parallel, walk through
+  // transparently into the same target scopes (spatial loops are not modelled
+  // — confirmed in the design plan).
+  std::function<void(mlir::Block &)> walkBlock = [&](mlir::Block &block) {
+    for (mlir::Operation &op_ref : block) {
+      mlir::Operation *op = &op_ref;
 
-  for_op.getBody()->walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation *op) {
-    if (op->getParentOp() != for_op)
-      return;
+      int required_stage = 0;
+      for (mlir::Value operand : op->getOperands()) {
+        auto it = value_ready_stage.find(operand);
+        if (it != value_ready_stage.end())
+          required_stage = std::max(required_stage, it->second);
+      }
 
-    int required_stage = 0;
-    for (mlir::Value operand : op->getOperands())
-      if (value_ready_stage.count(operand))
-        required_stage = std::max(required_stage, value_ready_stage[operand]);
+      bool advances_stage = true; // default: generic ops advance stage by 1
+      bool dispatched = false;
 
-    bool is_compute = llvm::isa<mlir::linalg::LinalgOp>(op);
-    bool is_memory  = op->getName().getStringRef() == "loom.copy";
-    bool is_infra   =
-        is_compute && llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
+      if (auto for_op = llvm::dyn_cast<mlir::scf::ForOp>(op)) {
+        auto child = std::make_unique<ForLoopBlockStageBody>(
+            blockSymFromAttr(op), iterTypeFromAttr(op),
+            extractLoopTripCount(for_op));
+        // Recurse into the loop body with fresh scopes (a fresh region walk
+        // re-seeds its own value_ready_stage from the for_op block args).
+        populateScopesFromRegion(for_op.getRegion(), child->computeScope(),
+                                 child->memoryScope());
+        compute_scope.placeStage(required_stage, std::move(child));
+        dispatched = true;
+        // for_op result tensors are visible to siblings; treat them as
+        // becoming ready one stage after the loop.
+        // (advances_stage = true)
+      } else if (llvm::isa<mlir::affine::AffineParallelOp>(op)) {
+        // Transparent: descend with the same target scopes and the same
+        // readiness map. Block args of the parallel op inherit the current
+        // required_stage so that ops inside can reference them correctly.
+        for (mlir::Region &inner_region : op->getRegions())
+          for (mlir::Block &inner_block : inner_region) {
+            for (mlir::Value barg : inner_block.getArguments())
+              value_ready_stage[barg] = required_stage;
+            walkBlock(inner_block);
+          }
+        dispatched = true;
+        advances_stage = false; // parallel op itself produces no modelled work
+      } else {
+        bool is_compute = llvm::isa<mlir::linalg::LinalgOp>(op);
+        bool is_memory = op->getName().getStringRef() == "loom.copy";
+        bool is_linalg_infra =
+            is_compute &&
+            llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
 
-    if (is_compute && !is_infra)
-      dispatchToComputeQueues(op, compute_scope_.getOrCreateStage(required_stage));
-    if (is_memory)
-      dispatchToMemoryQueues(op, memory_scope_.getOrCreateStage(required_stage));
+        if (is_compute && !is_linalg_infra) {
+          dispatchToComputeQueues(
+              op, compute_scope.getOrCreateWorkloadStage(required_stage));
+          dispatched = true;
+        } else if (is_memory) {
+          dispatchToMemoryQueues(
+              op, memory_scope.getOrCreateWorkloadStage(required_stage));
+          dispatched = true;
+          advances_stage = false; // memory ops are non-blocking
+        } else if (is_linalg_infra) {
+          advances_stage = false; // matches legacy: linalg.fill/copy don't bump
+        }
+        (void)dispatched;
+      }
 
-    int ready_time = (is_infra || is_memory) ? required_stage : required_stage + 1;
-    for (mlir::Value result : op->getResults())
-      value_ready_stage[result] = ready_time;
-  });
+      int ready_time = advances_stage ? required_stage + 1 : required_stage;
+      for (mlir::Value result : op->getResults())
+        value_ready_stage[result] = ready_time;
+    }
+  };
+
+  for (mlir::Block &block : region)
+    walkBlock(block);
 }
 
 void VariantETG::dispatchToComputeQueues(mlir::Operation *op,
-                                         Stage &target_stage) {
+                                         WorkloadStageBody &target) {
   assert(hw_registry_ && "HWOpRegistry must be provided");
   if (llvm::isa<mlir::linalg::GenericOp>(op))
-    dispatchGenericOp(op, target_stage);
+    dispatchGenericOp(op, target);
   else
-    dispatchNamedOp(op, target_stage);
+    dispatchNamedOp(op, target);
 }
 
-void VariantETG::dispatchNamedOp(mlir::Operation *op, Stage &target_stage) {
+void VariantETG::dispatchNamedOp(mlir::Operation *op,
+                                 WorkloadStageBody &target) {
   std::string linalg_op_name = op->getName().getStringRef().str();
   const HWComputeFunc *hwFunc =
       hw_registry_->lookup(HWOpKey::named(linalg_op_name));
   if (!hwFunc) {
     auto ph = HWOpRegistry::makePlaceholder(linalg_op_name);
-    target_stage.pushWorkload(ph.hw_component, ph.hw_func_name, {}, {});
+    target.pushWorkload(ph.hw_component, ph.hw_func_name, {}, {});
     return;
   }
 
   auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
   std::map<std::string, Expr> dimMap;
   auto inputs = linalgOp.getDpsInputs();
-  for (size_t i = 0; i < inputs.size() && i < hwFunc->input_bindings.size(); ++i) {
+  for (size_t i = 0; i < inputs.size() && i < hwFunc->input_bindings.size();
+       ++i) {
     std::vector<Expr> opDims = traceAllocDimsFromTensor(inputs[i]);
     const auto &hwBinding = hwFunc->input_bindings[i];
-    for (size_t d = 0; d < hwBinding.dim_symbols.size() && d < opDims.size(); ++d)
+    for (size_t d = 0;
+         d < hwBinding.dim_symbols.size() && d < opDims.size(); ++d)
       if (dimMap.count(hwBinding.dim_symbols[d]) == 0)
         dimMap[hwBinding.dim_symbols[d]] = opDims[d];
   }
 
-  target_stage.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
-                            std::move(dimMap), hwFunc->resources);
+  target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
+                      std::move(dimMap), hwFunc->resources);
 }
 
-void VariantETG::dispatchGenericOp(mlir::Operation *op, Stage &target_stage) {
+void VariantETG::dispatchGenericOp(mlir::Operation *op,
+                                   WorkloadStageBody &target) {
   auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
   GenericDimAnalysis analysis = analyzeGenericDims(linalgOp);
 
@@ -347,23 +517,24 @@ void VariantETG::dispatchGenericOp(mlir::Operation *op, Stage &target_stage) {
         hw_registry_->lookup(HWOpKey::generic(bodyOpName, analysis.generic_class));
     if (!hwFunc) {
       auto ph = HWOpRegistry::makePlaceholder(bodyOpName);
-      target_stage.pushWorkload(ph.hw_component, ph.hw_func_name, {}, {});
+      target.pushWorkload(ph.hw_component, ph.hw_func_name, {}, {});
       continue;
     }
 
     std::map<std::string, Expr> dimMap;
     if (!hwFunc->parallel_symbol.empty() && !analysis.parallel_product.isNone())
       dimMap[hwFunc->parallel_symbol] = analysis.parallel_product;
-    if (!hwFunc->reduction_symbol.empty() && !analysis.reduction_product.isNone())
+    if (!hwFunc->reduction_symbol.empty() &&
+        !analysis.reduction_product.isNone())
       dimMap[hwFunc->reduction_symbol] = analysis.reduction_product;
 
-    target_stage.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
-                              std::move(dimMap), hwFunc->resources);
+    target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
+                        std::move(dimMap), hwFunc->resources);
   }
 }
 
 void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
-                                        Stage &target_stage) {
+                                        WorkloadStageBody &target) {
   auto copyOp = llvm::dyn_cast<loom::CopyOp>(op);
   if (!copyOp)
     return;
@@ -384,7 +555,7 @@ void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
   if (!hwFunc) {
     auto ph = HWOpRegistry::makePlaceholder(
         "loom.copy[" + srcMem + "->" + dstMem + "]", "data_movers");
-    target_stage.pushWorkload(ph.hw_component, ph.hw_func_name, {}, {});
+    target.pushWorkload(ph.hw_component, ph.hw_func_name, {}, {});
     return;
   }
 
@@ -401,8 +572,8 @@ void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
         dimMap[binding.dim_symbols[d]] = opDims[d];
   }
 
-  target_stage.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
-                            std::move(dimMap), hwFunc->resources);
+  target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
+                      std::move(dimMap), hwFunc->resources);
 }
 
 // ==========================================
@@ -482,15 +653,13 @@ void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
 // ==========================================
 void VariantETG::dump(llvm::raw_ostream &os) const {
   os << "Variant ETG: [" << variant_name_ << "]\n";
-  compute_scope_.dump(os, 0);
-  memory_scope_.dump(os, 0);
+  kernel_block_.dump(os, 0);
 }
 
 llvm::json::Value VariantETG::toJSON() const {
   return llvm::json::Object{{"variant_name", variant_name_},
-                            {"compute_scope", compute_scope_.toJSON()},
-                            {"memory_scope", memory_scope_.toJSON()},
-                            {"constraint_scope", constraint_scope_.toJSON()}};
+                            {"constraint_scope", constraint_scope_.toJSON()},
+                            {"kernel_block", kernel_block_.toJSON()}};
 }
 
 void VariantETG::buildL1FootprintConstraint() {
