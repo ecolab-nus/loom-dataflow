@@ -169,6 +169,22 @@ runMaterializationCore(const char *input_mlir_text,
   if (!module)
     return {"Failed to parse input MLIR text", ""};
 
+  // Expand special "ALL" binding to every candidate function in the input MLIR.
+  // Explicit per-function bindings take precedence over "ALL".
+  if (hasExternalSizes) {
+    auto allIt = blockSizeMap.find("ALL");
+    if (allIt != blockSizeMap.end()) {
+      const auto allBinding = allIt->second;
+      module->walk([&](func::FuncOp func) {
+        StringRef funcName = func.getName();
+        if (blockSizeMap.find(funcName) == blockSizeMap.end()) {
+          blockSizeMap[funcName] = allBinding;
+        }
+      });
+      blockSizeMap.erase(allIt);
+    }
+  }
+
   // --- Build pass pipeline ---
   PassManager pm(&context);
 
