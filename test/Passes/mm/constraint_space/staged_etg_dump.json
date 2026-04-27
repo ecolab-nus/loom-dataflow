@@ -1,298 +1,468 @@
 [
   {
-    "compute_scope": {
-      "scope_name": "ComputeScope",
-      "stages": [
-        {
-          "stage_id": 2,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
+    "kernel_block": {
+      "compute_scope": {
+        "scope_name": "ComputeScope",
+        "stages": [
+          {
+            "for_loop_block": {
+              "iter_type": "temporal",
+              "compute_scope": {
+                "scope_name": "ComputeScope",
+                "stages": [
                   {
-                    "Func": {
-                      "func": {
-                        "sym_map": {
-                          "entries": []
-                        },
-                        "symbols": [],
-                        "name": "matmul_f16"
+                    "for_loop_block": {
+                      "iter_type": "temporal",
+                      "compute_scope": {
+                        "scope_name": "ComputeScope",
+                        "stages": [
+                          {
+                            "for_loop_block": {
+                              "iter_type": "sequential",
+                              "compute_scope": {
+                                "scope_name": "ComputeScope",
+                                "stages": [
+                                  {
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "func": {
+                                                  "symbols": ["K","M","N"],
+                                                  "name": "matmul_f16",
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["K",{"Sym":"tile_k"}],
+                                                      ["M",{"Sym":"tile_m"}],
+                                                      ["N",{"Sym":"tile_n"}]
+                                                    ]
+                                                  }
+                                                },
+                                                "scenarios": []
+                                              }
+                                            }
+                                          ],
+                                          "scenarios": []
+                                        }
+                                      }
+                                    ],
+                                    "stage_id": 2
+                                  },
+                                  {
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "func": {
+                                                  "symbols": ["L"],
+                                                  "name": "vec_add_f16",
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]
+                                                    ]
+                                                  }
+                                                },
+                                                "scenarios": []
+                                              }
+                                            }
+                                          ],
+                                          "scenarios": []
+                                        }
+                                      }
+                                    ],
+                                    "stage_id": 3
+                                  }
+                                ]
+                              },
+                              "block_sym": "",
+                              "memory_scope": {
+                                "scope_name": "MemoryScope",
+                                "stages": [
+                                  {
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "func": {
+                                                  "symbols": ["M","N"],
+                                                  "name": "dram_to_l1_1d_bcst_h_f16",
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["M",{"Sym":"tile_k"}],
+                                                      ["N",{"Sym":"tile_n"}]
+                                                    ]
+                                                  }
+                                                },
+                                                "scenarios": []
+                                              }
+                                            }
+                                          ],
+                                          "scenarios": []
+                                        }
+                                      },
+                                      {
+                                        "Sequential": {
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "func": {
+                                                  "symbols": ["M","N"],
+                                                  "name": "dram_to_l1_1d_bcst_v_f16",
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["M",{"Sym":"tile_m"}],
+                                                      ["N",{"Sym":"tile_k"}]
+                                                    ]
+                                                  }
+                                                },
+                                                "scenarios": []
+                                              }
+                                            }
+                                          ],
+                                          "scenarios": []
+                                        }
+                                      }
+                                    ],
+                                    "stage_id": 2
+                                  }
+                                ]
+                              },
+                              "trip_count": {"Div":[{"Const":256},{"Sym":"tile_k"}]}
+                            },
+                            "stage_id": 3
+                          }
+                        ]
                       },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        },
-        {
-          "stage_id": 3,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "sym_map": {
-                          "entries": [
-                            ["L",{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]
-                          ]
-                        },
-                        "symbols": ["L"],
-                        "name": "vec_add_f16"
+                      "block_sym": "tile_n",
+                      "memory_scope": {
+                        "scope_name": "MemoryScope",
+                        "stages": [
+                          {
+                            "Parallel": [
+                              {
+                                "Sequential": {
+                                  "schedules": [
+                                    {
+                                      "Func": {
+                                        "func": {
+                                          "symbols": ["M","N"],
+                                          "name": "l1_to_dram_f16",
+                                          "sym_map": {
+                                            "entries": [
+                                              ["M",{"Sym":"tile_m"}],
+                                              ["N",{"Sym":"tile_n"}]
+                                            ]
+                                          }
+                                        },
+                                        "scenarios": []
+                                      }
+                                    }
+                                  ],
+                                  "scenarios": []
+                                }
+                              }
+                            ],
+                            "stage_id": 6
+                          }
+                        ]
                       },
-                      "scenarios": []
-                    }
+                      "trip_count": {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_n"}]},{"Const":8}]}
+                    },
+                    "stage_id": 1
                   }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ]
-    },
-    "memory_scope": {
-      "scope_name": "MemoryScope",
-      "stages": [
-        {
-          "stage_id": 2,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_k"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "symbols": ["M","N"],
-                        "name": "dram_to_l1_1d_bcst_h_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
+                ]
+              },
+              "block_sym": "tile_m",
+              "memory_scope": {
+                "scope_name": "MemoryScope",
+                "stages": []
+              },
+              "trip_count": {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_m"}]},{"Const":8}]}
             },
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_k"}]
-                          ]
-                        },
-                        "symbols": ["M","N"],
-                        "name": "dram_to_l1_1d_bcst_v_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ]
+            "stage_id": 3
+          }
+        ]
+      },
+      "memory_scope": {
+        "scope_name": "MemoryScope",
+        "stages": []
+      }
     },
+    "variant_name": "_matmul__x8_y8__d0i0_d1i1__f01__dim_y_level0_bc8_dim_x_level0_bc8_n",
     "constraint_scope": {
       "metadata": {
-        "iter_num": {
-          "seq_iter": {"Div":[{"Const":256},{"Sym":"tile_k"}]},
-          "temp_iter": [
-            {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_n"}]},{"Const":8}]},
-            {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_m"}]},{"Const":8}]}
-          ]
-        },
         "symbols": {
-          "tile_m": {
-            "natural_ub": 4096,
+          "tile_k": {
+            "natural_ub": 256,
             "type": "int"
           },
           "tile_n": {
             "natural_ub": 4096,
             "type": "int"
           },
-          "tile_k": {
-            "natural_ub": 256,
+          "tile_m": {
+            "natural_ub": 4096,
             "type": "int"
           }
         },
-        "datatype": "f16",
+        "booleans": ["is_double_buffer"],
         "L1_footprint": [
           {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]},
           {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]},
           {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
           {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}
         ],
-        "booleans": ["is_double_buffer"]
+        "datatype": "f16",
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_n"}]},{"Const":8}]},
+            {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_m"}]},{"Const":8}]}
+          ],
+          "seq_iter": {"Div":[{"Const":256},{"Sym":"tile_k"}]}
+        }
       },
       "hard_constraints": [
         {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
       ]
-    },
-    "variant_name": "_matmul__x8_y8__d0i0_d1i1__f01__dim_y_level0_bc8_dim_x_level0_bc8_n"
+    }
   },
   {
-    "compute_scope": {
-      "scope_name": "ComputeScope",
-      "stages": [
-        {
-          "stage_id": 2,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
+    "kernel_block": {
+      "compute_scope": {
+        "scope_name": "ComputeScope",
+        "stages": [
+          {
+            "for_loop_block": {
+              "iter_type": "temporal",
+              "compute_scope": {
+                "scope_name": "ComputeScope",
+                "stages": [
                   {
-                    "Func": {
-                      "func": {
-                        "sym_map": {
-                          "entries": []
-                        },
-                        "symbols": [],
-                        "name": "matmul_f16"
+                    "for_loop_block": {
+                      "iter_type": "temporal",
+                      "compute_scope": {
+                        "scope_name": "ComputeScope",
+                        "stages": [
+                          {
+                            "for_loop_block": {
+                              "iter_type": "sequential",
+                              "compute_scope": {
+                                "scope_name": "ComputeScope",
+                                "stages": [
+                                  {
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "func": {
+                                                  "symbols": ["K","M","N"],
+                                                  "name": "matmul_f16",
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["K",{"Sym":"tile_k"}],
+                                                      ["M",{"Sym":"tile_m"}],
+                                                      ["N",{"Sym":"tile_n"}]
+                                                    ]
+                                                  }
+                                                },
+                                                "scenarios": []
+                                              }
+                                            }
+                                          ],
+                                          "scenarios": []
+                                        }
+                                      }
+                                    ],
+                                    "stage_id": 2
+                                  },
+                                  {
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "func": {
+                                                  "symbols": ["L"],
+                                                  "name": "vec_add_f16",
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]
+                                                    ]
+                                                  }
+                                                },
+                                                "scenarios": []
+                                              }
+                                            }
+                                          ],
+                                          "scenarios": []
+                                        }
+                                      }
+                                    ],
+                                    "stage_id": 3
+                                  }
+                                ]
+                              },
+                              "block_sym": "",
+                              "memory_scope": {
+                                "scope_name": "MemoryScope",
+                                "stages": [
+                                  {
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "func": {
+                                                  "symbols": ["M","N"],
+                                                  "name": "dram_to_l1_1d_bcst_h_f16",
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["M",{"Sym":"tile_m"}],
+                                                      ["N",{"Sym":"tile_k"}]
+                                                    ]
+                                                  }
+                                                },
+                                                "scenarios": []
+                                              }
+                                            }
+                                          ],
+                                          "scenarios": []
+                                        }
+                                      },
+                                      {
+                                        "Sequential": {
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "func": {
+                                                  "symbols": ["M","N"],
+                                                  "name": "dram_to_l1_1d_bcst_v_f16",
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["M",{"Sym":"tile_k"}],
+                                                      ["N",{"Sym":"tile_n"}]
+                                                    ]
+                                                  }
+                                                },
+                                                "scenarios": []
+                                              }
+                                            }
+                                          ],
+                                          "scenarios": []
+                                        }
+                                      }
+                                    ],
+                                    "stage_id": 2
+                                  }
+                                ]
+                              },
+                              "trip_count": {"Div":[{"Const":256},{"Sym":"tile_k"}]}
+                            },
+                            "stage_id": 3
+                          }
+                        ]
                       },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        },
-        {
-          "stage_id": 3,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "sym_map": {
-                          "entries": [
-                            ["L",{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]
-                          ]
-                        },
-                        "symbols": ["L"],
-                        "name": "vec_add_f16"
+                      "block_sym": "tile_n",
+                      "memory_scope": {
+                        "scope_name": "MemoryScope",
+                        "stages": [
+                          {
+                            "Parallel": [
+                              {
+                                "Sequential": {
+                                  "schedules": [
+                                    {
+                                      "Func": {
+                                        "func": {
+                                          "symbols": ["M","N"],
+                                          "name": "l1_to_dram_f16",
+                                          "sym_map": {
+                                            "entries": [
+                                              ["M",{"Sym":"tile_m"}],
+                                              ["N",{"Sym":"tile_n"}]
+                                            ]
+                                          }
+                                        },
+                                        "scenarios": []
+                                      }
+                                    }
+                                  ],
+                                  "scenarios": []
+                                }
+                              }
+                            ],
+                            "stage_id": 6
+                          }
+                        ]
                       },
-                      "scenarios": []
-                    }
+                      "trip_count": {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_n"}]},{"Const":8}]}
+                    },
+                    "stage_id": 1
                   }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ]
-    },
-    "memory_scope": {
-      "scope_name": "MemoryScope",
-      "stages": [
-        {
-          "stage_id": 2,
-          "Parallel": [
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_m"}],
-                            ["N",{"Sym":"tile_k"}]
-                          ]
-                        },
-                        "symbols": ["M","N"],
-                        "name": "dram_to_l1_1d_bcst_h_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
+                ]
+              },
+              "block_sym": "tile_m",
+              "memory_scope": {
+                "scope_name": "MemoryScope",
+                "stages": []
+              },
+              "trip_count": {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_m"}]},{"Const":8}]}
             },
-            {
-              "Sequential": {
-                "schedules": [
-                  {
-                    "Func": {
-                      "func": {
-                        "sym_map": {
-                          "entries": [
-                            ["M",{"Sym":"tile_k"}],
-                            ["N",{"Sym":"tile_n"}]
-                          ]
-                        },
-                        "symbols": ["M","N"],
-                        "name": "dram_to_l1_1d_bcst_v_f16"
-                      },
-                      "scenarios": []
-                    }
-                  }
-                ],
-                "scenarios": []
-              }
-            }
-          ]
-        }
-      ]
+            "stage_id": 3
+          }
+        ]
+      },
+      "memory_scope": {
+        "scope_name": "MemoryScope",
+        "stages": []
+      }
     },
+    "variant_name": "_matmul__x8_y8__d0i1_d1i0__f01__dim_x_level0_bc8_dim_y_level0_bc8_n",
     "constraint_scope": {
       "metadata": {
-        "iter_num": {
-          "seq_iter": {"Div":[{"Const":256},{"Sym":"tile_k"}]},
-          "temp_iter": [
-            {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_n"}]},{"Const":8}]},
-            {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_m"}]},{"Const":8}]}
-          ]
-        },
         "symbols": {
-          "tile_m": {
-            "natural_ub": 4096,
+          "tile_k": {
+            "natural_ub": 256,
             "type": "int"
           },
           "tile_n": {
             "natural_ub": 4096,
             "type": "int"
           },
-          "tile_k": {
-            "natural_ub": 256,
+          "tile_m": {
+            "natural_ub": 4096,
             "type": "int"
           }
         },
-        "datatype": "f16",
+        "booleans": ["is_double_buffer"],
         "L1_footprint": [
           {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]},
           {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]},
           {"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]},
           {"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}
         ],
-        "booleans": ["is_double_buffer"]
+        "datatype": "f16",
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_n"}]},{"Const":8}]},
+            {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_m"}]},{"Const":8}]}
+          ],
+          "seq_iter": {"Div":[{"Const":256},{"Sym":"tile_k"}]}
+        }
       },
       "hard_constraints": [
         {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_n"}]}]},{"Mul":[{"Sym":"tile_m"},{"Sym":"tile_k"}]}]},{"Mul":[{"Sym":"tile_k"},{"Sym":"tile_n"}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
       ]
-    },
-    "variant_name": "_matmul__x8_y8__d0i1_d1i0__f01__dim_x_level0_bc8_dim_y_level0_bc8_n"
+    }
   }
 ]
