@@ -66,6 +66,9 @@ std::vector<Expr> traceBlockArgumentToInit(mlir::BlockArgument blockArg) {
 // Tracing Implementations
 // ==========================================
 
+// Forward declaration: traces a tensor SSA value to its backing AllocOp.
+static loom::AllocOp traceToAllocFromTensor(mlir::Value tensorVal);
+
 loom::AllocOp traceToAlloc(mlir::Value memrefVal) {
   if (!memrefVal)
     return nullptr;
@@ -74,14 +77,87 @@ loom::AllocOp traceToAlloc(mlir::Value memrefVal) {
   if (!op)
     return nullptr;
 
-  // If it's already an AllocOp, return it
-  if (auto allocOp = llvm::dyn_cast<loom::AllocOp>(op)) {
+  if (auto allocOp = llvm::dyn_cast<loom::AllocOp>(op))
     return allocOp;
+
+  if (auto semTake = llvm::dyn_cast<loom::SemaphoreTakeOp>(op))
+    return traceToAlloc(semTake.getSource());
+
+  // bufferize_to_memref is a pure alias tensor→memref; trace through the tensor.
+  if (auto b2m = llvm::dyn_cast<loom::BufferizeToMemrefOp>(op))
+    return traceToAllocFromTensor(b2m.getSource());
+
+  return nullptr;
+}
+
+/// Traces a tensor SSA value back to its backing AllocOp.
+/// Mirrors traceAllocDimsFromTensor's case structure but returns AllocOp.
+static loom::AllocOp traceToAllocFromTensor(mlir::Value tensorVal) {
+  using namespace mlir;
+  if (!tensorVal)
+    return nullptr;
+
+  // BlockArgument: resolve via parent loop's init value.
+  if (auto blockArg = dyn_cast<BlockArgument>(tensorVal)) {
+    Block *block = blockArg.getOwner();
+    Operation *parentOp = block->getParentOp();
+    if (auto forOp = dyn_cast<affine::AffineForOp>(parentOp)) {
+      unsigned argIdx = blockArg.getArgNumber();
+      auto inits = forOp.getInits();
+      if (argIdx > 0 && argIdx - 1 < inits.size())
+        return traceToAllocFromTensor(inits[argIdx - 1]);
+    } else if (auto forOp = dyn_cast<scf::ForOp>(parentOp)) {
+      unsigned argIdx = blockArg.getArgNumber();
+      auto initArgs = forOp.getInitArgs();
+      if (argIdx > 0 && argIdx - 1 < initArgs.size())
+        return traceToAllocFromTensor(initArgs[argIdx - 1]);
+    } else if (auto parOp = dyn_cast<affine::AffineParallelOp>(parentOp)) {
+      unsigned argIdx = blockArg.getArgNumber();
+      auto inits = parOp.getInits();
+      if (argIdx < inits.size())
+        return traceToAllocFromTensor(inits[argIdx]);
+    }
+    return nullptr;
   }
 
-  // If it's a SemaphoreTakeOp, follow its source
-  if (auto semTake = llvm::dyn_cast<loom::SemaphoreTakeOp>(op)) {
-    return traceToAlloc(semTake.getSource());
+  Operation *op = tensorVal.getDefiningOp();
+  if (!op)
+    return nullptr;
+
+  if (auto copyOp = dyn_cast<loom::CopyToTensorOp>(op))
+    return traceToAlloc(copyOp.getBuffer());
+
+  if (auto bufOp = dyn_cast<loom::BufferizeToTensorOp>(op))
+    return traceToAlloc(bufOp.getSource());
+
+  if (auto initTensor = dyn_cast<loom::InitTensorOp>(op))
+    return traceToAlloc(initTensor.getBuffer());
+
+  // sync is shape-preserving; its output has the same backing buffer as init.
+  if (auto syncOp = dyn_cast<loom::SyncOp>(op))
+    return traceToAllocFromTensor(syncOp.getInit());
+
+  // linalg op: result tensor shares backing with the corresponding init.
+  if (auto linalgOp = dyn_cast<linalg::LinalgOp>(op)) {
+    auto inits = linalgOp.getDpsInits();
+    if (!inits.empty()) {
+      unsigned resultIdx = cast<OpResult>(tensorVal).getResultNumber();
+      return traceToAllocFromTensor(
+          resultIdx < inits.size() ? inits[resultIdx] : inits[0]);
+    }
+  }
+
+  if (auto forOp = dyn_cast<scf::ForOp>(op)) {
+    unsigned resultIdx = cast<OpResult>(tensorVal).getResultNumber();
+    auto initArgs = forOp.getInitArgs();
+    if (resultIdx < initArgs.size())
+      return traceToAllocFromTensor(initArgs[resultIdx]);
+  }
+
+  if (auto forOp = dyn_cast<affine::AffineForOp>(op)) {
+    unsigned resultIdx = cast<OpResult>(tensorVal).getResultNumber();
+    if (resultIdx < forOp.getInits().size())
+      return traceToAllocFromTensor(forOp.getInits()[resultIdx]);
   }
 
   return nullptr;
