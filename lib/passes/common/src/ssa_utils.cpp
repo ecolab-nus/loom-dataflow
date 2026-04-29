@@ -153,4 +153,9 @@ Value traceToRootAlloc(Value value) {
   return nullptr;
 }
 
+loom::AllocOp traceToRootAllocOp(Value value) {
+  Value root = traceToRootAlloc(value);
+  return root ? root.getDefiningOp<loom::AllocOp>() : nullptr;
+}
+
 } // namespace loom::utils

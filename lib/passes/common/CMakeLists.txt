@@ -3,6 +3,7 @@
 
 add_library(LoomPassesCommon
   src/utils.cpp
+  src/trace_shape.cpp
   src/block_loading_pattern.cpp
   src/hardware_discovery.cpp
   src/hardware_mapping.cpp

@@ -411,8 +411,8 @@ EnumerateSpatialMappings(ModuleOp affineModule,
 
     if (roots.empty()) {
       builder.setInsertionPointToEnd(out.getBody());
-      (void)loom::utils::cloneFuncWithConstraints(
-          builder, func, func.getName(), moduleAttrs, "EnumerateHWMapping",
+      (void)loom::utils::cloneFunc(
+          builder, func, func.getName(), moduleAttrs,
           [](func::FuncOp) { return success(); }, nullptr);
       continue;
     }
@@ -429,8 +429,8 @@ EnumerateSpatialMappings(ModuleOp affineModule,
       builder.setInsertionPointToEnd(out.getBody());
       std::string newName = (func.getName() + "__for").str();
 
-      auto clonedFunc = loom::utils::cloneFuncWithConstraints(
-          builder, func, newName, moduleAttrs, "EnumerateHWMapping",
+      auto clonedFunc = loom::utils::cloneFunc(
+          builder, func, newName, moduleAttrs,
           [&](func::FuncOp cloned) -> LogicalResult {
             markLoopsSequential(cloned);
             affine::AffineParallelOp currentOuter = nullptr;
@@ -508,8 +508,8 @@ EnumerateSpatialMappings(ModuleOp affineModule,
           std::string newNamePrefix = func.getName().str();
           newNamePrefix += "__";
 
-          auto clonedFunc = loom::utils::cloneFuncWithConstraints(
-              builder, func, "", moduleAttrs, "EnumerateHWMapping",
+          auto clonedFunc = loom::utils::cloneFunc(
+              builder, func, "", moduleAttrs,
               [&](func::FuncOp cloned) -> LogicalResult {
                 markLoopsSequential(cloned);
                 affine::AffineParallelOp tar_forOp =

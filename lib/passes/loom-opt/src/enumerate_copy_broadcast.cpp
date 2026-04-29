@@ -412,8 +412,8 @@ private:
       std::string newName =
           generateFunctionName(originalFunc.getSymName(), combo);
 
-      func::FuncOp clonedFunc = loom::utils::cloneFuncWithConstraints(
-          builder, originalFunc, newName, moduleAttrs, "EnumerateCopyBroadcast",
+      func::FuncOp clonedFunc = loom::utils::cloneFunc(
+          builder, originalFunc, newName, moduleAttrs,
           [&](func::FuncOp func) { return applyChoices(func, combo); },
           insertAfter);
 

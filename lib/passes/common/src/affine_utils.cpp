@@ -2,6 +2,7 @@
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/AffineExpr.h"
@@ -352,3 +353,39 @@ std::optional<SymbolRefAttr> traceToLoomSymRef(Value v) {
 }
 
 } // namespace loom_affine
+
+namespace loom {
+namespace utils {
+
+void composeAndCanonicalizeAffineApplies(func::FuncOp func) {
+  SmallVector<affine::AffineApplyOp> applies;
+  func.walk([&](affine::AffineApplyOp op) { applies.push_back(op); });
+  for (affine::AffineApplyOp op : applies) {
+    OpBuilder b(op);
+    AffineMap map = op.getAffineMap();
+    SmallVector<Value> operands(op.getOperands().begin(),
+                                op.getOperands().end());
+    affine::fullyComposeAffineMapAndOperands(&map, &operands);
+    affine::canonicalizeMapAndOperands(&map, &operands);
+    bool sameMap = (map == op.getAffineMap());
+    bool sameOperands =
+        operands.size() == op.getNumOperands() &&
+        std::equal(operands.begin(), operands.end(), op.getOperands().begin());
+    if (sameMap && sameOperands)
+      continue;
+    auto newOp = affine::AffineApplyOp::create(b, op.getLoc(), map, operands);
+    op.replaceAllUsesWith(newOp.getResult());
+    op.erase();
+  }
+
+  SmallVector<Operation *> toErase;
+  func.walk([&](Operation *op) {
+    if (mlir::isOpTriviallyDead(op))
+      toErase.push_back(op);
+  });
+  for (Operation *op : toErase)
+    op->erase();
+}
+
+} // namespace utils
+} // namespace loom

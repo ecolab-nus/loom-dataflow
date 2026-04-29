@@ -11,10 +11,12 @@
 #include "llvm/ADT/SmallVector.h"
 #include <functional>
 
+// SymbolicDim and traceShape live in trace_shape.h; re-exported here so that
+// existing consumers of utils.h pick up both transparently.
+#include "trace_shape.h"
+
 namespace loom {
 namespace utils {
-
-using SymbolicDim = mlir::OpFoldResult;
 
 /**
  * @brief Get the parent module operation that directly contains a function.
@@ -22,53 +24,22 @@ using SymbolicDim = mlir::OpFoldResult;
 mlir::ModuleOp getParentModule(mlir::func::FuncOp func);
 
 /**
- * @brief Clone a function and insert it into the module with a new name.
- */
-mlir::func::FuncOp
-cloneAndInsertFunction(mlir::OpBuilder &builder,
-                       mlir::func::FuncOp originalFunc, llvm::StringRef newName,
-                       mlir::Operation *insertAfter = nullptr);
-
-/**
- * @brief Clone a function with module wrapper and insert it with a new name.
- */
-mlir::func::FuncOp cloneAndInsertFunctionWithModuleWrapper(
-    mlir::OpBuilder &builder, mlir::func::FuncOp originalFunc,
-    llvm::StringRef newName, mlir::DictionaryAttr moduleAttrs,
-    mlir::Operation *insertAfter = nullptr);
-
-/**
- * @brief Clone function, apply modifications, then insert if valid.
- */
-mlir::func::FuncOp cloneModifyAndInsertFunction(
-    mlir::OpBuilder &builder, mlir::func::FuncOp originalFunc,
-    llvm::StringRef newName,
-    std::function<mlir::LogicalResult(mlir::func::FuncOp)> modifier,
-    mlir::Operation *insertAfter = nullptr);
-
-/**
- * @brief Clone function with module wrapper, apply modifications, then insert
- * if valid.
- */
-mlir::func::FuncOp cloneModifyAndInsertFunctionWithModuleWrapper(
-    mlir::OpBuilder &builder, mlir::func::FuncOp originalFunc,
-    llvm::StringRef newName, mlir::DictionaryAttr moduleAttrs,
-    std::function<mlir::LogicalResult(mlir::func::FuncOp)> modifier,
-    mlir::Operation *insertAfter = nullptr);
-
-/**
  * @brief Collect all functions in a module into a vector.
  */
 llvm::SmallVector<mlir::func::FuncOp> collectFunctions(mlir::ModuleOp module);
 
 /**
- * @brief Clone function with module wrapper.
+ * @brief Clone a function and insert it into the IR.
+ * @details Optionally wraps the clone in a fresh module carrying
+ * `moduleAttrs`, runs `modifier` on the clone before insertion, and on a
+ * `failure()` from the modifier rolls back by erasing the partial clone.
+ * Returns the cloned func, or null if the modifier signaled failure.
  */
-mlir::func::FuncOp cloneFuncWithConstraints(
+mlir::func::FuncOp cloneFunc(
     mlir::OpBuilder &builder, mlir::func::FuncOp originalFunc,
-    llvm::StringRef newName, mlir::DictionaryAttr moduleAttrs,
-    llvm::StringRef passName,
-    std::function<mlir::LogicalResult(mlir::func::FuncOp)> modifier,
+    llvm::StringRef newName,
+    mlir::DictionaryAttr moduleAttrs = nullptr,
+    std::function<mlir::LogicalResult(mlir::func::FuncOp)> modifier = nullptr,
     mlir::Operation *insertAfter = nullptr);
 
 struct AllocInfo {
@@ -85,16 +56,6 @@ llvm::SmallVector<AllocInfo> collectL1AllocInfos(mlir::func::FuncOp func);
  * @brief Trace an SSA value back to a symbolic block size name.
  */
 llvm::StringRef traceToSymbolicVar(mlir::Value val);
-
-/**
- * @brief Compose and canonicalize all affine.apply operations in a function.
- */
-void composeAndCanonicalizeAffineApplies(mlir::func::FuncOp func);
-
-/**
- * @brief Trace an SSA value back to its symbolic shapes.
- */
-llvm::SmallVector<SymbolicDim, 4> traceShape(mlir::Value v);
 
 } // namespace utils
 } // namespace loom
