@@ -1,0 +1,551 @@
+[
+  {
+    "variant_name": "attention__x8_y8__d0i1_d1i0__f01__n_dim_x_level0_bc8_dim_x_level0_bc8_n",
+    "constraint_scope": {
+      "metadata": {
+        "iter_num": {
+          "seq_iter": {"Div":[{"Const":4096},{"Sym":"tile_n"}]},
+          "temp_iter": [
+            {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_m"}]},{"Const":8}]},
+            {"Div":[{"Div":[{"Const":32},{"Sym":"tile_b"}]},{"Const":8}]}
+          ]
+        },
+        "L1_footprint": [
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":128}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":128}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":128}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":128}]},{"Sym":"tile_n"}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Sym":"tile_n"}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":32}]},
+          {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_n"}]},{"Const":128}]}
+        ],
+        "datatype": "f16",
+        "booleans": ["is_double_buffer"],
+        "symbols": {
+          "tile_m": {
+            "natural_ub": 4096,
+            "type": "int"
+          },
+          "tile_n": {
+            "natural_ub": 4096,
+            "type": "int"
+          },
+          "tile_b": {
+            "natural_ub": 32,
+            "type": "int"
+          }
+        }
+      },
+      "hard_constraints": [
+        {"Le":[{"Mul":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Add":[{"Const":0},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":128}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":128}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":128}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":128}]},{"Sym":"tile_n"}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Sym":"tile_n"}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":32}]}]},{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_n"}]},{"Const":128}]}]},{"IfElse":{"cond":{"Eq":[{"Sym":"is_double_buffer"},{"Const":1}]},"else_expr":{"Const":2},"then_expr":{"Const":4}}}]},{"Const":1499136}]}
+      ]
+    },
+    "kernel_block": {
+      "memory_scope": {
+        "scope_name": "MemoryScope",
+        "stages": []
+      },
+      "compute_scope": {
+        "scope_name": "ComputeScope",
+        "stages": [
+          {
+            "for_loop_block": {
+              "block_sym": "tile_b",
+              "memory_scope": {
+                "scope_name": "MemoryScope",
+                "stages": []
+              },
+              "compute_scope": {
+                "scope_name": "ComputeScope",
+                "stages": [
+                  {
+                    "for_loop_block": {
+                      "block_sym": "tile_m",
+                      "memory_scope": {
+                        "scope_name": "MemoryScope",
+                        "stages": [
+                          {
+                            "stage_id": 3,
+                            "Parallel": [
+                              {
+                                "Sequential": {
+                                  "scenarios": [],
+                                  "schedules": [
+                                    {
+                                      "Func": {
+                                        "scenarios": [],
+                                        "func": {
+                                          "sym_map": {
+                                            "entries": [
+                                              ["M",{"Sym":"tile_b"}],
+                                              ["N",{"Sym":"tile_m"}]
+                                            ]
+                                          },
+                                          "name": "dram_to_l1_f16",
+                                          "symbols": ["M","N"]
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "stage_id": 8,
+                            "Parallel": [
+                              {
+                                "Sequential": {
+                                  "scenarios": [],
+                                  "schedules": [
+                                    {
+                                      "Func": {
+                                        "scenarios": [],
+                                        "func": {
+                                          "sym_map": {
+                                            "entries": [
+                                              ["M",{"Sym":"tile_b"}],
+                                              ["N",{"Sym":"tile_m"}]
+                                            ]
+                                          },
+                                          "name": "l1_to_dram_f16",
+                                          "symbols": ["M","N"]
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      "compute_scope": {
+                        "scope_name": "ComputeScope",
+                        "stages": [
+                          {
+                            "for_loop_block": {
+                              "block_sym": "",
+                              "memory_scope": {
+                                "scope_name": "MemoryScope",
+                                "stages": [
+                                  {
+                                    "stage_id": 2,
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "scenarios": [],
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["M",{"Sym":"tile_b"}],
+                                                      ["N",{"Const":128}]
+                                                    ]
+                                                  },
+                                                  "name": "dram_to_l1_1d_bcst_h_f16",
+                                                  "symbols": ["M","N"]
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["M",{"Sym":"tile_b"}],
+                                                      ["N",{"Sym":"tile_n"}]
+                                                    ]
+                                                  },
+                                                  "name": "dram_to_l1_1d_bcst_h_f16",
+                                                  "symbols": ["M","N"]
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              "compute_scope": {
+                                "scope_name": "ComputeScope",
+                                "stages": [
+                                  {
+                                    "stage_id": 2,
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "scenarios": [],
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["B",{"Sym":"tile_b"}],
+                                                      ["K",{"Const":128}],
+                                                      ["M",{"Sym":"tile_m"}],
+                                                      ["N",{"Sym":"tile_n"}]
+                                                    ]
+                                                  },
+                                                  "name": "batch_matmul_f16",
+                                                  "symbols": ["B","K","M","N"]
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "stage_id": 3,
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "scenarios": [],
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["P",{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]}],
+                                                      ["R",{"Sym":"tile_n"}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_vmax_f16",
+                                                  "symbols": ["P","R"]
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "stage_id": 4,
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "scenarios": [],
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_mul_f16",
+                                                  "symbols": ["L"]
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_cmpf_ogt_f16",
+                                                  "symbols": ["L"]
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_select_f16",
+                                                  "symbols": ["L"]
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "stage_id": 5,
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "scenarios": [],
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_sub_f16",
+                                                  "symbols": ["L"]
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_exp_f16",
+                                                  "symbols": ["L"]
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "stage_id": 6,
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "scenarios": [],
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Sym":"tile_n"}]}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_mul_f16",
+                                                  "symbols": ["L"]
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Sym":"tile_n"}]}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_sub_f16",
+                                                  "symbols": ["L"]
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Sym":"tile_n"}]}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_exp_f16",
+                                                  "symbols": ["L"]
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "stage_id": 7,
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "scenarios": [],
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["P",{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]}],
+                                                      ["R",{"Sym":"tile_n"}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_vsum_f16",
+                                                  "symbols": ["P","R"]
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["B",{"Sym":"tile_b"}],
+                                                      ["K",{"Sym":"tile_n"}],
+                                                      ["M",{"Sym":"tile_m"}],
+                                                      ["N",{"Const":128}]
+                                                    ]
+                                                  },
+                                                  "name": "batch_matmul_f16",
+                                                  "symbols": ["B","K","M","N"]
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "stage_id": 8,
+                                    "Parallel": [
+                                      {
+                                        "Sequential": {
+                                          "scenarios": [],
+                                          "schedules": [
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_mul_f16",
+                                                  "symbols": ["L"]
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":1}]}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_add_f16",
+                                                  "symbols": ["L"]
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":128}]}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_mul_f16",
+                                                  "symbols": ["L"]
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "Func": {
+                                                "scenarios": [],
+                                                "func": {
+                                                  "sym_map": {
+                                                    "entries": [
+                                                      ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":128}]}]
+                                                    ]
+                                                  },
+                                                  "name": "vec_add_f16",
+                                                  "symbols": ["L"]
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              "trip_count": {"Div":[{"Const":4096},{"Sym":"tile_n"}]},
+                              "iter_type": "sequential"
+                            },
+                            "stage_id": 3
+                          },
+                          {
+                            "stage_id": 5,
+                            "Parallel": [
+                              {
+                                "Sequential": {
+                                  "scenarios": [],
+                                  "schedules": [
+                                    {
+                                      "Func": {
+                                        "scenarios": [],
+                                        "func": {
+                                          "sym_map": {
+                                            "entries": [
+                                              ["L",{"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_m"}]},{"Const":128}]}]
+                                            ]
+                                          },
+                                          "name": "vec_div_f16",
+                                          "symbols": ["L"]
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      "trip_count": {"Div":[{"Div":[{"Const":4096},{"Sym":"tile_m"}]},{"Const":8}]},
+                      "iter_type": "temporal"
+                    },
+                    "stage_id": 1
+                  }
+                ]
+              },
+              "trip_count": {"Div":[{"Div":[{"Const":32},{"Sym":"tile_b"}]},{"Const":8}]},
+              "iter_type": "temporal"
+            },
+            "stage_id": 3
+          }
+        ]
+      }
+    }
+  }
+]
