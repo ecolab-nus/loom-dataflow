@@ -2,6 +2,10 @@
 
 #include "mlir/IR/Value.h"
 
+namespace loom {
+class AllocOp;
+} // namespace loom
+
 namespace loom::utils {
 
 /**
@@ -19,5 +23,11 @@ bool dependsOn(mlir::Value value, mlir::Value target);
  * Returns the `loom.alloc` result value if found, otherwise null.
  */
 mlir::Value traceToRootAlloc(mlir::Value value);
+
+/**
+ * @brief Typed wrapper over `traceToRootAlloc`.
+ * @details Returns the backing `loom.alloc` op, or null if the trace fails.
+ */
+loom::AllocOp traceToRootAllocOp(mlir::Value value);
 
 } // namespace loom::utils

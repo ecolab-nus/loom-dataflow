@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -66,3 +67,17 @@ mlir::AffineExpr flattenNestedCeilDiv(mlir::AffineExpr expr);
 std::optional<mlir::SymbolRefAttr> traceToLoomSymRef(mlir::Value v);
 
 } // namespace loom_affine
+
+namespace loom {
+namespace utils {
+
+/**
+ * @brief Compose and canonicalize all affine.apply operations in a function.
+ * @details Walks every `affine.apply`, fully composes its map+operands and
+ * canonicalizes them; rebuilds the op in place when the result differs, then
+ * sweeps trivially-dead ops produced by the rewrite.
+ */
+void composeAndCanonicalizeAffineApplies(mlir::func::FuncOp func);
+
+} // namespace utils
+} // namespace loom

@@ -127,9 +127,8 @@ public:
 
         // Clone the function and apply hoisting modification with module
         // wrapper
-        mlir::func::FuncOp clonedFunc = loom::utils::cloneFuncWithConstraints(
+        mlir::func::FuncOp clonedFunc = loom::utils::cloneFunc(
             moduleBuilder, originalFunc, newName, moduleAttrs,
-            "HoistBlockLoading",
             [&](mlir::func::FuncOp func) -> mlir::LogicalResult {
               // We need to find the EQUIVALENT loop in the cloned function.
               // We can use the index of the loop in the original list.

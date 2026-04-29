@@ -1,6 +1,7 @@
 #include "staged_etg_builder.h"
 #include "compute_op_registry.h"
 #include "lcs_utils.h"
+#include "ssa_utils.h"
 #include "ADLDialect.h.inc"
 #define GET_TYPEDEF_CLASSES
 #include "ADLTypes.h.inc"
@@ -560,10 +561,13 @@ void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
   }
 
   // Trace the L1 alloc — try source first (L1→DRAM), then destination (DRAM→L1).
+  // Use the silent common primitive here because either side may legitimately
+  // be a non-alloc value (the DRAM endpoint).
   std::map<std::string, Expr> dimMap;
-  loom::AllocOp allocOp = traceToAlloc(copyOp.getSource());
+  loom::AllocOp allocOp =
+      loom::utils::traceToRootAllocOp(copyOp.getSource());
   if (!allocOp)
-    allocOp = traceToAlloc(copyOp.getDestination());
+    allocOp = loom::utils::traceToRootAllocOp(copyOp.getDestination());
   if (allocOp && !hwFunc->input_bindings.empty()) {
     std::vector<Expr> opDims = formatAllocDims(allocOp);
     const auto &binding = hwFunc->input_bindings[0];
