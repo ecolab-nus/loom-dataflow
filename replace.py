@@ -1,0 +1,6 @@
+mlir_code = open('kernel_ttkernel.mlir', 'r').read()
+mlir_code = mlir_code.replace('ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>', '"ttkernel.reinterpret_cast<volatile tt_l1_ptr uint32_t*>"')
+mlir_code = mlir_code.replace('ttkernel.experimental::convert_logical_x_to_translated', '"ttkernel.experimental::convert_logical_x_to_translated"')
+mlir_code = mlir_code.replace('ttkernel.experimental::get_noc_multicast_addr', '"ttkernel.experimental::get_noc_multicast_addr"')
+mlir_code = mlir_code.replace('ttkernel.experimental::convert_logical_y_to_translated', '"ttkernel.experimental::convert_logical_y_to_translated"')
+open('kernel_ttkernel.mlir', 'w').write(mlir_code)
