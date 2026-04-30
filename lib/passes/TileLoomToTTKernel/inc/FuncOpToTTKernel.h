@@ -29,15 +29,110 @@
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 namespace mlir {
 namespace loom {
 
 enum class DataMovementKernelRole { Reader, Writer };
+
+enum class KernelRuntimeRole { Reader, Writer, Compute };
+
+enum class RuntimeArgKind {
+  CopyBinding,
+  Reduce,
+  ScalarSite,
+  CoreCoord,
+  InternalCb
+};
+
+enum class CopyBindingRuntimeField {
+  Cb,
+  BaseAddr,
+  McastDestStartX,
+  McastDestStartY,
+  McastDestEndX,
+  McastDestEndY,
+  McastDestNum,
+  McastSenderNocX,
+  McastSenderNocY,
+  McastSenderSemaphore,
+  McastReceiverSemaphore
+};
+
+enum class ReduceRuntimeField {
+  ReadySemaphore,
+  TokenSemaphore,
+  TokenMcastDestStartX,
+  TokenMcastDestStartY,
+  TokenMcastDestEndX,
+  TokenMcastDestEndY
+};
+
+enum class CoreCoordRuntimeField { X, Y };
+
+struct RuntimeArgKey {
+  RuntimeArgKind kind;
+  int64_t id = 0;
+  int64_t field = 0;
+
+  static RuntimeArgKey copyBinding(int64_t slot,
+                                   CopyBindingRuntimeField field) {
+    return RuntimeArgKey{RuntimeArgKind::CopyBinding, slot,
+                         static_cast<int64_t>(field)};
+  }
+
+  static RuntimeArgKey reduce(ReduceRuntimeField field) {
+    return RuntimeArgKey{RuntimeArgKind::Reduce, 0,
+                         static_cast<int64_t>(field)};
+  }
+
+  static RuntimeArgKey scalarSite(int64_t siteId) {
+    return RuntimeArgKey{RuntimeArgKind::ScalarSite, siteId, 0};
+  }
+
+  static RuntimeArgKey coreCoord(CoreCoordRuntimeField field) {
+    return RuntimeArgKey{RuntimeArgKind::CoreCoord, 0,
+                         static_cast<int64_t>(field)};
+  }
+
+  static RuntimeArgKey internalCb(int64_t slot) {
+    return RuntimeArgKey{RuntimeArgKind::InternalCb, slot, 0};
+  }
+
+  bool operator==(const RuntimeArgKey &other) const {
+    return kind == other.kind && id == other.id && field == other.field;
+  }
+};
+
+struct RuntimeArgLayout {
+  llvm::SmallVector<RuntimeArgKey, 32> keys;
+
+  void add(RuntimeArgKey key) {
+    if (!contains(key))
+      keys.push_back(key);
+  }
+
+  bool contains(RuntimeArgKey key) const {
+    return indexOf(key).has_value();
+  }
+
+  std::optional<int64_t> indexOf(RuntimeArgKey key) const {
+    for (auto [idx, existing] : llvm::enumerate(keys)) {
+      if (existing == key)
+        return static_cast<int64_t>(idx);
+    }
+    return std::nullopt;
+  }
+};
+
+std::optional<KernelRuntimeRole> getKernelRuntimeRole(func::FuncOp func);
+RuntimeArgLayout buildRuntimeArgLayout(func::FuncOp func);
 
 struct DataMovementKernelSpec {
   llvm::StringLiteral processorAttrValue;
@@ -258,15 +353,11 @@ public:
                                      Operation *funcOp, int64_t argIndex,
                                      Type resultType);
 
-  /**
-   * @brief Get the precomputed runtime-arg base index for internal CB handles.
-   *
-   * @details Internal CB slots are emitted after memref/reduce/scalar args and
-   *          core-coordinate args. This returns the per-function base index
-   *          used to translate a stable internal slot id to an absolute
-   *          runtime-arg index.
-   */
-  int64_t getInternalCbBaseArgIndex(Operation *funcOp) const;
+  Value createRuntimeArg(Location loc, OpBuilder &rewriter, Operation *funcOp,
+                         RuntimeArgKey key, Type resultType);
+
+  std::optional<int64_t> getRuntimeArgIndex(Operation *funcOp,
+                                            RuntimeArgKey key) const;
 
   /// Get function-level reduce runtime args if available.
   const ReduceRuntimeArgs *getReduceRuntimeArgs(Operation *funcOp) const;
@@ -376,8 +467,7 @@ private:
   // Map from FuncOp (as Operation*) to the next available compile-arg index.
   llvm::DenseMap<Operation *, int64_t> funcToNextArgIndex;
 
-  // Per-function base runtime-arg index where internal CB slots begin.
-  llvm::DenseMap<Operation *, int64_t> funcToInternalCbBaseArgIndex;
+  llvm::DenseMap<Operation *, RuntimeArgLayout> funcToRuntimeArgLayout;
 
   // Per-function cache for explicit-index compile args.
   llvm::DenseMap<Operation *, llvm::DenseMap<int64_t, Value>>

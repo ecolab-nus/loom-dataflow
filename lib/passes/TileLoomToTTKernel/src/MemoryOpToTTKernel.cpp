@@ -1329,31 +1329,37 @@ struct ConvertLoomSemaphoreTakeOp
       }
       cb = bindingData->cb;
     }
+    if (!cb) {
+      if (auto slotAttr =
+              op->getAttrOfType<IntegerAttr>(kCopyBindingSlotAttrName)) {
+        auto *bindingData =
+            tracker->getCopyBindingData(parentFunc.getOperation(),
+                                        slotAttr.getInt());
+        if (!bindingData) {
+          rewriter.replaceOp(op, op.getSource());
+          return success();
+        }
+        cb = bindingData->cb;
+      }
+    }
 
     // Fallback for internal-only semaphore buffers not tied to memref args.
     if (!cb) {
       if (auto slotAttr = op->getAttrOfType<IntegerAttr>(kSemaphoreSlotAttrName)) {
-        int64_t internalBase =
-            tracker->getInternalCbBaseArgIndex(parentFunc.getOperation());
-        if (internalBase >= 0) {
-          int64_t argIndex = internalBase + slotAttr.getInt();
-          cb = tracker->createTypedCompileArgAtIndex(loc, rewriter, parentFunc,
-                                                     argIndex, defaultCBType);
-        }
+        cb = tracker->createRuntimeArg(
+            loc, rewriter, parentFunc,
+            RuntimeArgKey::internalCb(slotAttr.getInt()), defaultCBType);
       }
-      if (!cb)
-        cb = tracker->createTypedCompileArg(loc, rewriter, parentFunc, defaultCBType);
     }
 
     if (!cb)
       return rewriter.notifyMatchFailure(
-          op, "failed to create compile-arg CB for loom.semaphore");
+          op, "missing runtime-arg layout entry for internal loom.semaphore");
 
     if (expectedCBType && cb.getType() != expectedCBType) {
-      return rewriter.notifyMatchFailure(op, [&](Diagnostic &diag) {
-        diag << "CB type mismatch for loom.semaphore replacement, expected "
+      return op.emitOpError()
+             << "CB type mismatch for loom.semaphore replacement, expected "
              << expectedCBType << " but got " << cb.getType();
-      });
     }
 
     if (isDataMovementScaleInitTarget)

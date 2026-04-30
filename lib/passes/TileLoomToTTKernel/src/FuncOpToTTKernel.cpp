@@ -48,6 +48,14 @@ using namespace tt::ttkernel;
 
 using mlir::loom::DataMovementKernelRole;
 using mlir::loom::DataMovementKernelSpec;
+using mlir::loom::buildRuntimeArgLayout;
+using mlir::loom::CopyBindingRuntimeField;
+using mlir::loom::CoreCoordRuntimeField;
+using mlir::loom::KernelRuntimeRole;
+using mlir::loom::ReduceRuntimeField;
+using mlir::loom::RuntimeArgKey;
+using mlir::loom::RuntimeArgKind;
+using mlir::loom::RuntimeArgLayout;
 
 DataMovementKernelSpec
 mlir::loom::getDataMovementKernelSpec(DataMovementKernelRole role) {
@@ -102,7 +110,6 @@ constexpr llvm::StringLiteral kReaderDataMovementRole = "reader";
 constexpr llvm::StringLiteral kWriterDataMovementRole = "writer";
 constexpr llvm::StringLiteral kDMProcessorRISCV0 = "riscv0";
 constexpr llvm::StringLiteral kDMProcessorRISCV1 = "riscv1";
-constexpr int64_t kRuntimeArgsPerCopyBinding = 11;
 
 enum class HostProgramKind { Cpp, Pybind };
 enum class HostArgKind { Memref, Scalar };
@@ -345,6 +352,45 @@ static LogicalResult collectCopyBindingOps(func::FuncOp func,
     ops.push_back(copyBySlot.lookup(slot));
 
   return success();
+}
+
+static bool hasRuntimeBroadcast(::loom::CopyOp copyOp) {
+  if (!copyOp)
+    return false;
+  auto broadcastAttr = copyOp.getBroadcastAttr();
+  if (!broadcastAttr || broadcastAttr.size() < 2)
+    return false;
+  auto xAttr = dyn_cast<IntegerAttr>(broadcastAttr[0]);
+  auto yAttr = dyn_cast<IntegerAttr>(broadcastAttr[1]);
+  if (!xAttr || !yAttr)
+    return false;
+  return xAttr.getInt() > 1 || yAttr.getInt() > 1;
+}
+
+static bool hasMappedParallel(func::FuncOp func) {
+  bool found = false;
+  func.walk([&](scf::ParallelOp op) {
+    if (found)
+      return;
+    if (op->hasAttr("loom.physical_dims") ||
+        op->hasAttr("loom.mapped_to_dims"))
+      found = true;
+  });
+  return found;
+}
+
+static SmallVector<int64_t, 8> collectInternalSemaphoreSlots(func::FuncOp func) {
+  SmallVector<int64_t, 8> slots;
+  func.walk([&](::loom::SemaphoreTakeOp sem) {
+    auto slotAttr = sem->getAttrOfType<IntegerAttr>(kSemaphoreSlotAttrName);
+    if (!slotAttr)
+      return;
+    int64_t slot = slotAttr.getInt();
+    if (!llvm::is_contained(slots, slot))
+      slots.push_back(slot);
+  });
+  llvm::sort(slots);
+  return slots;
 }
 
 // Infer per-argument CB memref shape from loom.copy links to loom.alloc.
@@ -1053,6 +1099,8 @@ static LogicalResult annotateCopyBindingSlots(func::FuncOp func) {
             "loom.copy bindings; one semaphore must map to one binding");
         return;
       }
+      sem->setAttr(kCopyBindingSlotAttrName,
+                   builder.getI64IntegerAttr(nextSlot));
     }
 
     copyOp->setAttr(kCopyBindingSlotAttrName,
@@ -1121,23 +1169,139 @@ static void annotateSemaphoreSlots(func::FuncOp func) {
 
 } // namespace
 
+std::optional<mlir::loom::KernelRuntimeRole>
+mlir::loom::getKernelRuntimeRole(func::FuncOp func) {
+  if (!func || func.getName().contains("__host"))
+    return std::nullopt;
+
+  if (auto threadAttr =
+          func->getAttrOfType<ThreadTypeAttr>(ThreadTypeAttr::name)) {
+    if (threadAttr.getValue() == ThreadType::Compute)
+      return KernelRuntimeRole::Compute;
+  }
+  if (func.getName().ends_with("__compute"))
+    return KernelRuntimeRole::Compute;
+
+  if (auto dmRole = getDataMovementKernelRoleForFuncName(func.getName())) {
+    return *dmRole == DataMovementKernelRole::Reader
+               ? KernelRuntimeRole::Reader
+               : KernelRuntimeRole::Writer;
+  }
+  if (auto dmSpec = resolveDataMovementKernelSpec(func)) {
+    if (dmSpec->processorAttrValue == kDMProcessorRISCV1)
+      return KernelRuntimeRole::Reader;
+    if (dmSpec->processorAttrValue == kDMProcessorRISCV0)
+      return KernelRuntimeRole::Writer;
+  }
+
+  return std::nullopt;
+}
+
+RuntimeArgLayout mlir::loom::buildRuntimeArgLayout(func::FuncOp func) {
+  RuntimeArgLayout layout;
+  auto role = getKernelRuntimeRole(func);
+  if (!role)
+    return layout;
+
+  SmallVector<::loom::CopyOp, 8> copyBindings;
+  if (failed(collectCopyBindingOps(func, copyBindings)))
+    return layout;
+
+  auto addCopyBindingBase = [&](int64_t slot) {
+    layout.add(RuntimeArgKey::copyBinding(slot, CopyBindingRuntimeField::Cb));
+    layout.add(
+        RuntimeArgKey::copyBinding(slot, CopyBindingRuntimeField::BaseAddr));
+  };
+
+  auto addCopyBindingMcast = [&](int64_t slot) {
+    layout.add(RuntimeArgKey::copyBinding(
+        slot, CopyBindingRuntimeField::McastDestStartX));
+    layout.add(RuntimeArgKey::copyBinding(
+        slot, CopyBindingRuntimeField::McastDestStartY));
+    layout.add(RuntimeArgKey::copyBinding(
+        slot, CopyBindingRuntimeField::McastDestEndX));
+    layout.add(RuntimeArgKey::copyBinding(
+        slot, CopyBindingRuntimeField::McastDestEndY));
+    layout.add(RuntimeArgKey::copyBinding(slot,
+                                          CopyBindingRuntimeField::McastDestNum));
+    layout.add(RuntimeArgKey::copyBinding(
+        slot, CopyBindingRuntimeField::McastSenderNocX));
+    layout.add(RuntimeArgKey::copyBinding(
+        slot, CopyBindingRuntimeField::McastSenderNocY));
+    layout.add(RuntimeArgKey::copyBinding(
+        slot, CopyBindingRuntimeField::McastSenderSemaphore));
+    layout.add(RuntimeArgKey::copyBinding(
+        slot, CopyBindingRuntimeField::McastReceiverSemaphore));
+  };
+
+  for (::loom::CopyOp copyOp : copyBindings) {
+    auto slot = getCopyBindingSlot(copyOp.getOperation());
+    if (!slot)
+      continue;
+
+    if (*role == KernelRuntimeRole::Compute) {
+      layout.add(
+          RuntimeArgKey::copyBinding(*slot, CopyBindingRuntimeField::Cb));
+      continue;
+    }
+
+    if (isDramToL1Copy(copyOp)) {
+      addCopyBindingBase(*slot);
+      if (hasRuntimeBroadcast(copyOp))
+        addCopyBindingMcast(*slot);
+      continue;
+    }
+
+    if (isL1ToDramCopy(copyOp))
+      addCopyBindingBase(*slot);
+  }
+
+  if (*role == KernelRuntimeRole::Writer && func->hasAttr(kHasReduceAttrName)) {
+    layout.add(RuntimeArgKey::reduce(ReduceRuntimeField::ReadySemaphore));
+    layout.add(RuntimeArgKey::reduce(ReduceRuntimeField::TokenSemaphore));
+    layout.add(RuntimeArgKey::reduce(ReduceRuntimeField::TokenMcastDestStartX));
+    layout.add(RuntimeArgKey::reduce(ReduceRuntimeField::TokenMcastDestStartY));
+    layout.add(RuntimeArgKey::reduce(ReduceRuntimeField::TokenMcastDestEndX));
+    layout.add(RuntimeArgKey::reduce(ReduceRuntimeField::TokenMcastDestEndY));
+  }
+
+  if (*role == KernelRuntimeRole::Compute) {
+    if (auto scalarSiteCountAttr =
+            func->getAttrOfType<IntegerAttr>(kScalarSiteCountAttrName)) {
+      for (int64_t siteId = 0; siteId < scalarSiteCountAttr.getInt(); ++siteId)
+        layout.add(RuntimeArgKey::scalarSite(siteId));
+    }
+  }
+
+  if (hasMappedParallel(func)) {
+    layout.add(RuntimeArgKey::coreCoord(CoreCoordRuntimeField::X));
+    layout.add(RuntimeArgKey::coreCoord(CoreCoordRuntimeField::Y));
+  }
+
+  if (*role == KernelRuntimeRole::Compute ||
+      *role == KernelRuntimeRole::Writer) {
+    for (int64_t slot : collectInternalSemaphoreSlots(func))
+      layout.add(RuntimeArgKey::internalCb(slot));
+  }
+
+  return layout;
+}
+
 LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     func::FuncOp func, TypeConverter &typeConverter, OpBuilder &rewriter) {
   (void)typeConverter;
   if (func.getName().contains("__host"))
     return success();
 
+  RuntimeArgLayout runtimeLayout = buildRuntimeArgLayout(func);
+  funcToRuntimeArgLayout[func.getOperation()] = runtimeLayout;
+
   Block &entry = func.front();
   Location loc = func.getLoc();
 
-  // Detect whether this function is a compute kernel. For compute kernels
-  // we avoid creating TensorAccessor bookkeeping, since they do not perform
-  // direct NOC reads/writes and only need CB handles.
-  bool isComputeKernel = false;
-  if (auto threadAttr =
-          func->getAttrOfType<ThreadTypeAttr>(ThreadTypeAttr::name)) {
-    isComputeKernel = threadAttr.getValue() == ThreadType::Compute;
-  }
+  auto runtimeRole = getKernelRuntimeRole(func);
+  bool isComputeKernel =
+      runtimeRole && *runtimeRole == KernelRuntimeRole::Compute;
 
   int8_t resolvedDmNocId = 0;
   if (!isComputeKernel) {
@@ -1213,38 +1377,61 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     }
 
     Location bindingLoc = copyOp.getLoc();
-    int64_t baseArgIndex = *slot * kRuntimeArgsPerCopyBinding;
 
-    Value cbOp = createTypedCompileArgAtIndex(bindingLoc, rewriter, func,
-                                              baseArgIndex + 0,
-                                              CBType::get(cbMemrefType));
-    Value baseAddrOp = createTypedCompileArgAtIndex(bindingLoc, rewriter, func,
-                                                    baseArgIndex + 1,
-                                                    rewriter.getI32Type());
-    Value mcastDestStartX = createTypedCompileArgAtIndex(
-        bindingLoc, rewriter, func, baseArgIndex + 2, rewriter.getI32Type());
-    Value mcastDestStartY = createTypedCompileArgAtIndex(
-        bindingLoc, rewriter, func, baseArgIndex + 3, rewriter.getI32Type());
-    Value mcastDestEndX = createTypedCompileArgAtIndex(
-        bindingLoc, rewriter, func, baseArgIndex + 4, rewriter.getI32Type());
-    Value mcastDestEndY = createTypedCompileArgAtIndex(
-        bindingLoc, rewriter, func, baseArgIndex + 5, rewriter.getI32Type());
-    Value mcastDestNum = createTypedCompileArgAtIndex(
-        bindingLoc, rewriter, func, baseArgIndex + 6, rewriter.getI32Type());
-    Value mcastSenderNocX = createTypedCompileArgAtIndex(
-        bindingLoc, rewriter, func, baseArgIndex + 7, rewriter.getI32Type());
-    Value mcastSenderNocY = createTypedCompileArgAtIndex(
-        bindingLoc, rewriter, func, baseArgIndex + 8, rewriter.getI32Type());
-    Value mcastSenderSemaphoreAddrArg = createTypedCompileArgAtIndex(
-        bindingLoc, rewriter, func, baseArgIndex + 9, rewriter.getI32Type());
-    Value mcastReceiverSemaphoreAddrArg = createTypedCompileArgAtIndex(
-        bindingLoc, rewriter, func, baseArgIndex + 10, rewriter.getI32Type());
+    auto copyKey = [&](CopyBindingRuntimeField field) {
+      return RuntimeArgKey::copyBinding(*slot, field);
+    };
+    auto createCopyRuntimeArg = [&](CopyBindingRuntimeField field,
+                                    Type resultType) -> Value {
+      RuntimeArgKey key = copyKey(field);
+      if (!runtimeLayout.contains(key))
+        return {};
+      return createRuntimeArg(bindingLoc, rewriter, func, key, resultType);
+    };
 
-    if (!cbOp || !baseAddrOp || !mcastDestStartX || !mcastDestStartY ||
-        !mcastDestEndX || !mcastDestEndY || !mcastDestNum ||
-        !mcastSenderNocX || !mcastSenderNocY || !mcastSenderSemaphoreAddrArg ||
-        !mcastReceiverSemaphoreAddrArg) {
-      return copyOp.emitOpError("failed to materialize per-copy runtime tuple");
+    Value cbOp = createCopyRuntimeArg(CopyBindingRuntimeField::Cb,
+                                      CBType::get(cbMemrefType));
+    if (!cbOp)
+      return copyOp.emitOpError("failed to materialize copy-binding CB "
+                                "runtime arg for slot ")
+             << *slot;
+
+    Value baseAddrOp = createCopyRuntimeArg(CopyBindingRuntimeField::BaseAddr,
+                                            rewriter.getI32Type());
+    if (!isComputeKernel && !baseAddrOp)
+      return copyOp.emitOpError("failed to materialize copy-binding base "
+                                "address runtime arg for slot ")
+             << *slot;
+
+    Value mcastDestStartX = createCopyRuntimeArg(
+        CopyBindingRuntimeField::McastDestStartX, rewriter.getI32Type());
+    Value mcastDestStartY = createCopyRuntimeArg(
+        CopyBindingRuntimeField::McastDestStartY, rewriter.getI32Type());
+    Value mcastDestEndX = createCopyRuntimeArg(
+        CopyBindingRuntimeField::McastDestEndX, rewriter.getI32Type());
+    Value mcastDestEndY = createCopyRuntimeArg(
+        CopyBindingRuntimeField::McastDestEndY, rewriter.getI32Type());
+    Value mcastDestNum = createCopyRuntimeArg(
+        CopyBindingRuntimeField::McastDestNum, rewriter.getI32Type());
+    Value mcastSenderNocX = createCopyRuntimeArg(
+        CopyBindingRuntimeField::McastSenderNocX, rewriter.getI32Type());
+    Value mcastSenderNocY = createCopyRuntimeArg(
+        CopyBindingRuntimeField::McastSenderNocY, rewriter.getI32Type());
+    Value mcastSenderSemaphoreAddrArg = createCopyRuntimeArg(
+        CopyBindingRuntimeField::McastSenderSemaphore, rewriter.getI32Type());
+    Value mcastReceiverSemaphoreAddrArg = createCopyRuntimeArg(
+        CopyBindingRuntimeField::McastReceiverSemaphore, rewriter.getI32Type());
+
+    bool needsMcastRuntimeArgs =
+        !isComputeKernel && isDramToL1Copy(copyOp) && hasRuntimeBroadcast(copyOp);
+    if (needsMcastRuntimeArgs &&
+        (!mcastDestStartX || !mcastDestStartY || !mcastDestEndX ||
+         !mcastDestEndY || !mcastDestNum || !mcastSenderNocX ||
+         !mcastSenderNocY || !mcastSenderSemaphoreAddrArg ||
+         !mcastReceiverSemaphoreAddrArg)) {
+      return copyOp.emitOpError("failed to materialize multicast runtime args "
+                                "for copy binding slot ")
+             << *slot;
     }
 
     Value tensorAccessor;
@@ -1254,15 +1441,9 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     Value mcastSenderSemaphoreAddrPtr;
     Value mcastSenderSemaphoreNocAddrOp;
     Value mcastReceiverSemaphoreNocAddrOp;
-    if (!isComputeKernel) {
+    if (!isComputeKernel && baseAddrOp) {
       Value nocIdVal = rewriter.create<arith::ConstantIntOp>(
           bindingLoc, rewriter.getI8Type(), resolvedDmNocId);
-      mcastSenderSemaphoreAddrOp =
-          GetSemaphoreOp::create(rewriter, bindingLoc,
-                                 mcastSenderSemaphoreAddrArg);
-      mcastReceiverSemaphoreAddrOp =
-          GetSemaphoreOp::create(rewriter, bindingLoc,
-                                 mcastReceiverSemaphoreAddrArg);
       Value pageSize = GetTileSizeOp::create(rewriter, bindingLoc, cbOp);
       Value tensorAccessorArgsIdxVal = rewriter.create<arith::ConstantIntOp>(
           bindingLoc, rewriter.getI32Type(), accessorIndexIt->second);
@@ -1273,21 +1454,29 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
                                                      baseAddrArgs.getResult(),
                                                      baseAddrOp, pageSize)
                            .getResult();
-      mcastReceiverSemaphoreAddrPtr =
-          CastToL1PtrOp::create(rewriter, bindingLoc,
-                                mcastReceiverSemaphoreAddrOp);
-      mcastSenderSemaphoreAddrPtr =
-          CastToL1PtrOp::create(rewriter, bindingLoc,
-                                mcastSenderSemaphoreAddrOp);
-      mcastSenderSemaphoreNocAddrOp = GetNocAddrOp::create(
-          rewriter, bindingLoc, mcastSenderNocX, mcastSenderNocY,
-          mcastSenderSemaphoreAddrOp);
-      mcastReceiverSemaphoreNocAddrOp =
-          rewriter
-              .create<ExperimentalGetNocMulticastAddrOp>(
-                  bindingLoc, mcastDestStartX, mcastDestStartY, mcastDestEndX,
-                  mcastDestEndY, mcastReceiverSemaphoreAddrOp, nocIdVal)
-              .getResult();
+      if (needsMcastRuntimeArgs) {
+        mcastSenderSemaphoreAddrOp =
+            GetSemaphoreOp::create(rewriter, bindingLoc,
+                                   mcastSenderSemaphoreAddrArg);
+        mcastReceiverSemaphoreAddrOp =
+            GetSemaphoreOp::create(rewriter, bindingLoc,
+                                   mcastReceiverSemaphoreAddrArg);
+        mcastReceiverSemaphoreAddrPtr =
+            CastToL1PtrOp::create(rewriter, bindingLoc,
+                                  mcastReceiverSemaphoreAddrOp);
+        mcastSenderSemaphoreAddrPtr =
+            CastToL1PtrOp::create(rewriter, bindingLoc,
+                                  mcastSenderSemaphoreAddrOp);
+        mcastSenderSemaphoreNocAddrOp = GetNocAddrOp::create(
+            rewriter, bindingLoc, mcastSenderNocX, mcastSenderNocY,
+            mcastSenderSemaphoreAddrOp);
+        mcastReceiverSemaphoreNocAddrOp =
+            rewriter
+                .create<ExperimentalGetNocMulticastAddrOp>(
+                    bindingLoc, mcastDestStartX, mcastDestStartY, mcastDestEndX,
+                    mcastDestEndY, mcastReceiverSemaphoreAddrOp, nocIdVal)
+                .getResult();
+      }
     }
 
     CopyBindingData bindingData;
@@ -1322,12 +1511,6 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     funcToCopyBindingData[func.getOperation()][*slot] = bindingData;
   }
 
-  int64_t bindingPrefixSize =
-      getAnnotatedCopyBindingCount(func) * kRuntimeArgsPerCopyBinding;
-  int64_t &nextArgIndex = funcToNextArgIndex[func.getOperation()];
-  if (nextArgIndex < bindingPrefixSize)
-    nextArgIndex = bindingPrefixSize;
-
   // Process non-memref function arguments that still need runtime slots.
   for (BlockArgument arg : entry.getArguments()) {
     if (isScalarRuntimeSiteArg(func, arg))
@@ -1344,20 +1527,9 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     if (isa<MemRefType, UnrankedMemRefType>(argType)) {
       continue;
     } else if (argType.isIndex()) {
-      // Index type: create a single compile-arg.
-      Value compileArgOp = createGetArgValOp(loc, rewriter, func,
-                                              rewriter.getI32Type());
-
-      // Cast i32 to index for compatibility.
-      auto indexCast = rewriter.create<arith::IndexCastOp>(
-          loc, rewriter.getIndexType(), compileArgOp);
-
-      // Store the created values.
-      indexArgToData[arg] = IndexArgData{compileArgOp, indexCast.getResult()};
-
-      // Replace uses of the index argument with the casted value.
-      arg.replaceAllUsesWith(indexCast.getResult());
-
+      return func.emitError()
+             << "index function arguments are not part of the compact "
+                "per-kernel runtime layout yet";
     } else {
       // Other types: not supported yet.
       return func.emitError()
@@ -1365,27 +1537,32 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     }
   }
 
-  if (func->hasAttr(kHasReduceAttrName) &&
-      !funcToReduceRuntimeArgs.count(func.getOperation())) {
-    Value readySemaphore =
-        createGetArgValOp(loc, rewriter, func, rewriter.getI32Type());
-    Value tokenSemaphore =
-        createGetArgValOp(loc, rewriter, func, rewriter.getI32Type());
+  funcToReduceRuntimeArgs.erase(func.getOperation());
+  if (runtimeLayout.contains(
+          RuntimeArgKey::reduce(ReduceRuntimeField::ReadySemaphore))) {
+    auto createReduceArg = [&](ReduceRuntimeField field) -> Value {
+      return createRuntimeArg(loc, rewriter, func, RuntimeArgKey::reduce(field),
+                              rewriter.getI32Type());
+    };
+    Value readySemaphore = createReduceArg(ReduceRuntimeField::ReadySemaphore);
+    Value tokenSemaphore = createReduceArg(ReduceRuntimeField::TokenSemaphore);
     Value tokenSemaphoreMcastDestStartX =
-        createGetArgValOp(loc, rewriter, func, rewriter.getI32Type());
+        createReduceArg(ReduceRuntimeField::TokenMcastDestStartX);
     Value tokenSemaphoreMcastDestStartY =
-        createGetArgValOp(loc, rewriter, func, rewriter.getI32Type());
+        createReduceArg(ReduceRuntimeField::TokenMcastDestStartY);
     Value tokenSemaphoreMcastDestEndX =
-        createGetArgValOp(loc, rewriter, func, rewriter.getI32Type());
+        createReduceArg(ReduceRuntimeField::TokenMcastDestEndX);
     Value tokenSemaphoreMcastDestEndY =
-        createGetArgValOp(loc, rewriter, func, rewriter.getI32Type());
-    funcToReduceRuntimeArgs[func.getOperation()] =
-        ReduceRuntimeArgs{readySemaphore,
-                          tokenSemaphore,
-                          tokenSemaphoreMcastDestStartX,
-                          tokenSemaphoreMcastDestStartY,
-                          tokenSemaphoreMcastDestEndX,
-                          tokenSemaphoreMcastDestEndY};
+        createReduceArg(ReduceRuntimeField::TokenMcastDestEndY);
+    if (!readySemaphore || !tokenSemaphore || !tokenSemaphoreMcastDestStartX ||
+        !tokenSemaphoreMcastDestStartY || !tokenSemaphoreMcastDestEndX ||
+        !tokenSemaphoreMcastDestEndY)
+      return func.emitError()
+             << "failed to materialize writer reduce runtime args";
+    funcToReduceRuntimeArgs[func.getOperation()] = ReduceRuntimeArgs{
+        readySemaphore, tokenSemaphore, tokenSemaphoreMcastDestStartX,
+        tokenSemaphoreMcastDestStartY, tokenSemaphoreMcastDestEndX,
+        tokenSemaphoreMcastDestEndY};
   }
 
   funcToScalarRuntimeArgs.erase(func.getOperation());
@@ -1399,17 +1576,18 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     auto &runtimeArgs = funcToScalarRuntimeArgs[func.getOperation()];
     runtimeArgs.reserve(static_cast<size_t>(scalarSiteCount));
     for (int64_t siteId = 0; siteId < scalarSiteCount; ++siteId) {
-      runtimeArgs.push_back(
-          createGetArgValOp(loc, rewriter, func, rewriter.getI32Type()));
+      RuntimeArgKey key = RuntimeArgKey::scalarSite(siteId);
+      if (!runtimeLayout.contains(key))
+        continue;
+      Value scalarArg =
+          createRuntimeArg(loc, rewriter, func, key, rewriter.getI32Type());
+      if (!scalarArg)
+        return func.emitError()
+               << "failed to materialize scalar runtime arg for site "
+               << siteId;
+      runtimeArgs.push_back(scalarArg);
     }
   }
-
-  // Internal CB runtime slots are emitted after core-coordinate args in host
-  // runtime-arg layout. SCF lowering currently materializes two core args
-  // (x/y), so reserve space for them when computing internal CB base.
-  constexpr int64_t kCoreCoordArgCount = 2;
-  funcToInternalCbBaseArgIndex[func.getOperation()] =
-      funcToNextArgIndex[func.getOperation()] + kCoreCoordArgCount;
 
   return success();
 }
@@ -1533,12 +1711,45 @@ Value mlir::loom::CompileArgTracker::createTypedCompileArgAtIndex(
   return value;
 }
 
-int64_t
-mlir::loom::CompileArgTracker::getInternalCbBaseArgIndex(Operation *funcOp) const {
-  auto it = funcToInternalCbBaseArgIndex.find(funcOp);
-  if (it == funcToInternalCbBaseArgIndex.end())
-    return -1;
-  return it->second;
+std::optional<int64_t>
+mlir::loom::CompileArgTracker::getRuntimeArgIndex(Operation *funcOp,
+                                                  RuntimeArgKey key) const {
+  if (!funcOp)
+    return std::nullopt;
+
+  auto it = funcToRuntimeArgLayout.find(funcOp);
+  if (it == funcToRuntimeArgLayout.end()) {
+    auto func = dyn_cast<func::FuncOp>(funcOp);
+    if (!func)
+      return std::nullopt;
+    RuntimeArgLayout layout = buildRuntimeArgLayout(func);
+    return layout.indexOf(key);
+  }
+
+  return it->second.indexOf(key);
+}
+
+Value mlir::loom::CompileArgTracker::createRuntimeArg(
+    Location loc, OpBuilder &rewriter, Operation *funcOp, RuntimeArgKey key,
+    Type resultType) {
+  if (!funcOp || !resultType)
+    return nullptr;
+
+  auto layoutIt = funcToRuntimeArgLayout.find(funcOp);
+  if (layoutIt == funcToRuntimeArgLayout.end()) {
+    auto func = dyn_cast<func::FuncOp>(funcOp);
+    if (!func)
+      return nullptr;
+    layoutIt = funcToRuntimeArgLayout
+                   .try_emplace(funcOp, buildRuntimeArgLayout(func))
+                   .first;
+  }
+
+  auto argIndex = layoutIt->second.indexOf(key);
+  if (!argIndex)
+    return nullptr;
+  return createTypedCompileArgAtIndex(loc, rewriter, funcOp, *argIndex,
+                                      resultType);
 }
 
 const mlir::loom::CompileArgTracker::ReduceRuntimeArgs *
@@ -2021,9 +2232,11 @@ static func::FuncOp makeWriterFunc(func::FuncOp func) {
 class TTMetalHostProgramEmitter {
 public:
   TTMetalHostProgramEmitter(func::FuncOp originalFunc, func::FuncOp hostFunc,
-                            HostProgramKind kind)
+                            HostProgramKind kind, func::FuncOp computeFunc,
+                            func::FuncOp readerFunc, func::FuncOp writerFunc)
       : originalFunc(originalFunc), hostFunc(hostFunc), loc(hostFunc.getLoc()),
-        builder(hostFunc.getContext()), kind(kind) {}
+        builder(hostFunc.getContext()), kind(kind), computeFunc(computeFunc),
+        readerFunc(readerFunc), writerFunc(writerFunc) {}
 
   void run() {
     hasReduce = hostFunc->hasAttr(kHasReduceAttrName) ||
@@ -2035,6 +2248,9 @@ public:
     collectReduceRegion();
     collectCopyBindings();
     collectCbInfos();
+    computeRuntimeLayout = buildRuntimeArgLayout(computeFunc);
+    readerRuntimeLayout = buildRuntimeArgLayout(readerFunc);
+    writerRuntimeLayout = buildRuntimeArgLayout(writerFunc);
     annotateHostSignatureMetadata();
     eraseNonHostOps();
     eraseDeadReinterpretCasts();
@@ -2128,9 +2344,6 @@ private:
     unsigned hostParamIndex = 0;
     std::string valuesName;
   };
-
-  static constexpr unsigned kRuntimeArgsPerBindingTuple =
-      static_cast<unsigned>(kRuntimeArgsPerCopyBinding);
 
   static Value stripCasts(Value value) {
     Value curr = value;
@@ -2924,7 +3137,7 @@ private:
     cbInfos.clear();
     semaphoreToCbIndex.clear();
     allocToCbInfo.clear();
-    internalCbRuntimeArgOrder.clear();
+    internalSlotToCbIndex.clear();
     nextCbIndex = 0;
 
     llvm::DenseMap<Value, SmallVector<Value, 4>> semaphoresByAlloc;
@@ -2954,6 +3167,11 @@ private:
           info.cbIndices.push_back(cbIndex);
           info.cbIndexNames.push_back("CBIndex::c_" + std::to_string(cbIndex));
           semaphoreToCbIndex[semValue] = cbIndex;
+          if (auto sem = semValue.getDefiningOp<::loom::SemaphoreTakeOp>()) {
+            if (auto slotAttr =
+                    sem->getAttrOfType<IntegerAttr>(kSemaphoreSlotAttrName))
+              internalSlotToCbIndex.try_emplace(slotAttr.getInt(), cbIndex);
+          }
         }
       }
 
@@ -2968,7 +3186,6 @@ private:
       cbInfos.push_back(info);
     });
 
-    SmallVector<unsigned, 8> bindingCbIndices;
     for (CopyBindingInfo &binding : copyBindings) {
       int cbIndex = resolveCbIndexFromEndpoint(binding.l1Endpoint);
       if (cbIndex < 0) {
@@ -2986,22 +3203,8 @@ private:
       }
 
       binding.cbIndex = cbIndex;
-      if (!llvm::is_contained(bindingCbIndices, static_cast<unsigned>(cbIndex)))
-        bindingCbIndices.push_back(static_cast<unsigned>(cbIndex));
     }
 
-    // Runtime-arg CB tail must only include internal CBs (those that do not
-    // correspond to DRAM/L1 copy bindings). Binding-linked CB IDs are already
-    // emitted at fixed per-binding positions at the beginning of runtime args.
-    for (const CircularBufferInfo &info : cbInfos) {
-      for (unsigned cbIndex : info.cbIndices) {
-        if (llvm::is_contained(bindingCbIndices, cbIndex))
-          continue;
-        if (llvm::is_contained(internalCbRuntimeArgOrder, cbIndex))
-          continue;
-        internalCbRuntimeArgOrder.push_back(cbIndex);
-      }
-    }
   }
 
   void eraseNonHostOps() {
@@ -3314,6 +3517,170 @@ private:
                         });
   }
 
+  const RuntimeArgLayout &runtimeLayoutForRole(KernelRuntimeRole role) const {
+    switch (role) {
+    case KernelRuntimeRole::Reader:
+      return readerRuntimeLayout;
+    case KernelRuntimeRole::Writer:
+      return writerRuntimeLayout;
+    case KernelRuntimeRole::Compute:
+      return computeRuntimeLayout;
+    }
+    llvm_unreachable("unknown runtime role");
+  }
+
+  static StringRef runtimeVectorName(KernelRuntimeRole role) {
+    switch (role) {
+    case KernelRuntimeRole::Reader:
+      return "reader_runtime_args_for_core";
+    case KernelRuntimeRole::Writer:
+      return "writer_runtime_args_for_core";
+    case KernelRuntimeRole::Compute:
+      return "compute_runtime_args_for_core";
+    }
+    llvm_unreachable("unknown runtime role");
+  }
+
+  static StringRef runtimeArgsLocalName(KernelRuntimeRole role) {
+    switch (role) {
+    case KernelRuntimeRole::Reader:
+      return "reader_args";
+    case KernelRuntimeRole::Writer:
+      return "writer_args";
+    case KernelRuntimeRole::Compute:
+      return "compute_args";
+    }
+    llvm_unreachable("unknown runtime role");
+  }
+
+  const CopyBindingInfo *findCopyBindingBySlot(int64_t slot) const {
+    for (const CopyBindingInfo &binding : copyBindings)
+      if (static_cast<int64_t>(binding.slot) == slot)
+        return &binding;
+    return nullptr;
+  }
+
+  const ScalarRuntimeSiteInfo *findScalarRuntimeSite(int64_t siteId) const {
+    for (const ScalarRuntimeSiteInfo &site : scalarRuntimeSites)
+      if (site.siteId == siteId)
+        return &site;
+    return nullptr;
+  }
+
+  std::string runtimeArgExpr(const RuntimeArgKey &key) const {
+    switch (key.kind) {
+    case RuntimeArgKind::CopyBinding: {
+      const CopyBindingInfo *binding = findCopyBindingBySlot(key.id);
+      if (!binding)
+        return "0";
+      const DramBufferInfo &dramInfo = dramInfos[binding->dramInfoIndex];
+      const std::string &prefix = binding->bindingName;
+      switch (static_cast<CopyBindingRuntimeField>(key.field)) {
+      case CopyBindingRuntimeField::Cb: {
+        unsigned cbIndex = binding->cbIndex >= 0
+                               ? static_cast<unsigned>(binding->cbIndex)
+                               : binding->slot;
+        return "static_cast<uint32_t>(CBIndex::c_" + std::to_string(cbIndex) +
+               ")";
+      }
+      case CopyBindingRuntimeField::BaseAddr:
+        return dramInfo.bufferName + "->address()";
+      case CopyBindingRuntimeField::McastDestStartX:
+        return binding->hasBroadcastRegion
+                   ? prefix + "_multicast_dest_noc_start_x"
+                   : "0";
+      case CopyBindingRuntimeField::McastDestStartY:
+        return binding->hasBroadcastRegion
+                   ? prefix + "_multicast_dest_noc_start_y"
+                   : "0";
+      case CopyBindingRuntimeField::McastDestEndX:
+        return binding->hasBroadcastRegion
+                   ? prefix + "_multicast_dest_noc_end_x"
+                   : "0";
+      case CopyBindingRuntimeField::McastDestEndY:
+        return binding->hasBroadcastRegion
+                   ? prefix + "_multicast_dest_noc_end_y"
+                   : "0";
+      case CopyBindingRuntimeField::McastDestNum:
+        return binding->hasBroadcastRegion ? prefix + "_multicast_dest_num"
+                                           : "0";
+      case CopyBindingRuntimeField::McastSenderNocX:
+        return binding->hasBroadcastRegion
+                   ? prefix + "_multicast_sender_noc_x"
+                   : "0";
+      case CopyBindingRuntimeField::McastSenderNocY:
+        return binding->hasBroadcastRegion
+                   ? prefix + "_multicast_sender_noc_y"
+                   : "0";
+      case CopyBindingRuntimeField::McastSenderSemaphore:
+        return binding->hasBroadcastRegion
+                   ? prefix + "_mcast_sender_semaphore_addr"
+                   : "0";
+      case CopyBindingRuntimeField::McastReceiverSemaphore:
+        return binding->hasBroadcastRegion
+                   ? prefix + "_mcast_receiver_semaphore_addr"
+                   : "0";
+      }
+      llvm_unreachable("unknown copy-binding runtime field");
+    }
+    case RuntimeArgKind::Reduce:
+      switch (static_cast<ReduceRuntimeField>(key.field)) {
+      case ReduceRuntimeField::ReadySemaphore:
+        return "reduce_ready_semaphore_addr";
+      case ReduceRuntimeField::TokenSemaphore:
+        return "reduce_token_semaphore_addr";
+      case ReduceRuntimeField::TokenMcastDestStartX:
+        return "reduce_token_mcast_dest_noc_start_x";
+      case ReduceRuntimeField::TokenMcastDestStartY:
+        return "reduce_token_mcast_dest_noc_start_y";
+      case ReduceRuntimeField::TokenMcastDestEndX:
+        return "reduce_token_mcast_dest_noc_end_x";
+      case ReduceRuntimeField::TokenMcastDestEndY:
+        return "reduce_token_mcast_dest_noc_end_y";
+      }
+      llvm_unreachable("unknown reduce runtime field");
+    case RuntimeArgKind::ScalarSite:
+      if (const auto *site = findScalarRuntimeSite(key.id))
+        return "scalar_site_" + std::to_string(site->siteId) + "_packed";
+      return "0";
+    case RuntimeArgKind::CoreCoord:
+      switch (static_cast<CoreCoordRuntimeField>(key.field)) {
+      case CoreCoordRuntimeField::X:
+        return "core.x";
+      case CoreCoordRuntimeField::Y:
+        return "core.y";
+      }
+      llvm_unreachable("unknown core-coordinate runtime field");
+    case RuntimeArgKind::InternalCb: {
+      auto it = internalSlotToCbIndex.find(key.id);
+      if (it == internalSlotToCbIndex.end())
+        return "0";
+      return "static_cast<uint32_t>(CBIndex::c_" + std::to_string(it->second) +
+             ")";
+    }
+    }
+    llvm_unreachable("unknown runtime arg kind");
+  }
+
+  void emitRuntimeArgVector(KernelRuntimeRole role) {
+    const RuntimeArgLayout &layout = runtimeLayoutForRole(role);
+    emitLine("std::vector<uint32_t> " + runtimeVectorName(role).str() +
+             " = {");
+    for (const RuntimeArgKey &key : layout.keys)
+      emitLine(runtimeArgExpr(key) + ",");
+    emitLine("};");
+  }
+
+  void emitRuntimePatchIfPresent(KernelRuntimeRole role, RuntimeArgKey key,
+                                 const std::string &valueExpr) {
+    const RuntimeArgLayout &layout = runtimeLayoutForRole(role);
+    auto index = layout.indexOf(key);
+    if (!index)
+      return;
+    emitLine(runtimeArgsLocalName(role).str() + "[" +
+             std::to_string(*index) + "] = " + valueExpr + ";");
+  }
+
   void emitPybindOverrideRuntimeCallback() {
     if (kind != HostProgramKind::Pybind)
       return;
@@ -3354,27 +3721,29 @@ private:
 
     for (const CopyBindingInfo &binding : copyBindings) {
       const DramBufferInfo &dramInfo = dramInfos[binding.dramInfoIndex];
-      const unsigned addressArgIndex =
-          binding.slot * kRuntimeArgsPerBindingTuple + 1;
-      std::string offset = std::to_string(addressArgIndex);
-      emitLine("reader_args[" + offset + "] = " + dramInfo.bufferName +
-               "->address();");
-      emitLine("writer_args[" + offset + "] = " + dramInfo.bufferName +
-               "->address();");
-      emitLine("compute_args[" + offset + "] = " + dramInfo.bufferName +
-               "->address();");
+      RuntimeArgKey baseKey = RuntimeArgKey::copyBinding(
+          binding.slot, CopyBindingRuntimeField::BaseAddr);
+      std::string addressExpr = dramInfo.bufferName + "->address()";
+      emitRuntimePatchIfPresent(KernelRuntimeRole::Reader, baseKey,
+                                addressExpr);
+      emitRuntimePatchIfPresent(KernelRuntimeRole::Writer, baseKey,
+                                addressExpr);
+      emitRuntimePatchIfPresent(KernelRuntimeRole::Compute, baseKey,
+                                addressExpr);
     }
 
-    unsigned scalarArgIndex =
-        copyBindings.size() * kRuntimeArgsPerBindingTuple + (hasReduce ? 6 : 0);
     for (const ScalarRuntimeSiteInfo &site : scalarRuntimeSites) {
       std::string sitePrefix = "scalar_site_" + std::to_string(site.siteId);
       emitScalarRuntimeIndex(site, sitePrefix);
       emitScalarRuntimePybindLoad(site, sitePrefix);
-      std::string offset = std::to_string(scalarArgIndex++);
-      emitLine("reader_args[" + offset + "] = " + sitePrefix + "_packed;");
-      emitLine("writer_args[" + offset + "] = " + sitePrefix + "_packed;");
-      emitLine("compute_args[" + offset + "] = " + sitePrefix + "_packed;");
+      RuntimeArgKey scalarKey = RuntimeArgKey::scalarSite(site.siteId);
+      std::string packedExpr = sitePrefix + "_packed";
+      emitRuntimePatchIfPresent(KernelRuntimeRole::Reader, scalarKey,
+                                packedExpr);
+      emitRuntimePatchIfPresent(KernelRuntimeRole::Writer, scalarKey,
+                                packedExpr);
+      emitRuntimePatchIfPresent(KernelRuntimeRole::Compute, scalarKey,
+                                packedExpr);
     }
 
     emitLine("}");
@@ -3507,45 +3876,6 @@ private:
       emitLine("uint32_t reduce_token_mcast_dest_noc_end_y = 0;");
     }
 
-    auto emitMulticastTuple = [&](const CopyBindingInfo &binding) {
-      if (!binding.isInput) {
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        return;
-      }
-
-      const std::string &prefix = binding.bindingName;
-      if (!binding.hasBroadcastRegion) {
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        emitLine("0,");
-        return;
-      }
-
-      emitLine(prefix + "_multicast_dest_noc_start_x,");
-      emitLine(prefix + "_multicast_dest_noc_start_y,");
-      emitLine(prefix + "_multicast_dest_noc_end_x,");
-      emitLine(prefix + "_multicast_dest_noc_end_y,");
-      emitLine(prefix + "_multicast_dest_num,");
-      emitLine(prefix + "_multicast_sender_noc_x,");
-      emitLine(prefix + "_multicast_sender_noc_y,");
-      emitLine(prefix + "_mcast_sender_semaphore_addr,");
-      emitLine(prefix + "_mcast_receiver_semaphore_addr,");
-    };
-
     for (const ScalarRuntimeSiteInfo &site : scalarRuntimeSites) {
       std::string sitePrefix = "scalar_site_" + std::to_string(site.siteId);
       emitLine("std::size_t " + sitePrefix +
@@ -3561,66 +3891,16 @@ private:
       }
     }
 
-    emitLine("std::vector<uint32_t> runtime_args_for_core = {");
+    emitRuntimeArgVector(KernelRuntimeRole::Reader);
+    emitRuntimeArgVector(KernelRuntimeRole::Writer);
+    emitRuntimeArgVector(KernelRuntimeRole::Compute);
 
-    for (const CopyBindingInfo &binding : copyBindings) {
-      const DramBufferInfo &dramInfo = dramInfos[binding.dramInfoIndex];
-      unsigned cbIndex = binding.cbIndex >= 0
-                             ? static_cast<unsigned>(binding.cbIndex)
-                             : binding.slot;
-      emitLine("static_cast<uint32_t>(CBIndex::c_" +
-               std::to_string(cbIndex) + "),");
-      emitLine(dramInfo.bufferName + "->address(),");
-      emitMulticastTuple(binding);
-    }
-
-    // Keep runtime-arg order aligned with CompileArgTracker creation order:
-    // 1) per-copy-binding runtime tuple(s)
-    // 2) optional reduce runtime semaphores + token mcast physical bounds
-    // 3) per-scalar-site packed scalar runtime words
-    // 4) core coordinates from scf.parallel lowering
-    // 5) remaining CB/runtime tail
-    //
-    // This must match the indices consumed by generated reader/writer/compute
-    // kernels, which are allocated via createGetArgValOp/createTypedCompileArg.
-    if (hasReduce) {
-      emitLine("reduce_ready_semaphore_addr,");
-      emitLine("reduce_token_semaphore_addr,");
-      emitLine("reduce_token_mcast_dest_noc_start_x,");
-      emitLine("reduce_token_mcast_dest_noc_start_y,");
-      emitLine("reduce_token_mcast_dest_noc_end_x,");
-      emitLine("reduce_token_mcast_dest_noc_end_y,");
-    }
-
-    for (const ScalarRuntimeSiteInfo &site : scalarRuntimeSites) {
-      emitLine("scalar_site_" + std::to_string(site.siteId) + "_packed,");
-    }
-
-    emitLine(coreCoordArg0Expr + ",");
-    emitLine(coreCoordArg1Expr + ",");
-
-    // Append CB indexes for internal-only buffers. CB IDs tied to copy
-    // bindings are already emitted in the per-binding prefix above.
-    for (unsigned cbIndex : internalCbRuntimeArgOrder) {
-      emitLine("static_cast<uint32_t>(CBIndex::c_" + std::to_string(cbIndex) +
-               "),");
-    }
-
-    // Keep ordered input-binding CB indexes as the final tail of runtime args.
-    for (const CopyBindingInfo &binding : copyBindings) {
-      if (!binding.isInput)
-        continue;
-      unsigned cbIndex = binding.cbIndex >= 0
-                             ? static_cast<unsigned>(binding.cbIndex)
-                             : binding.slot;
-      emitLine("static_cast<uint32_t>(CBIndex::c_" +
-               std::to_string(cbIndex) + "),");
-    }
-    emitLine("};");
-
-    emitLine("tt_metal::SetRuntimeArgs(program, reader_id, core, runtime_args_for_core);");
-    emitLine("tt_metal::SetRuntimeArgs(program, writer_id, core, runtime_args_for_core);");
-    emitLine("tt_metal::SetRuntimeArgs(program, compute_kernel_id, core, runtime_args_for_core);");
+    emitLine("tt_metal::SetRuntimeArgs(program, reader_id, core, "
+             "reader_runtime_args_for_core);");
+    emitLine("tt_metal::SetRuntimeArgs(program, writer_id, core, "
+             "writer_runtime_args_for_core);");
+    emitLine("tt_metal::SetRuntimeArgs(program, compute_kernel_id, core, "
+             "compute_runtime_args_for_core);");
   }
 
   void emitCompileArgs() {
@@ -3668,6 +3948,12 @@ private:
   Location loc;
   OpBuilder builder;
   HostProgramKind kind;
+  func::FuncOp computeFunc;
+  func::FuncOp readerFunc;
+  func::FuncOp writerFunc;
+  RuntimeArgLayout computeRuntimeLayout;
+  RuntimeArgLayout readerRuntimeLayout;
+  RuntimeArgLayout writerRuntimeLayout;
   SmallVector<DramBufferInfo, 8> dramInfos;
   SmallVector<CopyBindingInfo, 8> copyBindings;
   SmallVector<CircularBufferInfo, 8> cbInfos;
@@ -3675,7 +3961,7 @@ private:
   SmallVector<ScalarRuntimeHostArgInfo, 4> scalarRuntimeHostArgs;
   SmallVector<HostArgKind, 8> hostArgKinds;
   IndexExprMap parallelIvExprByValue;
-  SmallVector<unsigned, 8> internalCbRuntimeArgOrder;
+  llvm::DenseMap<int64_t, unsigned> internalSlotToCbIndex;
   llvm::DenseMap<Value, unsigned> semaphoreToCbIndex;
   llvm::DenseMap<Value, unsigned> allocToCbInfo;
   unsigned nextCbIndex = 0;
@@ -3701,7 +3987,10 @@ private:
  * @param func The original function to specialize.
  * @return The specialized host function.
  */
-static func::FuncOp makeHostFunc(func::FuncOp func, HostProgramKind kind) {
+static func::FuncOp makeHostFunc(func::FuncOp func, HostProgramKind kind,
+                                 func::FuncOp computeFunc,
+                                 func::FuncOp readerFunc,
+                                 func::FuncOp writerFunc) {
   IRMapping mapping;
   auto hostFunc = cast<func::FuncOp>(func->clone(mapping));
   hostFunc.setName((func.getName() +
@@ -3709,7 +3998,8 @@ static func::FuncOp makeHostFunc(func::FuncOp func, HostProgramKind kind) {
                                                   : "__host_pybind"))
                        .str());
 
-  TTMetalHostProgramEmitter emitter(func, hostFunc, kind);
+  TTMetalHostProgramEmitter emitter(func, hostFunc, kind, computeFunc,
+                                    readerFunc, writerFunc);
   emitter.run();
   clearMatmulBReaderMergeAttrs(hostFunc);
   return hostFunc;
@@ -3732,8 +4022,6 @@ public:
     auto computeFunc = makeComputeFunc(func);
     auto readerFunc = makeReaderFunc(func);
     auto writerFunc = makeWriterFunc(func);
-    auto hostCppFunc = makeHostFunc(func, HostProgramKind::Cpp);
-    auto hostPybindFunc = makeHostFunc(func, HostProgramKind::Pybind);
 
     // Attach TTKernel thread type attributes so downstream TTKernelToCpp
     // translation can recognize these as kernel entry points.
@@ -3747,8 +4035,6 @@ public:
     computeFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, computeAttr);
     readerFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
     writerFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
-    hostCppFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
-    hostPybindFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
     readerFunc->setAttr(
         kDMProcessorAttrName,
         attrBuilder.getStringAttr(
@@ -3764,6 +4050,18 @@ public:
       computeFunc->setAttr(kHasReduceAttrName, reduceAttr);
       readerFunc->setAttr(kHasReduceAttrName, reduceAttr);
       writerFunc->setAttr(kHasReduceAttrName, reduceAttr);
+    }
+
+    auto hostCppFunc =
+        makeHostFunc(func, HostProgramKind::Cpp, computeFunc, readerFunc,
+                     writerFunc);
+    auto hostPybindFunc =
+        makeHostFunc(func, HostProgramKind::Pybind, computeFunc, readerFunc,
+                     writerFunc);
+    hostCppFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
+    hostPybindFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
+    if (hasReduce) {
+      auto reduceAttr = attrBuilder.getUnitAttr();
       hostCppFunc->setAttr(kHasReduceAttrName, reduceAttr);
       hostPybindFunc->setAttr(kHasReduceAttrName, reduceAttr);
     }

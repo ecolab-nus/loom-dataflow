@@ -324,10 +324,14 @@ public:
 
       Value oneI32 = rewriter.create<arith::ConstantIntOp>(loc, 1, 32);
       Value zeroI32 = rewriter.create<arith::ConstantIntOp>(loc, 0, 32);
-      Value xCompileArgI32 = tracker->createTypedCompileArg(
-          loc, rewriter, parentFunc, rewriter.getI32Type());
-      Value yCompileArgI32 = tracker->createTypedCompileArg(
-          loc, rewriter, parentFunc, rewriter.getI32Type());
+      Value xCompileArgI32 = tracker->createRuntimeArg(
+          loc, rewriter, parentFunc,
+          RuntimeArgKey::coreCoord(CoreCoordRuntimeField::X),
+          rewriter.getI32Type());
+      Value yCompileArgI32 = tracker->createRuntimeArg(
+          loc, rewriter, parentFunc,
+          RuntimeArgKey::coreCoord(CoreCoordRuntimeField::Y),
+          rewriter.getI32Type());
       if (!xCompileArgI32 || !yCompileArgI32)
         return failure();
 

@@ -312,7 +312,6 @@ constexpr llvm::StringLiteral kCopyBindingCountAttrName =
     "loom.ttkernel.copy_binding_count";
 constexpr llvm::StringLiteral kSemaphoreSlotAttrName =
     "loom.ttkernel.semaphore_slot";
-constexpr int64_t kRuntimeArgsPerCopyBinding = 11;
 
 static std::optional<int64_t> getConstIntValue(Value value) {
   if (!value)
@@ -458,37 +457,33 @@ public:
 
       Block &entry = func.front();
       int64_t copyBindingCount = getAnnotatedCopyBindingCount(func);
+      RuntimeArgLayout runtimeLayout = buildRuntimeArgLayout(func);
 
       llvm::DenseMap<int64_t, Value> bindingSlotToCB;
       llvm::DenseMap<int64_t, Value> runtimeArgIndexToCB;
       Operation *lastGetArgVal = nullptr;
-      int64_t maxExistingArgIndex = -1;
       for (Operation &op : entry) {
         auto getArgVal = dyn_cast<GetArgValOp>(op);
         if (!getArgVal)
           continue;
         lastGetArgVal = &op;
         auto argIndex = getConstIntValue(getArgVal.getOperand());
-        if (argIndex && *argIndex >= 0)
-          maxExistingArgIndex = std::max(maxExistingArgIndex, *argIndex);
         if (!isa<CBType>(getArgVal.getType()))
           continue;
         if (!argIndex || *argIndex < 0)
           continue;
         runtimeArgIndexToCB.try_emplace(*argIndex, getArgVal.getResult());
-        if ((*argIndex % kRuntimeArgsPerCopyBinding) != 0)
-          continue;
-        int64_t slot = *argIndex / kRuntimeArgsPerCopyBinding;
-        if (slot < 0 || slot >= copyBindingCount)
-          continue;
-        bindingSlotToCB.try_emplace(slot, getArgVal.getResult());
       }
 
-      // CompileArgTracker reserves two core-coordinate runtime args before the
-      // internal semaphore-backed CB range. Reconstruct the same base here.
-      constexpr int64_t kCoreCoordArgCount = 2;
-      int64_t internalCbBaseArgIndex =
-          std::max<int64_t>(0, maxExistingArgIndex + 1 + kCoreCoordArgCount);
+      for (int64_t slot = 0; slot < copyBindingCount; ++slot) {
+        auto cbIndex = runtimeLayout.indexOf(RuntimeArgKey::copyBinding(
+            slot, CopyBindingRuntimeField::Cb));
+        if (!cbIndex)
+          continue;
+        auto cbIt = runtimeArgIndexToCB.find(*cbIndex);
+        if (cbIt != runtimeArgIndexToCB.end())
+          bindingSlotToCB.try_emplace(slot, cbIt->second);
+      }
 
       llvm::DenseMap<Value, int64_t> inputEndpointToSlot;
       llvm::DenseMap<Value, int64_t> outputEndpointToSlot;
@@ -556,7 +551,14 @@ public:
 
         int64_t slot = slotAndType->first;
         MemRefType memrefType = slotAndType->second;
-        int64_t argIndex = internalCbBaseArgIndex + slot;
+        auto layoutIndex = runtimeLayout.indexOf(RuntimeArgKey::internalCb(slot));
+        if (!layoutIndex) {
+          func.emitError()
+              << "missing runtime layout entry for internal semaphore slot "
+              << slot << " while building mm_init " << role;
+          return failure();
+        }
+        int64_t argIndex = *layoutIndex;
         if (auto it = runtimeArgIndexToCB.find(argIndex);
             it != runtimeArgIndexToCB.end())
           return it->second;

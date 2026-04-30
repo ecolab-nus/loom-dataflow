@@ -861,22 +861,37 @@ def _translate_cpp_expr_to_python(expr):
 
 
 def _extract_runtime_loop_indices(lines):
-    runtime_decl_idx = None
-    runtime_end_idx = None
-    for idx, line in enumerate(lines):
-        if "std::vector<uint32_t> runtime_args_for_core = {" in line:
-            runtime_decl_idx = idx
-            continue
-        if runtime_decl_idx is not None and line.strip() == "};":
-            runtime_end_idx = idx
-            break
+    runtime_blocks = {}
+    runtime_decl_re = re.compile(
+        r"std::vector<\s*uint32_t\s*>\s+"
+        r"((?:reader|writer|compute)_runtime_args_for_core|runtime_args_for_core)"
+        r"\s*=\s*\{"
+    )
 
-    if runtime_decl_idx is None or runtime_end_idx is None:
+    idx = 0
+    while idx < len(lines):
+        match = runtime_decl_re.search(lines[idx])
+        if not match:
+            idx += 1
+            continue
+
+        var_name = match.group(1)
+        end_idx = idx + 1
+        while end_idx < len(lines) and lines[end_idx].strip() != "};":
+            end_idx += 1
+        if end_idx >= len(lines):
+            raise ValueError(f"runtime args block for {var_name} is unterminated")
+
+        runtime_blocks[var_name] = (idx, end_idx)
+        idx = end_idx + 1
+
+    if not runtime_blocks:
         raise ValueError("runtime args block not found")
 
+    first_runtime_decl_idx = min(start for start, _ in runtime_blocks.values())
     core_loop_start_idx = None
     core_loop_re = re.compile(r"for\s*\(\s*const auto&\s+core\s*:\s*cores\s*\)\s*\{")
-    for idx in range(runtime_decl_idx - 1, -1, -1):
+    for idx in range(first_runtime_decl_idx - 1, -1, -1):
         if core_loop_re.search(lines[idx]):
             core_loop_start_idx = idx
             break
@@ -884,7 +899,7 @@ def _extract_runtime_loop_indices(lines):
     if core_loop_start_idx is None:
         raise ValueError("failed to locate for (const auto& core : cores) loop")
 
-    return core_loop_start_idx, runtime_decl_idx, runtime_end_idx
+    return core_loop_start_idx, first_runtime_decl_idx, runtime_blocks
 
 
 def _translate_runtime_prelude_to_python(prelude_lines, buffer_to_param=None):
@@ -1256,23 +1271,48 @@ def _extract_host_ttnn_metadata(lines):
     if not reader_kernel or not writer_kernel or not compute_kernel:
         raise ValueError("missing one or more kernel source paths")
 
-    core_loop_start, runtime_decl, runtime_end = _extract_runtime_loop_indices(lines)
-    runtime_prelude_lines = lines[core_loop_start + 1 : runtime_decl]
-    runtime_tokens = []
-    for raw_line in lines[runtime_decl + 1 : runtime_end]:
-        token = _normalize_token(raw_line)
-        if token:
-            runtime_tokens.append(token)
+    core_loop_start, first_runtime_decl, runtime_blocks = (
+        _extract_runtime_loop_indices(lines)
+    )
+    runtime_prelude_lines = lines[core_loop_start + 1 : first_runtime_decl]
+
+    def collect_runtime_tokens(var_name):
+        if var_name not in runtime_blocks:
+            return None
+        runtime_decl, runtime_end = runtime_blocks[var_name]
+        tokens = []
+        for raw_line in lines[runtime_decl + 1 : runtime_end]:
+            token = _normalize_token(raw_line)
+            if token:
+                tokens.append(token)
+        return tokens
+
+    shared_runtime_tokens = collect_runtime_tokens("runtime_args_for_core")
+    if shared_runtime_tokens is not None:
+        runtime_tokens_by_role = {
+            "reader": shared_runtime_tokens,
+            "writer": shared_runtime_tokens,
+            "compute": shared_runtime_tokens,
+        }
+    else:
+        runtime_tokens_by_role = {
+            "reader": collect_runtime_tokens("reader_runtime_args_for_core") or [],
+            "writer": collect_runtime_tokens("writer_runtime_args_for_core") or [],
+            "compute": collect_runtime_tokens("compute_runtime_args_for_core") or [],
+        }
 
     runtime_prelude_python = _translate_runtime_prelude_to_python(
         runtime_prelude_lines, buffer_to_param
     )
-    runtime_arg_exprs = [
-        _translate_runtime_token_to_python_expr(
-            token, buffer_to_param, semaphore_id_map
-        )
-        for token in runtime_tokens
-    ]
+    runtime_arg_exprs_by_role = {
+        role: [
+            _translate_runtime_token_to_python_expr(
+                token, buffer_to_param, semaphore_id_map
+            )
+            for token in tokens
+        ]
+        for role, tokens in runtime_tokens_by_role.items()
+    }
 
     return {
         "wrapper_name": wrapper_name,
@@ -1286,7 +1326,8 @@ def _extract_host_ttnn_metadata(lines):
         "semaphore_id_map": semaphore_id_map,
         "semaphore_initial_values": semaphore_initial_values,
         "runtime_prelude_python": runtime_prelude_python,
-        "runtime_arg_exprs": runtime_arg_exprs,
+        "runtime_arg_exprs_by_role": runtime_arg_exprs_by_role,
+        "runtime_arg_exprs": runtime_arg_exprs_by_role["reader"],
         "reader_kernel": reader_kernel,
         "writer_kernel": writer_kernel,
         "compute_kernel": compute_kernel,
@@ -1475,27 +1516,31 @@ def generate_host_ttnn_source(host_pybind_lines, source_cpp_filename):
     source.append("    writer_source, writer_source_type = _kernel_source_and_type(\"writer\")\n")
     source.append("    compute_source, compute_source_type = _kernel_source_and_type(\"compute\")\n")
     source.append("\n")
-    source.append("    runtime_args = [\n")
-    source.append("        [[] for _ in range(int(core_grid.y))]\n")
-    source.append("        for _ in range(int(core_grid.x))\n")
-    source.append("    ]\n")
+    for role in ("reader", "writer", "compute"):
+        source.append(f"    {role}_runtime_args = [\n")
+        source.append("        [[] for _ in range(int(core_grid.y))]\n")
+        source.append("        for _ in range(int(core_grid.x))\n")
+        source.append("    ]\n")
     source.append("    for core_x in range(start_core_x, end_core_x + 1):\n")
     source.append("        for core_y in range(start_core_y, end_core_y + 1):\n")
     source.append("            core = ttnn.CoreCoord(int(core_x), int(core_y))\n")
     for line in metadata["runtime_prelude_python"]:
         source.append(f"            {line}\n")
-    source.append("            runtime_args_for_core = [\n")
-    for expr in metadata["runtime_arg_exprs"]:
-        source.append(f"                _u32({expr}),\n")
-    source.append("            ]\n")
-    source.append("            runtime_args[core_x][core_y] = runtime_args_for_core\n")
+    for role in ("reader", "writer", "compute"):
+        source.append(f"            {role}_runtime_args_for_core = [\n")
+        for expr in metadata["runtime_arg_exprs_by_role"].get(role, []):
+            source.append(f"                _u32({expr}),\n")
+        source.append("            ]\n")
+        source.append(
+            f"            {role}_runtime_args[core_x][core_y] = {role}_runtime_args_for_core\n"
+        )
     source.append("\n")
     source.append("    reader_kernel_descriptor = ttnn.KernelDescriptor(\n")
     source.append("        kernel_source=reader_source,\n")
     source.append("        source_type=reader_source_type,\n")
     source.append("        core_ranges=core_ranges,\n")
     source.append("        compile_time_args=list(compile_args),\n")
-    source.append("        runtime_args=runtime_args,\n")
+    source.append("        runtime_args=reader_runtime_args,\n")
     source.append("        config=ttnn.ReaderConfigDescriptor(),\n")
     source.append("    )\n")
     source.append("    writer_kernel_descriptor = ttnn.KernelDescriptor(\n")
@@ -1503,7 +1548,7 @@ def generate_host_ttnn_source(host_pybind_lines, source_cpp_filename):
     source.append("        source_type=writer_source_type,\n")
     source.append("        core_ranges=core_ranges,\n")
     source.append("        compile_time_args=list(compile_args),\n")
-    source.append("        runtime_args=runtime_args,\n")
+    source.append("        runtime_args=writer_runtime_args,\n")
     source.append("        config=ttnn.WriterConfigDescriptor(),\n")
     source.append("    )\n")
     source.append("    compute_kernel_descriptor = ttnn.KernelDescriptor(\n")
@@ -1511,7 +1556,7 @@ def generate_host_ttnn_source(host_pybind_lines, source_cpp_filename):
     source.append("        source_type=compute_source_type,\n")
     source.append("        core_ranges=core_ranges,\n")
     source.append("        compile_time_args=list(compile_args),\n")
-    source.append("        runtime_args=runtime_args,\n")
+    source.append("        runtime_args=compute_runtime_args,\n")
     source.append("        config=ttnn.ComputeConfigDescriptor(),\n")
     source.append("    )\n")
     source.append("\n")
