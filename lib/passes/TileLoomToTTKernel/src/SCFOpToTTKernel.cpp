@@ -4,14 +4,12 @@
  *
  * @details
  * This file provides patterns that remove `scf.parallel` loops and replace
- * their induction variables with TTKernel compile-time arguments, similar to
- * the way `CompileArgTracker` handles function arguments.
+ * their induction variables with values derived from TTKernel compile-time
+ * physical core coordinates.
  *
  * For each `scf.parallel` operation without reductions:
- * - A fresh compile-arg index is allocated for each induction variable using
- *   `CompileArgTracker::getOrCreateIndex`.
- * - A `ttkernel.get_compile_time_arg_val` is emitted (returning `i32`), and
- *   index materialization is delayed until replacing the original IV.
+ * - Exactly two physical compile-time arguments are allocated for `x` and `y`.
+ * - Mapped spatial induction variables are derived from those two coordinates.
  * - All uses of the induction variable are replaced with this cast value.
  * - The loop body is inlined into the parent block and the `scf.parallel`
  *   op is erased.
@@ -153,11 +151,10 @@ static std::string normalizeDimNameFromAttr(Attribute attr) {
  * This pattern targets `scf.parallel` operations with no reductions or
  * results. For each induction variable:
  *
- * - A fresh compile-time argument index is allocated via
- *   `CompileArgTracker::getOrCreateIndex`, using the IV value as the key.
- * - A `ttkernel.get_compile_time_arg_val` is emitted (type `i32`). Spatial
- *   decomposition math stays in `i32`; we cast to `index` only when replacing
- *   the original IV SSA value.
+ * - Exactly two physical compile-time arguments are allocated for `x` and `y`.
+ * - Mapped spatial induction variables are derived from those two coordinates.
+ *   Spatial decomposition math stays in `i32`; we cast to `index` only when
+ *   replacing the original IV SSA value.
  * - All uses of the induction variable inside the loop body are rewritten to
  *   use this cast value instead.
  *
@@ -186,9 +183,8 @@ public:
 
     Location loc = op.getLoc();
 
-    // Rewritten IV values. We prefer deriving all mapped spatial IVs from
-    // exactly two physical compile args (x/y). Any IV that cannot be derived
-    // from mapping metadata falls back to a direct compile arg.
+    // Rewritten IV values. Every IV must be derivable from the two physical
+    // compile args (x/y); unmapped IVs would desynchronize host runtime args.
     SmallVector<Value, 4> newIvValues(op.getInductionVars().size(), Value{});
     auto parentFunc = op->getParentOfType<func::FuncOp>();
     if (!parentFunc)
@@ -259,8 +255,55 @@ public:
     sortByLevelThenIndex(xComponents);
     sortByLevelThenIndex(yComponents);
 
-    // Materialize exactly two physical compile args (x, y) when we can map
-    // logical IVs through physical dims metadata.
+    SmallVector<bool, 4> ivHasPhysicalMapping(newIvValues.size(), false);
+    auto markMapped = [&](ArrayRef<AxisComponent> components) {
+      for (const AxisComponent &component : components)
+        if (component.idx < ivHasPhysicalMapping.size())
+          ivHasPhysicalMapping[component.idx] = true;
+    };
+    markMapped(xComponents);
+    markMapped(yComponents);
+
+    for (auto [idx, hasMapping] : llvm::enumerate(ivHasPhysicalMapping)) {
+      if (hasMapping)
+        continue;
+      return op.emitOpError()
+             << "has induction variable #" << idx
+             << " that cannot be derived from loom.physical_dims/"
+                "loom.mapped_to_dims x/y metadata";
+    }
+
+    auto canConvertToI32 = [](Value value) {
+      if (!value)
+        return false;
+      Type ty = value.getType();
+      return ty.isIndex() || ty.isInteger(32) || isa<IntegerType>(ty);
+    };
+    auto validateAxisComponents =
+        [&](ArrayRef<AxisComponent> components) -> LogicalResult {
+      for (const AxisComponent &component : components) {
+        size_t idx = component.idx;
+        if (idx >= lbs.size() || idx >= ubs.size() || idx >= steps.size()) {
+          return op.emitOpError()
+                 << "has incomplete bounds for mapped induction variable #"
+                 << idx;
+        }
+        if (!canConvertToI32(lbs[idx]) || !canConvertToI32(ubs[idx]) ||
+            !canConvertToI32(steps[idx])) {
+          return op.emitOpError()
+                 << "has non-index/non-integer bounds for mapped induction "
+                    "variable #"
+                 << idx;
+        }
+      }
+      return success();
+    };
+    if (failed(validateAxisComponents(xComponents)) ||
+        failed(validateAxisComponents(yComponents)))
+      return failure();
+
+    // Materialize exactly two physical compile args (x, y) when logical IVs
+    // are mapped through physical dims metadata.
     if (!xComponents.empty() || !yComponents.empty()) {
       std::function<std::optional<int64_t>(Value)> getConstI64 =
           [&](Value value) -> std::optional<int64_t> {
@@ -378,17 +421,6 @@ public:
 
       materializeAxisIvs(xComponents, xCompileArgI32);
       materializeAxisIvs(yComponents, yCompileArgI32);
-    }
-
-    // Any IV not covered by x/y physical mapping falls back to a dedicated
-    // compile-time argument.
-    for (auto [idx, oldIv] : llvm::enumerate(op.getInductionVars())) {
-      if (newIvValues[idx])
-        continue;
-      Value ivIndex = tracker->createIndexCompileArg(oldIv, loc, rewriter);
-      if (!ivIndex)
-        return failure();
-      newIvValues[idx] = ivIndex;
     }
 
     // Replace all IV uses in the loop body with the new compile-arg-based

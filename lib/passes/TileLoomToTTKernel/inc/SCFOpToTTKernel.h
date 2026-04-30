@@ -19,9 +19,10 @@ namespace loom {
  *
  * @details
  * This helper registers patterns that:
- * - Replace `scf.parallel` induction variables with TTKernel
- *   `GetArgValOp` operations (cast to `index`), assigning each
- *   parallel loop a fresh compile-arg index via `CompileArgTracker`.
+ * - Replace `scf.parallel` induction variables with values derived from two
+ *   TTKernel `GetArgValOp` physical core coordinates (`x` and `y`).
+ * - Reject `scf.parallel` induction variables that are not mapped through
+ *   `loom.physical_dims` / `loom.mapped_to_dims` x/y metadata.
  * - Inline the bodies of such `scf.parallel` operations and erase the
  *   loop ops, effectively treating the parallel iterators as compile-time
  *   constants rather than dynamic loop indices.

@@ -206,8 +206,6 @@ This section lists the most important functions to inspect before editing code.
   - multicast sender coordinates
   - sender/receiver semaphore addresses
   For non-compute kernels it also creates `TensorAccessor` metadata.
-- `CompileArgTracker::createIndexCompileArg(...)`
-  Used for `scf.parallel` induction variables that become compile-time args.
 - `CompileArgTracker::setCoreCoordForDim(...)`
   Stores the per-function `x` and `y` core coordinate values.
 - `inferArgToCBMemrefType(...)`
@@ -235,9 +233,9 @@ This section lists the most important functions to inspect before editing code.
 ### `src/SCFOpToTTKernel.cpp`
 
 - `ConvertSCFParallelOp::matchAndRewrite(...)`
-  Rewrites `scf.parallel` into straight-line code by replacing IVs with
-  compile-time args and recording mapped `x` and `y` core coordinates.
-  This is where `loom.mapped_to_dims` becomes runtime-visible core metadata.
+  Rewrites `scf.parallel` into straight-line code by deriving mapped IVs from
+  runtime-visible `x` and `y` core coordinates. Unmapped IVs are rejected with
+  a diagnostic instead of getting standalone runtime args.
 
 ### `src/MemoryOpToTTKernel.cpp`
 

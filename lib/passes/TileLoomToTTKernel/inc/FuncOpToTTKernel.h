@@ -208,11 +208,12 @@ public:
 
 
   /**
-   * @brief Create a compile-arg for an index-typed value (e.g., loop IV).
+   * @brief Create a compile-arg for an index-typed value.
    *
    * @details Allocates a new compile-arg index and creates a GetArgValOp
    *          followed by an index cast. Stores the result for later retrieval.
-   *          This is used for loop induction variables that are not function args.
+   *          `scf.parallel` lowering intentionally requires x/y physical
+   *          mapping instead of using this for unmapped induction variables.
    *
    * @param value The value to create a compile-arg for.
    * @param loc The location for created ops.
@@ -295,7 +296,7 @@ public:
    * @brief Append a value to the tracker core list.
    *
    * @details The core list is a simple ordered collection of values that
-   *          represent per-kernel coordinates/IDs (e.g., scf.parallel IVs)
+   *          represent per-kernel coordinates/IDs (e.g., physical x/y coords)
    *          materialized as compile-time arguments. This enables other
    *          lowering patterns to query the set of core-coordinate values that
    *          were created while lowering a kernel.
