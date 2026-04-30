@@ -719,12 +719,13 @@ def process_source_content(lines, section_name=None):
         processed = insert_include_if_missing(processed, '#include "debug/dprint_pages.h"\n')
         processed = insert_include_if_missing(processed, '#include "debug/dprint_tensix.h"\n')
         processed = [i.replace("mm_init", "ckernel::mm_init").replace("mm_block_init_short", "ckernel::mm_block_init_short") for i in processed]
-        """
-        #processed, compaction_usage = _compact_compute_blocks(processed)
+        processed = [i.replace("exp_tile(", "exp_tile<true, true>(") for i in processed]
+
+        processed, compaction_usage = _compact_compute_blocks(processed)
         if any(compaction_usage.values()):
             helper_block = _build_compute_helper_block(compaction_usage)
             processed = insert_block_after_includes_if_missing(processed, helper_block)
-        """
+
         #Don't need it now
         #processed = insert_compute_trace_markers(processed)
 
@@ -963,6 +964,18 @@ def _translate_runtime_prelude_to_python(prelude_lines, buffer_to_param=None):
             )
             continue
 
+        scalar_table_value_match = re.match(
+            r"bfloat16\s+(\w+)\s*=\s*(\w+)\.at\((.+)\)\s*;\s*$", line
+        )
+        if scalar_table_value_match:
+            value_name = scalar_table_value_match.group(1)
+            table_name = scalar_table_value_match.group(2)
+            index_expr = _translate_cpp_expr_to_python(
+                scalar_table_value_match.group(3)
+            )
+            translated.append(f"{value_name} = {table_name}[int({index_expr})]")
+            continue
+
         scalar_pack_match = re.match(
             r"uint32_t\s+(\w+)\s*=\s*pack_two_bfloat16_into_uint32\(\{\s*(\w+)\s*,\s*(\w+)\s*\}\)\s*;\s*$",
             line,
@@ -1022,6 +1035,26 @@ def _translate_runtime_token_to_python_expr(token, buffer_to_param, semaphore_id
     return _translate_cpp_expr_to_python(tok)
 
 
+def _product_of_int_tokens(text):
+    factors = [int(token) for token in re.findall(r"\d+", text)]
+    if not factors:
+        return None
+    product = 1
+    for factor in factors:
+        product *= factor
+    return product
+
+
+def _parse_wrapper_mesh_extents(wrapper_base):
+    mesh_match = re.search(r"__x([0-9x]+)_y([0-9y]+)__", wrapper_base)
+    if not mesh_match:
+        return None, None
+    return (
+        _product_of_int_tokens(mesh_match.group(1)),
+        _product_of_int_tokens(mesh_match.group(2)),
+    )
+
+
 def _extract_host_ttnn_metadata(lines):
     if not lines:
         raise ValueError("empty host_pybind section")
@@ -1029,9 +1062,18 @@ def _extract_host_ttnn_metadata(lines):
     wrapper_base = extract_marker_symbol(lines[0])
     if wrapper_base.endswith("__host_pybind"):
         wrapper_base = wrapper_base[: -len("__host_pybind")]
-    mesh_match = re.search(r"__x(\d+)_y(\d+)__", wrapper_base)
-    mlir_core_extent_x = int(mesh_match.group(1)) if mesh_match else None
-    mlir_core_extent_y = int(mesh_match.group(2)) if mesh_match else None
+    mlir_core_extent_x, mlir_core_extent_y = _parse_wrapper_mesh_extents(wrapper_base)
+    for line in lines:
+        end_core_match = re.search(
+            r"uint32_t\s+end_core_([xy])\s*=\s*(\d+)(?:[uUlL]+)?\s*;", line
+        )
+        if not end_core_match:
+            continue
+        extent = int(end_core_match.group(2)) + 1
+        if end_core_match.group(1) == "x":
+            mlir_core_extent_x = extent
+        else:
+            mlir_core_extent_y = extent
     wrapper_name = re.sub(r"[^\w]", "_", wrapper_base)
     if not wrapper_name:
         wrapper_name = "generated_kernel"
@@ -1051,14 +1093,41 @@ def _extract_host_ttnn_metadata(lines):
         raise ValueError("no tensor buffer bindings found")
     buffer_bindings.sort(key=lambda item: item[0])
 
-    param_order = []
-    param_roles = {}
+    scalar_bindings = []
+    for line in lines:
+        match = re.search(
+            r"const\s+auto\s*&\s*(\w+_scalar_values)\s*=\s*v(\d+)\s*;", line
+        )
+        if not match:
+            continue
+        scalar_bindings.append((int(match.group(2)) - 1, match.group(1)))
+    scalar_bindings.sort(key=lambda item: item[0])
+
+    host_bindings = []
     buffer_to_param = {}
     for _, buffer_name in buffer_bindings:
         param = buffer_name
         if param.endswith("_dram_buffer"):
             param = param[: -len("_dram_buffer")]
         buffer_to_param[buffer_name] = param
+    for arg_index, buffer_name in buffer_bindings:
+        host_bindings.append((arg_index, "buffer", buffer_name))
+    for arg_index, scalar_name in scalar_bindings:
+        host_bindings.append((arg_index, "scalar", scalar_name))
+    host_bindings.sort(key=lambda item: item[0])
+
+    param_order = []
+    param_roles = {}
+    for _, binding_kind, binding_name in host_bindings:
+        if binding_kind == "scalar":
+            param = binding_name
+            if param in param_roles:
+                continue
+            param_order.append(param)
+            param_roles[param] = "scalar"
+            continue
+
+        param = buffer_to_param[binding_name]
         param_order.append(param)
         if param.startswith("src"):
             param_roles[param] = "input"
@@ -1242,15 +1311,7 @@ def _extract_host_ttnn_metadata(lines):
 def generate_host_ttnn_source(host_pybind_lines, source_cpp_filename):
     metadata = _extract_host_ttnn_metadata(host_pybind_lines)
     wrapper_fn = f"{metadata['wrapper_name']}_ttnn"
-    param_sig = ", ".join(
-        metadata["param_order"]
-        + [
-            "start_core_x=UINT32_MAX",
-            "start_core_y=UINT32_MAX",
-            "end_core_x=UINT32_MAX",
-            "end_core_y=UINT32_MAX",
-        ]
-    )
+    param_sig = ", ".join(metadata["param_order"])
 
     source = []
     source.append("# Auto-generated by split_kernel.py from host_pybind.cpp.\n")
@@ -1358,24 +1419,18 @@ def generate_host_ttnn_source(host_pybind_lines, source_cpp_filename):
     first_param = metadata["param_order"][0]
     source.append(f"    device = param_bindings[\"{first_param}\"].device()\n")
     source.append("    core_grid = device.compute_with_storage_grid_size()\n")
-    source.append("    default_end_core_x = int(core_grid.x - 1)\n")
     if metadata["mlir_core_extent_x"] is not None and metadata["mlir_core_extent_x"] > 0:
-        source.append(
-            f"    default_end_core_x = min(default_end_core_x, {metadata['mlir_core_extent_x'] - 1})\n"
-        )
-    source.append("    default_end_core_y = int(core_grid.y - 1)\n")
+        source.append("    start_core_x = 0\n")
+        source.append(f"    end_core_x = {metadata['mlir_core_extent_x'] - 1}\n")
+    else:
+        source.append("    start_core_x = 0\n")
+        source.append("    end_core_x = int(core_grid.x - 1)\n")
     if metadata["mlir_core_extent_y"] is not None and metadata["mlir_core_extent_y"] > 0:
-        source.append(
-            f"    default_end_core_y = min(default_end_core_y, {metadata['mlir_core_extent_y'] - 1})\n"
-        )
-    source.append("    start_core_x = 0 if start_core_x == UINT32_MAX else int(start_core_x)\n")
-    source.append("    start_core_y = 0 if start_core_y == UINT32_MAX else int(start_core_y)\n")
-    source.append(
-        "    end_core_x = default_end_core_x if end_core_x == UINT32_MAX else int(end_core_x)\n"
-    )
-    source.append(
-        "    end_core_y = default_end_core_y if end_core_y == UINT32_MAX else int(end_core_y)\n"
-    )
+        source.append("    start_core_y = 0\n")
+        source.append(f"    end_core_y = {metadata['mlir_core_extent_y'] - 1}\n")
+    else:
+        source.append("    start_core_y = 0\n")
+        source.append("    end_core_y = int(core_grid.y - 1)\n")
     source.append(
         "    if end_core_x < start_core_x or end_core_y < start_core_y:\n"
     )

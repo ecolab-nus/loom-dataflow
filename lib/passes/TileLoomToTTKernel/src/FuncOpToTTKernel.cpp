@@ -46,6 +46,24 @@
 using namespace mlir;
 using namespace tt::ttkernel;
 
+using mlir::loom::DataMovementKernelRole;
+using mlir::loom::DataMovementKernelSpec;
+
+DataMovementKernelSpec
+mlir::loom::getDataMovementKernelSpec(DataMovementKernelRole role) {
+  switch (role) {
+  case DataMovementKernelRole::Reader:
+    return {"riscv1", 0, "DataMovementProcessor::RISCV_1",
+            "NOC::RISCV_0_default"};
+  case DataMovementKernelRole::Writer:
+    return {"riscv0", 1, "DataMovementProcessor::RISCV_0",
+            "NOC::RISCV_1_default"};
+  }
+  llvm_unreachable("unknown data movement kernel role");
+}
+
+using mlir::loom::getDataMovementKernelSpec;
+
 //===----------------------------------------------------------------------===//
 // CompileArgTracker Implementation
 //===----------------------------------------------------------------------===//
@@ -70,6 +88,8 @@ constexpr llvm::StringLiteral kScalarSiteIdAttrName =
     "loom.ttkernel.scalar_site_id";
 constexpr llvm::StringLiteral kScalarSiteCountAttrName =
     "loom.ttkernel.scalar_site_count";
+constexpr llvm::StringLiteral kScalarSourceOnlyAttrName =
+    "loom.ttkernel.scalar_source_only";
 constexpr llvm::StringLiteral kVecKindAttrName = "loom.ttkernel.vec_kind";
 constexpr llvm::StringLiteral kVecTilesAttrName = "loom.ttkernel.vec_tiles";
 constexpr llvm::StringLiteral kSemaphoreSlotAttrName =
@@ -85,27 +105,7 @@ constexpr llvm::StringLiteral kDMProcessorRISCV1 = "riscv1";
 constexpr int64_t kRuntimeArgsPerCopyBinding = 11;
 
 enum class HostProgramKind { Cpp, Pybind };
-enum class DataMovementKernelRole { Reader, Writer };
-
-struct DataMovementKernelSpec {
-  llvm::StringLiteral processorAttrValue;
-  int8_t nocId;
-  llvm::StringLiteral hostProcessorExpr;
-  llvm::StringLiteral hostNocExpr;
-};
-
-static DataMovementKernelSpec
-getDataMovementKernelSpec(DataMovementKernelRole role) {
-  switch (role) {
-  case DataMovementKernelRole::Reader:
-    return {kDMProcessorRISCV1, 1, "DataMovementProcessor::RISCV_1",
-            "NOC::RISCV_1_default"};
-  case DataMovementKernelRole::Writer:
-    return {kDMProcessorRISCV0, 0, "DataMovementProcessor::RISCV_0",
-            "NOC::RISCV_0_default"};
-  }
-  llvm_unreachable("unknown data movement kernel role");
-}
+enum class HostArgKind { Memref, Scalar };
 
 static std::optional<DataMovementKernelRole>
 getDataMovementKernelRoleForFuncName(StringRef name) {
@@ -243,6 +243,66 @@ static MemRefType getCopyBindingCBMemrefType(::loom::CopyOp copyOp) {
     return dyn_cast<MemRefType>(allocOp.getType());
 
   return dyn_cast<MemRefType>(l1Endpoint.getType());
+}
+
+static std::optional<int64_t> evaluateConstInt(Value value) {
+  if (!value)
+    return std::nullopt;
+
+  if (auto cst = value.getDefiningOp<arith::ConstantIndexOp>())
+    return cst.value();
+
+  if (auto cst = value.getDefiningOp<arith::ConstantIntOp>())
+    return cst.value();
+
+  if (auto cst = value.getDefiningOp<arith::ConstantOp>()) {
+    if (auto intAttr = dyn_cast<IntegerAttr>(cst.getValue()))
+      return intAttr.getInt();
+  }
+
+  if (auto cast = value.getDefiningOp<arith::IndexCastOp>())
+    return evaluateConstInt(cast.getIn());
+
+  return std::nullopt;
+}
+
+static std::optional<int64_t> getStaticParallelCoreCount(Operation *op) {
+  if (!op)
+    return std::nullopt;
+
+  int64_t coreCount = 1;
+  bool foundParallel = false;
+  for (Operation *parent = op->getParentOp(); parent;
+       parent = parent->getParentOp()) {
+    auto parallelOp = dyn_cast<scf::ParallelOp>(parent);
+    if (!parallelOp)
+      continue;
+
+    foundParallel = true;
+    ValueRange lbs = parallelOp.getLowerBound();
+    ValueRange ubs = parallelOp.getUpperBound();
+    ValueRange steps = parallelOp.getStep();
+    size_t rank = parallelOp.getInductionVars().size();
+    if (lbs.size() < rank || ubs.size() < rank || steps.size() < rank)
+      return std::nullopt;
+
+    for (size_t idx = 0; idx < rank; ++idx) {
+      auto lb = evaluateConstInt(lbs[idx]);
+      auto ub = evaluateConstInt(ubs[idx]);
+      auto step = evaluateConstInt(steps[idx]);
+      if (!lb || !ub || !step || *step <= 0)
+        return std::nullopt;
+
+      int64_t span = *ub - *lb;
+      if (span <= 0)
+        return std::nullopt;
+      coreCount *= (span + *step - 1) / *step;
+    }
+  }
+
+  if (!foundParallel)
+    return std::nullopt;
+  return coreCount;
 }
 
 static LogicalResult collectCopyBindingOps(func::FuncOp func,
@@ -469,6 +529,8 @@ static void ensureReductionScaleInputs(func::FuncOp func) {
   }
 }
 
+static bool isScalarOnlyRuntimeSourceArg(func::FuncOp func, BlockArgument arg);
+
 static void annotateScalarRuntimeSites(func::FuncOp func) {
   int64_t nextSiteId = 0;
   func.walk([&](::loom::CopyOp copyOp) {
@@ -501,6 +563,14 @@ static void annotateScalarRuntimeSites(func::FuncOp func) {
                                    nextSiteId));
   } else {
     func->removeAttr(kScalarSiteCountAttrName);
+  }
+
+  for (BlockArgument arg : func.front().getArguments()) {
+    if (isScalarOnlyRuntimeSourceArg(func, arg))
+      func.setArgAttr(arg.getArgNumber(), kScalarSourceOnlyAttrName,
+                      UnitAttr::get(func.getContext()));
+    else
+      func.removeArgAttr(arg.getArgNumber(), kScalarSourceOnlyAttrName);
   }
 }
 
@@ -832,6 +902,37 @@ static bool isScalarRuntimeSiteArg(func::FuncOp func, BlockArgument arg) {
       func.getArgAttr(arg.getArgNumber(), kScalarSiteIdAttrName));
 }
 
+static bool isScalarOnlyRuntimeSourceArg(func::FuncOp func, BlockArgument arg) {
+  if (!arg || arg.getOwner() != &func.front())
+    return false;
+  if (func.getArgAttr(arg.getArgNumber(), kScalarSourceOnlyAttrName))
+    return true;
+
+  bool hasScalarRuntimeSource = false;
+  bool hasNonScalarDramUse = false;
+  func.walk([&](::loom::CopyOp copyOp) {
+    if (auto sourceRC =
+            copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>()) {
+      Value source = stripMemrefCasts(sourceRC.getSource());
+      if (source == arg) {
+        if (copyOp->hasAttr(kScalarSiteIdAttrName))
+          hasScalarRuntimeSource = true;
+        else
+          hasNonScalarDramUse = true;
+      }
+    }
+
+    if (auto destRC =
+            copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>()) {
+      Value dest = stripMemrefCasts(destRC.getSource());
+      if (dest == arg)
+        hasNonScalarDramUse = true;
+    }
+  });
+
+  return hasScalarRuntimeSource && !hasNonScalarDramUse;
+}
+
 // TODO(tmp): This is a temporary scalar-only preprocessing rewrite.
 // It removes scalar alloc/semaphore memory scaffolding and forwards scalar
 // sites via function arguments. We may replace this with a dedicated scalar
@@ -1061,6 +1162,8 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
   for (BlockArgument arg : entry.getArguments()) {
     if (isScalarRuntimeSiteArg(func, arg))
       continue;
+    if (isScalarOnlyRuntimeSourceArg(func, arg))
+      continue;
 
     Type argType = arg.getType();
     if (auto memrefType = dyn_cast<MemRefType>(argType)) {
@@ -1193,6 +1296,8 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     bindingData.l1Endpoint = getCopyBindingL1Endpoint(copyOp);
     bindingData.isLoad = isDramToL1Copy(copyOp);
     bindingData.isStore = isL1ToDramCopy(copyOp);
+    if (auto coreCount = getStaticParallelCoreCount(copyOp.getOperation()))
+      bindingData.parallelCoreCount = *coreCount;
     bindingData.cb = cbOp;
     bindingData.baseAddr = baseAddrOp;
     bindingData.tensorAccessor = tensorAccessor;
@@ -1226,6 +1331,8 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
   // Process non-memref function arguments that still need runtime slots.
   for (BlockArgument arg : entry.getArguments()) {
     if (isScalarRuntimeSiteArg(func, arg))
+      continue;
+    if (isScalarOnlyRuntimeSourceArg(func, arg))
       continue;
 
     Type argType = arg.getType();
@@ -1954,6 +2061,7 @@ private:
     Value hostArg;
     MemRefType type;
     unsigned argIndex;
+    unsigned hostParamIndex;
     unsigned memrefOrdinal;
     int inputTensorOrdinal;
     int outputTensorOrdinal;
@@ -2008,9 +2116,17 @@ private:
   struct ScalarRuntimeSiteInfo {
     int64_t siteId = -1;
     unsigned sourceArgIndex = 0;
+    unsigned scalarHostArgOrdinal = 0;
     std::string offsetExpr;
     std::string inputName;
     std::string bufferName;
+    std::string scalarValuesName;
+  };
+
+  struct ScalarRuntimeHostArgInfo {
+    unsigned sourceArgIndex = 0;
+    unsigned hostParamIndex = 0;
+    std::string valuesName;
   };
 
   static constexpr unsigned kRuntimeArgsPerBindingTuple =
@@ -2542,6 +2658,9 @@ private:
   }
 
   void collectDramInfos() {
+    dramInfos.clear();
+    scalarRuntimeHostArgs.clear();
+    hostArgKinds.clear();
     SmallVector<Value, 8> loadMemrefs;
     SmallVector<Value, 8> storeMemrefs;
 
@@ -2569,6 +2688,19 @@ private:
         continue;
       if (isScalarMemRefType(memrefType) && memrefType.getRank() == 0)
         continue;
+
+      BlockArgument hostArgBlock =
+          dyn_cast<BlockArgument>(stripCasts(hostFunc.getArgument(index)));
+      if (hostArgBlock && isScalarOnlyRuntimeSourceArg(hostFunc, hostArgBlock)) {
+        unsigned hostParamIndex = static_cast<unsigned>(hostArgKinds.size());
+        std::string valuesName =
+            "src" + std::to_string(static_cast<unsigned>(index)) +
+            "_scalar_values";
+        scalarRuntimeHostArgs.push_back(ScalarRuntimeHostArgInfo{
+            static_cast<unsigned>(index), hostParamIndex, valuesName});
+        hostArgKinds.push_back(HostArgKind::Scalar);
+        continue;
+      }
 
       std::string tilesExpr;
       if (!buildTilesExpr(memrefType, tilesExpr))
@@ -2605,6 +2737,7 @@ private:
           hostArg,
           memrefType,
           static_cast<unsigned>(index),
+          static_cast<unsigned>(hostArgKinds.size()),
           static_cast<unsigned>(dramInfos.size()),
           inputTensorOrdinal,
           outputTensorOrdinal,
@@ -2616,6 +2749,7 @@ private:
           letter + "_tiles_per_block",
           tilesExpr,
           sizeExpr});
+      hostArgKinds.push_back(HostArgKind::Memref);
     }
   }
 
@@ -2680,6 +2814,21 @@ private:
     }
   }
 
+  unsigned getOrCreateScalarRuntimeHostArg(unsigned sourceArgIndex) {
+    for (auto [ordinal, info] : llvm::enumerate(scalarRuntimeHostArgs)) {
+      if (info.sourceArgIndex == sourceArgIndex)
+        return static_cast<unsigned>(ordinal);
+    }
+
+    unsigned hostParamIndex = static_cast<unsigned>(hostArgKinds.size());
+    std::string valuesName =
+        "src" + std::to_string(sourceArgIndex) + "_scalar_values";
+    scalarRuntimeHostArgs.push_back(
+        ScalarRuntimeHostArgInfo{sourceArgIndex, hostParamIndex, valuesName});
+    hostArgKinds.push_back(HostArgKind::Scalar);
+    return static_cast<unsigned>(scalarRuntimeHostArgs.size() - 1);
+  }
+
   void collectScalarRuntimeSites() {
     scalarRuntimeSites.clear();
     if (parallelIvExprByValue.empty())
@@ -2695,9 +2844,10 @@ private:
         return;
 
       Value memrefArg = stripCasts(sourceRC.getSource());
-      DramBufferInfo *dramInfo = findDramInfoMutable(memrefArg);
-      if (!dramInfo || !dramInfo->isInput)
+      auto blockArg = dyn_cast<BlockArgument>(memrefArg);
+      if (!blockArg || blockArg.getOwner() != &hostFunc.front())
         return;
+      unsigned sourceArgIndex = blockArg.getArgNumber();
 
       std::optional<std::string> offsetExpr;
       auto offsets = sourceRC.getOffsets();
@@ -2715,12 +2865,18 @@ private:
       if (!offsetExpr)
         offsetExpr = "0";
 
+      unsigned scalarHostArgOrdinal =
+          getOrCreateScalarRuntimeHostArg(sourceArgIndex);
+      const ScalarRuntimeHostArgInfo &hostArgInfo =
+          scalarRuntimeHostArgs[scalarHostArgOrdinal];
       scalarRuntimeSites.push_back(ScalarRuntimeSiteInfo{
           siteAttr.getInt(),
-          dramInfo->argIndex,
+          sourceArgIndex,
+          scalarHostArgOrdinal,
           *offsetExpr,
-          dramInfo->inputName,
-          dramInfo->bufferName});
+          "",
+          "",
+          hostArgInfo.valuesName});
     });
 
     std::stable_sort(scalarRuntimeSites.begin(), scalarRuntimeSites.end(),
@@ -2918,50 +3074,63 @@ private:
     // parameter names v1..vN.
     // Argument order is:
     //   host_cpp:    [all memrefs] [start_core_x start_core_y end_core_x end_core_y] [device]
-    //   host_pybind: [all memrefs] [start_core_x start_core_y end_core_x end_core_y]
-    const size_t startCoreXArg = dramInfos.size() + 1;
-    const size_t startCoreYArg = dramInfos.size() + 2;
-    const size_t endCoreXArg = dramInfos.size() + 3;
-    const size_t endCoreYArg = dramInfos.size() + 4;
+    //   host_pybind: [all memrefs] [scalar host tables]
+    const size_t hostArgPrefixCount = hostArgKinds.size();
+    const size_t startCoreXArg = hostArgPrefixCount + 1;
+    const size_t startCoreYArg = hostArgPrefixCount + 2;
+    const size_t endCoreXArg = hostArgPrefixCount + 3;
+    const size_t endCoreYArg = hostArgPrefixCount + 4;
 
     if (kind == HostProgramKind::Pybind) {
       emitLine("IDevice* device = v1.device();");
-      if (!scalarRuntimeSites.empty())
-        emitLine("CommandQueue& cq = device->command_queue();");
       emitLine("Program program = CreateProgram();");
+      emitLine("uint32_t start_core_x = 0u;");
+      emitLine("uint32_t start_core_y = 0u;");
+      if (mlirCoreExtentX && *mlirCoreExtentX > 0) {
+        emitLine("uint32_t end_core_x = " +
+                 std::to_string(*mlirCoreExtentX - 1) + "u;");
+      } else {
+        emitLine("uint32_t end_core_x = static_cast<uint32_t>(device->compute_with_storage_grid_size().x - 1);");
+      }
+      if (mlirCoreExtentY && *mlirCoreExtentY > 0) {
+        emitLine("uint32_t end_core_y = " +
+                 std::to_string(*mlirCoreExtentY - 1) + "u;");
+      } else {
+        emitLine("uint32_t end_core_y = static_cast<uint32_t>(device->compute_with_storage_grid_size().y - 1);");
+      }
     } else {
-      const size_t deviceArg = dramInfos.size() + 5;
+      const size_t deviceArg = hostArgPrefixCount + 5;
       emitLine("IDevice* device = v" + std::to_string(deviceArg) + ";");
       emitLine("CommandQueue& cq = device->command_queue();");
       emitLine("Program program{};");
+      emitLine("auto core_grid = device->compute_with_storage_grid_size();");
+      emitLine(
+          "uint32_t default_end_core_x = static_cast<uint32_t>(core_grid.x - 1);");
+      if (mlirCoreExtentX && *mlirCoreExtentX > 0) {
+        emitLine("if (default_end_core_x + 1 > " +
+                 std::to_string(*mlirCoreExtentX) +
+                 "u) default_end_core_x = " +
+                 std::to_string(*mlirCoreExtentX - 1) + "u;");
+      }
+      emitLine(
+          "uint32_t default_end_core_y = static_cast<uint32_t>(core_grid.y - 1);");
+      if (mlirCoreExtentY && *mlirCoreExtentY > 0) {
+        emitLine("if (default_end_core_y + 1 > " +
+                 std::to_string(*mlirCoreExtentY) +
+                 "u) default_end_core_y = " +
+                 std::to_string(*mlirCoreExtentY - 1) + "u;");
+      }
+      emitLine("uint32_t start_core_x = (v" + std::to_string(startCoreXArg) +
+               " == UINT32_MAX) ? 0u : v" + std::to_string(startCoreXArg) + ";");
+      emitLine("uint32_t start_core_y = (v" + std::to_string(startCoreYArg) +
+               " == UINT32_MAX) ? 0u : v" + std::to_string(startCoreYArg) + ";");
+      emitLine("uint32_t end_core_x = (v" + std::to_string(endCoreXArg) +
+               " == UINT32_MAX) ? default_end_core_x : v" +
+               std::to_string(endCoreXArg) + ";");
+      emitLine("uint32_t end_core_y = (v" + std::to_string(endCoreYArg) +
+               " == UINT32_MAX) ? default_end_core_y : v" +
+               std::to_string(endCoreYArg) + ";");
     }
-    emitLine("auto core_grid = device->compute_with_storage_grid_size();");
-    emitLine(
-        "uint32_t default_end_core_x = static_cast<uint32_t>(core_grid.x - 1);");
-    if (mlirCoreExtentX && *mlirCoreExtentX > 0) {
-      emitLine("if (default_end_core_x + 1 > " +
-               std::to_string(*mlirCoreExtentX) +
-               "u) default_end_core_x = " +
-               std::to_string(*mlirCoreExtentX - 1) + "u;");
-    }
-    emitLine(
-        "uint32_t default_end_core_y = static_cast<uint32_t>(core_grid.y - 1);");
-    if (mlirCoreExtentY && *mlirCoreExtentY > 0) {
-      emitLine("if (default_end_core_y + 1 > " +
-               std::to_string(*mlirCoreExtentY) +
-               "u) default_end_core_y = " +
-               std::to_string(*mlirCoreExtentY - 1) + "u;");
-    }
-    emitLine("uint32_t start_core_x = (v" + std::to_string(startCoreXArg) +
-             " == UINT32_MAX) ? 0u : v" + std::to_string(startCoreXArg) + ";");
-    emitLine("uint32_t start_core_y = (v" + std::to_string(startCoreYArg) +
-             " == UINT32_MAX) ? 0u : v" + std::to_string(startCoreYArg) + ";");
-    emitLine("uint32_t end_core_x = (v" + std::to_string(endCoreXArg) +
-             " == UINT32_MAX) ? default_end_core_x : v" +
-             std::to_string(endCoreXArg) + ";");
-    emitLine("uint32_t end_core_y = (v" + std::to_string(endCoreYArg) +
-             " == UINT32_MAX) ? default_end_core_y : v" +
-             std::to_string(endCoreYArg) + ";");
     emitLine("CoreRangeSet all_cores{ CoreRange{ {start_core_x, start_core_y}, {end_core_x, end_core_y} } };");
     emitLine("constexpr uint32_t single_tile_size = sizeof(bfloat16) * TILE_HEIGHT * TILE_WIDTH;");
     emitLine("const auto cb_data_format = tt::DataFormat::Float16_b;");
@@ -2988,16 +3157,25 @@ private:
 
     for (const DramBufferInfo &info : dramInfos) {
       emitLine("auto* " + info.bufferName + " = v" +
-               std::to_string(info.argIndex + 1) + ".buffer();");
+               std::to_string(info.hostParamIndex + 1) + ".buffer();");
+    }
+  }
+
+  void emitScalarHostValues() {
+    for (const ScalarRuntimeHostArgInfo &info : scalarRuntimeHostArgs) {
+      emitLine("const auto& " + info.valuesName + " = v" +
+               std::to_string(info.hostParamIndex + 1) + ";");
     }
   }
 
   void emitBufferSetup() {
     if (kind == HostProgramKind::Cpp) {
       emitDramBuffers();
+      emitScalarHostValues();
       return;
     }
     emitBoundBuffers();
+    emitScalarHostValues();
   }
 
   bool hasEmittedTilesVar(StringRef name) const {
@@ -3029,6 +3207,17 @@ private:
     hostFunc->setAttr(
         "loom.host_memref_count",
         b.getI32IntegerAttr(static_cast<int32_t>(dramInfos.size())));
+    hostFunc->setAttr(
+        "loom.host_scalar_count",
+        b.getI32IntegerAttr(
+            static_cast<int32_t>(scalarRuntimeHostArgs.size())));
+    SmallVector<Attribute, 8> argKindAttrs;
+    argKindAttrs.reserve(hostArgKinds.size());
+    for (HostArgKind argKind : hostArgKinds) {
+      argKindAttrs.push_back(b.getStringAttr(
+          argKind == HostArgKind::Scalar ? "scalar" : "memref"));
+    }
+    hostFunc->setAttr("loom.host_arg_kinds", b.getArrayAttr(argKindAttrs));
   }
 
   void emitCircularBuffers() {
@@ -3111,14 +3300,8 @@ private:
 
   void emitScalarRuntimePybindLoad(const ScalarRuntimeSiteInfo &site,
                                    const std::string &sitePrefix) {
-    emitLine("std::vector<bfloat16> " + sitePrefix + "_values;");
-    emitLine("EnqueueReadSubBuffer(cq, *" + site.bufferName + ", " +
-             sitePrefix + "_values, BufferRegion(static_cast<DeviceAddr>(" +
-             sitePrefix +
-             "_index * sizeof(bfloat16)), static_cast<DeviceAddr>(sizeof("
-             "bfloat16))), true);");
-    emitLine("bfloat16 " + sitePrefix + "_value = " + sitePrefix +
-             "_values.front();");
+    emitLine("bfloat16 " + sitePrefix + "_value = " +
+             site.scalarValuesName + ".at(" + sitePrefix + "_index);");
     emitLine("uint32_t " + sitePrefix +
              "_packed = pack_two_bfloat16_into_uint32({" + sitePrefix +
              "_value, " + sitePrefix + "_value});");
@@ -3135,10 +3318,15 @@ private:
     if (kind != HostProgramKind::Pybind)
       return;
 
+    std::string captures =
+        "reader_id, writer_id, compute_kernel_id, start_core_x, start_core_y, "
+        "end_core_x, end_core_y";
+    for (const ScalarRuntimeHostArgInfo &info : scalarRuntimeHostArgs)
+      captures += ", " + info.valuesName;
+
     emitLine(
-        "auto override_runtime_arguments_callback = [reader_id, writer_id, "
-        "compute_kernel_id, start_core_x, start_core_y, end_core_x, "
-        "end_core_y](const void* operation, Program& program, const "
+        "auto override_runtime_arguments_callback = [" + captures +
+        "](const void* operation, Program& program, const "
         "std::vector<ttnn::Tensor>& input_tensors, const "
         "std::vector<std::optional<const ttnn::Tensor>>& optional_input_tensors, "
         "const std::vector<ttnn::Tensor>& output_tensors) {");
@@ -3150,12 +3338,6 @@ private:
       if (tensorExpr.empty())
         continue;
       emitLine("auto* " + info.bufferName + " = " + tensorExpr + ".buffer();");
-    }
-
-    if (!scalarRuntimeSites.empty()) {
-      emitLine("IDevice* device = " + scalarRuntimeSites.front().bufferName +
-               "->device();");
-      emitLine("CommandQueue& cq = device->command_queue();");
     }
 
     emitLine("auto& reader_args_by_core = GetRuntimeArgs(program, reader_id);");
@@ -3211,7 +3393,8 @@ private:
         if (!info.isInput)
           continue;
         emitLine("EnqueueWriteBuffer(cq, " + info.bufferName + ", v" +
-                 std::to_string(info.argIndex + 1) + ".data(), false);");
+                 std::to_string(info.hostParamIndex + 1) +
+                 ".data(), false);");
       }
     }
 
@@ -3229,7 +3412,7 @@ private:
     for (auto [idx, info] : llvm::enumerate(outputInfos)) {
       bool isLast = (idx + 1 == outputInfos.size());
       emitLine("EnqueueReadBuffer(cq, " + info->bufferName + ", v" +
-               std::to_string(info->argIndex + 1) + ".data(), " +
+               std::to_string(info->hostParamIndex + 1) + ".data(), " +
                (isLast ? "true" : "false") + ");");
     }
   }
@@ -3368,9 +3551,8 @@ private:
       emitLine("std::size_t " + sitePrefix +
                "_index = static_cast<std::size_t>(" + site.offsetExpr + ");");
       if (kind == HostProgramKind::Cpp) {
-        emitLine("bfloat16 " + sitePrefix + "_value = v" +
-                 std::to_string(site.sourceArgIndex + 1) + "[" + sitePrefix +
-                 "_index];");
+        emitLine("bfloat16 " + sitePrefix + "_value = " +
+                 site.scalarValuesName + "[" + sitePrefix + "_index];");
         emitLine("uint32_t " + sitePrefix +
                  "_packed = pack_two_bfloat16_into_uint32({" + sitePrefix +
                  "_value, " + sitePrefix + "_value});");
@@ -3490,6 +3672,8 @@ private:
   SmallVector<CopyBindingInfo, 8> copyBindings;
   SmallVector<CircularBufferInfo, 8> cbInfos;
   SmallVector<ScalarRuntimeSiteInfo, 4> scalarRuntimeSites;
+  SmallVector<ScalarRuntimeHostArgInfo, 4> scalarRuntimeHostArgs;
+  SmallVector<HostArgKind, 8> hostArgKinds;
   IndexExprMap parallelIvExprByValue;
   SmallVector<unsigned, 8> internalCbRuntimeArgOrder;
   llvm::DenseMap<Value, unsigned> semaphoreToCbIndex;

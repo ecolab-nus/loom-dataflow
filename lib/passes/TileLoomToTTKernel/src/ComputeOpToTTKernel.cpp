@@ -2553,7 +2553,10 @@ public:
     Value tileCount = i32Const(rewriter, loc, *inTiles);
 
     // Keep input ownership with semaphore_give lowering to avoid double-pop.
-    copyTile(rewriter, loc, inCb, outCb, tileCount, /*popInputCb=*/false);
+    //[IMPORTANT] it seems hangs for mamba chunk scan, not safe
+    //CBPopFrontOp::create(rewriter, loc, inCb, tileCount);
+    //copyTile(rewriter, loc, inCb, outCb, tileCount, /*popInputCb=*/false);
+    CBWaitFrontOp::create(rewriter, loc, inCb, tileCount);
     CBPushBackOp::create(rewriter, loc, outCb, tileCount);
 
     rewriter.eraseOp(op);

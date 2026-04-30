@@ -30,10 +30,23 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
+#include <cstdint>
 #include <memory>
 
 namespace mlir {
 namespace loom {
+
+enum class DataMovementKernelRole { Reader, Writer };
+
+struct DataMovementKernelSpec {
+  llvm::StringLiteral processorAttrValue;
+  int8_t nocId;
+  llvm::StringLiteral hostProcessorExpr;
+  llvm::StringLiteral hostNocExpr;
+};
+
+DataMovementKernelSpec getDataMovementKernelSpec(DataMovementKernelRole role);
 
 /**
  * @brief Runtime tuple values created for a DRAM/L1 binding.
@@ -101,6 +114,8 @@ struct CopyBindingData : public MemrefArgData {
   bool isLoad = false;
   /// True when the binding is L1 -> DRAM.
   bool isStore = false;
+  /// Product of static trip counts for enclosing scf.parallel loops.
+  int64_t parallelCoreCount = 1;
 };
 /**
  * @brief Data created for an index input argument.

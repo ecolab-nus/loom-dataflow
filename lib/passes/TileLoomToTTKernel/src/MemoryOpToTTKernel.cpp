@@ -389,7 +389,10 @@ static FailureOr<ReduceTransportRuntimeValues> materializeReduceTransportRuntime
   Location loc = op.getLoc();
   Value zero = i32Const(rewriter, loc, 0);
   Value one = i32Const(rewriter, loc, 1);
-  Value nocId = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI8Type(), 0);
+  int8_t writerNocId =
+      getDataMovementKernelSpec(DataMovementKernelRole::Writer).nocId;
+  Value nocId = rewriter.create<arith::ConstantIntOp>(
+      loc, rewriter.getI8Type(), writerNocId);
   Value numTiles = i32Const(rewriter, loc, *numTilesOpt);
   Value payloadBytes = arith::MulIOp::create(
       rewriter, loc, numTiles, GetTileSizeOp::create(rewriter, loc, payloadCb));
@@ -984,22 +987,39 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
         loc, rewriter.getI32Type(),
         (strides.size() > 0) ? strides[strides.size() - 1] : 1);
 
+    int64_t totalTiles = numTileRows * numTileCols;
+    bool enableReadBarrier = totalTiles > 16;
+    int64_t numCores =
+        bindingData->parallelCoreCount > 0 ? bindingData->parallelCoreCount : 1;
+    int64_t barrierReadThreshold = 1;
+    Value barrierCount =
+        rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
+    if (enableReadBarrier) {
+      // 2048 represents the tile size.
+      barrierReadThreshold = (512 / numCores) * (1024 + 128) / 2048;
+      if (barrierReadThreshold < 1)
+        barrierReadThreshold = 1;
+    }
+
     // Create nested loops to iterate over all tiles.
     scf::ForOp rowLoop = scf::ForOp::create(rewriter, loc, loopConst0,
                                             numTileRowsVal, loopConst1,
-                                            ValueRange{l1Addr});
+                                            ValueRange{l1Addr, barrierCount});
     {
       rewriter.setInsertionPointToStart(rowLoop.getBody());
       Value tileRow = rowLoop.getInductionVar();
       Value crtL1Addr = rowLoop.getRegionIterArgs()[0];
+      barrierCount = rowLoop.getRegionIterArgs()[1];
 
       scf::ForOp colLoop = scf::ForOp::create(rewriter, loc, loopConst0,
                                               numTileColsVal, loopConst1,
-                                              ValueRange{crtL1Addr});
+                                              ValueRange{crtL1Addr,
+                                                         barrierCount});
       {
         rewriter.setInsertionPointToStart(colLoop.getBody());
         Value tileCol = colLoop.getInductionVar();
         Value innerL1Addr = colLoop.getRegionIterArgs()[0];
+        barrierCount = colLoop.getRegionIterArgs()[1];
 
         Value rowOffset = arith::MulIOp::create(
             rewriter, loc, tileRow, tileDimVal, arith::IntegerOverflowFlags::nsw);
@@ -1035,7 +1055,35 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
         NocAsyncReadTileOp::create(rewriter, loc, tileId, accessorOp, innerL1Addr);
         Value nextL1Addr = arith::AddIOp::create(
             rewriter, loc, innerL1Addr, pageSize, arith::IntegerOverflowFlags::nsw);
-        scf::YieldOp::create(rewriter, loc, ValueRange(nextL1Addr));
+        if (enableReadBarrier) {
+          barrierCount = arith::AddIOp::create(
+              rewriter, loc, barrierCount, loopConst1,
+              arith::IntegerOverflowFlags::nsw);
+          Value barrierThreshold = rewriter.create<arith::ConstantIntOp>(
+              loc, rewriter.getI32Type(), barrierReadThreshold);
+          Value shouldReadBarrier = arith::CmpIOp::create(
+              rewriter, loc, arith::CmpIPredicate::eq,
+              barrierCount, barrierThreshold);
+
+          auto barrierIf = scf::IfOp::create(
+              rewriter, loc, TypeRange{rewriter.getI32Type()},
+              shouldReadBarrier, true);
+          {
+            OpBuilder::InsertionGuard guard(rewriter);
+            rewriter.setInsertionPointToStart(
+                &barrierIf.getThenRegion().front());
+            NocAsyncReadBarrierOp::create(rewriter, loc);
+            scf::YieldOp::create(rewriter, loc, ValueRange{loopConst0});
+
+            rewriter.setInsertionPointToStart(
+                &barrierIf.getElseRegion().front());
+            scf::YieldOp::create(rewriter, loc, ValueRange{barrierCount});
+          }
+          rewriter.setInsertionPointAfter(barrierIf);
+          barrierCount = barrierIf.getResult(0);
+        }
+        scf::YieldOp::create(rewriter, loc,
+                             ValueRange{nextL1Addr, barrierCount});
       }
 
       rewriter.setInsertionPointAfter(colLoop);
@@ -1762,21 +1810,38 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
     Value stride1Val = rewriter.create<arith::ConstantIntOp>(
       loc, rewriter.getI32Type(), (strides.size() > 0) ? strides[strides.size() - 1] : 1);
 
+    int64_t totalTiles = numTileRows * numTileCols;
+    bool enableWriteBarrier = totalTiles > 16;
+    int64_t numCores =
+        bindingData->parallelCoreCount > 0 ? bindingData->parallelCoreCount : 1;
+    int64_t barrierWriteThreshold = 1;
+    Value barrierCount =
+        rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
+    if (enableWriteBarrier) {
+      // 2048 represents the tile size.
+      barrierWriteThreshold = (512 / numCores) * (1024 + 128) / 2048;
+      if (barrierWriteThreshold < 1)
+        barrierWriteThreshold = 1;
+    }
+
     scf::ForOp rowLoop =
         scf::ForOp::create(rewriter, loc, loopConst0, numTileRowsVal,
-                           loopConst1, ValueRange{l1Addr});
+                           loopConst1, ValueRange{l1Addr, barrierCount});
     {
       rewriter.setInsertionPointToStart(rowLoop.getBody());
       Value tileRow = rowLoop.getInductionVar();
       Value crtL1Addr = rowLoop.getRegionIterArgs()[0];
+      barrierCount = rowLoop.getRegionIterArgs()[1];
 
       scf::ForOp colLoop =
           scf::ForOp::create(rewriter, loc, loopConst0, numTileColsVal,
-                             loopConst1, ValueRange{crtL1Addr});
+                             loopConst1,
+                             ValueRange{crtL1Addr, barrierCount});
       {
         rewriter.setInsertionPointToStart(colLoop.getBody());
         Value tileCol = colLoop.getInductionVar();
         Value innerL1Addr = colLoop.getRegionIterArgs()[0];
+        barrierCount = colLoop.getRegionIterArgs()[1];
 
         Value rowOffset =
             arith::MulIOp::create(rewriter, loc, tileRow, tileDimVal,
@@ -1817,7 +1882,35 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
         Value nextL1Addr =
             arith::AddIOp::create(rewriter, loc, innerL1Addr, pageSize,
                                   arith::IntegerOverflowFlags::nsw);
-        scf::YieldOp::create(rewriter, loc, ValueRange(nextL1Addr));
+        if (enableWriteBarrier) {
+          barrierCount = arith::AddIOp::create(
+              rewriter, loc, barrierCount, loopConst1,
+              arith::IntegerOverflowFlags::nsw);
+          Value barrierThreshold = rewriter.create<arith::ConstantIntOp>(
+              loc, rewriter.getI32Type(), barrierWriteThreshold);
+          Value shouldWriteBarrier = arith::CmpIOp::create(
+              rewriter, loc, arith::CmpIPredicate::eq, barrierCount,
+              barrierThreshold);
+
+          auto barrierIf = scf::IfOp::create(
+              rewriter, loc, TypeRange{rewriter.getI32Type()},
+              shouldWriteBarrier, true);
+          {
+            OpBuilder::InsertionGuard guard(rewriter);
+            rewriter.setInsertionPointToStart(
+                &barrierIf.getThenRegion().front());
+            NocAsyncWriteBarrierOp::create(rewriter, loc);
+            scf::YieldOp::create(rewriter, loc, ValueRange{loopConst0});
+
+            rewriter.setInsertionPointToStart(
+                &barrierIf.getElseRegion().front());
+            scf::YieldOp::create(rewriter, loc, ValueRange{barrierCount});
+          }
+          rewriter.setInsertionPointAfter(barrierIf);
+          barrierCount = barrierIf.getResult(0);
+        }
+        scf::YieldOp::create(rewriter, loc,
+                             ValueRange{nextL1Addr, barrierCount});
       }
 
       rewriter.setInsertionPointAfter(colLoop);

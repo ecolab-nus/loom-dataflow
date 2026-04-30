@@ -1023,11 +1023,15 @@ public:
  *            argument
  *          - `__host_pybind`: one `const ttnn::Tensor&` per original memref
  *            argument
- *          - both variants then receive core-range args
+ *          - `__host_pybind`: one `const std::vector<float>&` per scalar
+ *            runtime source table
+ *          - `__host_cpp` then receives core-range args
+ *          - `__host_pybind` hardcodes its full MLIR core range
  *          - only `__host_cpp` receives a trailing `IDevice*`
  *
  * The number of memref-backed host arguments is read from the
- * `loom.host_memref_count` attribute emitted during host construction.
+ * `loom.host_memref_count` attribute emitted during host construction; scalar
+ * host-table arguments are counted by `loom.host_scalar_count`.
  */
 class PostEmitCHostSignaturePass
     : public PassWrapper<PostEmitCHostSignaturePass, OperationPass<ModuleOp>> {
@@ -1039,7 +1043,7 @@ public:
   }
 
   StringRef getDescription() const override {
-    return "Rewrite host_cpp/host_pybind signatures to typed memref inputs and core range args, with IDevice* only on host_cpp";
+    return "Rewrite host_cpp/host_pybind signatures to typed host inputs and core range args, with IDevice* only on host_cpp";
   }
 
   void getDependentDialects(DialectRegistry &registry) const override {
@@ -1054,6 +1058,8 @@ public:
         emitc::OpaqueType::get(ctx, "std::vector<bfloat16>&");
     Type hostTensorType =
         emitc::OpaqueType::get(ctx, "const ttnn::Tensor&");
+    Type hostScalarVectorType =
+        emitc::OpaqueType::get(ctx, "const std::vector<float>&");
     Type coreCoordType = emitc::OpaqueType::get(ctx, "uint32_t");
 
     for (func::FuncOp func : collectAllFuncOps(module)) {
@@ -1081,6 +1087,19 @@ public:
         return;
       }
 
+      int64_t hostScalarCount = 0;
+      if (auto scalarCountAttr =
+              func->getAttrOfType<IntegerAttr>("loom.host_scalar_count"))
+        hostScalarCount = scalarCountAttr.getInt();
+      if (hostScalarCount < 0) {
+        func.emitError() << "invalid negative 'loom.host_scalar_count': "
+                         << hostScalarCount;
+        signalPassFailure();
+        return;
+      }
+      ArrayAttr hostArgKinds =
+          func->getAttrOfType<ArrayAttr>("loom.host_arg_kinds");
+
       Block &entry = func.front();
       for (BlockArgument arg : entry.getArguments()) {
         if (!arg.use_empty()) {
@@ -1098,12 +1117,52 @@ public:
       }
 
       SmallVector<Type> newInputs;
-      for (int64_t i = 0; i < hostMemrefCount; ++i)
-        newInputs.push_back(isHostPybind ? hostTensorType : hostVectorType);
-      newInputs.push_back(coreCoordType); // start_core_x
-      newInputs.push_back(coreCoordType); // start_core_y
-      newInputs.push_back(coreCoordType); // end_core_x
-      newInputs.push_back(coreCoordType); // end_core_y
+      if (hostArgKinds) {
+        int64_t seenMemrefs = 0;
+        int64_t seenScalars = 0;
+        for (Attribute attr : hostArgKinds) {
+          auto kindAttr = dyn_cast<StringAttr>(attr);
+          if (!kindAttr) {
+            func.emitError()
+                << "invalid non-string entry in 'loom.host_arg_kinds'";
+            signalPassFailure();
+            return;
+          }
+          if (kindAttr.getValue() == "memref") {
+            newInputs.push_back(isHostPybind ? hostTensorType : hostVectorType);
+            ++seenMemrefs;
+            continue;
+          }
+          if (kindAttr.getValue() == "scalar") {
+            newInputs.push_back(isHostPybind ? hostScalarVectorType
+                                             : hostVectorType);
+            ++seenScalars;
+            continue;
+          }
+          func.emitError() << "unknown host arg kind: " << kindAttr.getValue();
+          signalPassFailure();
+          return;
+        }
+        if (seenMemrefs != hostMemrefCount || seenScalars != hostScalarCount) {
+          func.emitError()
+              << "host arg kind counts do not match host metadata";
+          signalPassFailure();
+          return;
+        }
+      } else {
+        for (int64_t i = 0; i < hostMemrefCount; ++i)
+          newInputs.push_back(isHostPybind ? hostTensorType : hostVectorType);
+        if (isHostPybind) {
+          for (int64_t i = 0; i < hostScalarCount; ++i)
+            newInputs.push_back(hostScalarVectorType);
+        }
+      }
+      if (!isHostPybind) {
+        newInputs.push_back(coreCoordType); // start_core_x
+        newInputs.push_back(coreCoordType); // start_core_y
+        newInputs.push_back(coreCoordType); // end_core_x
+        newInputs.push_back(coreCoordType); // end_core_y
+      }
       if (!isHostPybind)
         newInputs.push_back(
             emitc::PointerType::get(emitc::OpaqueType::get(ctx, "IDevice")));
