@@ -5,6 +5,8 @@
 
 #include "ComputeOpToTTKernel.h"
 #include "FuncOpToTTKernel.h"
+#include "TTKernelAttrs.h"
+#include "TTKernelUtils.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -39,10 +41,9 @@
 #include "LoomOps.h.inc"
 
 using namespace mlir;
+using namespace mlir::loom;
 using namespace tt::ttkernel;
 using mlir::loom::CompileArgTracker;
-using mlir::loom::ReduceCombineOp;
-using mlir::loom::ReduceProtocol;
 
 namespace {
 
@@ -94,18 +95,6 @@ struct ElementwiseAnalysis {
   bool needsLog = false;
   bool needsExp = false;
 };
-
-constexpr llvm::StringLiteral kVecTilesAttrName = "loom.ttkernel.vec_tiles";
-constexpr llvm::StringLiteral kScalarSiteIdAttrName =
-    "loom.ttkernel.scalar_site_id";
-constexpr llvm::StringLiteral kBroadcastDimAttrName =
-    "loom.ttkernel.broadcast_dim";
-
-static std::optional<int64_t> ceilDiv32(int64_t value) {
-  if (value <= 0)
-    return std::nullopt;
-  return (value + 31) / 32;
-}
 
 static std::optional<int64_t> getAnnotatedVecTilesFromInput(Value value) {
   Value current = value;
@@ -190,19 +179,6 @@ static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
 static bool isSupportedElementwiseGeneric(linalg::GenericOp op) {
   ElementwiseAnalysis analysis;
   return succeeded(analyzeElementwiseGeneric(op, analysis));
-}
-
-static bool isComputeKernel(Operation *op) {
-  auto parentFunc = op->getParentOfType<func::FuncOp>();
-  if (!parentFunc)
-    return false;
-
-  if (auto threadAttr =
-          parentFunc->getAttrOfType<ThreadTypeAttr>(ThreadTypeAttr::name)) {
-    return threadAttr.getValue() == ThreadType::Compute;
-  }
-
-  return parentFunc.getName().ends_with("__compute");
 }
 
 struct NextUseInBlock {
@@ -343,18 +319,15 @@ static LogicalResult tileGenericOp(
     linalg::GenericOp op, linalg::GenericOp::Adaptor adaptor,
     ConversionPatternRewriter &rewriter,
     llvm::DenseMap<Value, int64_t> &waitState) {
-  auto fallbackToReduce = [&]() -> LogicalResult {
-    return rewriteReduceGeneric(op, adaptor, rewriter, waitState);
-  };
-
   Value inCb = adaptor.getInputs().front();
   Value outCb = adaptor.getOutputs().front();
   if (!isa<CBType>(inCb.getType()) || !isa<CBType>(outCb.getType()))
-    return fallbackToReduce();
+    return op.emitOpError()
+           << "tile generic lowering requires CB-typed input and output";
 
   TileGenericExprAnalysis analysis;
   if (failed(analyzeTileGeneric(op, analysis)))
-    return fallbackToReduce();
+    return op.emitOpError() << "unsupported tile generic body";
 
   auto inType = dyn_cast<ShapedType>(op.getDpsInputs()[0].getType());
   auto outType = dyn_cast<ShapedType>(op.getDpsInits()[0].getType());
@@ -672,37 +645,6 @@ static std::optional<float> getConstFloatValue(Value value) {
   return std::nullopt;
 }
 
-static std::optional<int64_t> getNumTilesFromShapedType(Type type) {
-  auto shaped = dyn_cast<ShapedType>(type);
-  if (!shaped || !shaped.hasStaticShape())
-    return std::nullopt;
-
-  ArrayRef<int64_t> shape = shaped.getShape();
-  unsigned rank = shape.size();
-  if (rank == 0)
-    return std::nullopt;
-
-  int64_t tiles = 1;
-
-  // Dimensions before the innermost 2 are already tile-domain extents.
-  for (unsigned i = 0; i + 2 < rank; ++i) {
-    if (shape[i] <= 0)
-      return std::nullopt;
-    tiles *= shape[i];
-  }
-
-  // Innermost dimensions are element-domain extents and require 32x32 tiling.
-  unsigned tiledStart = rank > 1 ? rank - 2 : 0;
-  for (unsigned i = tiledStart; i < rank; ++i) {
-    auto dimTiles = ceilDiv32(shape[i]);
-    if (!dimTiles)
-      return std::nullopt;
-    tiles *= *dimTiles;
-  }
-
-  return tiles;
-}
-
 /// Tile-shape metadata for elementwise generics where only innermost two dims
 /// are tiled (32x32), and outer dims are already tile-count dimensions.
 struct ElementwiseTileShapeInfo {
@@ -820,11 +762,6 @@ getMatmulTileInfo(ShapedType lhsType, ShapedType rhsType, ShapedType outType) {
   return info;
 }
 
-static Value i32Const(ConversionPatternRewriter &rewriter, Location loc,
-                      int64_t value) {
-  return rewriter.create<arith::ConstantIntOp>(loc, value, 32);
-}
-
 static Value getScalarBitsFromFloat(ConversionPatternRewriter &rewriter,
                                     Location loc, float value) {
   Value f32Const = rewriter.create<arith::ConstantFloatOp>(
@@ -854,222 +791,6 @@ static void emitWaitFrontIfNeeded(ConversionPatternRewriter &rewriter, Location 
   state[cb] = tiles;
 }
 
-struct ReduceRegionAnalysis {
-  Value ulX;
-  Value ulY;
-  Value lrX;
-  Value lrY;
-  Value participants;
-  Value inRegion;
-  Value isReducer;
-};
-
-struct ReduceRuntimeValues {
-  Value inCb;
-  Value outCb;
-  Value numTiles;
-  Value zero;
-  Value one;
-};
-
-// ReduceCombineOp is defined in ComputeOpToTTKernel.h.
-
-static Value toI32(ConversionPatternRewriter &rewriter, Location loc, Value value) {
-  if (!value)
-    return {};
-  Type type = value.getType();
-  if (type.isIndex())
-    return rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), value);
-
-  if (type.isInteger(32))
-    return value;
-
-  if (auto intTy = dyn_cast<IntegerType>(type)) {
-    if (intTy.getWidth() < 32)
-      return rewriter.create<arith::ExtSIOp>(loc, rewriter.getI32Type(), value);
-    if (intTy.getWidth() > 32)
-      return rewriter.create<arith::TruncIOp>(loc, rewriter.getI32Type(), value);
-  }
-
-  return {};
-}
-
-static LogicalResult validateReducePlacement(::loom::ReduceSumOp op) {
-  for (Operation *parent = op->getParentOp(); parent;
-       parent = parent->getParentOp()) {
-    if (isa<scf::IfOp>(parent)) {
-      return op.emitOpError("must execute on all participating cores; "
-                            "reducer-only guarded control flow is unsupported");
-    }
-  }
-  return success();
-}
-
-static FailureOr<ReduceRegionAnalysis>
-analyzeReduceRegion(::loom::ReduceSumOp op, ConversionPatternRewriter &rewriter,
-                    std::shared_ptr<CompileArgTracker> tracker) {
-  if (!tracker)
-    return failure();
-
-  Location loc = op.getLoc();
-  auto parentFunc = op->getParentOfType<func::FuncOp>();
-  if (!parentFunc)
-    return failure();
-
-  Value coreX = tracker->getCoreCoordForDim(parentFunc.getOperation(), "x");
-  Value coreY = tracker->getCoreCoordForDim(parentFunc.getOperation(), "y");
-  if (!coreX || !coreY)
-    return failure();
-
-  llvm::DenseMap<Value, Value> i32Cache;
-  auto toI32Cached = [&](Value value) -> Value {
-    if (!value)
-      return {};
-    auto it = i32Cache.find(value);
-    if (it != i32Cache.end())
-      return it->second;
-    Value converted = toI32(rewriter, loc, value);
-    if (converted)
-      i32Cache.try_emplace(value, converted);
-    return converted;
-  };
-
-  Value ulX = toI32Cached(op.getUlX());
-  Value ulY = toI32Cached(op.getUlY());
-  Value lrX = toI32Cached(op.getLrX());
-  Value lrY = toI32Cached(op.getLrY());
-  coreX = toI32(rewriter, loc, coreX);
-  coreY = toI32(rewriter, loc, coreY);
-  if (!ulX || !ulY || !lrX || !lrY || !coreX || !coreY)
-    return failure();
-
-  Value one = i32Const(rewriter, loc, 1);
-  auto subI32 = [&](Value lhs, Value rhs) -> Value {
-    if (lhs == rhs)
-      return i32Const(rewriter, loc, 0);
-    return arith::SubIOp::create(rewriter, loc, lhs, rhs);
-  };
-  auto addI32 = [&](Value lhs, Value rhs) -> Value {
-    return arith::AddIOp::create(rewriter, loc, lhs, rhs);
-  };
-
-  Value width = addI32(subI32(lrX, ulX), one);
-  Value height = addI32(subI32(lrY, ulY), one);
-  Value participants = arith::MulIOp::create(rewriter, loc, width, height);
-  Value geUlX =
-      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sge, coreX, ulX);
-  Value leLrX =
-      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sle, coreX, lrX);
-  Value geUlY =
-      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sge, coreY, ulY);
-  Value leLrY =
-      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sle, coreY, lrY);
-  Value inRegionX = arith::AndIOp::create(rewriter, loc, geUlX, leLrX);
-  Value inRegionY = arith::AndIOp::create(rewriter, loc, geUlY, leLrY);
-  Value inRegion = arith::AndIOp::create(rewriter, loc, inRegionX, inRegionY);
-
-  Value isReducerX =
-      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::eq, coreX, ulX);
-  Value isReducerY =
-      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::eq, coreY, ulY);
-  Value isReducer = arith::AndIOp::create(rewriter, loc, isReducerX, isReducerY);
-  Value isReducerInRegion = arith::AndIOp::create(rewriter, loc, inRegion, isReducer);
-  return ReduceRegionAnalysis{ulX, ulY, lrX, lrY, participants, inRegion,
-                              isReducerInRegion};
-}
-
-static FailureOr<ReduceRuntimeValues>
-materializeReduceRuntime(::loom::ReduceSumOp op, Value inCb, Value outCb,
-                         ConversionPatternRewriter &rewriter,
-                         std::shared_ptr<CompileArgTracker> tracker,
-                         const ReduceRegionAnalysis &analysis) {
-  (void)tracker;
-  (void)analysis;
-
-  if (!isa<CBType>(inCb.getType()) || !isa<CBType>(outCb.getType()))
-    return failure();
-
-  auto numTilesOpt = getNumTilesFromShapedType(op.getInput().getType());
-  if (!numTilesOpt)
-    return failure();
-
-  Location loc = op.getLoc();
-  Value zero = i32Const(rewriter, loc, 0);
-  Value one = i32Const(rewriter, loc, 1);
-  Value numTiles = i32Const(rewriter, loc, *numTilesOpt);
-  return ReduceRuntimeValues{inCb, outCb, numTiles, zero, one};
-}
-
-/**
- * @brief Emit reducer combine op initialization for the selected operation.
- */
-static LogicalResult emitReduceCombineInit(ConversionPatternRewriter &rewriter,
-                                           Location loc,
-                                           ReduceCombineOp combineOp) {
-  switch (combineOp) {
-  case ReduceCombineOp::Sum:
-    rewriter.create<AddBinaryTilesInitOp>(loc);
-    return success();
-  case ReduceCombineOp::Max:
-    return emitError(loc) << "unsupported reduce combine kind: max";
-  case ReduceCombineOp::Exp:
-    return emitError(loc) << "unsupported reduce combine kind: exp";
-  }
-  llvm_unreachable("unhandled ReduceCombineOp");
-}
-
-/**
- * @brief Emit a single tile combine operation for the selected reducer op.
- */
-static LogicalResult emitReduceCombine(ConversionPatternRewriter &rewriter,
-                                       Location loc, Value lhsReg,
-                                       Value rhsReg, Value dstReg,
-                                       ReduceCombineOp combineOp) {
-  switch (combineOp) {
-  case ReduceCombineOp::Sum:
-    rewriter.create<AddBinaryTilesOp>(loc, lhsReg, rhsReg, dstReg);
-    return success();
-  case ReduceCombineOp::Max:
-    return emitError(loc) << "unsupported reduce combine kind: max";
-  case ReduceCombineOp::Exp:
-    return emitError(loc) << "unsupported reduce combine kind: exp";
-  }
-  llvm_unreachable("unhandled ReduceCombineOp");
-}
-
-static LogicalResult
-emitTileAccumulate(ConversionPatternRewriter &rewriter, Location loc,
-                   Value dstCb, Value srcCb, Value tiles, Value dstBase,
-                   Value srcBase, ReduceCombineOp combineOp) {
-  Value zero = i32Const(rewriter, loc, 0);
-  Value one = i32Const(rewriter, loc, 1);
-  rewriter.create<CopyTileInitOp>(loc, dstCb);
-  if (srcCb != dstCb)
-    rewriter.create<CopyTileInitOp>(loc, srcCb);
-  if (failed(emitReduceCombineInit(rewriter, loc, combineOp)))
-    return failure();
-  rewriter.create<CBWaitFrontOp>(loc, srcCb, tiles);
-  scf::ForOp tileLoop = scf::ForOp::create(rewriter, loc, zero, tiles, one);
-  {
-    OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPointToStart(tileLoop.getBody());
-    Value tileIdx = tileLoop.getInductionVar();
-    Value dstIdx = arith::AddIOp::create(rewriter, loc, dstBase, tileIdx);
-    Value srcIdx = arith::AddIOp::create(rewriter, loc, srcBase, tileIdx);
-    TileRegsAcquireOp::create(rewriter, loc);
-    rewriter.create<CopyTileOp>(loc, dstCb, dstIdx, zero);
-    rewriter.create<CopyTileOp>(loc, srcCb, srcIdx, one);
-    if (failed(emitReduceCombine(rewriter, loc, zero, one, zero, combineOp)))
-      return failure();
-    TileRegsCommitOp::create(rewriter, loc);
-    TileRegsWaitOp::create(rewriter, loc);
-    PackTileOp::create(rewriter, loc, zero, dstCb, dstIdx);
-    TileRegsReleaseOp::create(rewriter, loc);
-  }
-  rewriter.create<CBPopFrontOp>(loc, srcCb, tiles);
-  return success();
-}
-
 static void copyTile(ConversionPatternRewriter &rewriter, Location loc,
                      Value inputCb, Value outputCb, Value tiles,
                      bool popInputCb = true) {
@@ -1095,59 +816,6 @@ static void copyTile(ConversionPatternRewriter &rewriter, Location loc,
     // Default behavior consumes input tiles once the copy is complete.
     CBPopFrontOp::create(rewriter, loc, inputCb, tiles);
   }
-}
-
-static void emitWorkerPreparePayload(ConversionPatternRewriter &rewriter,
-                                     Location loc,
-                                     const ReduceRuntimeValues &runtime) {
-  Value zero = runtime.zero;
-  Value one = runtime.one;
-  Value reg0 = i32Const(rewriter, loc, 0);
-  CBWaitFrontOp::create(rewriter, loc, runtime.inCb, runtime.numTiles);
-  CBReserveBackOp::create(rewriter, loc, runtime.outCb, runtime.numTiles);
-  rewriter.create<CopyTileInitOp>(loc, runtime.inCb);
-  scf::ForOp tileLoop =
-      scf::ForOp::create(rewriter, loc, zero, runtime.numTiles, one);
-  {
-    OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPointToStart(tileLoop.getBody());
-    Value tileIdx = tileLoop.getInductionVar();
-    TileRegsAcquireOp::create(rewriter, loc);
-    rewriter.create<CopyTileOp>(loc, runtime.inCb, tileIdx, reg0);
-    TileRegsCommitOp::create(rewriter, loc);
-    TileRegsWaitOp::create(rewriter, loc);
-    PackTileOp::create(rewriter, loc, reg0, runtime.outCb, tileIdx);
-    TileRegsReleaseOp::create(rewriter, loc);
-  }
-  CBPushBackOp::create(rewriter, loc, runtime.outCb, runtime.numTiles);
-}
-
-static LogicalResult
-emitReducerGather(ConversionPatternRewriter &rewriter, Location loc,
-                  const ReduceRegionAnalysis &analysis,
-                  const ReduceRuntimeValues &runtime, ReduceProtocol protocol,
-                  ReduceCombineOp combineOp) {
-  bool singleSlot = protocol == ReduceProtocol::SingleSlot;
-  //copy reducer's result to output cb
-  copyTile(rewriter, loc, runtime.inCb, runtime.outCb, runtime.numTiles);
-  scf::ForOp workerLoop = scf::ForOp::create(
-      rewriter, loc, runtime.one, analysis.participants, runtime.one);
-  {
-    OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPointToStart(workerLoop.getBody());
-    Value rank = workerLoop.getInductionVar();
-    Value srcCb = singleSlot ? runtime.inCb : runtime.outCb;
-    Value srcBase =
-        singleSlot ? runtime.zero
-                   : arith::MulIOp::create(rewriter, loc, rank, runtime.numTiles);
-    if (failed(emitTileAccumulate(rewriter, loc, runtime.outCb, srcCb,
-                                  runtime.numTiles, runtime.zero, srcBase,
-                                  combineOp)))
-      return failure();
-  }
-
-  CBPushBackOp::create(rewriter, loc, runtime.outCb, runtime.numTiles);
-  return success();
 }
 
 template <typename BuilderFn>
@@ -2675,82 +2343,6 @@ public:
   }
 };
 
-/**
- * @brief Map a source reduce op to its combine kind.
- *
- * @details Today only `loom.reduce_sum` exists, mapping to `Sum`. When the
- *          dialect gains a generic `loom.reduce` with a `combine_kind`
- *          attribute, this function should read that attribute instead.
- */
-static ReduceCombineOp getReduceCombineOp(Operation *op) {
-  if (isa<::loom::ReduceSumOp>(op))
-    return ReduceCombineOp::Sum;
-  llvm_unreachable("unknown reduce op kind");
-}
-
-class ConvertLoomReduceComputeOp
-    : public OpConversionPattern<::loom::ReduceSumOp> {
-public:
-  ConvertLoomReduceComputeOp(TypeConverter &typeConverter, MLIRContext *context,
-                             std::shared_ptr<CompileArgTracker> tracker,
-                             ReduceProtocol protocol)
-      : OpConversionPattern<::loom::ReduceSumOp>(typeConverter, context),
-        tracker(std::move(tracker)), protocol(protocol) {}
-
-  LogicalResult
-  matchAndRewrite(::loom::ReduceSumOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    if (!isComputeKernel(op.getOperation()))
-      return failure();
-    if (failed(validateReducePlacement(op)))
-      return failure();
-    if (adaptor.getOperands().size() < 2)
-      return failure();
-
-    auto analysis = analyzeReduceRegion(op, rewriter, tracker);
-    if (failed(analysis)) {
-      return rewriter.notifyMatchFailure(op, "failed to analyze reduce region");
-    }
-
-    Value inCb = adaptor.getOperands().front();
-    Value outCb = adaptor.getOperands()[1];
-    auto runtime =
-        materializeReduceRuntime(op, inCb, outCb, rewriter, tracker, *analysis);
-    if (failed(runtime)) {
-      return rewriter.notifyMatchFailure(
-          op, "failed to materialize reduce runtime arguments");
-    }
-
-    ReduceCombineOp combineOp = getReduceCombineOp(op);
-    Location loc = op.getLoc();
-    scf::IfOp inRegionIf =
-        rewriter.create<scf::IfOp>(loc, analysis->inRegion,
-                                   /*withElseRegion=*/true);
-    {
-      OpBuilder::InsertionGuard guard(rewriter);
-      rewriter.setInsertionPointToStart(&inRegionIf.getThenRegion().front());
-      scf::IfOp roleIf =
-          rewriter.create<scf::IfOp>(loc, analysis->isReducer,
-                                     /*withElseRegion=*/true);
-
-      rewriter.setInsertionPointToStart(&roleIf.getThenRegion().front());
-      if (failed(emitReducerGather(rewriter, loc, *analysis, *runtime, protocol,
-                                   combineOp)))
-        return failure();
-
-      rewriter.setInsertionPointToStart(&roleIf.getElseRegion().front());
-      emitWorkerPreparePayload(rewriter, loc, *runtime);
-    }
-
-    rewriter.eraseOp(op);
-    return success();
-  }
-
-private:
-  std::shared_ptr<CompileArgTracker> tracker;
-  ReduceProtocol protocol;
-};
-
 class ConvertMemrefCollapseShapeOp
     : public OpConversionPattern<memref::CollapseShapeOp> {
 public:
@@ -2922,9 +2514,7 @@ bool mlir::loom::shouldConvertComputeLoomBroadcast(::loom::BroadcastOp op) {
 
 void mlir::loom::populateComputeOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
-    MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker,
-    ReduceProtocol reduceProtocol) {
-  (void)reduceProtocol;
+    MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker) {
   patterns.add<ConvertLinalgFillOp>(typeConverter, context);
   patterns.add<ConvertLinalgCopyOp>(typeConverter, context);
   patterns.add<ConvertLinalgTransposeOp>(typeConverter, context);

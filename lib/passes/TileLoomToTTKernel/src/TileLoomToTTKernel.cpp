@@ -7,6 +7,8 @@
 #include "MemoryOpToTTKernel.h"
 #include "SCFOpToTTKernel.h"
 #include "FuncOpToTTKernel.h"
+#include "TTKernelAttrs.h"
+#include "TTKernelUtils.h"
 #include "TileLoomToTTKernel.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -299,76 +301,6 @@ static bool isComputeKernelFunc(func::FuncOp func) {
   return func.getName().ends_with("__compute");
 }
 
-[[maybe_unused]] static Value stripMemrefCasts(Value value) {
-  Value current = value;
-  while (auto cast = current.getDefiningOp<memref::CastOp>())
-    current = cast.getSource();
-  return current;
-}
-
-constexpr llvm::StringLiteral kCopyBindingSlotAttrName =
-    "loom.ttkernel.copy_binding_slot";
-constexpr llvm::StringLiteral kCopyBindingCountAttrName =
-    "loom.ttkernel.copy_binding_count";
-constexpr llvm::StringLiteral kSemaphoreSlotAttrName =
-    "loom.ttkernel.semaphore_slot";
-
-static std::optional<int64_t> getConstIntValue(Value value) {
-  if (!value)
-    return std::nullopt;
-  if (auto cst = value.getDefiningOp<arith::ConstantIndexOp>())
-    return cst.value();
-  if (auto cst = value.getDefiningOp<arith::ConstantIntOp>())
-    return cst.value();
-  if (auto cst = value.getDefiningOp<arith::ConstantOp>()) {
-    if (auto intAttr = dyn_cast<IntegerAttr>(cst.getValue()))
-      return intAttr.getInt();
-  }
-  return std::nullopt;
-}
-
-static std::optional<int64_t> getCopyBindingSlot(Operation *op) {
-  if (!op)
-    return std::nullopt;
-  auto slotAttr = op->getAttrOfType<IntegerAttr>(kCopyBindingSlotAttrName);
-  if (!slotAttr)
-    return std::nullopt;
-  return slotAttr.getInt();
-}
-
-static int64_t getAnnotatedCopyBindingCount(func::FuncOp func) {
-  if (!func)
-    return 0;
-  auto countAttr = func->getAttrOfType<IntegerAttr>(kCopyBindingCountAttrName);
-  return countAttr ? countAttr.getInt() : 0;
-}
-
-static Value stripBindingLookupWrappers(Value value) {
-  Value current = value;
-  while (true) {
-    if (auto cast = current.getDefiningOp<memref::CastOp>()) {
-      current = cast.getSource();
-      continue;
-    }
-    if (auto viewLike = current.getDefiningOp<ViewLikeOpInterface>()) {
-      current = viewLike.getViewSource();
-      continue;
-    }
-    break;
-  }
-  return current;
-}
-
-static bool isDramToL1Copy(::loom::CopyOp copyOp) {
-  return copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>() !=
-         nullptr;
-}
-
-static bool isL1ToDramCopy(::loom::CopyOp copyOp) {
-  return copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>() !=
-         nullptr;
-}
-
 static FailureOr<std::pair<int64_t, MemRefType>>
 resolveInternalSemaphoreSlotAndType(Value value) {
   if (!value)
@@ -457,7 +389,13 @@ public:
 
       Block &entry = func.front();
       int64_t copyBindingCount = getAnnotatedCopyBindingCount(func);
-      RuntimeArgLayout runtimeLayout = buildRuntimeArgLayout(func);
+      FailureOr<RuntimeArgLayout> runtimeLayoutOr =
+          buildRuntimeArgLayout(func);
+      if (failed(runtimeLayoutOr)) {
+        signalPassFailure();
+        return;
+      }
+      RuntimeArgLayout runtimeLayout = *runtimeLayoutOr;
 
       llvm::DenseMap<int64_t, Value> bindingSlotToCB;
       llvm::DenseMap<int64_t, Value> runtimeArgIndexToCB;
@@ -467,7 +405,7 @@ public:
         if (!getArgVal)
           continue;
         lastGetArgVal = &op;
-        auto argIndex = getConstIntValue(getArgVal.getOperand());
+        auto argIndex = evaluateConstInt(getArgVal.getOperand());
         if (!isa<CBType>(getArgVal.getType()))
           continue;
         if (!argIndex || *argIndex < 0)
@@ -751,7 +689,10 @@ public:
       return;
     }
 
-    specializeFunctionsForTTKernel(module);
+    if (failed(specializeFunctionsForTTKernel(module))) {
+      signalPassFailure();
+      return;
+    }
 
     // Create shared compile-arg tracker for index management.
     auto compileArgTracker = std::make_shared<CompileArgTracker>();
@@ -952,7 +893,7 @@ public:
                                        compileArgTracker, *reduceProtocol);
     // Add compute operation conversion patterns (e.g., linalg.matmul)
     populateComputeOpConversionPatterns(patterns, typeConverter, context,
-                                        compileArgTracker, *reduceProtocol);
+                                        compileArgTracker);
 
     // Apply conversion
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
@@ -991,9 +932,8 @@ public:
     // Index args were already replaced before conversion.
     for (func::FuncOp func : collectAllFuncOps(module)) {
       if (failed(removeAllFunctionArguments(func))) {
-        // Some argument still has uses - emit a warning but continue.
-        // This might happen if some conversion pattern didn't run.
-        func.emitWarning() << "could not remove all function arguments";
+        signalPassFailure();
+        return;
       }
     }
 

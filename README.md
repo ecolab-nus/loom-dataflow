@@ -63,7 +63,7 @@ ninja install
 
 ### Quick build
 ```bash
-./build.sh
+./build.sh --mlir-dir=/opt/ttmlir-toolchain/lib/cmake/mlir --llvm-lit=/opt/ttmlir-toolchain/bin/llvm-lit
 ```
 
 Flags such as `--mlir-dir=/path/to/mlir` and `--llvm-lit=/path/to/lit` override defaults. Run `./build.sh --help` for the full list.

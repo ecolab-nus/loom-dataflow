@@ -22,6 +22,7 @@
 #include "SCFOpToTTKernel.h"
 
 #include "FuncOpToTTKernel.h"
+#include "TTKernelUtils.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -305,23 +306,6 @@ public:
     // Materialize exactly two physical compile args (x, y) when logical IVs
     // are mapped through physical dims metadata.
     if (!xComponents.empty() || !yComponents.empty()) {
-      std::function<std::optional<int64_t>(Value)> getConstI64 =
-          [&](Value value) -> std::optional<int64_t> {
-        if (!value)
-          return std::nullopt;
-        if (auto cst = value.getDefiningOp<arith::ConstantIntOp>())
-          return cst.value();
-        if (auto cst = value.getDefiningOp<arith::ConstantIndexOp>())
-          return cst.value();
-        if (auto cst = value.getDefiningOp<arith::ConstantOp>()) {
-          if (auto intAttr = dyn_cast<IntegerAttr>(cst.getValue()))
-            return intAttr.getInt();
-        }
-        if (auto cast = value.getDefiningOp<arith::IndexCastOp>())
-          return getConstI64(cast.getIn());
-        return std::nullopt;
-      };
-
       Value oneI32 = rewriter.create<arith::ConstantIntOp>(loc, 1, 32);
       Value zeroI32 = rewriter.create<arith::ConstantIntOp>(loc, 0, 32);
       Value xCompileArgI32 = tracker->createRuntimeArg(
@@ -333,32 +317,13 @@ public:
           RuntimeArgKey::coreCoord(CoreCoordRuntimeField::Y),
           rewriter.getI32Type());
       if (!xCompileArgI32 || !yCompileArgI32)
-        return failure();
+        return op.emitOpError()
+               << "failed to materialize required x/y core runtime args";
 
       tracker->appendToCoreList(parentFunc, xCompileArgI32);
       tracker->appendToCoreList(parentFunc, yCompileArgI32);
       tracker->setCoreCoordForDim(parentFunc, "x", xCompileArgI32);
       tracker->setCoreCoordForDim(parentFunc, "y", yCompileArgI32);
-
-      auto toI32 = [&](Value value) -> Value {
-        if (!value)
-          return {};
-        Type ty = value.getType();
-        if (ty.isInteger(32))
-          return value;
-        if (ty.isIndex())
-          return rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(),
-                                                     value);
-        if (auto intTy = dyn_cast<IntegerType>(ty)) {
-          if (intTy.getWidth() < 32)
-            return rewriter.create<arith::ExtSIOp>(loc, rewriter.getI32Type(),
-                                                   value);
-          if (intTy.getWidth() > 32)
-            return rewriter.create<arith::TruncIOp>(loc, rewriter.getI32Type(),
-                                                    value);
-        }
-        return {};
-      };
 
       // Decompose each axis coordinate into its logical components in
       // logical-level order:
@@ -368,16 +333,16 @@ public:
         Value stride = oneI32;
         for (const AxisComponent &component : components) {
           size_t idx = component.idx;
-          Value lbI32 = toI32(lbs[idx]);
-          Value ubI32 = toI32(ubs[idx]);
-          Value stepI32 = toI32(steps[idx]);
+          Value lbI32 = toI32(rewriter, loc, lbs[idx]);
+          Value ubI32 = toI32(rewriter, loc, ubs[idx]);
+          Value stepI32 = toI32(rewriter, loc, steps[idx]);
           if (!lbI32 || !ubI32 || !stepI32) {
             newIvValues[idx] = {};
             continue;
           }
-          auto lbConst = getConstI64(lbI32);
-          auto ubConst = getConstI64(ubI32);
-          auto stepConst = getConstI64(stepI32);
+          auto lbConst = evaluateConstInt(lbI32);
+          auto ubConst = evaluateConstInt(ubI32);
+          auto stepConst = evaluateConstInt(stepI32);
 
           Value extent;
           std::optional<int64_t> extentConst;
@@ -397,7 +362,7 @@ public:
                 rewriter.createOrFold<arith::AddIOp>(loc, span, stepMinusOne);
             extent =
                 rewriter.createOrFold<arith::DivSIOp>(loc, ceilNumer, stepI32);
-            extentConst = getConstI64(extent);
+            extentConst = evaluateConstInt(extent);
           }
 
           Value quotient =
@@ -459,7 +424,7 @@ private:
 
 } // namespace
 
-void loom::populateSCFOpConversionPatterns(
+void mlir::loom::populateSCFOpConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<CompileArgTracker> tracker) {
   patterns.add<ConvertIndexDivUIOp, ConvertIndexRemUIOp,

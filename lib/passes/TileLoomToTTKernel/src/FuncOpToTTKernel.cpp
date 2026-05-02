@@ -13,6 +13,8 @@
  */
 
 #include "FuncOpToTTKernel.h"
+#include "TTKernelAttrs.h"
+#include "TTKernelUtils.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -24,6 +26,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -44,11 +47,11 @@
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOpsTypes.h"
 
 using namespace mlir;
+using namespace mlir::loom;
 using namespace tt::ttkernel;
 
 using mlir::loom::DataMovementKernelRole;
 using mlir::loom::DataMovementKernelSpec;
-using mlir::loom::buildRuntimeArgLayout;
 using mlir::loom::CopyBindingRuntimeField;
 using mlir::loom::CoreCoordRuntimeField;
 using mlir::loom::KernelRuntimeRole;
@@ -57,340 +60,20 @@ using mlir::loom::RuntimeArgKey;
 using mlir::loom::RuntimeArgKind;
 using mlir::loom::RuntimeArgLayout;
 
-DataMovementKernelSpec
-mlir::loom::getDataMovementKernelSpec(DataMovementKernelRole role) {
-  switch (role) {
-  case DataMovementKernelRole::Reader:
-    return {"riscv1", 0, "DataMovementProcessor::RISCV_1",
-            "NOC::RISCV_0_default"};
-  case DataMovementKernelRole::Writer:
-    return {"riscv0", 1, "DataMovementProcessor::RISCV_0",
-            "NOC::RISCV_1_default"};
-  }
-  llvm_unreachable("unknown data movement kernel role");
-}
-
-using mlir::loom::getDataMovementKernelSpec;
-
 //===----------------------------------------------------------------------===//
 // CompileArgTracker Implementation
 //===----------------------------------------------------------------------===//
 
 namespace {
 
-constexpr llvm::StringLiteral kReductionScaleCbAttrName =
-    "loom.reduction_scale_cb";
-constexpr llvm::StringLiteral kPartitionStrategyAttrName =
-    "loom.ttkernel.partition_strategy";
-constexpr llvm::StringLiteral kCopyDataMovementRoleAttrName =
-    "loom.ttkernel.dm_role";
-constexpr llvm::StringLiteral kDMProcessorAttrName =
-    "loom.ttkernel.dm_processor";
-constexpr llvm::StringLiteral kMergedBIntoWriterStrategy =
-    "matmul_merge_b_reader_into_writer";
-constexpr llvm::StringLiteral kHasReduceAttrName =
-    "loom.ttkernel.has_reduce";
-constexpr llvm::StringLiteral kScalarPreprocessTmpAttrName =
-    "loom.ttkernel.scalar_preprocess_tmp";
-constexpr llvm::StringLiteral kScalarSiteIdAttrName =
-    "loom.ttkernel.scalar_site_id";
-constexpr llvm::StringLiteral kScalarSiteCountAttrName =
-    "loom.ttkernel.scalar_site_count";
-constexpr llvm::StringLiteral kScalarSourceOnlyAttrName =
-    "loom.ttkernel.scalar_source_only";
-constexpr llvm::StringLiteral kVecKindAttrName = "loom.ttkernel.vec_kind";
-constexpr llvm::StringLiteral kVecTilesAttrName = "loom.ttkernel.vec_tiles";
-constexpr llvm::StringLiteral kSemaphoreSlotAttrName =
-    "loom.ttkernel.semaphore_slot";
-constexpr llvm::StringLiteral kCopyBindingSlotAttrName =
-    "loom.ttkernel.copy_binding_slot";
-constexpr llvm::StringLiteral kCopyBindingCountAttrName =
-    "loom.ttkernel.copy_binding_count";
-constexpr llvm::StringLiteral kReaderDataMovementRole = "reader";
-constexpr llvm::StringLiteral kWriterDataMovementRole = "writer";
-constexpr llvm::StringLiteral kDMProcessorRISCV0 = "riscv0";
-constexpr llvm::StringLiteral kDMProcessorRISCV1 = "riscv1";
-
 enum class HostProgramKind { Cpp, Pybind };
 enum class HostArgKind { Memref, Scalar };
-
-static std::optional<DataMovementKernelRole>
-getDataMovementKernelRoleForFuncName(StringRef name) {
-  if (name.ends_with("__reader"))
-    return DataMovementKernelRole::Reader;
-  if (name.ends_with("__writer"))
-    return DataMovementKernelRole::Writer;
-  return std::nullopt;
-}
-
-static std::optional<DataMovementKernelSpec>
-getDataMovementKernelSpecForProcessorAttr(StringRef processorAttrValue) {
-  if (processorAttrValue == kDMProcessorRISCV1)
-    return getDataMovementKernelSpec(DataMovementKernelRole::Reader);
-  if (processorAttrValue == kDMProcessorRISCV0)
-    return getDataMovementKernelSpec(DataMovementKernelRole::Writer);
-  return std::nullopt;
-}
-
-static std::optional<DataMovementKernelSpec>
-resolveDataMovementKernelSpec(func::FuncOp func) {
-  if (auto processorAttr =
-          func->getAttrOfType<StringAttr>(kDMProcessorAttrName)) {
-    if (auto spec =
-            getDataMovementKernelSpecForProcessorAttr(processorAttr.getValue()))
-      return spec;
-  }
-
-  if (auto role = getDataMovementKernelRoleForFuncName(func.getName()))
-    return getDataMovementKernelSpec(*role);
-  return std::nullopt;
-}
 
 static std::string
 buildHostDataMovementConfigExpr(const DataMovementKernelSpec &spec) {
   return "tt_metal::DataMovementConfig{.processor = " +
          spec.hostProcessorExpr.str() + ", .noc = " + spec.hostNocExpr.str() +
          ", .compile_args = compile_args}";
-}
-
-static Value stripMemrefCasts(Value value) {
-  Value current = value;
-  while (auto cast = current.getDefiningOp<memref::CastOp>())
-    current = cast.getSource();
-  return current;
-}
-
-// Follow loom.semaphore wrappers to recover the underlying physical buffer
-// producer (typically loom.alloc). Multiple semaphore ops may chain on the
-// same base value in transformed IR.
-static Value stripLoomSemaphores(Value value) {
-  Value current = value;
-  while (auto sem = current.getDefiningOp<::loom::SemaphoreTakeOp>())
-    current = sem.getSource();
-  return current;
-}
-
-static Value stripViewLikeWrappers(Value value) {
-  Value current = value;
-  while (true) {
-    if (auto sem = current.getDefiningOp<::loom::SemaphoreTakeOp>()) {
-      current = sem.getSource();
-      continue;
-    }
-    if (auto viewLike = current.getDefiningOp<ViewLikeOpInterface>()) {
-      current = viewLike.getViewSource();
-      continue;
-    }
-    break;
-  }
-  return current;
-}
-
-static bool isDramToL1Copy(::loom::CopyOp copyOp) {
-  return copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>() !=
-         nullptr;
-}
-
-static bool isL1ToDramCopy(::loom::CopyOp copyOp) {
-  return copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>() !=
-         nullptr;
-}
-
-static std::optional<int64_t> getCopyBindingSlot(Operation *op) {
-  if (!op)
-    return std::nullopt;
-  auto slotAttr = op->getAttrOfType<IntegerAttr>(kCopyBindingSlotAttrName);
-  if (!slotAttr)
-    return std::nullopt;
-  return slotAttr.getInt();
-}
-
-static int64_t getAnnotatedCopyBindingCount(func::FuncOp func) {
-  if (!func)
-    return 0;
-  auto countAttr = func->getAttrOfType<IntegerAttr>(kCopyBindingCountAttrName);
-  return countAttr ? countAttr.getInt() : 0;
-}
-
-static Value getCopyBindingDramMemref(::loom::CopyOp copyOp) {
-  if (!copyOp)
-    return {};
-
-  if (auto sourceRC =
-          copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>()) {
-    return stripMemrefCasts(sourceRC.getSource());
-  }
-
-  if (auto destRC =
-          copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>()) {
-    return stripMemrefCasts(destRC.getSource());
-  }
-
-  return {};
-}
-
-static Value getCopyBindingL1Endpoint(::loom::CopyOp copyOp) {
-  if (!copyOp)
-    return {};
-
-  if (isDramToL1Copy(copyOp))
-    return stripMemrefCasts(copyOp.getDestination());
-  if (isL1ToDramCopy(copyOp))
-    return stripMemrefCasts(copyOp.getSource());
-  return {};
-}
-
-static MemRefType getCopyBindingCBMemrefType(::loom::CopyOp copyOp) {
-  Value l1Endpoint = getCopyBindingL1Endpoint(copyOp);
-  if (!l1Endpoint)
-    return {};
-
-  Value base = stripLoomSemaphores(stripMemrefCasts(l1Endpoint));
-  if (auto allocOp = base.getDefiningOp<::loom::AllocOp>())
-    return dyn_cast<MemRefType>(allocOp.getType());
-
-  return dyn_cast<MemRefType>(l1Endpoint.getType());
-}
-
-static std::optional<int64_t> evaluateConstInt(Value value) {
-  if (!value)
-    return std::nullopt;
-
-  if (auto cst = value.getDefiningOp<arith::ConstantIndexOp>())
-    return cst.value();
-
-  if (auto cst = value.getDefiningOp<arith::ConstantIntOp>())
-    return cst.value();
-
-  if (auto cst = value.getDefiningOp<arith::ConstantOp>()) {
-    if (auto intAttr = dyn_cast<IntegerAttr>(cst.getValue()))
-      return intAttr.getInt();
-  }
-
-  if (auto cast = value.getDefiningOp<arith::IndexCastOp>())
-    return evaluateConstInt(cast.getIn());
-
-  return std::nullopt;
-}
-
-static std::optional<int64_t> getStaticParallelCoreCount(Operation *op) {
-  if (!op)
-    return std::nullopt;
-
-  int64_t coreCount = 1;
-  bool foundParallel = false;
-  for (Operation *parent = op->getParentOp(); parent;
-       parent = parent->getParentOp()) {
-    auto parallelOp = dyn_cast<scf::ParallelOp>(parent);
-    if (!parallelOp)
-      continue;
-
-    foundParallel = true;
-    ValueRange lbs = parallelOp.getLowerBound();
-    ValueRange ubs = parallelOp.getUpperBound();
-    ValueRange steps = parallelOp.getStep();
-    size_t rank = parallelOp.getInductionVars().size();
-    if (lbs.size() < rank || ubs.size() < rank || steps.size() < rank)
-      return std::nullopt;
-
-    for (size_t idx = 0; idx < rank; ++idx) {
-      auto lb = evaluateConstInt(lbs[idx]);
-      auto ub = evaluateConstInt(ubs[idx]);
-      auto step = evaluateConstInt(steps[idx]);
-      if (!lb || !ub || !step || *step <= 0)
-        return std::nullopt;
-
-      int64_t span = *ub - *lb;
-      if (span <= 0)
-        return std::nullopt;
-      coreCount *= (span + *step - 1) / *step;
-    }
-  }
-
-  if (!foundParallel)
-    return std::nullopt;
-  return coreCount;
-}
-
-static LogicalResult collectCopyBindingOps(func::FuncOp func,
-                                           SmallVectorImpl<::loom::CopyOp> &ops) {
-  ops.clear();
-  int64_t bindingCount = getAnnotatedCopyBindingCount(func);
-  if (bindingCount < 0)
-    return func.emitError() << "invalid negative copy binding count";
-  if (bindingCount == 0)
-    return success();
-
-  llvm::DenseMap<int64_t, ::loom::CopyOp> copyBySlot;
-  SmallVector<int64_t, 8> slots;
-  LogicalResult status = success();
-
-  func.walk([&](::loom::CopyOp copyOp) {
-    if (failed(status))
-      return;
-    auto slot = getCopyBindingSlot(copyOp.getOperation());
-    if (!slot)
-      return;
-    if (*slot < 0 || *slot >= bindingCount) {
-      status = copyOp.emitOpError("has out-of-range copy binding slot ")
-               << *slot << " for binding count " << bindingCount;
-      return;
-    }
-    if (copyBySlot.count(*slot)) {
-      status = copyOp.emitOpError("duplicate copy binding slot ") << *slot;
-      return;
-    }
-    copyBySlot.try_emplace(*slot, copyOp);
-    slots.push_back(*slot);
-  });
-
-  if (failed(status))
-    return failure();
-
-  llvm::sort(slots);
-  for (int64_t slot : slots)
-    ops.push_back(copyBySlot.lookup(slot));
-
-  return success();
-}
-
-static bool hasRuntimeBroadcast(::loom::CopyOp copyOp) {
-  if (!copyOp)
-    return false;
-  auto broadcastAttr = copyOp.getBroadcastAttr();
-  if (!broadcastAttr || broadcastAttr.size() < 2)
-    return false;
-  auto xAttr = dyn_cast<IntegerAttr>(broadcastAttr[0]);
-  auto yAttr = dyn_cast<IntegerAttr>(broadcastAttr[1]);
-  if (!xAttr || !yAttr)
-    return false;
-  return xAttr.getInt() > 1 || yAttr.getInt() > 1;
-}
-
-static bool hasMappedParallel(func::FuncOp func) {
-  bool found = false;
-  func.walk([&](scf::ParallelOp op) {
-    if (found)
-      return;
-    if (op->hasAttr("loom.physical_dims") ||
-        op->hasAttr("loom.mapped_to_dims"))
-      found = true;
-  });
-  return found;
-}
-
-static SmallVector<int64_t, 8> collectInternalSemaphoreSlots(func::FuncOp func) {
-  SmallVector<int64_t, 8> slots;
-  func.walk([&](::loom::SemaphoreTakeOp sem) {
-    auto slotAttr = sem->getAttrOfType<IntegerAttr>(kSemaphoreSlotAttrName);
-    if (!slotAttr)
-      return;
-    int64_t slot = slotAttr.getInt();
-    if (!llvm::is_contained(slots, slot))
-      slots.push_back(slot);
-  });
-  llvm::sort(slots);
-  return slots;
 }
 
 // Infer per-argument CB memref shape from loom.copy links to loom.alloc.
@@ -622,12 +305,6 @@ static void annotateScalarRuntimeSites(func::FuncOp func) {
 
 enum class VecBroadcastKind { None, RowBcast, ColBcast };
 
-static std::optional<int64_t> ceilDiv32Int(int64_t value) {
-  if (value <= 0)
-    return std::nullopt;
-  return (value + 31) / 32;
-}
-
 static bool isIdentityMapForRank(AffineMap map, unsigned rank) {
   if (!map || map.getNumDims() != rank || map.getNumSymbols() != 0 ||
       map.getNumResults() != rank)
@@ -694,7 +371,7 @@ getElementwiseOutTileShape(linalg::GenericOp op) {
       return std::nullopt;
 
     if (dim >= tiledStartDim) {
-      auto dimTiles = ceilDiv32Int(dimSize);
+      auto dimTiles = ceilDiv32(dimSize);
       if (!dimTiles || *dimTiles <= 0)
         return std::nullopt;
       extents.push_back(*dimTiles);
@@ -1090,18 +767,23 @@ static LogicalResult annotateCopyBindingSlots(func::FuncOp func) {
       return;
 
     Value l1Endpoint = getCopyBindingL1Endpoint(copyOp);
-    if (auto sem = l1Endpoint.getDefiningOp<::loom::SemaphoreTakeOp>()) {
-      auto [it, inserted] =
-          semaphoreToSlot.try_emplace(sem.getOperation(), nextSlot);
-      if (!inserted) {
-        status = copyOp.emitOpError(
-            "destination/source semaphore participates in multiple DRAM/L1 "
-            "loom.copy bindings; one semaphore must map to one binding");
-        return;
-      }
-      sem->setAttr(kCopyBindingSlotAttrName,
-                   builder.getI64IntegerAttr(nextSlot));
+    auto sem = l1Endpoint.getDefiningOp<::loom::SemaphoreTakeOp>();
+    if (!sem) {
+      status = copyOp.emitOpError()
+               << "DRAM/L1 copy binding requires an explicit "
+                  "loom.semaphore_take endpoint";
+      return;
     }
+    auto [it, inserted] =
+        semaphoreToSlot.try_emplace(sem.getOperation(), nextSlot);
+    if (!inserted) {
+      status = copyOp.emitOpError(
+          "destination/source semaphore participates in multiple DRAM/L1 "
+          "loom.copy bindings; one semaphore must map to one binding");
+      return;
+    }
+    sem->setAttr(kCopyBindingSlotAttrName,
+                 builder.getI64IntegerAttr(nextSlot));
 
     copyOp->setAttr(kCopyBindingSlotAttrName,
                     builder.getI64IntegerAttr(nextSlot));
@@ -1132,15 +814,6 @@ static void annotateSemaphoreSlots(func::FuncOp func) {
       return;
     }
 
-    Value base = stripLoomSemaphores(current);
-    auto alloc = base.getDefiningOp<::loom::AllocOp>();
-    if (!alloc)
-      return;
-    auto it = semaphoresByAlloc.find(alloc.getResult());
-    if (it == semaphoresByAlloc.end() || it->second.empty())
-      return;
-    // Keep parity with host CB-link fallback: alloc endpoints map to first sem.
-    memrefLinkedSemaphores.insert(it->second.front().getOperation());
   };
 
   func.walk([&](::loom::CopyOp copyOp) {
@@ -1169,131 +842,16 @@ static void annotateSemaphoreSlots(func::FuncOp func) {
 
 } // namespace
 
-std::optional<mlir::loom::KernelRuntimeRole>
-mlir::loom::getKernelRuntimeRole(func::FuncOp func) {
-  if (!func || func.getName().contains("__host"))
-    return std::nullopt;
-
-  if (auto threadAttr =
-          func->getAttrOfType<ThreadTypeAttr>(ThreadTypeAttr::name)) {
-    if (threadAttr.getValue() == ThreadType::Compute)
-      return KernelRuntimeRole::Compute;
-  }
-  if (func.getName().ends_with("__compute"))
-    return KernelRuntimeRole::Compute;
-
-  if (auto dmRole = getDataMovementKernelRoleForFuncName(func.getName())) {
-    return *dmRole == DataMovementKernelRole::Reader
-               ? KernelRuntimeRole::Reader
-               : KernelRuntimeRole::Writer;
-  }
-  if (auto dmSpec = resolveDataMovementKernelSpec(func)) {
-    if (dmSpec->processorAttrValue == kDMProcessorRISCV1)
-      return KernelRuntimeRole::Reader;
-    if (dmSpec->processorAttrValue == kDMProcessorRISCV0)
-      return KernelRuntimeRole::Writer;
-  }
-
-  return std::nullopt;
-}
-
-RuntimeArgLayout mlir::loom::buildRuntimeArgLayout(func::FuncOp func) {
-  RuntimeArgLayout layout;
-  auto role = getKernelRuntimeRole(func);
-  if (!role)
-    return layout;
-
-  SmallVector<::loom::CopyOp, 8> copyBindings;
-  if (failed(collectCopyBindingOps(func, copyBindings)))
-    return layout;
-
-  auto addCopyBindingBase = [&](int64_t slot) {
-    layout.add(RuntimeArgKey::copyBinding(slot, CopyBindingRuntimeField::Cb));
-    layout.add(
-        RuntimeArgKey::copyBinding(slot, CopyBindingRuntimeField::BaseAddr));
-  };
-
-  auto addCopyBindingMcast = [&](int64_t slot) {
-    layout.add(RuntimeArgKey::copyBinding(
-        slot, CopyBindingRuntimeField::McastDestStartX));
-    layout.add(RuntimeArgKey::copyBinding(
-        slot, CopyBindingRuntimeField::McastDestStartY));
-    layout.add(RuntimeArgKey::copyBinding(
-        slot, CopyBindingRuntimeField::McastDestEndX));
-    layout.add(RuntimeArgKey::copyBinding(
-        slot, CopyBindingRuntimeField::McastDestEndY));
-    layout.add(RuntimeArgKey::copyBinding(slot,
-                                          CopyBindingRuntimeField::McastDestNum));
-    layout.add(RuntimeArgKey::copyBinding(
-        slot, CopyBindingRuntimeField::McastSenderNocX));
-    layout.add(RuntimeArgKey::copyBinding(
-        slot, CopyBindingRuntimeField::McastSenderNocY));
-    layout.add(RuntimeArgKey::copyBinding(
-        slot, CopyBindingRuntimeField::McastSenderSemaphore));
-    layout.add(RuntimeArgKey::copyBinding(
-        slot, CopyBindingRuntimeField::McastReceiverSemaphore));
-  };
-
-  for (::loom::CopyOp copyOp : copyBindings) {
-    auto slot = getCopyBindingSlot(copyOp.getOperation());
-    if (!slot)
-      continue;
-
-    if (*role == KernelRuntimeRole::Compute) {
-      layout.add(
-          RuntimeArgKey::copyBinding(*slot, CopyBindingRuntimeField::Cb));
-      continue;
-    }
-
-    if (isDramToL1Copy(copyOp)) {
-      addCopyBindingBase(*slot);
-      if (hasRuntimeBroadcast(copyOp))
-        addCopyBindingMcast(*slot);
-      continue;
-    }
-
-    if (isL1ToDramCopy(copyOp))
-      addCopyBindingBase(*slot);
-  }
-
-  if (*role == KernelRuntimeRole::Writer && func->hasAttr(kHasReduceAttrName)) {
-    layout.add(RuntimeArgKey::reduce(ReduceRuntimeField::ReadySemaphore));
-    layout.add(RuntimeArgKey::reduce(ReduceRuntimeField::TokenSemaphore));
-    layout.add(RuntimeArgKey::reduce(ReduceRuntimeField::TokenMcastDestStartX));
-    layout.add(RuntimeArgKey::reduce(ReduceRuntimeField::TokenMcastDestStartY));
-    layout.add(RuntimeArgKey::reduce(ReduceRuntimeField::TokenMcastDestEndX));
-    layout.add(RuntimeArgKey::reduce(ReduceRuntimeField::TokenMcastDestEndY));
-  }
-
-  if (*role == KernelRuntimeRole::Compute) {
-    if (auto scalarSiteCountAttr =
-            func->getAttrOfType<IntegerAttr>(kScalarSiteCountAttrName)) {
-      for (int64_t siteId = 0; siteId < scalarSiteCountAttr.getInt(); ++siteId)
-        layout.add(RuntimeArgKey::scalarSite(siteId));
-    }
-  }
-
-  if (hasMappedParallel(func)) {
-    layout.add(RuntimeArgKey::coreCoord(CoreCoordRuntimeField::X));
-    layout.add(RuntimeArgKey::coreCoord(CoreCoordRuntimeField::Y));
-  }
-
-  if (*role == KernelRuntimeRole::Compute ||
-      *role == KernelRuntimeRole::Writer) {
-    for (int64_t slot : collectInternalSemaphoreSlots(func))
-      layout.add(RuntimeArgKey::internalCb(slot));
-  }
-
-  return layout;
-}
-
 LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
     func::FuncOp func, TypeConverter &typeConverter, OpBuilder &rewriter) {
   (void)typeConverter;
   if (func.getName().contains("__host"))
     return success();
 
-  RuntimeArgLayout runtimeLayout = buildRuntimeArgLayout(func);
+  FailureOr<RuntimeArgLayout> runtimeLayoutOr = buildRuntimeArgLayout(func);
+  if (failed(runtimeLayoutOr))
+    return failure();
+  RuntimeArgLayout runtimeLayout = *runtimeLayoutOr;
   funcToRuntimeArgLayout[func.getOperation()] = runtimeLayout;
 
   Block &entry = func.front();
@@ -1718,13 +1276,8 @@ mlir::loom::CompileArgTracker::getRuntimeArgIndex(Operation *funcOp,
     return std::nullopt;
 
   auto it = funcToRuntimeArgLayout.find(funcOp);
-  if (it == funcToRuntimeArgLayout.end()) {
-    auto func = dyn_cast<func::FuncOp>(funcOp);
-    if (!func)
-      return std::nullopt;
-    RuntimeArgLayout layout = buildRuntimeArgLayout(func);
-    return layout.indexOf(key);
-  }
+  if (it == funcToRuntimeArgLayout.end())
+    return std::nullopt;
 
   return it->second.indexOf(key);
 }
@@ -1736,14 +1289,8 @@ Value mlir::loom::CompileArgTracker::createRuntimeArg(
     return nullptr;
 
   auto layoutIt = funcToRuntimeArgLayout.find(funcOp);
-  if (layoutIt == funcToRuntimeArgLayout.end()) {
-    auto func = dyn_cast<func::FuncOp>(funcOp);
-    if (!func)
-      return nullptr;
-    layoutIt = funcToRuntimeArgLayout
-                   .try_emplace(funcOp, buildRuntimeArgLayout(func))
-                   .first;
-  }
+  if (layoutIt == funcToRuntimeArgLayout.end())
+    return nullptr;
 
   auto argIndex = layoutIt->second.indexOf(key);
   if (!argIndex)
@@ -1918,6 +1465,39 @@ static void clearMatmulBReaderMergeAttrs(func::FuncOp func) {
   func.walk([](::loom::CopyOp op) { op->removeAttr(kCopyDataMovementRoleAttrName); });
 }
 
+static void dropStaleSemaphoreCopyBindingAttrs(func::FuncOp func) {
+  llvm::SmallSet<int64_t, 16> liveSlotIds;
+  func.walk([&](::loom::CopyOp op) {
+    if (auto slot = getCopyBindingSlot(op.getOperation()))
+      liveSlotIds.insert(*slot);
+  });
+
+  func.walk([&](::loom::SemaphoreTakeOp sem) {
+    auto slotAttr = sem->getAttrOfType<IntegerAttr>(kCopyBindingSlotAttrName);
+    if (!slotAttr)
+      return;
+    if (!liveSlotIds.contains(slotAttr.getInt()))
+      sem->removeAttr(kCopyBindingSlotAttrName);
+  });
+}
+
+static void eraseUnboundSemaphoreTakes(func::FuncOp func) {
+  SmallVector<::loom::SemaphoreTakeOp, 16> semaphores;
+  func.walk([&](::loom::SemaphoreTakeOp sem) {
+    if (sem->hasAttr(kCopyBindingSlotAttrName) ||
+        sem->hasAttr(kSemaphoreSlotAttrName) ||
+        sem->hasAttr(kReductionScaleCbAttrName) ||
+        sem->hasAttr(kScalarSiteIdAttrName))
+      return;
+    semaphores.push_back(sem);
+  });
+
+  for (::loom::SemaphoreTakeOp sem : llvm::reverse(semaphores)) {
+    sem.getResult().replaceAllUsesWith(sem.getSource());
+    sem.erase();
+  }
+}
+
 static FailureOr<::loom::CopyOp>
 findUniqueCopyForBuffer(func::FuncOp func, Value buffer, bool wantLoad,
                         StringRef description) {
@@ -2051,19 +1631,16 @@ static bool isSpecializedKernelName(StringRef name) {
          name.ends_with("__host_cpp") || name.ends_with("__host_pybind");
 }
 
-/// Find the first user authoured entry function regardless of nesting level.
-static func::FuncOp findFirstEntryFunc(ModuleOp module) {
-  func::FuncOp firstEntry;
+static SmallVector<func::FuncOp, 8> collectEntryFuncs(ModuleOp module) {
+  SmallVector<func::FuncOp, 8> funcs;
   module.walk([&](func::FuncOp func) {
-    if (firstEntry)
-      return;
     if (func.isExternal())
       return;
     if (isSpecializedKernelName(func.getName()))
       return;
-    firstEntry = func;
+    funcs.push_back(func);
   });
-  return firstEntry;
+  return funcs;
 }
 
 /// Returns true when @p op is a gather transport op.
@@ -2137,6 +1714,8 @@ static func::FuncOp makeComputeFunc(func::FuncOp func) {
     op->erase();
 
   clearMatmulBReaderMergeAttrs(computeFunc);
+  dropStaleSemaphoreCopyBindingAttrs(computeFunc);
+  eraseUnboundSemaphoreTakes(computeFunc);
   return computeFunc;
 }
 
@@ -2178,6 +1757,8 @@ static func::FuncOp makeReaderFunc(func::FuncOp func) {
     op->erase();
 
   clearMatmulBReaderMergeAttrs(readerFunc);
+  dropStaleSemaphoreCopyBindingAttrs(readerFunc);
+  eraseUnboundSemaphoreTakes(readerFunc);
   return readerFunc;
 }
 
@@ -2218,6 +1799,8 @@ static func::FuncOp makeWriterFunc(func::FuncOp func) {
     op->erase();
 
   clearMatmulBReaderMergeAttrs(writerFunc);
+  dropStaleSemaphoreCopyBindingAttrs(writerFunc);
+  eraseUnboundSemaphoreTakes(writerFunc);
   return writerFunc;
 }
 
@@ -2238,7 +1821,7 @@ public:
         builder(hostFunc.getContext()), kind(kind), computeFunc(computeFunc),
         readerFunc(readerFunc), writerFunc(writerFunc) {}
 
-  void run() {
+  LogicalResult run() {
     hasReduce = hostFunc->hasAttr(kHasReduceAttrName) ||
                    containsGatherOp(originalFunc);
     inferCoreCoordArgOrder();
@@ -2248,9 +1831,25 @@ public:
     collectReduceRegion();
     collectCopyBindings();
     collectCbInfos();
-    computeRuntimeLayout = buildRuntimeArgLayout(computeFunc);
-    readerRuntimeLayout = buildRuntimeArgLayout(readerFunc);
-    writerRuntimeLayout = buildRuntimeArgLayout(writerFunc);
+    if (failed(status))
+      return failure();
+    if (!mlirCoreExtentX || !mlirCoreExtentY || *mlirCoreExtentX <= 0 ||
+        *mlirCoreExtentY <= 0) {
+      return hostFunc.emitError()
+             << "host emission requires explicit x/y core-range metadata; "
+                "device-grid defaults are not allowed";
+    }
+    FailureOr<RuntimeArgLayout> computeLayout =
+        buildRuntimeArgLayout(computeFunc);
+    FailureOr<RuntimeArgLayout> readerLayout =
+        buildRuntimeArgLayout(readerFunc);
+    FailureOr<RuntimeArgLayout> writerLayout =
+        buildRuntimeArgLayout(writerFunc);
+    if (failed(computeLayout) || failed(readerLayout) || failed(writerLayout))
+      return failure();
+    computeRuntimeLayout = *computeLayout;
+    readerRuntimeLayout = *readerLayout;
+    writerRuntimeLayout = *writerLayout;
     annotateHostSignatureMetadata();
     eraseNonHostOps();
     eraseDeadReinterpretCasts();
@@ -2268,6 +1867,7 @@ public:
     builder.setInsertionPoint(hostFunc.front().getTerminator());
     emitCoreMulticastMappingAtEnd();
     emitRuntimeEnqueueEpilogue();
+    return success();
   }
 
 private:
@@ -2679,19 +2279,15 @@ private:
       buildAxisIvExprs(yComponents, "core.y");
     });
   }
-  // TODO: tmp fix, need to get the total size and then divide by the tile size
-  static bool buildTilesExpr(MemRefType memrefType, std::string &expr) {
-    expr.clear();
-
+  static FailureOr<std::string> buildTilesExpr(MemRefType memrefType,
+                                               Location loc) {
+    std::string expr;
     auto shape = memrefType.getShape();
     const size_t rank = shape.size();
 
-    // Rank-0 memrefs do not carry tile geometry information.
-    if (rank == 0) {
-      //print error message
-      llvm::errs() << "Rank-0 memrefs do not carry tile geometry information.\n";
-      return false;
-    }
+    if (rank == 0)
+      return emitError(loc)
+             << "rank-0 memrefs do not carry tile geometry information";
 
     auto appendOne = [&](int64_t dim) -> bool {
       if (dim == ShapedType::kDynamic) return false;
@@ -2704,18 +2300,21 @@ private:
     // Rank-1 memrefs are treated as [32, max(32, original_dim)].
     if (rank == 1) {
       if (!appendOne(32))
-        return false;
+        return emitError(loc) << "dynamic memref dimension is unsupported in "
+                                 "host tile-count expression";
       expr += " * ";
       if (!appendOne(shape[0]))
-        return false;
-      return true;
+        return emitError(loc) << "dynamic memref dimension is unsupported in "
+                                 "host tile-count expression";
+      return expr;
     }
 
     // Dims before the last two: multiply them directly.
     for (size_t i = 0; i + 2 < rank; ++i) {
       int64_t dim = shape[i];
       if (dim == ShapedType::kDynamic)
-        return false;
+        return emitError(loc) << "dynamic memref dimension is unsupported in "
+                                 "host tile-count expression";
       if (!expr.empty())
         expr += " * ";
       expr += std::to_string(dim);
@@ -2724,13 +2323,17 @@ private:
     // Last two dims: keep the existing tiling logic (rank-2 and rank-1).
     if (!expr.empty())
       expr += " * ";
-    if (!appendOne(shape[rank - 2])) return false;
+    if (!appendOne(shape[rank - 2]))
+      return emitError(loc) << "dynamic memref dimension is unsupported in "
+                               "host tile-count expression";
     expr += " * ";
-    if (!appendOne(shape[rank - 1])) return false;
+    if (!appendOne(shape[rank - 1]))
+      return emitError(loc) << "dynamic memref dimension is unsupported in "
+                               "host tile-count expression";
 
-    // (Now expr can’t be empty if rank>=2, but keep the old fallback behavior.)
-    if (expr.empty()) expr = "1";
-    return true;
+    if (expr.empty())
+      return emitError(loc) << "failed to build host tile-count expression";
+    return expr;
   }
 
   static std::string stringifyAttr(Attribute attr) {
@@ -2915,9 +2518,11 @@ private:
         continue;
       }
 
-      std::string tilesExpr;
-      if (!buildTilesExpr(memrefType, tilesExpr))
+      FailureOr<std::string> tilesExpr = buildTilesExpr(memrefType, loc);
+      if (failed(tilesExpr)) {
+        status = failure();
         continue;
+      }
 
       Value hostArg = stripCasts(hostFunc.getArgument(index));
       bool isLoad = containsValue(loadMemrefs, hostArg);
@@ -2935,8 +2540,8 @@ private:
 
       std::string letter = getLetterName(dramInfos.size());
       std::string sizeExpr = "single_tile_size";
-      if (tilesExpr != "1")
-        sizeExpr += " * " + tilesExpr;
+      if (*tilesExpr != "1")
+        sizeExpr += " * " + *tilesExpr;
       bool isInput = isLoad;
       bool isOutput = isStore;
       int inputTensorOrdinal =
@@ -2960,7 +2565,7 @@ private:
           "dram_config_" + letter,
           roleName + "_dram_buffer",
           letter + "_tiles_per_block",
-          tilesExpr,
+          *tilesExpr,
           sizeExpr});
       hostArgKinds.push_back(HostArgKind::Memref);
     }
@@ -2974,19 +2579,25 @@ private:
     SmallVector<::loom::CopyOp, 8> orderedBindings;
     if (failed(collectCopyBindingOps(hostFunc, orderedBindings))) {
       hostFunc.emitError("failed to collect annotated DRAM/L1 copy bindings");
+      status = failure();
       return;
     }
 
     copyBindings.reserve(orderedBindings.size());
     for (::loom::CopyOp copyOp : orderedBindings) {
       auto slot = getCopyBindingSlot(copyOp.getOperation());
-      if (!slot)
+      if (!slot) {
+        status = copyOp.emitOpError("missing required copy binding slot");
         continue;
+      }
 
       Value dramMemref = getCopyBindingDramMemref(copyOp);
       DramBufferInfo *dramInfo = findDramInfoMutable(dramMemref);
-      if (!dramInfo)
+      if (!dramInfo) {
+        status = copyOp.emitOpError()
+                 << "failed to resolve DRAM buffer info for copy binding";
         continue;
+      }
 
       CopyBindingInfo info;
       info.slot = static_cast<unsigned>(*slot);
@@ -2996,8 +2607,19 @@ private:
       info.l1Endpoint = getCopyBindingL1Endpoint(copyOp);
       info.bindingName = "binding" + std::to_string(*slot);
 
-      if (auto cbMemrefType = getCopyBindingCBMemrefType(copyOp))
-        (void)buildTilesExpr(cbMemrefType, info.cbTilesExpr);
+      if (auto cbMemrefType = getCopyBindingCBMemrefType(copyOp)) {
+        FailureOr<std::string> cbTilesExpr =
+            buildTilesExpr(cbMemrefType, copyOp.getLoc());
+        if (failed(cbTilesExpr)) {
+          status = failure();
+          continue;
+        }
+        info.cbTilesExpr = *cbTilesExpr;
+      } else {
+        status = copyOp.emitOpError()
+                 << "failed to infer L1 CB memref type for copy binding";
+        continue;
+      }
 
       if (info.isInput) {
         auto parsedBroadcast = parseBroadcastAttr(copyOp.getBroadcastAttr());
@@ -3154,8 +2776,13 @@ private:
         return;
 
       CircularBufferInfo info;
-      if (!buildTilesExpr(cbMemrefType, info.tilesExpr))
+      FailureOr<std::string> tilesExpr =
+          buildTilesExpr(cbMemrefType, alloc.getLoc());
+      if (failed(tilesExpr)) {
+        status = failure();
         return;
+      }
+      info.tilesExpr = *tilesExpr;
       info.allocValue = alloc.getResult();
       info.tilesVarName =
           "cb_tiles_per_block_" + std::to_string(cbInfos.size());
@@ -3175,11 +2802,11 @@ private:
         }
       }
 
-      // Keep one fallback entry if an alloc has no explicit semaphore.
       if (info.cbIndices.empty()) {
-        unsigned cbIndex = nextCbIndex++;
-        info.cbIndices.push_back(cbIndex);
-        info.cbIndexNames.push_back("CBIndex::c_" + std::to_string(cbIndex));
+        status = alloc.emitOpError()
+                 << "host CB emission requires at least one explicit "
+                    "loom.semaphore_take for each loom.alloc";
+        return;
       }
 
       allocToCbInfo[alloc.getResult()] = static_cast<unsigned>(cbInfos.size());
@@ -3189,17 +2816,11 @@ private:
     for (CopyBindingInfo &binding : copyBindings) {
       int cbIndex = resolveCbIndexFromEndpoint(binding.l1Endpoint);
       if (cbIndex < 0) {
-        CircularBufferInfo info;
-        info.allocValue = {};
-        info.tilesExpr = binding.cbTilesExpr.empty()
-                             ? dramInfos[binding.dramInfoIndex].tilesExpr
-                             : binding.cbTilesExpr;
-        info.tilesVarName =
-            "cb_tiles_per_block_" + std::to_string(cbInfos.size());
-        cbIndex = nextCbIndex++;
-        info.cbIndices.push_back(static_cast<unsigned>(cbIndex));
-        info.cbIndexNames.push_back("CBIndex::c_" + std::to_string(cbIndex));
-        cbInfos.push_back(info);
+        hostFunc.emitError()
+            << "failed to resolve explicit CB index for copy binding "
+            << binding.slot;
+        status = failure();
+        continue;
       }
 
       binding.cbIndex = cbIndex;
@@ -3289,50 +2910,23 @@ private:
       emitLine("Program program = CreateProgram();");
       emitLine("uint32_t start_core_x = 0u;");
       emitLine("uint32_t start_core_y = 0u;");
-      if (mlirCoreExtentX && *mlirCoreExtentX > 0) {
-        emitLine("uint32_t end_core_x = " +
-                 std::to_string(*mlirCoreExtentX - 1) + "u;");
-      } else {
-        emitLine("uint32_t end_core_x = static_cast<uint32_t>(device->compute_with_storage_grid_size().x - 1);");
-      }
-      if (mlirCoreExtentY && *mlirCoreExtentY > 0) {
-        emitLine("uint32_t end_core_y = " +
-                 std::to_string(*mlirCoreExtentY - 1) + "u;");
-      } else {
-        emitLine("uint32_t end_core_y = static_cast<uint32_t>(device->compute_with_storage_grid_size().y - 1);");
-      }
+      emitLine("uint32_t end_core_x = " +
+               std::to_string(*mlirCoreExtentX - 1) + "u;");
+      emitLine("uint32_t end_core_y = " +
+               std::to_string(*mlirCoreExtentY - 1) + "u;");
     } else {
       const size_t deviceArg = hostArgPrefixCount + 5;
       emitLine("IDevice* device = v" + std::to_string(deviceArg) + ";");
       emitLine("CommandQueue& cq = device->command_queue();");
       emitLine("Program program{};");
-      emitLine("auto core_grid = device->compute_with_storage_grid_size();");
-      emitLine(
-          "uint32_t default_end_core_x = static_cast<uint32_t>(core_grid.x - 1);");
-      if (mlirCoreExtentX && *mlirCoreExtentX > 0) {
-        emitLine("if (default_end_core_x + 1 > " +
-                 std::to_string(*mlirCoreExtentX) +
-                 "u) default_end_core_x = " +
-                 std::to_string(*mlirCoreExtentX - 1) + "u;");
-      }
-      emitLine(
-          "uint32_t default_end_core_y = static_cast<uint32_t>(core_grid.y - 1);");
-      if (mlirCoreExtentY && *mlirCoreExtentY > 0) {
-        emitLine("if (default_end_core_y + 1 > " +
-                 std::to_string(*mlirCoreExtentY) +
-                 "u) default_end_core_y = " +
-                 std::to_string(*mlirCoreExtentY - 1) + "u;");
-      }
-      emitLine("uint32_t start_core_x = (v" + std::to_string(startCoreXArg) +
-               " == UINT32_MAX) ? 0u : v" + std::to_string(startCoreXArg) + ";");
-      emitLine("uint32_t start_core_y = (v" + std::to_string(startCoreYArg) +
-               " == UINT32_MAX) ? 0u : v" + std::to_string(startCoreYArg) + ";");
-      emitLine("uint32_t end_core_x = (v" + std::to_string(endCoreXArg) +
-               " == UINT32_MAX) ? default_end_core_x : v" +
-               std::to_string(endCoreXArg) + ";");
-      emitLine("uint32_t end_core_y = (v" + std::to_string(endCoreYArg) +
-               " == UINT32_MAX) ? default_end_core_y : v" +
-               std::to_string(endCoreYArg) + ";");
+      emitLine("uint32_t start_core_x = v" + std::to_string(startCoreXArg) +
+               ";");
+      emitLine("uint32_t start_core_y = v" + std::to_string(startCoreYArg) +
+               ";");
+      emitLine("uint32_t end_core_x = v" + std::to_string(endCoreXArg) +
+               ";");
+      emitLine("uint32_t end_core_y = v" + std::to_string(endCoreYArg) +
+               ";");
     }
     emitLine("CoreRangeSet all_cores{ CoreRange{ {start_core_x, start_core_y}, {end_core_x, end_core_y} } };");
     emitLine("constexpr uint32_t single_tile_size = sizeof(bfloat16) * TILE_HEIGHT * TILE_WIDTH;");
@@ -3970,6 +3564,7 @@ private:
   std::string coreCoordArg1Expr = "core.y";
   std::optional<int64_t> mlirCoreExtentX;
   std::optional<int64_t> mlirCoreExtentY;
+  LogicalResult status = success();
   bool hasReduce = false;
   ReduceRegionInfo reduceRegion;
 };
@@ -3987,10 +3582,11 @@ private:
  * @param func The original function to specialize.
  * @return The specialized host function.
  */
-static func::FuncOp makeHostFunc(func::FuncOp func, HostProgramKind kind,
-                                 func::FuncOp computeFunc,
-                                 func::FuncOp readerFunc,
-                                 func::FuncOp writerFunc) {
+static FailureOr<func::FuncOp> makeHostFunc(func::FuncOp func,
+                                            HostProgramKind kind,
+                                            func::FuncOp computeFunc,
+                                            func::FuncOp readerFunc,
+                                            func::FuncOp writerFunc) {
   IRMapping mapping;
   auto hostFunc = cast<func::FuncOp>(func->clone(mapping));
   hostFunc.setName((func.getName() +
@@ -4000,7 +3596,8 @@ static func::FuncOp makeHostFunc(func::FuncOp func, HostProgramKind kind,
 
   TTMetalHostProgramEmitter emitter(func, hostFunc, kind, computeFunc,
                                     readerFunc, writerFunc);
-  emitter.run();
+  if (failed(emitter.run()))
+    return failure();
   clearMatmulBReaderMergeAttrs(hostFunc);
   return hostFunc;
 }
@@ -4016,7 +3613,10 @@ static func::FuncOp makeHostFunc(func::FuncOp func, HostProgramKind kind,
 class FunctionSpecializer {
 public:
   FunctionSpecializer(ModuleOp module, func::FuncOp func)
-      : module(module), originalFunc(func) {
+      : module(module), originalFunc(func) {}
+
+  LogicalResult run() {
+    func::FuncOp func = originalFunc;
     const bool hasReduce = containsGatherOp(func);
     // Create specialized versions
     auto computeFunc = makeComputeFunc(func);
@@ -4052,26 +3652,32 @@ public:
       writerFunc->setAttr(kHasReduceAttrName, reduceAttr);
     }
 
-    auto hostCppFunc =
+    FailureOr<func::FuncOp> hostCppFunc =
         makeHostFunc(func, HostProgramKind::Cpp, computeFunc, readerFunc,
                      writerFunc);
-    auto hostPybindFunc =
+    if (failed(hostCppFunc))
+      return failure();
+    FailureOr<func::FuncOp> hostPybindFunc =
         makeHostFunc(func, HostProgramKind::Pybind, computeFunc, readerFunc,
                      writerFunc);
-    hostCppFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
-    hostPybindFunc->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
+    if (failed(hostPybindFunc))
+      return failure();
+    (*hostCppFunc)->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
+    (*hostPybindFunc)
+        ->setAttr(mlir::tt::ttkernel::ThreadTypeAttr::name, nocAttr);
     if (hasReduce) {
       auto reduceAttr = attrBuilder.getUnitAttr();
-      hostCppFunc->setAttr(kHasReduceAttrName, reduceAttr);
-      hostPybindFunc->setAttr(kHasReduceAttrName, reduceAttr);
+      (*hostCppFunc)->setAttr(kHasReduceAttrName, reduceAttr);
+      (*hostPybindFunc)->setAttr(kHasReduceAttrName, reduceAttr);
     }
 
     // Insert specialized functions into the module (before the original)
     module.insert(func, computeFunc);
     module.insert(func, readerFunc);
     module.insert(func, writerFunc);
-    module.insert(func, hostCppFunc);
-    module.insert(func, hostPybindFunc);
+    module.insert(func, *hostCppFunc);
+    module.insert(func, *hostPybindFunc);
+    return success();
   }
 
 private:
@@ -4082,64 +3688,65 @@ private:
 } // namespace
 
 LogicalResult mlir::loom::prepareMatmulBReaderMerge(ModuleOp module) {
-  func::FuncOp func = findFirstEntryFunc(module);
-  if (!func)
-    return success();
-
-  if (failed(annotateMatmulBReaderMerge(func)))
-    return failure();
-
+  for (func::FuncOp func : collectEntryFuncs(module))
+    if (failed(annotateMatmulBReaderMerge(func)))
+      return failure();
   return success();
 }
 
 LogicalResult mlir::loom::annotateVecLoadUsage(ModuleOp module) {
-  func::FuncOp func = findFirstEntryFunc(module);
-  if (!func)
-    return success();
-
-  auto annotated = annotateVecLoadUsageInFunc(func);
-  if (failed(annotated))
-    return failure();
+  for (func::FuncOp func : collectEntryFuncs(module)) {
+    auto annotated = annotateVecLoadUsageInFunc(func);
+    if (failed(annotated))
+      return failure();
+  }
   return success();
 }
 
-void mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
-  func::FuncOp func = findFirstEntryFunc(module);
-  if (!func)
-    return;
+LogicalResult mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
+  SmallVector<func::FuncOp, 8> funcs = collectEntryFuncs(module);
+  if (funcs.empty())
+    return success();
 
-  // Mark scalar load-copy sites so host/device scalar runtime-arg
-  // extraction remains in per-copy-site order.
-  annotateScalarRuntimeSites(func);
+  for (func::FuncOp func : funcs) {
+    if (!func || !func->getBlock())
+      continue;
 
-  // Ensure every reduction generic has a dedicated scaler semaphore input.
-  // This avoids reusing reduction outputs as scaler CBs during compute lowering.
-  ensureReductionScaleInputs(func);
+    // Mark scalar load-copy sites so host/device scalar runtime-arg
+    // extraction remains in per-copy-site order.
+    annotateScalarRuntimeSites(func);
 
-  // Temporary scalar path: replace scalar alloc/semaphore memory chains with
-  // direct function inputs before function specialization.
-  preprocessScalarMemoryOpsTmp(func);
+    // Ensure every reduction generic has a dedicated scaler semaphore input.
+    // This avoids reusing reduction outputs as scaler CBs during compute lowering.
+    ensureReductionScaleInputs(func);
 
-  if (failed(annotateCopyBindingSlots(func))) {
-    func.emitError("failed to annotate DRAM/L1 copy binding slots");
-    return;
+    // Temporary scalar path: replace scalar alloc/semaphore memory chains with
+    // direct function inputs before function specialization.
+    preprocessScalarMemoryOpsTmp(func);
+
+    if (failed(annotateCopyBindingSlots(func)))
+      return failure();
+
+    // Assign stable per-semaphore internal CB slots before cloning so
+    // specialized kernels share deterministic runtime-arg bindings.
+    annotateSemaphoreSlots(func);
+
+    ModuleOp parentModule = func->getParentOfType<ModuleOp>();
+    if (!parentModule) {
+      func.emitError("failed to locate parent module for specialization");
+      return failure();
+    }
+
+    // Create specialized versions adjacent to the source function.
+    FunctionSpecializer specializer(parentModule, func);
+    if (failed(specializer.run()))
+      return failure();
+
+    // Erase the original function.
+    func.erase();
   }
 
-  // Assign stable per-semaphore internal CB slots before cloning so
-  // specialized kernels share deterministic runtime-arg bindings.
-  annotateSemaphoreSlots(func);
-
-  ModuleOp parentModule = func->getParentOfType<ModuleOp>();
-  if (!parentModule) {
-    func.emitError("failed to locate parent module for specialization");
-    return;
-  }
-
-  // Create specialized versions adjacent to the source function.
-  FunctionSpecializer specializer(parentModule, func);
-
-  // Erase the original function.
-  func.erase();
+  return success();
 }
 
 LogicalResult mlir::loom::removeAllFunctionArguments(func::FuncOp func) {

@@ -132,7 +132,7 @@ struct RuntimeArgLayout {
 };
 
 std::optional<KernelRuntimeRole> getKernelRuntimeRole(func::FuncOp func);
-RuntimeArgLayout buildRuntimeArgLayout(func::FuncOp func);
+FailureOr<RuntimeArgLayout> buildRuntimeArgLayout(func::FuncOp func);
 
 struct DataMovementKernelSpec {
   llvm::StringLiteral processorAttrValue;
@@ -552,7 +552,7 @@ LogicalResult annotateVecLoadUsage(ModuleOp module);
  *
  * @param module The module containing functions to specialize.
  */
-void specializeFunctionsForTTKernel(ModuleOp module);
+LogicalResult specializeFunctionsForTTKernel(ModuleOp module);
 
 /**
  * @brief Replace function arguments with GetArgValOp operations.

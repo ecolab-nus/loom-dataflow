@@ -2,6 +2,8 @@
 # Provides conversion patterns from tiled Loom IR to TTKernel dialect
 
 add_library(loomTileLoomToTTKernel STATIC
+    ${CMAKE_CURRENT_LIST_DIR}/src/TTKernelUtils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/RuntimeArgLayout.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/MemoryOpToTTKernel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/ComputeOpToTTKernel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/SCFOpToTTKernel.cpp

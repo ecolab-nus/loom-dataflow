@@ -9,6 +9,8 @@
 
 #include "MemoryOpToTTKernel.h"
 #include "FuncOpToTTKernel.h"
+#include "TTKernelAttrs.h"
+#include "TTKernelUtils.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
@@ -45,72 +47,6 @@ using namespace tt::ttcore;
 //===----------------------------------------------------------------------===//
 // Helper Functions
 //===----------------------------------------------------------------------===//
-
-constexpr llvm::StringLiteral kReductionScaleCbAttrName =
-    "loom.reduction_scale_cb";
-constexpr llvm::StringLiteral kScalarSiteIdAttrName =
-    "loom.ttkernel.scalar_site_id";
-constexpr llvm::StringLiteral kVecKindAttrName = "loom.ttkernel.vec_kind";
-constexpr llvm::StringLiteral kVecTilesAttrName = "loom.ttkernel.vec_tiles";
-constexpr llvm::StringLiteral kSemaphoreSlotAttrName =
-    "loom.ttkernel.semaphore_slot";
-constexpr llvm::StringLiteral kCopyBindingSlotAttrName =
-    "loom.ttkernel.copy_binding_slot";
-
-/**
- * @brief Compute ceiling division of a dimension by the tile size (32).
- *
- * @param value Dimension size to be divided.
- * @return Number of tiles needed to cover the dimension, or nullopt for
- *         non-positive values.
- */
-static std::optional<int64_t> ceilDiv32(int64_t value) {
-  if (value <= 0)
-    return std::nullopt;
-  return (value + 31) / 32;
-}
-
-/**
- * @brief Compute total tile count for a shaped type.
- *
- * @details Dimensions before the innermost two are treated as tile-domain
- *          multiplicity and multiplied directly. Only the innermost two
- *          dimensions are element-domain extents and use ceil-div(32).
- *          Dynamic or non-shaped types yield std::nullopt.
- *
- * @param type The shaped type (e.g., tensor/memref) describing the logical data.
- * @return Total number of tiles required, or nullopt for invalid/non-static
- *         shape.
- */
-static std::optional<int64_t> getNumTilesFromShapedType(Type type) {
-  auto shaped = dyn_cast<ShapedType>(type);
-  if (!shaped || !shaped.hasStaticShape())
-    return std::nullopt;
-
-  ArrayRef<int64_t> shape = shaped.getShape();
-  unsigned rank = shape.size();
-  if (rank == 0)
-    return std::nullopt;
-
-  int64_t tiles = 1;
-
-  // Dimensions before the innermost two are already tile-domain extents.
-  for (unsigned i = 0; i + 2 < rank; ++i) {
-    if (shape[i] <= 0)
-      return std::nullopt;
-    tiles *= shape[i];
-  }
-
-  // Innermost dimensions are element-domain extents and require 32x32 tiling.
-  unsigned tiledStart = rank > 1 ? rank - 2 : 0;
-  for (unsigned i = tiledStart; i < rank; ++i) {
-    auto dimTiles = ceilDiv32(shape[i]);
-    if (!dimTiles)
-      return std::nullopt;
-    tiles *= *dimTiles;
-  }
-  return tiles;
-}
 
 /**
  * @brief Compute semaphore-give tile count from a shaped value.
@@ -196,39 +132,6 @@ static std::optional<int64_t> getNumTilesFromCBType(CBType cbType) {
   return (numElements + kTileElements - 1) / kTileElements;
 }
 
-/**
- * @brief Check if the operation is inside a compute kernel function.
- *
- * @details Determines kernel type by checking the ThreadTypeAttr on the parent
- *          function. Compute kernels have ThreadType::Compute, while
- * reader/writer kernels have ThreadType::Noc.
- *
- * @param op The operation to check.
- * @return true if the operation is inside a compute kernel, false otherwise.
- */
-static bool isComputeKernel(Operation *op) {
-  auto parentFunc = op->getParentOfType<func::FuncOp>();
-  if (!parentFunc)
-    return false;
-
-  auto threadAttr =
-      parentFunc->getAttrOfType<ThreadTypeAttr>(ThreadTypeAttr::name);
-  return threadAttr && threadAttr.getValue() == ThreadType::Compute;
-}
-
-static bool isWriterKernel(Operation *op) {
-  auto parentFunc = op->getParentOfType<func::FuncOp>();
-  if (!parentFunc)
-    return false;
-  StringRef name = parentFunc.getName();
-  return name.ends_with("__writer");
-}
-
-static Value i32Const(ConversionPatternRewriter &rewriter, Location loc,
-                      int32_t value) {
-  return rewriter.create<arith::ConstantIntOp>(loc, value, 32);
-}
-
 // Emit ceil_div(lhs, rhs) using ops that survive downstream TTKernel->EmitC.
 static Value ceilDivSICompat(ConversionPatternRewriter &rewriter, Location loc,
                              Value lhs, Value rhs) {
@@ -241,17 +144,7 @@ static Value ceilDivSICompat(ConversionPatternRewriter &rewriter, Location loc,
   return arith::DivSIOp::create(rewriter, loc, numer, rhs);
 }
 
-struct ReduceTransportAnalysis {
-  Value ulX;
-  Value ulY;
-  Value lrX;
-  Value lrY;
-  Value participants;
-  Value workerCount;
-  Value rank;
-  Value inRegion;
-  Value isReducer;
-};
+using ReduceTransportAnalysis = ReduceCoreRegionAnalysis;
 
 struct ReduceTransportRuntimeValues {
   Value payloadCb;
@@ -272,24 +165,6 @@ struct ReduceTransportRuntimeValues {
   Value nocId;
 };
 
-static Value toI32ForReduceTransport(ConversionPatternRewriter &rewriter,
-                                     Location loc, Value value) {
-  if (!value)
-    return {};
-  Type type = value.getType();
-  if (type.isIndex())
-    return rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), value);
-  if (type.isInteger(32))
-    return value;
-  if (auto intTy = dyn_cast<IntegerType>(type)) {
-    if (intTy.getWidth() < 32)
-      return rewriter.create<arith::ExtSIOp>(loc, rewriter.getI32Type(), value);
-    if (intTy.getWidth() > 32)
-      return rewriter.create<arith::TruncIOp>(loc, rewriter.getI32Type(), value);
-  }
-  return {};
-}
-
 static FailureOr<ReduceTransportAnalysis> analyzeReduceTransportRegion(
     ::loom::GatherOp op, ConversionPatternRewriter &rewriter,
     std::shared_ptr<CompileArgTracker> tracker) {
@@ -300,69 +175,10 @@ static FailureOr<ReduceTransportAnalysis> analyzeReduceTransportRegion(
     return failure();
   Location loc = op.getLoc();
 
-  Value coreX =
-      toI32ForReduceTransport(rewriter, loc,
-                              tracker->getCoreCoordForDim(parentFunc, "x"));
-  Value coreY =
-      toI32ForReduceTransport(rewriter, loc,
-                              tracker->getCoreCoordForDim(parentFunc, "y"));
-  llvm::DenseMap<Value, Value> i32Cache;
-  auto toI32Cached = [&](Value value) -> Value {
-    if (!value)
-      return {};
-    auto it = i32Cache.find(value);
-    if (it != i32Cache.end())
-      return it->second;
-    Value converted = toI32ForReduceTransport(rewriter, loc, value);
-    if (converted)
-      i32Cache.try_emplace(value, converted);
-    return converted;
-  };
-  Value ulX = toI32Cached(op.getUlX());
-  Value ulY = toI32Cached(op.getUlY());
-  Value lrX = toI32Cached(op.getLrX());
-  Value lrY = toI32Cached(op.getLrY());
-  if (!coreX || !coreY || !ulX || !ulY || !lrX || !lrY)
-    return failure();
-
-  Value one = i32Const(rewriter, loc, 1);
-  auto subI32 = [&](Value lhs, Value rhs) -> Value {
-    if (lhs == rhs)
-      return i32Const(rewriter, loc, 0);
-    return arith::SubIOp::create(rewriter, loc, lhs, rhs);
-  };
-  auto addI32 = [&](Value lhs, Value rhs) -> Value {
-    return arith::AddIOp::create(rewriter, loc, lhs, rhs);
-  };
-
-  Value width = addI32(subI32(lrX, ulX), one);
-  Value height = addI32(subI32(lrY, ulY), one);
-  Value participants = arith::MulIOp::create(rewriter, loc, width, height);
-  Value workerCount = arith::SubIOp::create(rewriter, loc, participants, one);
-
-  Value relX = subI32(coreX, ulX);
-  Value relY = subI32(coreY, ulY);
-  Value rank = arith::AddIOp::create(
-      rewriter, loc, arith::MulIOp::create(rewriter, loc, relY, width), relX);
-
-  Value geUlX =
-      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sge, coreX, ulX);
-  Value leLrX =
-      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sle, coreX, lrX);
-  Value geUlY =
-      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sge, coreY, ulY);
-  Value leLrY =
-      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::sle, coreY, lrY);
-  Value inRegion = arith::AndIOp::create(
-      rewriter, loc, arith::AndIOp::create(rewriter, loc, geUlX, leLrX),
-      arith::AndIOp::create(rewriter, loc, geUlY, leLrY));
-
-  Value isReducer = arith::AndIOp::create(
-      rewriter, loc,
-      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::eq, coreX, ulX),
-      arith::CmpIOp::create(rewriter, loc, arith::CmpIPredicate::eq, coreY, ulY));
-  return ReduceTransportAnalysis{ulX, ulY, lrX, lrY, participants, workerCount,
-                                 rank, inRegion, isReducer};
+  return analyzeReduceCoreRegion(
+      rewriter, loc, tracker->getCoreCoordForDim(parentFunc, "x"),
+      tracker->getCoreCoordForDim(parentFunc, "y"), op.getUlX(), op.getUlY(),
+      op.getLrX(), op.getLrY());
 }
 
 static FailureOr<ReduceTransportRuntimeValues> materializeReduceTransportRuntime(
@@ -524,19 +340,6 @@ static void emitReducerReduceTransportSync(
   CBPushBackOp::create(rewriter, loc, runtime.outCb, allParticipantTiles);
 }
 
-static std::optional<std::pair<int64_t, int64_t>>
-parseBroadcastAttr(ArrayAttr broadcastAttr) {
-  if (!broadcastAttr || broadcastAttr.size() < 2)
-    return std::nullopt;
-
-  auto xAttr = dyn_cast<IntegerAttr>(broadcastAttr[0]);
-  auto yAttr = dyn_cast<IntegerAttr>(broadcastAttr[1]);
-  if (!xAttr || !yAttr)
-    return std::nullopt;
-
-  return std::make_pair(xAttr.getInt(), yAttr.getInt());
-}
-
 static std::optional<int64_t> getAnnotatedVecTiles(::loom::CopyOp op) {
   auto tilesAttr = op->getAttrOfType<IntegerAttr>(kVecTilesAttrName);
   if (!tilesAttr)
@@ -631,19 +434,6 @@ static void emitReductionScaleCbInit(ConversionPatternRewriter &rewriter,
 }
 
 /**
- * @brief Strip intermediate memref.cast ops to recover the original memref.
- *
- * @param value Value that may be defined by one or more `memref.cast` ops.
- * @return The first non-`memref.cast` source value.
- */
-static Value stripMemrefCasts(Value value) {
-  Value current = value;
-  while (auto cast = current.getDefiningOp<memref::CastOp>())
-    current = cast.getSource();
-  return current;
-}
-
-/**
  * @brief Strip lightweight cast wrappers introduced during conversion.
  *
  * @details Removes:
@@ -682,15 +472,6 @@ static Value resolveSemaphoreSourceMemref(Value value) {
   return current;
 }
 
-static std::optional<int64_t> getCopyBindingSlot(Operation *op) {
-  if (!op)
-    return std::nullopt;
-  auto slotAttr = op->getAttrOfType<IntegerAttr>(kCopyBindingSlotAttrName);
-  if (!slotAttr)
-    return std::nullopt;
-  return slotAttr.getInt();
-}
-
 static SmallVector<int64_t, 2> collectCopyBindingSlotsForEndpoint(Value endpoint) {
   SmallVector<int64_t, 2> slots;
   if (!endpoint)
@@ -713,14 +494,6 @@ static SmallVector<int64_t, 2> collectCopyBindingSlotsForEndpoint(Value endpoint
 }
 
 /**
- * @brief Check whether a loom.copy is an L1->DRAM store.
- */
-static bool isL1ToDramStoreCopy(::loom::CopyOp copyOp) {
-  return copyOp.getDestination().getDefiningOp<memref::ReinterpretCastOp>() !=
-         nullptr;
-}
-
-/**
  * @brief Find an adjacent semaphore_give paired with an L1->DRAM copy source.
  *
  * @details Matches the common pattern:
@@ -730,7 +503,7 @@ static bool isL1ToDramStoreCopy(::loom::CopyOp copyOp) {
  */
 static ::loom::SemaphoreGiveOp
 findAdjacentSemaphoreGiveAfterStore(::loom::CopyOp copyOp) {
-  if (!isL1ToDramStoreCopy(copyOp))
+  if (!isL1ToDramCopy(copyOp))
     return nullptr;
 
   Value copySource = stripMemrefCasts(copyOp.getSource());
@@ -756,7 +529,7 @@ static bool isSemaphoreGiveForAdjacentL1ToDramStore(
     prev = prev->getPrevNode();
 
   auto copyOp = dyn_cast_or_null<::loom::CopyOp>(prev);
-  if (!copyOp || !isL1ToDramStoreCopy(copyOp))
+  if (!copyOp || !isL1ToDramCopy(copyOp))
     return false;
 
   return stripMemrefCasts(copyOp.getSource()) ==
@@ -809,22 +582,26 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
                                    ConversionPatternRewriter &rewriter,
                                    CopyBindingData *bindingData) {
   auto reinterpretCastOp = source.getDefiningOp<memref::ReinterpretCastOp>();
-  if (!reinterpretCastOp)
+  if (!reinterpretCastOp) {
+    emitError(loc) << "DRAM read source must be memref.reinterpret_cast";
     return std::make_pair(Value(), Value());
+  }
 
-  if (!bindingData)
+  if (!bindingData) {
+    emitError(loc) << "missing runtime tuple for DRAM read copy binding";
     return std::make_pair(Value(), Value());
+  }
 
   Value cb = bindingData->cb;
   if (!cb) {
-    llvm::errs() << "Error: CB not found for copy binding\n";
+    emitError(loc) << "missing CB runtime arg for DRAM read copy binding";
     return std::make_pair(Value(), Value());
   }
 
 
   Value baseAddr = bindingData->baseAddr;
   if (!baseAddr) {
-    llvm::errs() << "Error: base address not found for copy binding\n";
+    emitError(loc) << "missing base address runtime arg for DRAM read copy binding";
     return std::make_pair(Value(), Value());
   }
 
@@ -860,8 +637,8 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
         offset =
             rewriter.create<arith::ConstantIndexOp>(loc, staticOffset.getInt());
       } else {
-        // Fallback: error
-        llvm::errs() << "No offset found for memref.reinterpret_cast\n";
+        emitError(loc) << "memref.reinterpret_cast for DRAM read must carry "
+                          "a dynamic or static offset";
         return std::make_pair(Value(), Value());
       }
     }
@@ -886,7 +663,8 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
 
   Value accessorOp = bindingData->tensorAccessor;
   if (!accessorOp) {
-    llvm::errs() << "No TensorAccessor found for copy binding\n";
+    emitError(loc) << "missing TensorAccessor runtime arg for DRAM read copy "
+                      "binding";
     return std::make_pair(Value(), Value());
   }
 
@@ -909,12 +687,9 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
     auto stridesRef = stridedLayout.getStrides();
     strides.append(stridesRef.begin(), stridesRef.end());
   } else {
-    // Compute default row-major strides if not available.
-    int64_t stride = 1;
-    for (int i = shape.size() - 1; i >= 0; --i) {
-      strides.insert(strides.begin(), stride);
-      stride *= shape[i];
-    }
+    emitError(loc) << "DRAM read requires explicit strided memref layout; "
+                      "row-major stride synthesis is not allowed";
+    return std::make_pair(Value(), Value());
   }
 
   // Tile dimension (32x32 for TTKernel).
@@ -1196,8 +971,7 @@ struct ConvertReinterpretCastOp
  * @details Each semaphore materializes an independent CB handle. This pattern
  *          allocates a new compile/runtime arg (GetArgValOp-backed) per
  *          `loom.semaphore`, even when multiple semaphores share the same
- *          physical source buffer. it first check whether the semaphore is the source of a DRAM->L1 copy, if so, return the source memref arg.
- *          otherwise, return the destination memref arg. else, create a new compile-arg CB.
+ *          physical source buffer.
  */
 struct ConvertLoomSemaphoreTakeOp
     : public OpConversionPattern<::loom::SemaphoreTakeOp> {
@@ -1213,38 +987,6 @@ struct ConvertLoomSemaphoreTakeOp
                          std::shared_ptr<CompileArgTracker> tracker)
       : OpConversionPattern<::loom::SemaphoreTakeOp>(typeConverter, context),
         tracker(std::move(tracker)) {}
-
-  /// If semaphore is destination of DRAM->L1 copy, return the source memref arg.
-  Value findInputMemref(::loom::SemaphoreTakeOp semaphore) const {
-    for (Operation *user : semaphore.getResult().getUsers()) {
-      auto loomCopyOp = dyn_cast<::loom::CopyOp>(user);
-      if (!loomCopyOp || loomCopyOp.getDestination() != semaphore.getResult())
-        continue;
-
-      Value source = stripMemrefCasts(loomCopyOp.getSource());
-      if (auto reinterpretCastOp =
-              source.getDefiningOp<memref::ReinterpretCastOp>()) {
-        return stripMemrefCasts(reinterpretCastOp.getSource());
-      }
-    }
-    return {};
-  }
-
-  /// If semaphore is source of L1->DRAM copy, return the destination memref arg.
-  Value findOutputMemref(::loom::SemaphoreTakeOp semaphore) const {
-    for (Operation *user : semaphore.getResult().getUsers()) {
-      auto loomCopyOp = dyn_cast<::loom::CopyOp>(user);
-      if (!loomCopyOp || loomCopyOp.getSource() != semaphore.getResult())
-        continue;
-
-      Value destination = stripMemrefCasts(loomCopyOp.getDestination());
-      if (auto reinterpretCastOp =
-              destination.getDefiningOp<memref::ReinterpretCastOp>()) {
-        return stripMemrefCasts(reinterpretCastOp.getSource());
-      }
-    }
-    return {};
-  }
 
   bool isWriterGatherTransportBuffer(::loom::SemaphoreTakeOp semaphore) const {
     if (!isWriterKernel(semaphore))
@@ -1335,20 +1077,22 @@ struct ConvertLoomSemaphoreTakeOp
         auto *bindingData =
             tracker->getCopyBindingData(parentFunc.getOperation(),
                                         slotAttr.getInt());
-        if (!bindingData) {
-          rewriter.replaceOp(op, op.getSource());
-          return success();
-        }
+        if (!bindingData)
+          return op.emitOpError()
+                 << "missing copy binding runtime tuple for semaphore slot "
+                 << slotAttr.getInt();
         cb = bindingData->cb;
       }
     }
 
-    // Fallback for internal-only semaphore buffers not tied to memref args.
     if (!cb) {
       if (auto slotAttr = op->getAttrOfType<IntegerAttr>(kSemaphoreSlotAttrName)) {
         cb = tracker->createRuntimeArg(
             loc, rewriter, parentFunc,
             RuntimeArgKey::internalCb(slotAttr.getInt()), defaultCBType);
+      } else {
+        return op.emitOpError()
+               << "missing semaphore slot metadata for internal semaphore";
       }
     }
 
@@ -1521,11 +1265,9 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
           op, "missing runtime tuple for DRAM load copy binding");
 
     Value cb = bindingData->cb;
-    if (!cb) {
-      llvm::errs() << "Error: CB not found for DRAM load binding slot " << *slot
-                   << "\n";
-      return failure();
-    }
+    if (!cb)
+      return op.emitOpError("missing CB runtime arg for DRAM load binding slot ")
+             << *slot;
     auto cbType = cast<CBType>(cb.getType());
     auto elementType = cbType.getElementType();
     Value numPages;
@@ -1587,31 +1329,22 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
 
       coreX = tracker->getCoreCoordForDim(parentFunc, "x");
       coreY = tracker->getCoreCoordForDim(parentFunc, "y");
-      if (!coreX || !coreY) {
-        llvm::errs() << "missing mapped spatial core coordinates for broadcast; "
-                        "expected scf.parallel metadata to define x/y "
-                        "(loom.physical_dims or loom.mapped_to_dims)\n";
-        return failure();
-      }
-      auto toI32 = [&](Value v) -> Value {
-        if (v.getType().isIndex())
-          return rewriter.create<arith::IndexCastOp>(loc,
-                                                     rewriter.getI32Type(), v);
-        return v;
-      };
+      if (!coreX || !coreY)
+        return op.emitOpError()
+               << "missing mapped spatial core coordinates for broadcast; "
+                  "expected scf.parallel metadata to define x/y";
   
-      coreX = toI32(coreX);
-      coreY = toI32(coreY);
+      coreX = toI32(rewriter, loc, coreX);
+      coreY = toI32(rewriter, loc, coreY);
 
       Value ulX = op.getUlX();
       Value ulY = op.getUlY();
-      if (!ulX || !ulY) {
-        llvm::errs() << "missing broadcast UL coordinates on loom.copy; "
-                        "expected region : (UL : [x, y], LR : [...])\n";
-        return failure();
-      }
-      ulX = toI32(ulX);
-      ulY = toI32(ulY);
+      if (!ulX || !ulY)
+        return op.emitOpError()
+               << "missing broadcast UL coordinates; expected region "
+                  "(UL : [x, y], LR : [...])";
+      ulX = toI32(rewriter, loc, ulX);
+      ulY = toI32(rewriter, loc, ulY);
 
       Value isSenderX = arith::CmpIOp::create(
           rewriter, loc, arith::CmpIPredicate::eq, coreX, ulX);
@@ -1626,10 +1359,8 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
             ifOp.getThenRegion().front().getTerminator());
         auto [totalSizeBytes, multicast_l1Addr] = dram_read(
             source, loc, rewriter, bindingData);
-        if (!totalSizeBytes || !multicast_l1Addr) {
-          llvm::errs() << "dram_read failed to return valid values\n";
-          return failure();
-        }
+        if (!totalSizeBytes || !multicast_l1Addr)
+          return op.emitOpError("failed to emit DRAM read for multicast send");
         multicast_send(rewriter, loc, bindingData, totalSizeBytes,
                        multicast_l1Addr);
 
@@ -1641,10 +1372,8 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
     } else {
       auto [totalSizeBytes, multicast_l1Addr] = dram_read(
           source, loc, rewriter, bindingData);
-      if (!totalSizeBytes || !multicast_l1Addr) {
-        llvm::errs() << "dram_read failed to return valid values\n";
-        return failure();
-      }
+      if (!totalSizeBytes || !multicast_l1Addr)
+        return op.emitOpError("failed to emit DRAM read");
     }
 
     CBPushBackOp::create(rewriter, loc, bindingData->cb,
@@ -1696,17 +1425,13 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
           op, "missing runtime tuple for DRAM store copy binding");
 
     Value cb = bindingData->cb;
-    if (!cb) {
-      llvm::errs() << "No CB found for LoomCopyOp store binding slot " << *slot
-                   << "\n";
-      return failure();
-    }
+    if (!cb)
+      return op.emitOpError("missing CB runtime arg for DRAM store binding slot ")
+             << *slot;
 
     Value baseAddr = bindingData->baseAddr;
-    if (!baseAddr) {
-      llvm::errs() << "No base address found for LoomCopyOp store\n";
-      return failure();
-    }
+    if (!baseAddr)
+      return op.emitOpError("missing base address runtime arg for DRAM store");
 
     // Determine insertion point after both cb and baseAddr.
     Value insertionAnchor = cb;
@@ -1735,7 +1460,9 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
           offset =
               rewriter.create<arith::ConstantIndexOp>(loc, staticOffset.getInt());
         } else {
-          offset = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+          return op.emitOpError()
+                 << "memref.reinterpret_cast for DRAM store must carry "
+                    "a dynamic or static offset";
         }
       }
     }
@@ -1770,10 +1497,8 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
     }
 
     Value accessorOp = bindingData->tensorAccessor;
-    if (!accessorOp) {
-      llvm::errs() << "No TensorAccessor found for output memref\n";
-      return failure();
-    }
+    if (!accessorOp)
+      return op.emitOpError("missing TensorAccessor runtime arg for DRAM store");
 
     CBWaitFrontOp::create(rewriter, loc, cb, numPages);
     Value l1Addr = GetReadPtrOp::create(rewriter, loc, cb);
@@ -1788,11 +1513,9 @@ struct ConvertLoomMemoryStoreOp : public OpConversionPattern<::loom::CopyOp> {
       auto stridesRef = stridedLayout.getStrides();
       strides.append(stridesRef.begin(), stridesRef.end());
     } else {
-      int64_t stride = 1;
-      for (int i = shape.size() - 1; i >= 0; --i) {
-        strides.insert(strides.begin(), stride);
-        stride *= shape[i];
-      }
+      return op.emitOpError()
+             << "DRAM store requires explicit strided memref layout; "
+                "row-major stride synthesis is not allowed";
     }
 
     constexpr int64_t kTileDim = 32;
@@ -2081,10 +1804,9 @@ struct ConvertLoomComputeStoreOp : public OpConversionPattern<::loom::CopyOp> {
           op, "missing runtime tuple for compute-side DRAM store");
 
     Value outcb = bindingData->cb;
-    if (!outcb || !isa<CBType>(outcb.getType())) {
-      llvm::errs() << "No CB found for LoomComputeStoreOp target\n";
-      return failure();
-    }
+    if (!outcb || !isa<CBType>(outcb.getType()))
+      return op.emitOpError(
+          "missing CB runtime arg for compute-side DRAM store target");
 
     auto outcbType = cast<CBType>(outcb.getType());
     int32_t numTiles = static_cast<int32_t>(outcbType.getNumElements()) / 1024;

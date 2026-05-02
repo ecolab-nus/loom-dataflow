@@ -112,7 +112,10 @@ types.
 | `inc/TileLoomToTTKernel.h` | public pass factories and registration | adding a new top-level pass factory or exposing a new public entrypoint |
 | `src/TileLoomToTTKernel.cpp` | pass orchestration, legality, options, cleanup, post-EmitC host signature rewrite | changing pipeline order, adding a new lowering stage, changing pass options, changing legality |
 | `inc/FuncOpToTTKernel.h` | `CompileArgTracker` API and specialization entrypoints | adding new compile/runtime args or changing specialization contracts |
-| `src/FuncOpToTTKernel.cpp` | function cloning, compile-arg creation, host helper emission, matmul merge annotation | changing kernel split strategy, host codegen, or argument layout |
+| `inc/TTKernelAttrs.h` | shared `loom.ttkernel.*` metadata names and role strings | adding or renaming pass-owned attributes |
+| `inc/TTKernelUtils.h` / `src/TTKernelUtils.cpp` | shared IR, copy-binding, tile-count, broadcast, role, and constant helpers | avoiding duplicated helper logic across lowering files |
+| `src/RuntimeArgLayout.cpp` | compact per-kernel runtime-argument ABI layout | changing runtime arg order or required ABI fields |
+| `src/FuncOpToTTKernel.cpp` | function cloning, compile-arg creation, host helper emission, matmul merge annotation | changing kernel split strategy, host codegen, or argument materialization |
 | `inc/SCFOpToTTKernel.h` | SCF conversion API | extending SCF lowering surface |
 | `src/SCFOpToTTKernel.cpp` | `scf.parallel` lowering into compile-time core coords | changing how spatial loops map to core args |
 | `inc/MemoryOpToTTKernel.h` | memory conversion API and alloc cleanup API | adding memory patterns or cleanup phases |
@@ -124,6 +127,15 @@ types.
 | `lower.sh` | local end-to-end lowering example | checking the current manual workflow |
 | `split_kernel.py` | post-translation section split and host wrapper generation (`host_ttnn.py`) | changing generated file naming, host post-processing, or Python wrapper template |
 | `replace.py` | TTKernel MLIR post-processing before EmitC conversion | fixing downstream textual quirks in generated MLIR |
+
+Fail-fast invariant:
+
+- Shared helpers should return `FailureOr` / `LogicalResult` where missing
+  metadata would otherwise synthesize behavior.
+- The lowering should emit diagnostics for missing copy-binding slots,
+  semaphore slots, CB/base/tensor-accessor runtime args, explicit strided
+  layouts, and core-range metadata.
+- Normal MLIR pattern non-match is still allowed before a pattern claims an op.
 
 ## Public Entry Points You Should Know First
 
