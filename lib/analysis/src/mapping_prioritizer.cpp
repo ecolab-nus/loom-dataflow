@@ -1,8 +1,11 @@
 #include "mapping_prioritizer.h"
 
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Matchers.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Interfaces/ViewLikeInterface.h"
@@ -20,6 +23,91 @@
 using namespace mlir;
 
 namespace loom {
+
+namespace {
+
+std::optional<int64_t> getStaticUpperBound(Value v) {
+  if (!v)
+    return std::nullopt;
+
+  APInt constValue;
+  if (matchPattern(v, m_ConstantInt(&constValue)))
+    return constValue.getSExtValue();
+
+  Operation *defOp = v.getDefiningOp();
+  if (!defOp)
+    return std::nullopt;
+
+  if (defOp->getName().getStringRef() == "loom.sym") {
+    if (auto ub = defOp->getAttrOfType<IntegerAttr>("upper_bound"))
+      return ub.getInt();
+    return std::nullopt;
+  }
+
+  if (auto ceilDiv = dyn_cast<arith::CeilDivUIOp>(defOp))
+    return getStaticUpperBound(ceilDiv.getLhs());
+
+  if (auto mul = dyn_cast<arith::MulIOp>(defOp)) {
+    if (auto lhsConst = getStaticUpperBound(mul.getLhs())) {
+      APInt rhsConst;
+      if (matchPattern(mul.getRhs(), m_ConstantInt(&rhsConst)))
+        return *lhsConst * rhsConst.getSExtValue();
+    }
+    if (auto rhsConst = getStaticUpperBound(mul.getRhs())) {
+      APInt lhsConst;
+      if (matchPattern(mul.getLhs(), m_ConstantInt(&lhsConst)))
+        return lhsConst.getSExtValue() * *rhsConst;
+    }
+  }
+
+  return std::nullopt;
+}
+
+int64_t getStaticIterUpperBound(affine::AffineParallelOp par,
+                                unsigned iterIdx) {
+  AffineMap ubMap = par.getUpperBoundMap(iterIdx);
+  if (ubMap.getNumResults() != 1)
+    return 1;
+
+  AffineExpr expr = ubMap.getResult(0);
+  if (auto constExpr = dyn_cast<AffineConstantExpr>(expr))
+    return constExpr.getValue();
+
+  if (auto symExpr = dyn_cast<AffineSymbolExpr>(expr)) {
+    unsigned operandIdx = ubMap.getNumDims() + symExpr.getPosition();
+    ValueRange operands = par.getUpperBoundsOperands();
+    if (operandIdx < operands.size()) {
+      if (auto ub = getStaticUpperBound(operands[operandIdx]))
+        return *ub;
+    }
+  }
+
+  par.emitWarning() << "could not compute static upper bound for iter "
+                    << iterIdx << "; using 1";
+  return 1;
+}
+
+struct AxisPriority {
+  int64_t primary;
+  int64_t secondary;
+
+  bool operator==(const AxisPriority &other) const {
+    return primary == other.primary && secondary == other.secondary;
+  }
+};
+
+AxisPriority getPriority(const AxisScores &scores, PriorityKey key,
+                         unsigned iterIdx) {
+  switch (key) {
+  case PriorityKey::Reuse:
+    return {scores.reuse[iterIdx], 0};
+  case PriorityKey::ParallelismThenReuse:
+    return {scores.parallelism[iterIdx], scores.reuse[iterIdx]};
+  }
+  llvm_unreachable("unknown priority key");
+}
+
+} // namespace
 
 //===----------------------------------------------------------------------===//
 // collectParallelIterDeps
@@ -46,19 +134,23 @@ void MappingPrioritizer::collectParallelIterDeps(
 }
 
 //===----------------------------------------------------------------------===//
-// computeIterWeights
+// computeAxisScores
 //===----------------------------------------------------------------------===//
 
-llvm::SmallVector<int64_t>
-MappingPrioritizer::computeIterWeights(
+AxisScores
+MappingPrioritizer::computeAxisScores(
     func::FuncOp func, affine::AffineParallelOp rootParallel) {
   const unsigned P = rootParallel.getNumDims();
-  llvm::SmallVector<int64_t> weights(P, 0);
+  AxisScores scores;
+  scores.reuse.assign(P, 0);
+  scores.parallelism.reserve(P);
+  for (unsigned i = 0; i < P; ++i)
+    scores.parallelism.push_back(getStaticIterUpperBound(rootParallel, i));
 
   // Collect the root parallel IVs (block arguments of its body).
   SmallPtrSet<Value, 8> parallelIVs;
-  for (Value iv : rootParallel.getBody()->getArguments())
-    parallelIVs.insert(iv);
+  for (unsigned i = 0; i < P; ++i)
+    parallelIVs.insert(rootParallel.getBody()->getArgument(i));
 
   func.walk([&](loom::SubviewOp subview) {
     // Compute the element count of the source memref.
@@ -81,14 +173,15 @@ MappingPrioritizer::computeIterWeights(
         collectParallelIterDeps(v, parallelIVs, deps, visited);
     }
 
-    // Accumulate size into the weight of each participating IV.
-    for (Value dep : deps) {
-      unsigned argNum = llvm::cast<BlockArgument>(dep).getArgNumber();
-      weights[argNum] += size;
+    // Reuse is data whose offsets do not depend on this axis.
+    for (unsigned i = 0; i < P; ++i) {
+      Value iv = rootParallel.getBody()->getArgument(i);
+      if (!deps.count(iv))
+        scores.reuse[i] += size;
     }
   });
 
-  return weights;
+  return scores;
 }
 
 //===----------------------------------------------------------------------===//
@@ -116,108 +209,34 @@ void MappingPrioritizer::cartesianPerms(
 }
 
 //===----------------------------------------------------------------------===//
-// generateBijectiveMappings
+// enumeratePriorityOrderings
 //===----------------------------------------------------------------------===//
 
-llvm::SmallVector<DimBuckets>
-MappingPrioritizer::generateBijectiveMappings(
-    const llvm::SmallVector<int64_t> &weights, unsigned numHWDims) {
-  assert(weights.size() == numHWDims &&
-         "number of parallel iters must equal number of HW dims (P == D)");
+llvm::SmallVector<llvm::SmallVector<unsigned>>
+MappingPrioritizer::enumeratePriorityOrderings(
+    const AxisScores &scores, PriorityKey key,
+    std::optional<unsigned> reductionIdx) {
+  assert(scores.reuse.size() == scores.parallelism.size());
+  assert(!scores.reuse.empty());
+  const unsigned P = static_cast<unsigned>(scores.reuse.size());
+  if (reductionIdx)
+    assert(*reductionIdx < P);
 
-  const unsigned P = static_cast<unsigned>(weights.size());
-
-  // Build (weight, iterIdx) pairs and sort ascending by weight.
-  // Stable sort so that iters with equal weight retain their original order
-  // as the canonical starting permutation.
-  llvm::SmallVector<std::pair<int64_t, unsigned>> pairs;
-  pairs.reserve(P);
-  for (unsigned i = 0; i < P; ++i)
-    pairs.push_back({weights[i], i});
-  std::stable_sort(pairs.begin(), pairs.end(),
-                   [](const auto &a, const auto &b) {
-                     return a.first < b.first; // ascending weight
-                   });
-
-  // Group consecutive equal-weight pairs.
-  // Each group is assigned a contiguous block of HW dim indices (implicit in
-  // the Cartesian product position).  Within a group all permutations of iter
-  // indices are emitted.
-  // groupPerms[i] = list of permutations for group i;
-  // groupPerms[i][j] = one permutation = SmallVector<unsigned> of iter indices.
-  llvm::SmallVector<llvm::SmallVector<llvm::SmallVector<unsigned>>> groupPerms;
-
-  unsigned i = 0;
-  while (i < P) {
-    // Find the end of this equal-weight run.
-    unsigned j = i + 1;
-    while (j < P && pairs[j].first == pairs[i].first)
-      ++j;
-
-    // Collect iter indices for this group.
-    llvm::SmallVector<unsigned> groupIters;
-    for (unsigned k = i; k < j; ++k)
-      groupIters.push_back(pairs[k].second);
-    std::sort(groupIters.begin(), groupIters.end()); // canonical start
-
-    // Enumerate all permutations of this group.
-    llvm::SmallVector<llvm::SmallVector<unsigned>> permsForGroup;
-    do {
-      permsForGroup.push_back(groupIters);
-    } while (std::next_permutation(groupIters.begin(), groupIters.end()));
-
-    groupPerms.push_back(std::move(permsForGroup));
-    i = j;
-  }
-
-  // Cartesian product of per-group permutations → combined orderings.
-  // combined[j] = iter index that maps to HW dim j.
-  llvm::SmallVector<llvm::SmallVector<unsigned>> combinedOrderings;
-  llvm::SmallVector<unsigned> current;
-  cartesianPerms(0, groupPerms, current, combinedOrderings);
-
-  // Convert each combined ordering into a bijective DimBuckets.
-  // mapping[iterIdx] = {hwDimIdx}
-  llvm::SmallVector<DimBuckets> result;
-  result.reserve(combinedOrderings.size());
-  for (const auto &combined : combinedOrderings) {
-    DimBuckets mapping(P);
-    for (unsigned hwDim = 0; hwDim < P; ++hwDim)
-      mapping[combined[hwDim]].push_back(hwDim);
-    result.push_back(std::move(mapping));
-  }
-  return result;
-}
-
-//===----------------------------------------------------------------------===//
-// generateBijectiveMappingsWithForcedFirst
-//===----------------------------------------------------------------------===//
-
-llvm::SmallVector<DimBuckets>
-MappingPrioritizer::generateBijectiveMappingsWithForcedFirst(
-    const llvm::SmallVector<int64_t> &weights, unsigned numHWDims,
-    unsigned forcedIterIdx) {
-  assert(weights.size() == numHWDims &&
-         "number of parallel iters must equal number of HW dims (P == D)");
-  assert(forcedIterIdx < weights.size());
-
-  const unsigned P = static_cast<unsigned>(weights.size());
-
-  // 1. Forced iter at HW dim 0.
-  // 2. Build (weight, iterIdx) pairs for REMAINING iters.
-  llvm::SmallVector<std::pair<int64_t, unsigned>> pairs;
-  pairs.reserve(P - 1);
+  llvm::SmallVector<std::pair<AxisPriority, unsigned>> pairs;
+  pairs.reserve(reductionIdx ? P - 1 : P);
   for (unsigned i = 0; i < P; ++i) {
-    if (i == forcedIterIdx)
+    if (reductionIdx && i == *reductionIdx)
       continue;
-    pairs.push_back({weights[i], i});
+    pairs.push_back({getPriority(scores, key, i), i});
   }
+
   std::stable_sort(pairs.begin(), pairs.end(),
                    [](const auto &a, const auto &b) {
-                     return a.first < b.first; // ascending weight
+                     if (a.first.primary != b.first.primary)
+                       return a.first.primary > b.first.primary;
+                     return a.first.secondary > b.first.secondary;
                    });
 
-  // 3. Group by equal weight and get permutations.
   llvm::SmallVector<llvm::SmallVector<llvm::SmallVector<unsigned>>> groupPerms;
   for (unsigned i = 0; i < pairs.size();) {
     unsigned j = i + 1;
@@ -238,24 +257,73 @@ MappingPrioritizer::generateBijectiveMappingsWithForcedFirst(
     i = j;
   }
 
-  // 4. Combine: forcedIterIdx at 0, followed by all Cartesian permutations of
-  // others.
-  llvm::SmallVector<llvm::SmallVector<unsigned>> combinations;
-  llvm::SmallVector<unsigned> start = {forcedIterIdx};
-  if (P > 1) {
-    cartesianPerms(0, groupPerms, start, combinations);
-  } else {
-    combinations.push_back(start);
-  }
+  llvm::SmallVector<llvm::SmallVector<unsigned>> suffixOrderings;
+  llvm::SmallVector<unsigned> current;
+  if (pairs.empty())
+    suffixOrderings.push_back({});
+  else
+    cartesianPerms(0, groupPerms, current, suffixOrderings);
 
-  // 5. Convert to DimBuckets.
+  llvm::SmallVector<llvm::SmallVector<unsigned>> orderings;
+  orderings.reserve(suffixOrderings.size());
+  for (auto ordering : suffixOrderings) {
+    if (reductionIdx)
+      ordering.insert(ordering.begin(), *reductionIdx);
+    orderings.push_back(std::move(ordering));
+  }
+  return orderings;
+}
+
+//===----------------------------------------------------------------------===//
+// generateBijectiveMappings
+//===----------------------------------------------------------------------===//
+
+llvm::SmallVector<DimBuckets>
+MappingPrioritizer::generateBijectiveMappings(
+    const AxisScores &scores, unsigned numHWDims,
+    std::optional<unsigned> reductionIdx) {
+  assert(scores.reuse.size() == numHWDims &&
+         scores.parallelism.size() == numHWDims &&
+         "number of parallel iters must equal number of HW dims (P == D)");
+
+  auto orderings =
+      enumeratePriorityOrderings(scores, PriorityKey::Reuse, reductionIdx);
+
+  // Convert each combined ordering into a bijective DimBuckets.
+  // mapping[iterIdx] = {hwDimIdx}
   llvm::SmallVector<DimBuckets> result;
-  for (const auto &comb : combinations) {
+  result.reserve(orderings.size());
+  for (const auto &priority : orderings) {
+    DimBuckets mapping(numHWDims);
+    for (unsigned hwDim = 0; hwDim < numHWDims; ++hwDim)
+      mapping[priority[hwDim]].push_back(hwDim);
+    result.push_back(std::move(mapping));
+  }
+  return result;
+}
+
+llvm::SmallVector<DimBuckets>
+MappingPrioritizer::generateDoubledLevel0Mappings(
+    const AxisScores &scores, llvm::ArrayRef<unsigned> level0DimIndices,
+    llvm::ArrayRef<unsigned> nonLevel0DimIndices,
+    std::optional<unsigned> reductionIdx) {
+  assert(scores.reuse.size() == scores.parallelism.size());
+  assert(!scores.reuse.empty());
+  assert(level0DimIndices.size() == 2);
+  assert(nonLevel0DimIndices.size() == scores.reuse.size() - 1);
+
+  const unsigned P = static_cast<unsigned>(scores.reuse.size());
+  auto orderings = enumeratePriorityOrderings(
+      scores, PriorityKey::ParallelismThenReuse, reductionIdx);
+  llvm::SmallVector<DimBuckets> result;
+  result.reserve(orderings.size());
+
+  for (const auto &priority : orderings) {
     DimBuckets buckets(P);
-    for (unsigned hwDimIdx = 0; hwDimIdx < P; ++hwDimIdx) {
-      unsigned iterIdx = comb[hwDimIdx];
-      buckets[iterIdx].push_back(hwDimIdx);
-    }
+    buckets[priority[0]].push_back(level0DimIndices[0]);
+    buckets[priority[0]].push_back(level0DimIndices[1]);
+    for (unsigned idx = 1; idx < P; ++idx)
+      buckets[priority[idx]].push_back(nonLevel0DimIndices[idx - 1]);
     result.push_back(std::move(buckets));
   }
 
