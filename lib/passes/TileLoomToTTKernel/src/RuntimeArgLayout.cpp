@@ -74,12 +74,6 @@ mlir::loom::buildRuntimeArgLayout(func::FuncOp func) {
   if (failed(collectCopyBindingOps(func, copyBindings)))
     return failure();
 
-  auto addCopyBindingBase = [&](int64_t slot) {
-    layout.add(RuntimeArgKey::copyBinding(slot, CopyBindingRuntimeField::Cb));
-    layout.add(
-        RuntimeArgKey::copyBinding(slot, CopyBindingRuntimeField::BaseAddr));
-  };
-
   auto addCopyBindingMcast = [&](int64_t slot) {
     layout.add(RuntimeArgKey::copyBinding(
         slot, CopyBindingRuntimeField::McastDestStartX));
@@ -107,20 +101,20 @@ mlir::loom::buildRuntimeArgLayout(func::FuncOp func) {
       return copyOp.emitOpError("missing required copy binding slot");
 
     if (*role == KernelRuntimeRole::Compute) {
-      layout.add(
-          RuntimeArgKey::copyBinding(*slot, CopyBindingRuntimeField::Cb));
       continue;
     }
 
     if (isDramToL1Copy(copyOp)) {
-      addCopyBindingBase(*slot);
+      layout.add(
+          RuntimeArgKey::copyBinding(*slot, CopyBindingRuntimeField::BaseAddr));
       if (hasRuntimeBroadcast(copyOp))
         addCopyBindingMcast(*slot);
       continue;
     }
 
     if (isL1ToDramCopy(copyOp)) {
-      addCopyBindingBase(*slot);
+      layout.add(
+          RuntimeArgKey::copyBinding(*slot, CopyBindingRuntimeField::BaseAddr));
       continue;
     }
 
@@ -149,12 +143,6 @@ mlir::loom::buildRuntimeArgLayout(func::FuncOp func) {
   if (hasMappedParallel(func)) {
     layout.add(RuntimeArgKey::coreCoord(CoreCoordRuntimeField::X));
     layout.add(RuntimeArgKey::coreCoord(CoreCoordRuntimeField::Y));
-  }
-
-  if (*role == KernelRuntimeRole::Compute ||
-      *role == KernelRuntimeRole::Writer) {
-    for (int64_t slot : collectInternalSemaphoreSlots(func))
-      layout.add(RuntimeArgKey::internalCb(slot));
   }
 
   return layout;

@@ -1087,9 +1087,16 @@ struct ConvertLoomSemaphoreTakeOp
 
     if (!cb) {
       if (auto slotAttr = op->getAttrOfType<IntegerAttr>(kSemaphoreSlotAttrName)) {
-        cb = tracker->createRuntimeArg(
-            loc, rewriter, parentFunc,
-            RuntimeArgKey::internalCb(slotAttr.getInt()), defaultCBType);
+        auto cbIndexAttr = op->getAttrOfType<IntegerAttr>(kCBIndexAttrName);
+        if (!cbIndexAttr) {
+          return op.emitOpError()
+                 << "missing static CB index for internal semaphore slot "
+                 << slotAttr.getInt();
+        }
+        cb = tracker->createCBConst(
+            loc, rewriter, parentFunc, cbIndexAttr.getInt(),
+            "cb_id_internal" + std::to_string(slotAttr.getInt()),
+            defaultCBType, std::nullopt, slotAttr.getInt());
       } else {
         return op.emitOpError()
                << "missing semaphore slot metadata for internal semaphore";

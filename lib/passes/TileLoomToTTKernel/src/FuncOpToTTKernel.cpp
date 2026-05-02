@@ -840,6 +840,61 @@ static void annotateSemaphoreSlots(func::FuncOp func) {
   });
 }
 
+static LogicalResult annotateStaticCbIndices(func::FuncOp func) {
+  Builder builder(func.getContext());
+  unsigned nextCbIndex = 0;
+  llvm::DenseMap<Value, unsigned> semaphoreToCbIndex;
+
+  llvm::DenseMap<Value, SmallVector<Value, 4>> semaphoresByAlloc;
+  func.walk([&](::loom::SemaphoreTakeOp sem) {
+    Value base = stripLoomSemaphores(stripMemrefCasts(sem.getSource()));
+    if (!base.getDefiningOp<::loom::AllocOp>())
+      return;
+    semaphoresByAlloc[base].push_back(sem.getResult());
+  });
+
+  func.walk([&](::loom::AllocOp alloc) {
+    auto it = semaphoresByAlloc.find(alloc.getResult());
+    if (it == semaphoresByAlloc.end())
+      return;
+
+    for (Value semValue : it->second) {
+      unsigned cbIndex = nextCbIndex++;
+      semaphoreToCbIndex[semValue] = cbIndex;
+      if (auto sem = semValue.getDefiningOp<::loom::SemaphoreTakeOp>()) {
+        sem->setAttr(kCBIndexAttrName, builder.getI64IntegerAttr(cbIndex));
+      }
+    }
+  });
+
+  LogicalResult status = success();
+  func.walk([&](::loom::CopyOp copyOp) {
+    if (failed(status))
+      return;
+    auto slot = getCopyBindingSlot(copyOp.getOperation());
+    if (!slot)
+      return;
+    Value endpoint = stripMemrefCasts(getCopyBindingL1Endpoint(copyOp));
+    auto sem = endpoint.getDefiningOp<::loom::SemaphoreTakeOp>();
+    if (!sem) {
+      status = copyOp.emitOpError()
+               << "failed to resolve semaphore endpoint while assigning CB "
+                  "index for copy binding slot "
+               << *slot;
+      return;
+    }
+    auto it = semaphoreToCbIndex.find(sem.getResult());
+    if (it == semaphoreToCbIndex.end()) {
+      status = copyOp.emitOpError()
+               << "missing static CB index for copy binding slot " << *slot;
+      return;
+    }
+    copyOp->setAttr(kCBIndexAttrName, builder.getI64IntegerAttr(it->second));
+  });
+
+  return status;
+}
+
 } // namespace
 
 LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
@@ -947,11 +1002,18 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
       return createRuntimeArg(bindingLoc, rewriter, func, key, resultType);
     };
 
-    Value cbOp = createCopyRuntimeArg(CopyBindingRuntimeField::Cb,
-                                      CBType::get(cbMemrefType));
+    auto cbIndexAttr = copyOp->getAttrOfType<IntegerAttr>(kCBIndexAttrName);
+    if (!cbIndexAttr) {
+      return copyOp.emitOpError("missing static CB index for copy binding slot ")
+             << *slot;
+    }
+    Value cbOp =
+        createCBConst(bindingLoc, rewriter, func, cbIndexAttr.getInt(),
+                      "cb_id_binding" + std::to_string(*slot),
+                      CBType::get(cbMemrefType), *slot, std::nullopt);
     if (!cbOp)
-      return copyOp.emitOpError("failed to materialize copy-binding CB "
-                                "runtime arg for slot ")
+      return copyOp.emitOpError("failed to materialize static copy-binding CB "
+                                "for slot ")
              << *slot;
 
     Value baseAddrOp = createCopyRuntimeArg(CopyBindingRuntimeField::BaseAddr,
@@ -1297,6 +1359,37 @@ Value mlir::loom::CompileArgTracker::createRuntimeArg(
     return nullptr;
   return createTypedCompileArgAtIndex(loc, rewriter, funcOp, *argIndex,
                                       resultType);
+}
+
+Value mlir::loom::CompileArgTracker::createCBConst(
+    Location loc, OpBuilder &rewriter, Operation *funcOp, int64_t cbIndex,
+    llvm::StringRef name, Type resultType,
+    std::optional<int64_t> copyBindingSlot,
+    std::optional<int64_t> internalSlot) {
+  if (!funcOp || !resultType || cbIndex < 0 || name.empty())
+    return nullptr;
+
+  std::string nameStr = name.str();
+  auto &cache = funcToCBConstValues[funcOp];
+  auto cached = cache.find(nameStr);
+  if (cached != cache.end()) {
+    if (cached->second.getType() != resultType)
+      return nullptr;
+    return cached->second;
+  }
+
+  auto func = dyn_cast<func::FuncOp>(funcOp);
+  if (!func)
+    return nullptr;
+
+  FailureOr<Value> cbConst =
+      getOrCreateCBConst(loc, rewriter, func, cbIndex, name, resultType,
+                         copyBindingSlot, internalSlot);
+  if (failed(cbConst))
+    return nullptr;
+
+  cache[nameStr] = *cbConst;
+  return *cbConst;
 }
 
 const mlir::loom::CompileArgTracker::ReduceRuntimeArgs *
@@ -2790,15 +2883,29 @@ private:
       auto semIt = semaphoresByAlloc.find(alloc.getResult());
       if (semIt != semaphoresByAlloc.end()) {
         for (Value semValue : semIt->second) {
-          unsigned cbIndex = nextCbIndex++;
+          auto sem = semValue.getDefiningOp<::loom::SemaphoreTakeOp>();
+          if (!sem) {
+            status = alloc.emitOpError()
+                     << "failed to resolve semaphore for static CB index";
+            return;
+          }
+          auto cbIndexAttr = sem->getAttrOfType<IntegerAttr>(kCBIndexAttrName);
+          if (!cbIndexAttr) {
+            status = sem.emitOpError("missing static CB index metadata");
+            return;
+          }
+          if (cbIndexAttr.getInt() < 0) {
+            status = sem.emitOpError("has negative static CB index");
+            return;
+          }
+          unsigned cbIndex = static_cast<unsigned>(cbIndexAttr.getInt());
+          nextCbIndex = std::max(nextCbIndex, cbIndex + 1);
           info.cbIndices.push_back(cbIndex);
           info.cbIndexNames.push_back("CBIndex::c_" + std::to_string(cbIndex));
           semaphoreToCbIndex[semValue] = cbIndex;
-          if (auto sem = semValue.getDefiningOp<::loom::SemaphoreTakeOp>()) {
-            if (auto slotAttr =
-                    sem->getAttrOfType<IntegerAttr>(kSemaphoreSlotAttrName))
-              internalSlotToCbIndex.try_emplace(slotAttr.getInt(), cbIndex);
-          }
+          if (auto slotAttr =
+                  sem->getAttrOfType<IntegerAttr>(kSemaphoreSlotAttrName))
+            internalSlotToCbIndex.try_emplace(slotAttr.getInt(), cbIndex);
         }
       }
 
@@ -3730,6 +3837,9 @@ LogicalResult mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
     // Assign stable per-semaphore internal CB slots before cloning so
     // specialized kernels share deterministic runtime-arg bindings.
     annotateSemaphoreSlots(func);
+
+    if (failed(annotateStaticCbIndices(func)))
+      return failure();
 
     ModuleOp parentModule = func->getParentOfType<ModuleOp>();
     if (!parentModule) {

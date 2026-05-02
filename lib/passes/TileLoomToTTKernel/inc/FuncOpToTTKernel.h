@@ -31,6 +31,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include <cstdint>
 #include <memory>
@@ -356,6 +357,17 @@ public:
   Value createRuntimeArg(Location loc, OpBuilder &rewriter, Operation *funcOp,
                          RuntimeArgKey key, Type resultType);
 
+  /**
+   * @brief Create or reuse a named static CB index value.
+   *
+   * @details The returned value has TTKernel CB type, but lowers to a generated
+   *          device-side `constexpr uint32_t` symbol instead of a runtime arg.
+   */
+  Value createCBConst(Location loc, OpBuilder &rewriter, Operation *funcOp,
+                      int64_t cbIndex, llvm::StringRef name, Type resultType,
+                      std::optional<int64_t> copyBindingSlot = std::nullopt,
+                      std::optional<int64_t> internalSlot = std::nullopt);
+
   std::optional<int64_t> getRuntimeArgIndex(Operation *funcOp,
                                             RuntimeArgKey key) const;
 
@@ -472,6 +484,9 @@ private:
   // Per-function cache for explicit-index compile args.
   llvm::DenseMap<Operation *, llvm::DenseMap<int64_t, Value>>
       funcToExplicitCompileArgs;
+
+  // Per-function cache for named static CB constants.
+  llvm::DenseMap<Operation *, llvm::StringMap<Value>> funcToCBConstValues;
 
   // Map from FuncOp (as Operation*) to the next available tensor accessor args index.
   llvm::DenseMap<Operation *, int64_t> funcToNextTensorAccessorArgsIndex;

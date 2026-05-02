@@ -362,7 +362,8 @@ public:
 
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<func::FuncDialect, linalg::LinalgDialect,
-                    arith::ArithDialect, mlir::tt::ttkernel::TTKernelDialect>();
+                    arith::ArithDialect, emitc::EmitCDialect,
+                    mlir::tt::ttkernel::TTKernelDialect>();
   }
 
   void runOnOperation() override {
@@ -389,39 +390,34 @@ public:
 
       Block &entry = func.front();
       int64_t copyBindingCount = getAnnotatedCopyBindingCount(func);
-      FailureOr<RuntimeArgLayout> runtimeLayoutOr =
-          buildRuntimeArgLayout(func);
-      if (failed(runtimeLayoutOr)) {
-        signalPassFailure();
-        return;
-      }
-      RuntimeArgLayout runtimeLayout = *runtimeLayoutOr;
 
       llvm::DenseMap<int64_t, Value> bindingSlotToCB;
-      llvm::DenseMap<int64_t, Value> runtimeArgIndexToCB;
-      Operation *lastGetArgVal = nullptr;
+      llvm::DenseMap<int64_t, MemRefType> bindingSlotToCBMemrefType;
+      llvm::DenseMap<int64_t, int64_t> bindingSlotToCBIndex;
+      Operation *lastParamMaterialization = nullptr;
       for (Operation &op : entry) {
         auto getArgVal = dyn_cast<GetArgValOp>(op);
-        if (!getArgVal)
+        auto getCompileArgVal = dyn_cast<GetCompileArgValOp>(op);
+        if (getArgVal || getCompileArgVal)
+          lastParamMaterialization = &op;
+        if (!getCompileArgVal || !isa<CBType>(getCompileArgVal.getType()))
           continue;
-        lastGetArgVal = &op;
-        auto argIndex = evaluateConstInt(getArgVal.getOperand());
-        if (!isa<CBType>(getArgVal.getType()))
-          continue;
-        if (!argIndex || *argIndex < 0)
-          continue;
-        runtimeArgIndexToCB.try_emplace(*argIndex, getArgVal.getResult());
+        if (auto slotAttr = getCompileArgVal->getAttrOfType<IntegerAttr>(
+                kCBConstBindingSlotAttrName))
+          bindingSlotToCB.try_emplace(slotAttr.getInt(),
+                                      getCompileArgVal.getResult());
       }
 
-      for (int64_t slot = 0; slot < copyBindingCount; ++slot) {
-        auto cbIndex = runtimeLayout.indexOf(RuntimeArgKey::copyBinding(
-            slot, CopyBindingRuntimeField::Cb));
-        if (!cbIndex)
-          continue;
-        auto cbIt = runtimeArgIndexToCB.find(*cbIndex);
-        if (cbIt != runtimeArgIndexToCB.end())
-          bindingSlotToCB.try_emplace(slot, cbIt->second);
-      }
+      auto createCBConst = [&](int64_t cbIndex, StringRef name,
+                               MemRefType memrefType,
+                               std::optional<int64_t> bindingSlot,
+                               std::optional<int64_t> internalSlot)
+          -> FailureOr<Value> {
+        OpBuilder constBuilder(func.getContext());
+        return getOrCreateCBConst(func.getLoc(), constBuilder, func, cbIndex,
+                                  name, CBType::get(memrefType), bindingSlot,
+                                  internalSlot);
+      };
 
       llvm::DenseMap<Value, int64_t> inputEndpointToSlot;
       llvm::DenseMap<Value, int64_t> outputEndpointToSlot;
@@ -432,6 +428,12 @@ public:
         auto slot = getCopyBindingSlot(copyOp.getOperation());
         if (!slot)
           return;
+
+        if (auto cbMemrefType = getCopyBindingCBMemrefType(copyOp))
+          bindingSlotToCBMemrefType.try_emplace(*slot, cbMemrefType);
+        if (auto cbIndexAttr =
+                copyOp->getAttrOfType<IntegerAttr>(kCBIndexAttrName))
+          bindingSlotToCBIndex.try_emplace(*slot, cbIndexAttr.getInt());
 
         auto recordEndpoint =
             [&](Value endpoint, llvm::DenseMap<Value, int64_t> &map,
@@ -463,6 +465,25 @@ public:
         return;
       }
 
+      for (int64_t slot = 0; slot < copyBindingCount; ++slot) {
+        if (bindingSlotToCB.contains(slot))
+          continue;
+        auto typeIt = bindingSlotToCBMemrefType.find(slot);
+        auto indexIt = bindingSlotToCBIndex.find(slot);
+        if (typeIt == bindingSlotToCBMemrefType.end() ||
+            indexIt == bindingSlotToCBIndex.end())
+          continue;
+        FailureOr<Value> cb =
+            createCBConst(indexIt->second,
+                          "cb_id_binding" + std::to_string(slot),
+                          typeIt->second, slot, std::nullopt);
+        if (failed(cb)) {
+          signalPassFailure();
+          return;
+        }
+        bindingSlotToCB.try_emplace(slot, *cb);
+      }
+
       auto linalgOp = cast<linalg::LinalgOp>(targetMatmulOp);
       if (linalgOp.getDpsInputs().size() < 2 || linalgOp.getDpsInits().empty()) {
         func.emitError()
@@ -472,8 +493,8 @@ public:
       }
 
       OpBuilder builder(func.getContext());
-      if (lastGetArgVal)
-        builder.setInsertionPointAfter(lastGetArgVal);
+      if (lastParamMaterialization)
+        builder.setInsertionPointAfter(lastParamMaterialization);
       else
         builder.setInsertionPointToStart(&entry);
 
@@ -489,26 +510,23 @@ public:
 
         int64_t slot = slotAndType->first;
         MemRefType memrefType = slotAndType->second;
-        auto layoutIndex = runtimeLayout.indexOf(RuntimeArgKey::internalCb(slot));
-        if (!layoutIndex) {
-          func.emitError()
-              << "missing runtime layout entry for internal semaphore slot "
-              << slot << " while building mm_init " << role;
+        Value endpoint = stripBindingLookupWrappers(operand);
+        auto sem = endpoint.getDefiningOp<::loom::SemaphoreTakeOp>();
+        if (!sem) {
+          func.emitError() << "failed to resolve internal semaphore endpoint "
+                           << "for mm_init " << role;
           return failure();
         }
-        int64_t argIndex = *layoutIndex;
-        if (auto it = runtimeArgIndexToCB.find(argIndex);
-            it != runtimeArgIndexToCB.end())
-          return it->second;
-
-        Value argIndexValue = builder.create<arith::ConstantIntOp>(
-            func.getLoc(), builder.getI32Type(), argIndex);
-        Value cb =
-            builder.create<GetArgValOp>(func.getLoc(), CBType::get(memrefType),
-                                        argIndexValue);
-        runtimeArgIndexToCB.try_emplace(argIndex, cb);
-        lastGetArgVal = cb.getDefiningOp();
-        return cb;
+        auto cbIndexAttr = sem->getAttrOfType<IntegerAttr>(kCBIndexAttrName);
+        if (!cbIndexAttr) {
+          func.emitError() << "missing static CB index for internal semaphore "
+                           << "slot " << slot << " while building mm_init "
+                           << role;
+          return failure();
+        }
+        return createCBConst(cbIndexAttr.getInt(),
+                             "cb_id_internal" + std::to_string(slot),
+                             memrefType, std::nullopt, slot);
       };
 
       auto resolveBindingCB = [&](Value operand,
@@ -1003,6 +1021,8 @@ public:
     Type hostScalarVectorType =
         emitc::OpaqueType::get(ctx, "const std::vector<float>&");
     Type coreCoordType = emitc::OpaqueType::get(ctx, "uint32_t");
+
+    rewriteNamedCBCompileTimeArgLiterals(module);
 
     for (func::FuncOp func : collectAllFuncOps(module)) {
       bool isHostCpp =

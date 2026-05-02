@@ -64,6 +64,14 @@ parseBroadcastAttr(ArrayAttr broadcastAttr);
 Value i32Const(OpBuilder &rewriter, Location loc, int64_t value);
 Value toI32(OpBuilder &rewriter, Location loc, Value value);
 
+FailureOr<Value>
+getOrCreateCBConst(Location loc, OpBuilder &rewriter, func::FuncOp func,
+                   int64_t cbIndex, StringRef name, Type resultType,
+                   std::optional<int64_t> copyBindingSlot = std::nullopt,
+                   std::optional<int64_t> internalSlot = std::nullopt);
+
+void rewriteNamedCBCompileTimeArgLiterals(ModuleOp module);
+
 struct ReduceCoreRegionAnalysis {
   Value ulX;
   Value ulY;

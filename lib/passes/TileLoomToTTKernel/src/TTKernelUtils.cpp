@@ -7,6 +7,7 @@
 #include "TTKernelAttrs.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/EmitC/IR/EmitC.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #include "mlir/Interfaces/ViewLikeInterface.h"
@@ -396,6 +397,106 @@ Value mlir::loom::toI32(OpBuilder &rewriter, Location loc, Value value) {
       return rewriter.create<arith::TruncIOp>(loc, rewriter.getI32Type(), value);
   }
   return {};
+}
+
+FailureOr<Value> mlir::loom::getOrCreateCBConst(
+    Location loc, OpBuilder &rewriter, func::FuncOp func, int64_t cbIndex,
+    StringRef name, Type resultType, std::optional<int64_t> copyBindingSlot,
+    std::optional<int64_t> internalSlot) {
+  if (!func || !resultType || cbIndex < 0 || name.empty()) {
+    if (func)
+      func.emitError() << "invalid static CB constant request for '" << name
+                       << "'";
+    return failure();
+  }
+
+  Block &entry = func.front();
+  for (Operation &op : entry) {
+    auto ctArg = dyn_cast<GetCompileArgValOp>(op);
+    if (!ctArg)
+      continue;
+    auto nameAttr = ctArg->getAttrOfType<StringAttr>(kCBConstNameAttrName);
+    if (!nameAttr || nameAttr.getValue() != name)
+      continue;
+    if (ctArg.getResult().getType() != resultType) {
+      func.emitError() << "static CB constant '" << name
+                       << "' has mismatched type";
+      return failure();
+    }
+    return ctArg.getResult();
+  }
+
+  OpBuilder::InsertionGuard guard(rewriter);
+  rewriter.setInsertionPointToStart(&entry);
+
+  bool hasDecl = false;
+  for (Operation &op : entry) {
+    auto declAttr = op.getAttrOfType<StringAttr>(kCBConstDeclAttrName);
+    if (declAttr && declAttr.getValue() == name) {
+      hasDecl = true;
+      break;
+    }
+  }
+
+  std::string nameStr = name.str();
+  if (!hasDecl) {
+    auto decl = rewriter.create<emitc::VerbatimOp>(
+        loc, "constexpr uint32_t " + nameStr + " = " +
+                 std::to_string(cbIndex) + ";");
+    decl->setAttr(kCBConstDeclAttrName, rewriter.getStringAttr(name));
+    decl->setAttr(kCBConstValueAttrName, rewriter.getI64IntegerAttr(cbIndex));
+  }
+
+  auto cbConst = rewriter.create<GetCompileArgValOp>(
+      loc, resultType,
+      rewriter.getI32IntegerAttr(static_cast<int32_t>(cbIndex)));
+  cbConst->setAttr(kCBConstNameAttrName, rewriter.getStringAttr(name));
+  cbConst->setAttr(kCBConstValueAttrName, rewriter.getI64IntegerAttr(cbIndex));
+  if (copyBindingSlot)
+    cbConst->setAttr(kCBConstBindingSlotAttrName,
+                     rewriter.getI64IntegerAttr(*copyBindingSlot));
+  if (internalSlot)
+    cbConst->setAttr(kCBConstInternalSlotAttrName,
+                     rewriter.getI64IntegerAttr(*internalSlot));
+
+  return cbConst.getResult();
+}
+
+void mlir::loom::rewriteNamedCBCompileTimeArgLiterals(ModuleOp module) {
+  SmallVector<func::FuncOp, 8> funcs;
+  module.walk([&](func::FuncOp func) { funcs.push_back(func); });
+
+  for (func::FuncOp func : funcs) {
+    llvm::DenseMap<int64_t, StringAttr> cbConstNames;
+    func.walk([&](emitc::VerbatimOp op) {
+      auto nameAttr = op->getAttrOfType<StringAttr>(kCBConstDeclAttrName);
+      auto valueAttr = op->getAttrOfType<IntegerAttr>(kCBConstValueAttrName);
+      if (!nameAttr || !valueAttr)
+        return;
+      cbConstNames.try_emplace(valueAttr.getInt(), nameAttr);
+    });
+    if (cbConstNames.empty())
+      continue;
+
+    func.walk([&](emitc::LiteralOp op) {
+      auto opaqueType = dyn_cast<emitc::OpaqueType>(op.getResult().getType());
+      if (!opaqueType || opaqueType.getValue() != "::tt::CB")
+        return;
+
+      StringRef value = op.getValue();
+      if (!value.consume_front("get_compile_time_arg_val(") ||
+          !value.consume_back(")"))
+        return;
+      int64_t cbIndex = -1;
+      if (value.getAsInteger(10, cbIndex))
+        return;
+
+      auto nameIt = cbConstNames.find(cbIndex);
+      if (nameIt == cbConstNames.end())
+        return;
+      op.setValue(nameIt->second.getValue());
+    });
+  }
 }
 
 FailureOr<ReduceCoreRegionAnalysis>
