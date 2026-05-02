@@ -471,17 +471,17 @@ EnumerateSpatialMappings(ModuleOp affineModule,
         splitter.generateAllSplits(P, hardwareInfo.spatialDimInfoVec);
 
     loom::MappingPrioritizer prioritizer;
-    auto weights = prioritizer.computeIterWeights(func, root);
+    loom::AxisScores scores = prioritizer.computeAxisScores(func, root);
     auto reductionInfoMain = detectReductionAxis(root);
+    std::optional<unsigned> reductionIdx;
+    if (reductionInfoMain)
+      reductionIdx = reductionInfoMain->parallelIterIdx;
 
-    // Bijective mappings depend only on weights and P, not on the split.
+    // Bijective mappings depend only on axis scores and P, not on the split.
     auto bijectiveMappings =
-        reductionInfoMain ? prioritizer.generateBijectiveMappingsWithForcedFirst(
-                                weights, P, reductionInfoMain->parallelIterIdx)
-                          : prioritizer.generateBijectiveMappings(weights, P);
+        prioritizer.generateBijectiveMappings(scores, P, reductionIdx);
 
-    for (const auto &split : allSplits) {
-      // Convert LogicalDims to SpatialDimInfo for applyMappingToFunction.
+    auto buildLogicalDimInfos = [](const loom::HWDimSplit &split) {
       SmallVector<loom::SpatialDimInfo> logicalDimInfos;
       for (const auto &ld : split.logicalDims) {
         loom::SpatialDimInfo sdi;
@@ -492,78 +492,118 @@ EnumerateSpatialMappings(ModuleOp affineModule,
         sdi.sourceIdx = ld.sourceIdx;
         logicalDimInfos.push_back(sdi);
       }
+      return logicalDimInfos;
+    };
 
+    auto applyOneCandidate =
+        [&](const loom::DimBuckets &mapping,
+            const SmallVector<loom::SpatialDimInfo> &logicalDimInfos,
+            const std::string &splitDesc) {
+          SmallVector<unsigned> order(P);
+          std::iota(order.begin(), order.end(), 0);
+
+          SmallVector<unsigned> orderCopy = order;
+#ifndef SKIP_TEMPORAL_EXPLORATION
+          do {
+#endif
+            builder.setInsertionPointToEnd(out.getBody());
+            std::string mappingSuffix;
+            std::string newNamePrefix = func.getName().str();
+            newNamePrefix += "__";
+
+            auto clonedFunc = loom::utils::cloneFunc(
+                builder, func, "", moduleAttrs,
+                [&](func::FuncOp cloned) -> LogicalResult {
+                  markLoopsSequential(cloned);
+                  affine::AffineParallelOp tar_forOp =
+                      getOutermostParallel(cloned);
+                  if (!tar_forOp) {
+                    return failure();
+                  }
+
+                  auto reductionInfoCloned = detectReductionAxis(tar_forOp);
+
+                  llvm::SmallVector<loom::ParallelToHWMapping> hwMappingInfo;
+                  if (failed(applyMappingToFunction(
+                          cloned, mapping, logicalDimInfos, tar_forOp,
+                          mappingSuffix, hwMappingInfo, reductionInfoCloned))) {
+                    return failure();
+                  }
+
+                  if (!tar_forOp ||
+                      failed(loom_affine::ConvertParallelToNested(
+                          tar_forOp, orderCopy))) {
+                    return failure();
+                  }
+
+                  markLoopsTemporal(cloned);
+
+                  // Assign memory attributes to copy ops
+                  cloned.walk([&](Operation *op) {
+                    if (auto copyTo = dyn_cast<loom::CopyToTensorOp>(op)) {
+                      copyTo.setMemoryAttr(SymbolRefAttr::get(ctx, "L1"));
+                    } else if (auto copyFrom =
+                                   dyn_cast<loom::CopyFromTensorOp>(op)) {
+                      copyFrom.setMemoryAttr(SymbolRefAttr::get(ctx, "DRAM"));
+                    }
+                  });
+
+                  loom::utils::composeAndCanonicalizeAffineApplies(cloned);
+
+                  return success();
+                },
+                nullptr);
+
+            if (clonedFunc) {
+              std::string finalName = newNamePrefix + splitDesc;
+              if (!mappingSuffix.empty())
+                finalName += "__" + mappingSuffix;
+              finalName += "__f";
+              for (unsigned idx : orderCopy)
+                finalName += std::to_string(idx);
+              clonedFunc.setName(finalName);
+            }
+
+#ifndef SKIP_TEMPORAL_EXPLORATION
+          } while (std::next_permutation(orderCopy.begin(), orderCopy.end()));
+#endif
+        };
+
+    for (const auto &split : allSplits) {
+      SmallVector<loom::SpatialDimInfo> logicalDimInfos =
+          buildLogicalDimInfos(split);
       std::string splitDesc = buildSplitDesc(split);
 
-      for (const auto &mapping : bijectiveMappings) {
-        SmallVector<unsigned> order(P);
-        std::iota(order.begin(), order.end(), 0);
+      for (const auto &mapping : bijectiveMappings)
+        applyOneCandidate(mapping, logicalDimInfos, splitDesc);
+    }
 
-        SmallVector<unsigned> orderCopy = order;
-#ifndef SKIP_TEMPORAL_EXPLORATION
-        do {
-#endif
-          builder.setInsertionPointToEnd(out.getBody());
-          std::string mappingSuffix;
-          std::string newNamePrefix = func.getName().str();
-          newNamePrefix += "__";
+    const bool eligibleForDoubling = (D >= 2) && (P >= 1);
+    if (eligibleForDoubling) {
+      loom::HWDimSplitter splitterPlus;
+      auto pPlus1Splits =
+          splitterPlus.generateAllSplits(P + 1, hardwareInfo.spatialDimInfoVec);
 
-          auto clonedFunc = loom::utils::cloneFunc(
-              builder, func, "", moduleAttrs,
-              [&](func::FuncOp cloned) -> LogicalResult {
-                markLoopsSequential(cloned);
-                affine::AffineParallelOp tar_forOp =
-                    getOutermostParallel(cloned);
-                if (!tar_forOp) {
-                  return failure();
-                }
+      for (const auto &split : pPlus1Splits) {
+        SmallVector<unsigned> level0Indices, nonLevel0Indices;
+        for (unsigned i = 0; i < split.logicalDims.size(); ++i) {
+          if (split.logicalDims[i].level == 0)
+            level0Indices.push_back(i);
+          else
+            nonLevel0Indices.push_back(i);
+        }
+        if (level0Indices.size() != 2)
+          continue;
 
-                auto reductionInfoCloned = detectReductionAxis(tar_forOp);
+        SmallVector<loom::SpatialDimInfo> logicalDimInfos =
+            buildLogicalDimInfos(split);
+        std::string splitDesc = buildSplitDesc(split);
 
-                llvm::SmallVector<loom::ParallelToHWMapping> hwMappingInfo;
-                if (failed(applyMappingToFunction(
-                        cloned, mapping, logicalDimInfos, tar_forOp,
-                        mappingSuffix, hwMappingInfo, reductionInfoCloned))) {
-                  return failure();
-                }
+        auto doubledMappings = prioritizer.generateDoubledLevel0Mappings(
+            scores, level0Indices, nonLevel0Indices, reductionIdx);
 
-                if (!tar_forOp || failed(loom_affine::ConvertParallelToNested(
-                                      tar_forOp, orderCopy))) {
-                  return failure();
-                }
-
-                markLoopsTemporal(cloned);
-
-                // Assign memory attributes to copy ops
-                cloned.walk([&](Operation *op) {
-                  if (auto copyTo = dyn_cast<loom::CopyToTensorOp>(op)) {
-                    copyTo.setMemoryAttr(SymbolRefAttr::get(ctx, "L1"));
-                  } else if (auto copyFrom =
-                                 dyn_cast<loom::CopyFromTensorOp>(op)) {
-                    copyFrom.setMemoryAttr(SymbolRefAttr::get(ctx, "DRAM"));
-                  }
-                });
-
-                loom::utils::composeAndCanonicalizeAffineApplies(cloned);
-
-                return success();
-              },
-              nullptr);
-
-          if (clonedFunc) {
-            std::string finalName = newNamePrefix + splitDesc;
-            if (!mappingSuffix.empty())
-              finalName += "__" + mappingSuffix;
-            finalName += "__f";
-            for (unsigned idx : orderCopy)
-              finalName += std::to_string(idx);
-            clonedFunc.setName(finalName);
-          }
-
-#ifndef SKIP_TEMPORAL_EXPLORATION
-        } while (std::next_permutation(orderCopy.begin(), orderCopy.end()));
-#endif
-
+        for (const auto &mapping : doubledMappings)
+          applyOneCandidate(mapping, logicalDimInfos, splitDesc);
       }
     }
   }

@@ -3,53 +3,58 @@
 #include "hardware_info.h" // DimBuckets typedef
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include <optional>
 
 namespace loom {
+
+/// Per-axis scores used to derive priority orderings.
+struct AxisScores {
+  /// Sum of source memref sizes for loom.subview ops whose offsets do not
+  /// depend on axis i. Higher means more data can be shared along that axis.
+  llvm::SmallVector<int64_t> reuse;
+  /// Static upper bound on iter i's iteration range.
+  llvm::SmallVector<int64_t> parallelism;
+};
+
+/// Selects the lexicographic key used to rank axes.
+enum class PriorityKey {
+  Reuse,
+  ParallelismThenReuse,
+};
 
 /// Priority-based bijective mapping selector.
 ///
 /// Replaces the combinatorial MappingEnumerator. Given a function with an
 /// outermost affine.parallel, this class:
-///   1. Computes a dependency weight for each parallel iterator by analysing
-///      which loom.subview ops depend on that iterator (via offset SSA chains)
-///      and accumulating the source memref sizes.
-///   2. Produces bijective DimBuckets orderings where parallel iterators are
-///      assigned to hardware dims in ascending weight order (lower weight →
-///      lower HW dim index). Ties enumerate all permutations of tied iters.
+///   1. Computes reuse and parallelism scores for each parallel iterator.
+///   2. Produces DimBuckets orderings from a partial order over those scores.
 class MappingPrioritizer {
 public:
-  /// Compute dep_weight[i] for each iter arg of rootParallel.
-  ///   dep_weight(p) = Σ size(op) for loom.subview ops where
-  ///                   p appears in any offset operand's def-use chain.
-  /// size(op) = product of static dimensions of the subview source memref.
-  /// All source memref dimensions must be static (asserted).
-  /// Returns a vector of length rootParallel.getNumDims().
-  llvm::SmallVector<int64_t>
-  computeIterWeights(mlir::func::FuncOp func,
-                     mlir::affine::AffineParallelOp rootParallel);
+  /// Compute both axis scores in one walk.
+  AxisScores computeAxisScores(mlir::func::FuncOp func,
+                               mlir::affine::AffineParallelOp rootParallel);
 
-  /// Given per-iter weights and numHWDims (must equal weights.size()),
-  /// produce all bijective DimBuckets orderings:
-  ///   - Sort iter indices by ascending weight (lower weight → HW dim 0).
-  ///   - Group consecutive iters with equal weight.
-  ///   - Enumerate all permutations within each tied group.
-  ///   - Take Cartesian product across groups.
-  ///   - mapping[iter_i] = {hw_dim_j}  (exactly one HW dim per iter).
-  /// Asserts weights.size() == numHWDims.
-  llvm::SmallVector<DimBuckets>
-  generateBijectiveMappings(const llvm::SmallVector<int64_t> &weights,
-                            unsigned numHWDims);
+  /// Enumerate every linearisation of the partial order induced by `key`.
+  /// With reductionIdx set, that iter is pinned at position 0.
+  llvm::SmallVector<llvm::SmallVector<unsigned>>
+  enumeratePriorityOrderings(const AxisScores &scores, PriorityKey key,
+                             std::optional<unsigned> reductionIdx);
 
-  /// Forced-first variant for cross-core reduction:
-  ///   - iter forcedIterIdx is unconditionally assigned to HW dim 0 (highest
-  ///   priority).
-  ///   - remaining iters are assigned to HW dims 1..(P-1) by ascending weight.
+  /// Bijective mappings (mapping[iter] = {one hwDimIdx}). Priority order is
+  /// sorted by reuse DESC; reduction iter is unconditionally first.
   llvm::SmallVector<DimBuckets>
-  generateBijectiveMappingsWithForcedFirst(
-      const llvm::SmallVector<int64_t> &weights, unsigned numHWDims,
-      unsigned forcedIterIdx);
+  generateBijectiveMappings(const AxisScores &scores, unsigned numHWDims,
+                            std::optional<unsigned> reductionIdx);
+
+  /// Generate mappings where the highest-priority iter spans two level-0
+  /// logical dims. Priority order is sorted by parallelism DESC, reuse DESC.
+  llvm::SmallVector<DimBuckets> generateDoubledLevel0Mappings(
+      const AxisScores &scores, llvm::ArrayRef<unsigned> level0DimIndices,
+      llvm::ArrayRef<unsigned> nonLevel0DimIndices,
+      std::optional<unsigned> reductionIdx);
 
 private:
   /// Recursively collect all root parallel IV block args that `v`
@@ -71,6 +76,7 @@ private:
           &groupPerms,
       llvm::SmallVector<unsigned> &current,
       llvm::SmallVector<llvm::SmallVector<unsigned>> &results);
+
 };
 
 } // namespace loom
