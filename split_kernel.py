@@ -719,7 +719,8 @@ def process_source_content(lines, section_name=None):
         processed = insert_include_if_missing(processed, '#include "debug/dprint_pages.h"\n')
         processed = insert_include_if_missing(processed, '#include "debug/dprint_tensix.h"\n')
         processed = [i.replace("mm_init", "ckernel::mm_init").replace("mm_block_init_short", "ckernel::mm_block_init_short") for i in processed]
-        processed = [i.replace("exp_tile(", "exp_tile<true, true>(") for i in processed]
+        #for performance and correctness of exp_tile
+        processed = [i.replace("exp_tile(", "exp_tile<true, true>(").replace("exp_tile_init(", "exp_tile_init<true, true>(") for i in processed]
 
         processed, compaction_usage = _compact_compute_blocks(processed)
         if any(compaction_usage.values()):
