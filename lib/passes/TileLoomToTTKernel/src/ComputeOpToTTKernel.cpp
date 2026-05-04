@@ -257,22 +257,13 @@ static LogicalResult rewriteReduceGeneric(linalg::GenericOp op,
                                           ConversionPatternRewriter &rewriter,
                                           llvm::DenseMap<Value, int64_t> &waitState);
 
-/**
- * @brief Captures TTKernel init-op requirements for one tile-generic body.
- */
-struct TileGenericExprAnalysis {
-  Value yieldValue;
-  bool needsAccumulatorCopy = false;
-  bool needsBinopWithScalar = false;
-  bool needsFill = false;
-  bool needsSubBinary = false;
-  bool needsAddBinary = false;
-  bool needsMulBinary = false;
-  bool needsBinaryMax = false;
-  bool needsPowBinary = false;
-  bool needsRecip = false;
-  bool needsLog = false;
-  bool needsExp = false;
+enum class TileReductionCombineOp {
+  Sum,
+  Max
+};
+
+struct TileReductionAnalysis {
+  TileReductionCombineOp combineOp = TileReductionCombineOp::Sum;
 };
 
 /**
@@ -283,20 +274,8 @@ enum class TileGenericBodyOperand {
   Accumulator
 };
 
-/**
- * @brief Analyze whether a tile generic body expression is lowerable.
- */
-static LogicalResult analyzeTileGeneric(linalg::GenericOp op,
-                                        TileGenericExprAnalysis &analysis);
-
-/**
- * @brief Emit one tile generic body expression into a destination register.
- */
-static LogicalResult emitTileGenericExprToReg(
-    Value exprValue, int dstReg, int tmpRegA, int tmpRegB, linalg::GenericOp op,
-    linalg::GenericOp::Adaptor adaptor, ConversionPatternRewriter &rewriter,
-    Location loc, Value inputTileIdx, Value accumulatorTileIdx,
-    bool emitInlineInitOps);
+static LogicalResult analyzeTileReductionGeneric(
+    linalg::GenericOp op, TileReductionAnalysis &analysis);
 
 /**
  * @brief Check for the [reduction, parallel, parallel] iterator pattern.
@@ -305,29 +284,37 @@ static bool isTileGenericOp(linalg::GenericOp op) {
   auto iteratorTypes = op.getIteratorTypesArray();
   if (iteratorTypes.size() < 3)
     return false;
-  return iteratorTypes[0] == utils::IteratorType::reduction;
+  if (iteratorTypes[0] != utils::IteratorType::reduction)
+    return false;
+  for (utils::IteratorType type : llvm::drop_begin(iteratorTypes))
+    if (type != utils::IteratorType::parallel)
+      return false;
+  return true;
 }
 
 /**
  * @brief Entry-point for [reduction, parallel, parallel] generic lowering.
  *
- * @details The first reduction slice seeds the output tile, then each
- *          subsequent slice evaluates the generic body expression using the
- *          current input tile and accumulated output tile.
+ * @details Keeps the partial accumulator in DST registers for the complete
+ *          reduction loop. Only the final accumulated tile is packed to the
+ *          output CB, avoiding repeated BF16 round-trips through CB storage.
  */
 static LogicalResult tileGenericOp(
     linalg::GenericOp op, linalg::GenericOp::Adaptor adaptor,
     ConversionPatternRewriter &rewriter,
     llvm::DenseMap<Value, int64_t> &waitState) {
+  if (adaptor.getInputs().size() != 1 || adaptor.getOutputs().size() != 1)
+    return failure();
+
   Value inCb = adaptor.getInputs().front();
   Value outCb = adaptor.getOutputs().front();
   if (!isa<CBType>(inCb.getType()) || !isa<CBType>(outCb.getType()))
     return op.emitOpError()
            << "tile generic lowering requires CB-typed input and output";
 
-  TileGenericExprAnalysis analysis;
-  if (failed(analyzeTileGeneric(op, analysis)))
-    return op.emitOpError() << "unsupported tile generic body";
+  TileReductionAnalysis analysis;
+  if (failed(analyzeTileReductionGeneric(op, analysis)))
+    return op.emitOpError() << "unsupported tile reduction body";
 
   auto inType = dyn_cast<ShapedType>(op.getDpsInputs()[0].getType());
   auto outType = dyn_cast<ShapedType>(op.getDpsInits()[0].getType());
@@ -389,28 +376,10 @@ static LogicalResult tileGenericOp(
 
   CBReserveBackOp::create(rewriter, loc, outCb, outTilesV);
   rewriter.create<CopyTileInitOp>(loc, inCb);
-  if (analysis.needsAccumulatorCopy && outCb != inCb)
-    rewriter.create<CopyTileInitOp>(loc, outCb);
-  if (analysis.needsBinopWithScalar)
-    rewriter.create<BinopWithScalarTileInitOp>(loc);
-  if (analysis.needsSubBinary)
-    rewriter.create<SubBinaryTilesInitOp>(loc);
-  if (analysis.needsAddBinary)
+  if (analysis.combineOp == TileReductionCombineOp::Sum)
     rewriter.create<AddBinaryTilesInitOp>(loc);
-  if (analysis.needsMulBinary)
-    rewriter.create<MulBinaryTilesInitOp>(loc);
-  if (analysis.needsBinaryMax)
+  else
     rewriter.create<BinaryMaxTileInitOp>(loc);
-  if (analysis.needsFill)
-    rewriter.create<FillTileInitOp>(loc);
-  if (analysis.needsPowBinary)
-    rewriter.create<PowBinaryTilesInitOp>(loc);
-  if (analysis.needsRecip)
-    rewriter.create<RecipTileInitOp>(loc);
-  if (analysis.needsLog)
-    rewriter.create<LogTileInitOp>(loc);
-  if (analysis.needsExp)
-    rewriter.create<ExpTileInitOp>(loc);
 
   scf::ForOp outTileLoop =
       scf::ForOp::create(rewriter, loc, zeroI32, outTilesV, oneI32);
@@ -421,10 +390,6 @@ static LogicalResult tileGenericOp(
 
     TileRegsAcquireOp::create(rewriter, loc);
     rewriter.create<CopyTileOp>(loc, inCb, outTileIdx, zeroI32);
-    TileRegsCommitOp::create(rewriter, loc);
-    TileRegsWaitOp::create(rewriter, loc);
-    PackTileOp::create(rewriter, loc, zeroI32, outCb, outTileIdx);
-    TileRegsReleaseOp::create(rewriter, loc);
 
     scf::ForOp reduceLoop =
         scf::ForOp::create(rewriter, loc, oneI32, reduceSlicesV, oneI32);
@@ -432,22 +397,22 @@ static LogicalResult tileGenericOp(
       OpBuilder::InsertionGuard reduceGuard(rewriter);
       rewriter.setInsertionPointToStart(reduceLoop.getBody());
       Value reduceIdx = reduceLoop.getInductionVar();
-      Value sliceOffset = arith::MulIOp::create(rewriter, loc, reduceIdx, outTilesV);
+      Value sliceOffset =
+          arith::MulIOp::create(rewriter, loc, reduceIdx, outTilesV);
       Value inTileIdx =
           arith::AddIOp::create(rewriter, loc, sliceOffset, outTileIdx);
-      TileRegsAcquireOp::create(rewriter, loc);
-      if (failed(emitTileGenericExprToReg(analysis.yieldValue, /*dstReg=*/0,
-                                          /*tmpRegA=*/1, /*tmpRegB=*/2, op,
-                                          adaptor, rewriter, loc, inTileIdx,
-                                          outTileIdx,
-                                          /*emitInlineInitOps=*/false)))
-        return failure();
-      TileRegsCommitOp::create(rewriter, loc);
-      TileRegsWaitOp::create(rewriter, loc);
-      PackTileOp::create(rewriter, loc, zeroI32, outCb, outTileIdx);
-      TileRegsReleaseOp::create(rewriter, loc);
+      rewriter.create<CopyTileOp>(loc, inCb, inTileIdx, oneI32);
+      if (analysis.combineOp == TileReductionCombineOp::Sum) {
+        rewriter.create<AddBinaryTilesOp>(loc, zeroI32, oneI32, zeroI32);
+      } else {
+        rewriter.create<BinaryMaxTileOp>(loc, zeroI32, oneI32, zeroI32);
+      }
     }
     rewriter.setInsertionPointAfter(reduceLoop);
+    TileRegsCommitOp::create(rewriter, loc);
+    TileRegsWaitOp::create(rewriter, loc);
+    PackTileOp::create(rewriter, loc, zeroI32, outCb, outTileIdx);
+    TileRegsReleaseOp::create(rewriter, loc);
   }
   CBPushBackOp::create(rewriter, loc, outCb, outTilesV);
   waitState[outCb] = 0;
@@ -1024,65 +989,29 @@ getTileGenericBodyOperand(linalg::GenericOp op, Value value) {
   return std::nullopt;
 }
 
-/**
- * @brief Collect init-op requirements for tile-generic body expressions.
- */
-static LogicalResult analyzeTileGenericExpr(Value exprValue, linalg::GenericOp op,
-                                            TileGenericExprAnalysis &analysis) {
-  auto handleLeaf = [&](Value value) -> bool {
-    auto operand = getTileGenericBodyOperand(op, value);
-    if (!operand)
+static bool hasOnlyBodyOps(linalg::GenericOp op, Operation *first,
+                           Operation *second = nullptr) {
+  for (Operation &inner : op.getRegion().front().without_terminator())
+    if (&inner != first && &inner != second)
       return false;
-    if (*operand == TileGenericBodyOperand::Accumulator)
-      analysis.needsAccumulatorCopy = true;
-    return true;
-  };
-  auto handleConst = [&]() { analysis.needsFill = true; };
-  auto handlePowBaseConst = [&]() { analysis.needsFill = true; };
-  auto setFlag = [&](GenericExprFeature feature) {
-    switch (feature) {
-    case GenericExprFeature::BinopWithScalar:
-      analysis.needsBinopWithScalar = true;
-      return;
-    case GenericExprFeature::SubBinary:
-      analysis.needsSubBinary = true;
-      return;
-    case GenericExprFeature::AddBinary:
-      analysis.needsAddBinary = true;
-      return;
-    case GenericExprFeature::MulBinary:
-      analysis.needsMulBinary = true;
-      return;
-    case GenericExprFeature::BinaryMax:
-      analysis.needsBinaryMax = true;
-      return;
-    case GenericExprFeature::PowBinary:
-      analysis.needsPowBinary = true;
-      return;
-    case GenericExprFeature::Recip:
-      analysis.needsRecip = true;
-      return;
-    case GenericExprFeature::Log:
-      analysis.needsLog = true;
-      return;
-    case GenericExprFeature::Exp:
-      analysis.needsExp = true;
-      return;
-    case GenericExprFeature::Fill:
-      analysis.needsFill = true;
-      return;
-    }
-  };
-  return analyzeGenericExprTree(
-      exprValue, op, handleLeaf, handleConst, handlePowBaseConst, setFlag,
-      /*allowMaximumFOp=*/true);
+  return true;
 }
 
-/**
- * @brief Validate tile generic shape and record body-expression requirements.
- */
-static LogicalResult analyzeTileGeneric(linalg::GenericOp op,
-                                        TileGenericExprAnalysis &analysis) {
+static bool matchTileReductionOperands(linalg::GenericOp op, Value lhs,
+                                       Value rhs) {
+  auto lhsOperand = getTileGenericBodyOperand(op, lhs);
+  auto rhsOperand = getTileGenericBodyOperand(op, rhs);
+  if (!lhsOperand || !rhsOperand)
+    return false;
+
+  return (*lhsOperand == TileGenericBodyOperand::Input &&
+          *rhsOperand == TileGenericBodyOperand::Accumulator) ||
+         (*lhsOperand == TileGenericBodyOperand::Accumulator &&
+          *rhsOperand == TileGenericBodyOperand::Input);
+}
+
+static LogicalResult analyzeTileReductionGeneric(
+    linalg::GenericOp op, TileReductionAnalysis &analysis) {
   if (op.getNumDpsInputs() != 1 || op.getNumDpsInits() != 1)
     return failure();
 
@@ -1090,8 +1019,42 @@ static LogicalResult analyzeTileGeneric(linalg::GenericOp op,
   if (!yieldOp || yieldOp.getValues().size() != 1)
     return failure();
 
-  analysis.yieldValue = yieldOp.getValues().front();
-  return analyzeTileGenericExpr(analysis.yieldValue, op, analysis);
+  Value yielded = yieldOp.getValues().front();
+  Operation *defOp = yielded.getDefiningOp();
+  if (!defOp || defOp->getBlock() != &op.getRegion().front())
+    return failure();
+
+  if (auto addOp = dyn_cast<arith::AddFOp>(defOp)) {
+    if (!hasOnlyBodyOps(op, addOp.getOperation()) ||
+        !matchTileReductionOperands(op, addOp.getLhs(), addOp.getRhs()))
+      return failure();
+    analysis.combineOp = TileReductionCombineOp::Sum;
+    return success();
+  }
+
+  if (auto maxOp = dyn_cast<arith::MaximumFOp>(defOp)) {
+    if (!hasOnlyBodyOps(op, maxOp.getOperation()) ||
+        !matchTileReductionOperands(op, maxOp.getLhs(), maxOp.getRhs()))
+      return failure();
+    analysis.combineOp = TileReductionCombineOp::Max;
+    return success();
+  }
+
+  if (auto selectOp = dyn_cast<arith::SelectOp>(defOp)) {
+    Value lhs;
+    Value rhs;
+    if (!matchMaxSelect(selectOp, lhs, rhs) ||
+        !matchTileReductionOperands(op, lhs, rhs))
+      return failure();
+    Operation *cmpOp = selectOp.getCondition().getDefiningOp();
+    if (!cmpOp || cmpOp->getBlock() != &op.getRegion().front() ||
+        !hasOnlyBodyOps(op, selectOp.getOperation(), cmpOp))
+      return failure();
+    analysis.combineOp = TileReductionCombineOp::Max;
+    return success();
+  }
+
+  return failure();
 }
 
 /**
@@ -1334,51 +1297,6 @@ static LogicalResult emitGenericExprToRegImpl(
   };
 
   return recurse(recurse, exprValue, dstReg, tmpRegA, tmpRegB);
-}
-
-/**
- * @brief Emit tile-generic body expressions using TTKernel tile ops.
- */
-static LogicalResult emitTileGenericExprToReg(
-    Value exprValue, int dstReg, int tmpRegA, int tmpRegB, linalg::GenericOp op,
-    linalg::GenericOp::Adaptor adaptor, ConversionPatternRewriter &rewriter,
-    Location loc, Value inputTileIdx, Value accumulatorTileIdx,
-    bool emitInlineInitOps) {
-  auto emitLeaf = [&](Value value, int reg, bool &handled) -> LogicalResult {
-    auto operand = getTileGenericBodyOperand(op, value);
-    if (!operand) {
-      handled = false;
-      return success();
-    }
-
-    handled = true;
-    Value regVal = i32Const(rewriter, loc, reg);
-    Value sourceCb = *operand == TileGenericBodyOperand::Input
-                         ? adaptor.getInputs()[0]
-                         : adaptor.getOutputs()[0];
-    Value sourceTileIdx = *operand == TileGenericBodyOperand::Input
-                              ? inputTileIdx
-                              : accumulatorTileIdx;
-    if (emitInlineInitOps)
-      rewriter.create<CopyTileInitOp>(loc, sourceCb);
-    rewriter.create<CopyTileOp>(loc, sourceCb, sourceTileIdx, regVal);
-    return success();
-  };
-
-  auto emitRhsFirstForOperands = [&](Value lhs, Value rhs) -> bool {
-    (void)lhs;
-    (void)rhs;
-    return false;
-  };
-  auto lookupRuntimeScalarBits = [&](Value value) -> Value {
-    (void)value;
-    return {};
-  };
-
-  return emitGenericExprToRegImpl(
-      exprValue, dstReg, tmpRegA, tmpRegB, op, adaptor, rewriter, loc,
-      emitInlineInitOps, /*allowMaximumFOp=*/true, emitLeaf,
-      emitRhsFirstForOperands, lookupRuntimeScalarBits);
 }
 
 static LogicalResult analyzeElementwiseExpr(Value exprValue, linalg::GenericOp op,
