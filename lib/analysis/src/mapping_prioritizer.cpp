@@ -96,15 +96,8 @@ struct AxisPriority {
   }
 };
 
-AxisPriority getPriority(const AxisScores &scores, PriorityKey key,
-                         unsigned iterIdx) {
-  switch (key) {
-  case PriorityKey::Reuse:
-    return {scores.reuse[iterIdx], 0};
-  case PriorityKey::ParallelismThenReuse:
-    return {scores.parallelism[iterIdx], scores.reuse[iterIdx]};
-  }
-  llvm_unreachable("unknown priority key");
+AxisPriority getPriority(const AxisScores &scores, unsigned iterIdx) {
+  return {scores.parallelism[iterIdx], scores.reuse[iterIdx]};
 }
 
 } // namespace
@@ -214,8 +207,7 @@ void MappingPrioritizer::cartesianPerms(
 
 llvm::SmallVector<llvm::SmallVector<unsigned>>
 MappingPrioritizer::enumeratePriorityOrderings(
-    const AxisScores &scores, PriorityKey key,
-    std::optional<unsigned> reductionIdx) {
+    const AxisScores &scores, std::optional<unsigned> reductionIdx) {
   assert(scores.reuse.size() == scores.parallelism.size());
   assert(!scores.reuse.empty());
   const unsigned P = static_cast<unsigned>(scores.reuse.size());
@@ -227,7 +219,7 @@ MappingPrioritizer::enumeratePriorityOrderings(
   for (unsigned i = 0; i < P; ++i) {
     if (reductionIdx && i == *reductionIdx)
       continue;
-    pairs.push_back({getPriority(scores, key, i), i});
+    pairs.push_back({getPriority(scores, i), i});
   }
 
   std::stable_sort(pairs.begin(), pairs.end(),
@@ -275,35 +267,8 @@ MappingPrioritizer::enumeratePriorityOrderings(
 }
 
 //===----------------------------------------------------------------------===//
-// generateBijectiveMappings
-//===----------------------------------------------------------------------===//
-
 llvm::SmallVector<DimBuckets>
-MappingPrioritizer::generateBijectiveMappings(
-    const AxisScores &scores, unsigned numHWDims,
-    std::optional<unsigned> reductionIdx) {
-  assert(scores.reuse.size() == numHWDims &&
-         scores.parallelism.size() == numHWDims &&
-         "number of parallel iters must equal number of HW dims (P == D)");
-
-  auto orderings =
-      enumeratePriorityOrderings(scores, PriorityKey::Reuse, reductionIdx);
-
-  // Convert each combined ordering into a bijective DimBuckets.
-  // mapping[iterIdx] = {hwDimIdx}
-  llvm::SmallVector<DimBuckets> result;
-  result.reserve(orderings.size());
-  for (const auto &priority : orderings) {
-    DimBuckets mapping(numHWDims);
-    for (unsigned hwDim = 0; hwDim < numHWDims; ++hwDim)
-      mapping[priority[hwDim]].push_back(hwDim);
-    result.push_back(std::move(mapping));
-  }
-  return result;
-}
-
-llvm::SmallVector<DimBuckets>
-MappingPrioritizer::generateDoubledLevel0Mappings(
+MappingPrioritizer::generateLevel0PairClaimMappings(
     const AxisScores &scores, llvm::ArrayRef<unsigned> level0DimIndices,
     llvm::ArrayRef<unsigned> nonLevel0DimIndices,
     std::optional<unsigned> reductionIdx) {
@@ -313,8 +278,7 @@ MappingPrioritizer::generateDoubledLevel0Mappings(
   assert(nonLevel0DimIndices.size() == scores.reuse.size() - 1);
 
   const unsigned P = static_cast<unsigned>(scores.reuse.size());
-  auto orderings = enumeratePriorityOrderings(
-      scores, PriorityKey::ParallelismThenReuse, reductionIdx);
+  auto orderings = enumeratePriorityOrderings(scores, reductionIdx);
   llvm::SmallVector<DimBuckets> result;
   result.reserve(orderings.size());
 

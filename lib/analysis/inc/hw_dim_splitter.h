@@ -28,7 +28,8 @@ struct HWDimSplit {
 /// Given P parallel iterators and D physical hardware dimensions, this class
 /// enumerates all valid ways to split the HW dims so that exactly P logical
 /// dims are produced (P >= D).  Each HW dim contributes at least one logical
-/// dim.  Factors of 1 are excluded.
+/// dim.  Factors of 1 are excluded by default, but can be enabled for
+/// callers that model degenerate logical dimensions explicitly.
 ///
 /// Example: P=3, D=2, dim_x=8, dim_y=8
 ///   Partitions: (p_x=2, p_y=1) and (p_x=1, p_y=2)
@@ -41,13 +42,15 @@ public:
   /// Asserts if no valid split exists.
   llvm::SmallVector<HWDimSplit>
   generateAllSplits(unsigned P,
-                    const llvm::SmallVector<SpatialDimInfo> &hwDims);
+                    const llvm::SmallVector<SpatialDimInfo> &hwDims,
+                    bool allowSizeOne = false);
 
 private:
-  /// All ordered k-factorizations of n (each factor > 1).
+  /// All ordered k-factorizations of n. Each factor is > 1 unless
+  /// allowSizeOne is set.
   /// E.g., orderedFactorizations(8, 2) = {{2,4}, {4,2}}
   llvm::SmallVector<llvm::SmallVector<int64_t>>
-  orderedFactorizations(int64_t n, unsigned k);
+  orderedFactorizations(int64_t n, unsigned k, bool allowSizeOne);
 
   /// Enumerate all integer partitions of total into numParts parts, each >= 1.
   void enumeratePartitions(
