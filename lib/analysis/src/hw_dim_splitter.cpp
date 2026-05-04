@@ -14,22 +14,24 @@ namespace loom {
 //===----------------------------------------------------------------------===//
 
 llvm::SmallVector<llvm::SmallVector<int64_t>>
-HWDimSplitter::orderedFactorizations(int64_t n, unsigned k) {
+HWDimSplitter::orderedFactorizations(int64_t n, unsigned k,
+                                     bool allowSizeOne) {
   llvm::SmallVector<llvm::SmallVector<int64_t>> results;
 
   if (k == 1) {
-    if (n > 1)
+    if (allowSizeOne || n > 1)
       results.push_back({n});
     return results;
   }
 
-  // Try each divisor d of n where d > 1.
-  for (int64_t d = 2; d <= n; ++d) {
+  // Try each divisor d of n. Size-1 divisors are opt-in.
+  const int64_t dStart = allowSizeOne ? 1 : 2;
+  for (int64_t d = dStart; d <= n; ++d) {
     if (n % d != 0)
       continue;
     int64_t remainder = n / d;
     // Recurse to factor the remainder into (k-1) parts.
-    auto subResults = orderedFactorizations(remainder, k - 1);
+    auto subResults = orderedFactorizations(remainder, k - 1, allowSizeOne);
     for (auto &sub : subResults) {
       llvm::SmallVector<int64_t> combined;
       combined.push_back(d);
@@ -95,7 +97,8 @@ void HWDimSplitter::cartesianFactorizations(
 
 llvm::SmallVector<HWDimSplit>
 HWDimSplitter::generateAllSplits(
-    unsigned P, const llvm::SmallVector<SpatialDimInfo> &hwDims) {
+    unsigned P, const llvm::SmallVector<SpatialDimInfo> &hwDims,
+    bool allowSizeOne) {
   const unsigned D = static_cast<unsigned>(hwDims.size());
   assert(P >= D && "P must be >= D (number of HW dims)");
 
@@ -115,7 +118,7 @@ HWDimSplitter::generateAllSplits(
     bool valid = true;
     for (unsigned i = 0; i < D; ++i) {
       int64_t dimSize = hwDims[i].size.value_or(1);
-      auto facts = orderedFactorizations(dimSize, partition[i]);
+      auto facts = orderedFactorizations(dimSize, partition[i], allowSizeOne);
       if (facts.empty()) {
         valid = false;
         break;

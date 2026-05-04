@@ -245,21 +245,26 @@ static LogicalResult applyMappingToFunction(
     auto it = iterIdxToHWMappings.find(i);
     if (it != iterIdxToHWMappings.end()) {
       auto &hwmVec = it->second;
+      SmallVector<const HWDimMapping *> nonUnitHWMappings;
       int64_t totalCores = 1;
-      for (const auto &hwm : hwmVec)
+      for (const auto &hwm : hwmVec) {
         totalCores *= hwm.hwDimSize;
+        if (hwm.hwDimSize != 1)
+          nonUnitHWMappings.push_back(&hwm);
+      }
 
-      if (hwmVec.size() >= 2) {
+      if (nonUnitHWMappings.size() >= 2) {
         reconstructedIV = loom::emitGlobalIndex2d(
-            builder, loc, hwmVec[0].iv, hwmVec[1].iv, hwmVec[0].hwDimSize,
-            waveIV, 1, static_cast<unsigned>(totalCores));
-      } else if (hwmVec.size() == 1) {
-        int64_t factor = hwmVec[0].hwDimSize;
+            builder, loc, nonUnitHWMappings[0]->iv, nonUnitHWMappings[1]->iv,
+            nonUnitHWMappings[0]->hwDimSize, waveIV, 1,
+            static_cast<unsigned>(totalCores));
+      } else if (nonUnitHWMappings.size() == 1) {
+        int64_t factor = nonUnitHWMappings[0]->hwDimSize;
         AffineExpr d0 = builder.getAffineDimExpr(0);
         AffineExpr d1 = builder.getAffineDimExpr(1);
         AffineMap map = AffineMap::get(2, 0, d0 + d1 * factor, ctx);
         reconstructedIV = affine::AffineApplyOp::create(
-            builder, loc, map, ValueRange{hwmVec[0].iv, waveIV});
+            builder, loc, map, ValueRange{nonUnitHWMappings[0]->iv, waveIV});
       }
     }
 
@@ -422,7 +427,7 @@ EnumerateSpatialMappings(ModuleOp affineModule,
     const unsigned D =
         static_cast<unsigned>(hardwareInfo.spatialDimInfoVec.size());
 
-    if (D == 0) {
+    if (D < 2 || P < 1) {
       SmallVector<unsigned> order(P);
       std::iota(order.begin(), order.end(), 0);
 
@@ -441,9 +446,11 @@ EnumerateSpatialMappings(ModuleOp affineModule,
             });
             if (!currentOuter)
               return failure();
-            if (failed(
-                    loom_affine::ConvertParallelToNested(currentOuter, order)))
-              return failure();
+            if (P > 0) {
+              if (failed(loom_affine::ConvertParallelToNested(currentOuter,
+                                                              order)))
+                return failure();
+            }
 
             markLoopsTemporal(cloned);
 
@@ -465,21 +472,12 @@ EnumerateSpatialMappings(ModuleOp affineModule,
       continue;
     }
 
-    // Generate all HW dim splits to produce P logical dims from D physical dims.
-    loom::HWDimSplitter splitter;
-    auto allSplits =
-        splitter.generateAllSplits(P, hardwareInfo.spatialDimInfoVec);
-
     loom::MappingPrioritizer prioritizer;
     loom::AxisScores scores = prioritizer.computeAxisScores(func, root);
     auto reductionInfoMain = detectReductionAxis(root);
     std::optional<unsigned> reductionIdx;
     if (reductionInfoMain)
       reductionIdx = reductionInfoMain->parallelIterIdx;
-
-    // Bijective mappings depend only on axis scores and P, not on the split.
-    auto bijectiveMappings =
-        prioritizer.generateBijectiveMappings(scores, P, reductionIdx);
 
     auto buildLogicalDimInfos = [](const loom::HWDimSplit &split) {
       SmallVector<loom::SpatialDimInfo> logicalDimInfos;
@@ -569,42 +567,31 @@ EnumerateSpatialMappings(ModuleOp affineModule,
 #endif
         };
 
-    for (const auto &split : allSplits) {
+    loom::HWDimSplitter splitter;
+    auto pPlus1Splits = splitter.generateAllSplits(
+        P + 1, hardwareInfo.spatialDimInfoVec, /*allowSizeOne=*/true);
+
+    for (const auto &split : pPlus1Splits) {
+      SmallVector<unsigned> level0Indices, nonLevel0Indices;
+      for (unsigned i = 0; i < split.logicalDims.size(); ++i) {
+        if (split.logicalDims[i].level == 0)
+          level0Indices.push_back(i);
+        else
+          nonLevel0Indices.push_back(i);
+      }
+
+      assert(level0Indices.size() == 2 &&
+             "framework currently assumes D == 2");
+
       SmallVector<loom::SpatialDimInfo> logicalDimInfos =
           buildLogicalDimInfos(split);
       std::string splitDesc = buildSplitDesc(split);
 
-      for (const auto &mapping : bijectiveMappings)
+      auto mappings = prioritizer.generateLevel0PairClaimMappings(
+          scores, level0Indices, nonLevel0Indices, reductionIdx);
+
+      for (const auto &mapping : mappings)
         applyOneCandidate(mapping, logicalDimInfos, splitDesc);
-    }
-
-    const bool eligibleForDoubling = (D >= 2) && (P >= 1);
-    if (eligibleForDoubling) {
-      loom::HWDimSplitter splitterPlus;
-      auto pPlus1Splits =
-          splitterPlus.generateAllSplits(P + 1, hardwareInfo.spatialDimInfoVec);
-
-      for (const auto &split : pPlus1Splits) {
-        SmallVector<unsigned> level0Indices, nonLevel0Indices;
-        for (unsigned i = 0; i < split.logicalDims.size(); ++i) {
-          if (split.logicalDims[i].level == 0)
-            level0Indices.push_back(i);
-          else
-            nonLevel0Indices.push_back(i);
-        }
-        if (level0Indices.size() != 2)
-          continue;
-
-        SmallVector<loom::SpatialDimInfo> logicalDimInfos =
-            buildLogicalDimInfos(split);
-        std::string splitDesc = buildSplitDesc(split);
-
-        auto doubledMappings = prioritizer.generateDoubledLevel0Mappings(
-            scores, level0Indices, nonLevel0Indices, reductionIdx);
-
-        for (const auto &mapping : doubledMappings)
-          applyOneCandidate(mapping, logicalDimInfos, splitDesc);
-      }
     }
   }
 

@@ -19,13 +19,7 @@ struct AxisScores {
   llvm::SmallVector<int64_t> parallelism;
 };
 
-/// Selects the lexicographic key used to rank axes.
-enum class PriorityKey {
-  Reuse,
-  ParallelismThenReuse,
-};
-
-/// Priority-based bijective mapping selector.
+/// Priority-based mapping selector.
 ///
 /// Replaces the combinatorial MappingEnumerator. Given a function with an
 /// outermost affine.parallel, this class:
@@ -37,21 +31,16 @@ public:
   AxisScores computeAxisScores(mlir::func::FuncOp func,
                                mlir::affine::AffineParallelOp rootParallel);
 
-  /// Enumerate every linearisation of the partial order induced by `key`.
-  /// With reductionIdx set, that iter is pinned at position 0.
+  /// Enumerate every linearisation of the partial order induced by
+  /// (parallelism, reuse). With reductionIdx set, that iter is pinned at
+  /// position 0.
   llvm::SmallVector<llvm::SmallVector<unsigned>>
-  enumeratePriorityOrderings(const AxisScores &scores, PriorityKey key,
+  enumeratePriorityOrderings(const AxisScores &scores,
                              std::optional<unsigned> reductionIdx);
 
-  /// Bijective mappings (mapping[iter] = {one hwDimIdx}). Priority order is
-  /// sorted by reuse DESC; reduction iter is unconditionally first.
-  llvm::SmallVector<DimBuckets>
-  generateBijectiveMappings(const AxisScores &scores, unsigned numHWDims,
-                            std::optional<unsigned> reductionIdx);
-
-  /// Generate mappings where the highest-priority iter spans two level-0
+  /// Generate mappings where the highest-priority iter claims the two level-0
   /// logical dims. Priority order is sorted by parallelism DESC, reuse DESC.
-  llvm::SmallVector<DimBuckets> generateDoubledLevel0Mappings(
+  llvm::SmallVector<DimBuckets> generateLevel0PairClaimMappings(
       const AxisScores &scores, llvm::ArrayRef<unsigned> level0DimIndices,
       llvm::ArrayRef<unsigned> nonLevel0DimIndices,
       std::optional<unsigned> reductionIdx);
