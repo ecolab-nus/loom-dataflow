@@ -25,6 +25,10 @@ inline constexpr llvm::StringLiteral kScalarSiteIdAttrName =
     "loom.ttkernel.scalar_site_id";
 inline constexpr llvm::StringLiteral kScalarSiteCountAttrName =
     "loom.ttkernel.scalar_site_count";
+inline constexpr llvm::StringLiteral kScalarSiteSizesAttrName =
+    "loom.ttkernel.scalar_site_sizes";
+inline constexpr llvm::StringLiteral kScalarSiteListDimsAttrName =
+    "loom.ttkernel.scalar_site_list_dims";
 inline constexpr llvm::StringLiteral kScalarSourceOnlyAttrName =
     "loom.ttkernel.scalar_source_only";
 inline constexpr llvm::StringLiteral kVecKindAttrName =

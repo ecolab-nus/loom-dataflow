@@ -174,6 +174,107 @@ getScalarSiteIdForGenericInput(linalg::GenericOp op, unsigned inputIdx) {
   return siteId;
 }
 
+struct ScalarRuntimeListDimUse {
+  Value iv;
+  int64_t dimOrdinal = 0;
+  int64_t lb = 0;
+  int64_t step = 1;
+  int64_t extent = 1;
+};
+
+static SmallVector<ScalarRuntimeListDimUse, 4>
+collectScalarRuntimeListDimsForSite(Operation *anchor, int64_t siteId) {
+  SmallVector<ScalarRuntimeListDimUse, 4> dims;
+  for (Operation *parent = anchor ? anchor->getParentOp() : nullptr; parent;
+       parent = parent->getParentOp()) {
+    auto forOp = dyn_cast<scf::ForOp>(parent);
+    if (!forOp)
+      continue;
+
+    auto attr =
+        forOp->getAttrOfType<DenseI64ArrayAttr>(kScalarSiteListDimsAttrName);
+    if (!attr)
+      continue;
+
+    ArrayRef<int64_t> values = attr.asArrayRef();
+    for (size_t idx = 0; idx + 4 < values.size(); idx += 5) {
+      if (values[idx] != siteId)
+        continue;
+      dims.push_back(ScalarRuntimeListDimUse{
+          forOp.getInductionVar(), values[idx + 1], values[idx + 2],
+          values[idx + 3], values[idx + 4]});
+    }
+  }
+
+  std::stable_sort(dims.begin(), dims.end(),
+                   [](const ScalarRuntimeListDimUse &a,
+                      const ScalarRuntimeListDimUse &b) {
+                     return a.dimOrdinal < b.dimOrdinal;
+                   });
+  return dims;
+}
+
+static FailureOr<Value>
+buildScalarRuntimeListIndex(linalg::GenericOp op, int64_t siteId,
+                            ConversionPatternRewriter &rewriter,
+                            Location loc) {
+  SmallVector<ScalarRuntimeListDimUse, 4> dims =
+      collectScalarRuntimeListDimsForSite(op.getOperation(), siteId);
+  if (dims.empty())
+    return op.emitOpError()
+           << "missing scalar runtime list dim metadata for site " << siteId;
+
+  Value index = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(), 0);
+  for (const ScalarRuntimeListDimUse &dim : dims) {
+    if (dim.step <= 0 || dim.extent <= 0)
+      return op.emitOpError()
+             << "invalid scalar runtime list dim metadata for site " << siteId;
+
+    Value iv = toI32(rewriter, loc, dim.iv);
+    if (!iv)
+      return op.emitOpError()
+             << "failed to convert scalar runtime list IV to i32 for site "
+             << siteId;
+
+    Value lb = rewriter.create<arith::ConstantIntOp>(loc, rewriter.getI32Type(),
+                                                     dim.lb);
+    Value step = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(), dim.step);
+    Value extent = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(), dim.extent);
+
+    Value shifted =
+        rewriter.create<arith::SubIOp>(loc, iv, lb);
+    Value digit =
+        rewriter.create<arith::DivSIOp>(loc, shifted, step);
+    Value scaled =
+        rewriter.create<arith::MulIOp>(loc, index, extent);
+    index = rewriter.create<arith::AddIOp>(loc, scaled, digit);
+  }
+
+  return index;
+}
+
+static Value selectScalarRuntimeListElement(ConversionPatternRewriter &rewriter,
+                                            Location loc, Value listIndex,
+                                            ArrayRef<Value> scalarArgs) {
+  if (scalarArgs.empty())
+    return {};
+  if (scalarArgs.size() == 1)
+    return scalarArgs.front();
+
+  Value selected = scalarArgs.front();
+  for (size_t elementIndex = 1; elementIndex < scalarArgs.size(); ++elementIndex) {
+    Value indexValue = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(), static_cast<int64_t>(elementIndex));
+    Value matches = rewriter.create<arith::CmpIOp>(
+        loc, arith::CmpIPredicate::eq, listIndex, indexValue);
+    selected = rewriter.create<arith::SelectOp>(
+        loc, matches, scalarArgs[elementIndex], selected);
+  }
+  return selected;
+}
+
 static LogicalResult analyzeElementwiseGeneric(linalg::GenericOp op,
                                                ElementwiseAnalysis &analysis);
 static bool isSupportedElementwiseGeneric(linalg::GenericOp op) {
@@ -1695,8 +1796,22 @@ static LogicalResult rewriteElementwiseGeneric(linalg::GenericOp op,
       auto siteId = getScalarSiteIdForGenericInput(op, i);
       if (!siteId)
         continue;
-      Value scalarBits =
-          tracker->getScalarRuntimeArg(parentFunc.getOperation(), *siteId);
+      ArrayRef<Value> scalarArgs =
+          tracker->getScalarRuntimeArgs(parentFunc.getOperation(), *siteId);
+      if (scalarArgs.empty())
+        continue;
+
+      Value scalarBits;
+      if (scalarArgs.size() == 1) {
+        scalarBits = scalarArgs.front();
+      } else {
+        FailureOr<Value> listIndex =
+            buildScalarRuntimeListIndex(op, *siteId, rewriter, loc);
+        if (failed(listIndex))
+          return failure();
+        scalarBits = selectScalarRuntimeListElement(rewriter, loc, *listIndex,
+                                                    scalarArgs);
+      }
       if (!scalarBits)
         continue;
       runtimeScalarBitsByInput[i] = scalarBits;

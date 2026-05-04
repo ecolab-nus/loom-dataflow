@@ -32,6 +32,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <limits>
 #include <optional>
 
 // Loom dialect headers for ::::loom::CopyOp, ::loom::AllocOp
@@ -260,9 +261,206 @@ static void ensureReductionScaleInputs(func::FuncOp func) {
 
 static bool isScalarOnlyRuntimeSourceArg(func::FuncOp func, BlockArgument arg);
 
-static void annotateScalarRuntimeSites(func::FuncOp func) {
+struct ScalarRuntimeListDimInfo {
+  scf::ForOp forOp;
+  int64_t dimOrdinal = 0;
+  int64_t lb = 0;
+  int64_t step = 1;
+  int64_t extent = 1;
+};
+
+static bool isScfForInductionVar(BlockArgument arg) {
+  if (!arg || !arg.getOwner())
+    return false;
+  auto forOp = dyn_cast_or_null<scf::ForOp>(arg.getOwner()->getParentOp());
+  return forOp && forOp.getInductionVar() == arg;
+}
+
+static bool isScfParallelInductionVar(BlockArgument arg) {
+  if (!arg || !arg.getOwner())
+    return false;
+  auto parallelOp =
+      dyn_cast_or_null<scf::ParallelOp>(arg.getOwner()->getParentOp());
+  return parallelOp &&
+         llvm::is_contained(parallelOp.getInductionVars(), Value(arg));
+}
+
+static LogicalResult collectScalarRuntimeTemporalIvs(
+    Value value, llvm::SmallPtrSetImpl<Value> &temporalIvs,
+    Operation *diagnosticOp) {
+  if (!value)
+    return failure();
+
+  if (evaluateConstInt(value))
+    return success();
+
+  if (auto arg = dyn_cast<BlockArgument>(value)) {
+    if (isScfForInductionVar(arg)) {
+      temporalIvs.insert(arg);
+      return success();
+    }
+    if (isScfParallelInductionVar(arg))
+      return success();
+
+    diagnosticOp->emitError()
+        << "scalar runtime offset depends on unsupported block argument";
+    return failure();
+  }
+
+  if (auto cast = value.getDefiningOp<arith::IndexCastOp>())
+    return collectScalarRuntimeTemporalIvs(cast.getIn(), temporalIvs,
+                                           diagnosticOp);
+
+  auto collectBinary = [&](Value lhs, Value rhs) -> LogicalResult {
+    if (failed(collectScalarRuntimeTemporalIvs(lhs, temporalIvs, diagnosticOp)))
+      return failure();
+    return collectScalarRuntimeTemporalIvs(rhs, temporalIvs, diagnosticOp);
+  };
+
+  if (auto op = value.getDefiningOp<arith::AddIOp>())
+    return collectBinary(op.getLhs(), op.getRhs());
+  if (auto op = value.getDefiningOp<arith::SubIOp>())
+    return collectBinary(op.getLhs(), op.getRhs());
+  if (auto op = value.getDefiningOp<arith::MulIOp>())
+    return collectBinary(op.getLhs(), op.getRhs());
+  if (auto op = value.getDefiningOp<arith::DivSIOp>())
+    return collectBinary(op.getLhs(), op.getRhs());
+  if (auto op = value.getDefiningOp<arith::DivUIOp>())
+    return collectBinary(op.getLhs(), op.getRhs());
+  if (auto op = value.getDefiningOp<arith::RemSIOp>())
+    return collectBinary(op.getLhs(), op.getRhs());
+  if (auto op = value.getDefiningOp<arith::RemUIOp>())
+    return collectBinary(op.getLhs(), op.getRhs());
+  if (auto op = value.getDefiningOp<arith::CeilDivSIOp>())
+    return collectBinary(op.getLhs(), op.getRhs());
+  if (auto op = value.getDefiningOp<arith::CeilDivUIOp>())
+    return collectBinary(op.getLhs(), op.getRhs());
+
+  Operation *defOp = value.getDefiningOp();
+  diagnosticOp->emitError()
+      << "unsupported operation in scalar runtime offset: "
+      << (defOp ? defOp->getName().getStringRef() : StringRef("<unknown>"));
+  return failure();
+}
+
+static LogicalResult getStaticLoopListDim(scf::ForOp forOp,
+                                          int64_t dimOrdinal,
+                                          ScalarRuntimeListDimInfo &dim,
+                                          Operation *diagnosticOp) {
+  auto lb = evaluateConstInt(forOp.getLowerBound());
+  auto ub = evaluateConstInt(forOp.getUpperBound());
+  auto step = evaluateConstInt(forOp.getStep());
+  if (!lb || !ub || !step || *step <= 0) {
+    diagnosticOp->emitError()
+        << "scalar runtime list requires static positive scf.for bounds";
+    return failure();
+  }
+
+  int64_t span = *ub - *lb;
+  if (span < 0) {
+    diagnosticOp->emitError()
+        << "scalar runtime list requires scf.for upper bound >= lower bound";
+    return failure();
+  }
+
+  int64_t extent = (span + *step - 1) / *step;
+  if (extent <= 0) {
+    diagnosticOp->emitError()
+        << "scalar runtime list requires non-empty scf.for iteration space";
+    return failure();
+  }
+
+  dim = ScalarRuntimeListDimInfo{forOp, dimOrdinal, *lb, *step, extent};
+  return success();
+}
+
+static LogicalResult analyzeScalarRuntimeListDims(
+    ::loom::CopyOp copyOp, memref::ReinterpretCastOp sourceRC, int64_t siteId,
+    SmallVectorImpl<ScalarRuntimeListDimInfo> &dims, int64_t &siteSize) {
+  siteSize = 1;
+
+  llvm::SmallPtrSet<Value, 8> temporalIvs;
+  auto offsets = sourceRC.getOffsets();
+  if (!offsets.empty()) {
+    if (failed(collectScalarRuntimeTemporalIvs(offsets.front(), temporalIvs,
+                                              copyOp.getOperation())))
+      return failure();
+  }
+
+  if (temporalIvs.empty())
+    return success();
+
+  SmallVector<scf::ForOp, 4> enclosingLoops;
+  for (Operation *parent = copyOp->getParentOp(); parent;
+       parent = parent->getParentOp()) {
+    if (auto forOp = dyn_cast<scf::ForOp>(parent))
+      enclosingLoops.push_back(forOp);
+  }
+  std::reverse(enclosingLoops.begin(), enclosingLoops.end());
+
+  llvm::SmallPtrSet<Value, 8> matchedIvs;
+  for (scf::ForOp forOp : enclosingLoops) {
+    Value iv = forOp.getInductionVar();
+    if (!temporalIvs.contains(iv))
+      continue;
+
+    ScalarRuntimeListDimInfo dim;
+    if (failed(getStaticLoopListDim(forOp, static_cast<int64_t>(dims.size()),
+                                    dim, copyOp.getOperation())))
+      return failure();
+
+    if (siteSize > std::numeric_limits<int64_t>::max() / dim.extent) {
+      copyOp.emitOpError()
+          << "scalar runtime list size overflow for site " << siteId;
+      return failure();
+    }
+    siteSize *= dim.extent;
+    dims.push_back(dim);
+    matchedIvs.insert(iv);
+  }
+
+  if (matchedIvs.size() != temporalIvs.size()) {
+    copyOp.emitOpError()
+        << "scalar runtime offset depends on a non-enclosing scf.for IV";
+    return failure();
+  }
+
+  return success();
+}
+
+static void appendScalarRuntimeListDimAttr(MLIRContext *context,
+                                           const ScalarRuntimeListDimInfo &dim,
+                                           int64_t siteId) {
+  SmallVector<int64_t, 16> values;
+  if (auto existing =
+          dim.forOp->getAttrOfType<DenseI64ArrayAttr>(
+              kScalarSiteListDimsAttrName)) {
+    values.append(existing.asArrayRef().begin(), existing.asArrayRef().end());
+  }
+  values.append({siteId, dim.dimOrdinal, dim.lb, dim.step, dim.extent});
+  dim.forOp->setAttr(kScalarSiteListDimsAttrName,
+                     DenseI64ArrayAttr::get(context, values));
+}
+
+static LogicalResult annotateScalarRuntimeSites(func::FuncOp func) {
+  MLIRContext *context = func.getContext();
+  func.walk([](::loom::CopyOp copyOp) {
+    copyOp->removeAttr(kScalarSiteIdAttrName);
+  });
+  func.walk([](::loom::SemaphoreTakeOp sem) {
+    sem->removeAttr(kScalarSiteIdAttrName);
+  });
+  func.walk([](scf::ForOp forOp) {
+    forOp->removeAttr(kScalarSiteListDimsAttrName);
+  });
+
   int64_t nextSiteId = 0;
+  SmallVector<int64_t, 8> scalarSiteSizes;
+  LogicalResult status = success();
   func.walk([&](::loom::CopyOp copyOp) {
+    if (failed(status))
+      return;
+
     auto sourceRC = copyOp.getSource().getDefiningOp<memref::ReinterpretCastOp>();
     if (!sourceRC)
       return;
@@ -275,23 +473,38 @@ static void annotateScalarRuntimeSites(func::FuncOp func) {
     if (!dstBase.getDefiningOp<::loom::AllocOp>())
       return;
 
-    IntegerAttr siteAttr = IntegerAttr::get(IntegerType::get(func.getContext(), 64),
-                                            nextSiteId);
+    SmallVector<ScalarRuntimeListDimInfo, 4> dims;
+    int64_t siteSize = 1;
+    status = analyzeScalarRuntimeListDims(copyOp, sourceRC, nextSiteId, dims,
+                                          siteSize);
+    if (failed(status))
+      return;
+
+    IntegerAttr siteAttr =
+        IntegerAttr::get(IntegerType::get(context, 64), nextSiteId);
     copyOp->setAttr(kScalarSiteIdAttrName, siteAttr);
 
     Value dst = stripMemrefCasts(copyOp.getDestination());
     if (auto sem = dst.getDefiningOp<::loom::SemaphoreTakeOp>())
       sem->setAttr(kScalarSiteIdAttrName, siteAttr);
 
+    for (const ScalarRuntimeListDimInfo &dim : dims)
+      appendScalarRuntimeListDimAttr(context, dim, nextSiteId);
+    scalarSiteSizes.push_back(siteSize);
     ++nextSiteId;
   });
 
+  if (failed(status))
+    return failure();
+
   if (nextSiteId > 0) {
     func->setAttr(kScalarSiteCountAttrName,
-                  IntegerAttr::get(IntegerType::get(func.getContext(), 64),
-                                   nextSiteId));
+                  IntegerAttr::get(IntegerType::get(context, 64), nextSiteId));
+    func->setAttr(kScalarSiteSizesAttrName,
+                  DenseI64ArrayAttr::get(context, scalarSiteSizes));
   } else {
     func->removeAttr(kScalarSiteCountAttrName);
+    func->removeAttr(kScalarSiteSizesAttrName);
   }
 
   for (BlockArgument arg : func.front().getArguments()) {
@@ -301,6 +514,8 @@ static void annotateScalarRuntimeSites(func::FuncOp func) {
     else
       func.removeArgAttr(arg.getArgNumber(), kScalarSourceOnlyAttrName);
   }
+
+  return success();
 }
 
 enum class VecBroadcastKind { None, RowBcast, ColBcast };
@@ -1193,19 +1408,37 @@ LogicalResult mlir::loom::CompileArgTracker::processInputArgs(
       return func.emitError() << "invalid negative scalar site count: "
                               << scalarSiteCount;
     }
-    auto &runtimeArgs = funcToScalarRuntimeArgs[func.getOperation()];
-    runtimeArgs.reserve(static_cast<size_t>(scalarSiteCount));
+    DenseI64ArrayAttr scalarSiteSizesAttr =
+        func->getAttrOfType<DenseI64ArrayAttr>(kScalarSiteSizesAttrName);
+    ArrayRef<int64_t> scalarSiteSizes =
+        scalarSiteSizesAttr ? scalarSiteSizesAttr.asArrayRef()
+                            : ArrayRef<int64_t>();
+    auto &runtimeArgsBySite = funcToScalarRuntimeArgs[func.getOperation()];
+    runtimeArgsBySite.resize(static_cast<size_t>(scalarSiteCount));
     for (int64_t siteId = 0; siteId < scalarSiteCount; ++siteId) {
-      RuntimeArgKey key = RuntimeArgKey::scalarSite(siteId);
-      if (!runtimeLayout.contains(key))
-        continue;
-      Value scalarArg =
-          createRuntimeArg(loc, rewriter, func, key, rewriter.getI32Type());
-      if (!scalarArg)
+      int64_t siteSize =
+          (siteId < static_cast<int64_t>(scalarSiteSizes.size()))
+              ? scalarSiteSizes[siteId]
+              : 1;
+      if (siteSize <= 0)
         return func.emitError()
-               << "failed to materialize scalar runtime arg for site "
-               << siteId;
-      runtimeArgs.push_back(scalarArg);
+               << "invalid scalar runtime list size for site " << siteId
+               << ": " << siteSize;
+
+      auto &runtimeArgs = runtimeArgsBySite[siteId];
+      runtimeArgs.reserve(static_cast<size_t>(siteSize));
+      for (int64_t elementIndex = 0; elementIndex < siteSize; ++elementIndex) {
+        RuntimeArgKey key = RuntimeArgKey::scalarSite(siteId, elementIndex);
+        if (!runtimeLayout.contains(key))
+          continue;
+        Value scalarArg =
+            createRuntimeArg(loc, rewriter, func, key, rewriter.getI32Type());
+        if (!scalarArg)
+          return func.emitError()
+                 << "failed to materialize scalar runtime arg for site "
+                 << siteId << ", element " << elementIndex;
+        runtimeArgs.push_back(scalarArg);
+      }
     }
   }
 
@@ -1410,15 +1643,24 @@ mlir::loom::CompileArgTracker::getReduceRuntimeArgs(Operation *funcOp) {
 
 Value mlir::loom::CompileArgTracker::getScalarRuntimeArg(Operation *funcOp,
                                                          int64_t siteId) const {
+  ArrayRef<Value> runtimeArgs = getScalarRuntimeArgs(funcOp, siteId);
+  if (runtimeArgs.empty())
+    return {};
+  return runtimeArgs.front();
+}
+
+ArrayRef<Value>
+mlir::loom::CompileArgTracker::getScalarRuntimeArgs(Operation *funcOp,
+                                                    int64_t siteId) const {
   if (!funcOp || siteId < 0)
     return {};
   auto it = funcToScalarRuntimeArgs.find(funcOp);
   if (it == funcToScalarRuntimeArgs.end())
     return {};
-  auto &runtimeArgs = it->second;
-  if (siteId >= static_cast<int64_t>(runtimeArgs.size()))
+  const auto &runtimeArgsBySite = it->second;
+  if (siteId >= static_cast<int64_t>(runtimeArgsBySite.size()))
     return {};
-  return runtimeArgs[siteId];
+  return runtimeArgsBySite[siteId];
 }
 
 void mlir::loom::CompileArgTracker::appendToCoreList(Operation *funcOp, Value value) {
@@ -2026,10 +2268,18 @@ private:
     int64_t siteId = -1;
     unsigned sourceArgIndex = 0;
     unsigned scalarHostArgOrdinal = 0;
-    std::string offsetExpr;
+    SmallVector<std::string, 4> offsetExprs;
     std::string inputName;
     std::string bufferName;
     std::string scalarValuesName;
+  };
+
+  struct ScalarRuntimeListDimHostInfo {
+    Value iv;
+    int64_t dimOrdinal = 0;
+    int64_t lb = 0;
+    int64_t step = 1;
+    int64_t extent = 1;
   };
 
   struct ScalarRuntimeHostArgInfo {
@@ -2104,12 +2354,40 @@ private:
         return std::nullopt;
       return *lhsConst / *rhsConst;
     }
+    if (auto op = value.getDefiningOp<arith::DivUIOp>()) {
+      auto lhsConst = evaluateConstInt(op.getLhs());
+      auto rhsConst = evaluateConstInt(op.getRhs());
+      if (!lhsConst || !rhsConst || *rhsConst == 0)
+        return std::nullopt;
+      return *lhsConst / *rhsConst;
+    }
     if (auto op = value.getDefiningOp<arith::RemSIOp>()) {
       auto lhsConst = evaluateConstInt(op.getLhs());
       auto rhsConst = evaluateConstInt(op.getRhs());
       if (!lhsConst || !rhsConst || *rhsConst == 0)
         return std::nullopt;
       return *lhsConst % *rhsConst;
+    }
+    if (auto op = value.getDefiningOp<arith::RemUIOp>()) {
+      auto lhsConst = evaluateConstInt(op.getLhs());
+      auto rhsConst = evaluateConstInt(op.getRhs());
+      if (!lhsConst || !rhsConst || *rhsConst == 0)
+        return std::nullopt;
+      return *lhsConst % *rhsConst;
+    }
+    if (auto op = value.getDefiningOp<arith::CeilDivSIOp>()) {
+      auto lhsConst = evaluateConstInt(op.getLhs());
+      auto rhsConst = evaluateConstInt(op.getRhs());
+      if (!lhsConst || !rhsConst || *rhsConst <= 0)
+        return std::nullopt;
+      return (*lhsConst + *rhsConst - 1) / *rhsConst;
+    }
+    if (auto op = value.getDefiningOp<arith::CeilDivUIOp>()) {
+      auto lhsConst = evaluateConstInt(op.getLhs());
+      auto rhsConst = evaluateConstInt(op.getRhs());
+      if (!lhsConst || !rhsConst || *rhsConst <= 0)
+        return std::nullopt;
+      return (*lhsConst + *rhsConst - 1) / *rhsConst;
     }
 
     return std::nullopt;
@@ -2196,8 +2474,35 @@ private:
       return emitBinaryExpr(op.getLhs(), op.getRhs(), "*");
     if (auto op = value.getDefiningOp<arith::DivSIOp>())
       return emitBinaryExpr(op.getLhs(), op.getRhs(), "/");
+    if (auto op = value.getDefiningOp<arith::DivUIOp>())
+      return emitBinaryExpr(op.getLhs(), op.getRhs(), "/");
     if (auto op = value.getDefiningOp<arith::RemSIOp>())
       return emitBinaryExpr(op.getLhs(), op.getRhs(), "%");
+    if (auto op = value.getDefiningOp<arith::RemUIOp>())
+      return emitBinaryExpr(op.getLhs(), op.getRhs(), "%");
+    auto emitCeilDivExpr = [&](Value lhs,
+                               Value rhs) -> std::optional<std::string> {
+      auto lhsExpr = buildIndexExpr(lhs, knownExprs);
+      auto rhsExpr = buildIndexExpr(rhs, knownExprs);
+      if (!lhsExpr || !rhsExpr)
+        return std::nullopt;
+
+      auto lhsConst = evaluateConstInt(lhs);
+      auto rhsConst = evaluateConstInt(rhs);
+      if (lhsConst && rhsConst && *rhsConst > 0)
+        return std::to_string((*lhsConst + *rhsConst - 1) / *rhsConst);
+      if (lhsConst && *lhsConst == 0)
+        return std::string("0");
+      if (rhsConst && *rhsConst == 1)
+        return lhsExpr;
+      return makeBinaryExpr(
+          makeBinaryExpr(*lhsExpr, makeBinaryExpr(*rhsExpr, "1", "-"), "+"),
+          *rhsExpr, "/");
+    };
+    if (auto op = value.getDefiningOp<arith::CeilDivSIOp>())
+      return emitCeilDivExpr(op.getLhs(), op.getRhs());
+    if (auto op = value.getDefiningOp<arith::CeilDivUIOp>())
+      return emitCeilDivExpr(op.getLhs(), op.getRhs());
 
     return std::nullopt;
   }
@@ -2757,6 +3062,121 @@ private:
     return static_cast<unsigned>(scalarRuntimeHostArgs.size() - 1);
   }
 
+  SmallVector<ScalarRuntimeListDimHostInfo, 4>
+  collectScalarRuntimeListDims(Operation *anchor, int64_t siteId) const {
+    SmallVector<ScalarRuntimeListDimHostInfo, 4> dims;
+    for (Operation *parent = anchor ? anchor->getParentOp() : nullptr; parent;
+         parent = parent->getParentOp()) {
+      auto forOp = dyn_cast<scf::ForOp>(parent);
+      if (!forOp)
+        continue;
+
+      auto attr =
+          forOp->getAttrOfType<DenseI64ArrayAttr>(kScalarSiteListDimsAttrName);
+      if (!attr)
+        continue;
+
+      ArrayRef<int64_t> values = attr.asArrayRef();
+      for (size_t idx = 0; idx + 4 < values.size(); idx += 5) {
+        if (values[idx] != siteId)
+          continue;
+        dims.push_back(ScalarRuntimeListDimHostInfo{
+            forOp.getInductionVar(), values[idx + 1], values[idx + 2],
+            values[idx + 3], values[idx + 4]});
+      }
+    }
+
+    std::stable_sort(
+        dims.begin(), dims.end(),
+        [](const ScalarRuntimeListDimHostInfo &a,
+           const ScalarRuntimeListDimHostInfo &b) {
+          return a.dimOrdinal < b.dimOrdinal;
+        });
+    return dims;
+  }
+
+  FailureOr<int64_t>
+  getScalarRuntimeSiteSize(int64_t siteId,
+                           ArrayRef<ScalarRuntimeListDimHostInfo> dims,
+                           Location loc) const {
+    if (auto sizesAttr =
+            hostFunc->getAttrOfType<DenseI64ArrayAttr>(kScalarSiteSizesAttrName)) {
+      ArrayRef<int64_t> sizes = sizesAttr.asArrayRef();
+      if (siteId < 0 || siteId >= static_cast<int64_t>(sizes.size()))
+        return emitError(loc) << "missing scalar runtime list size for site "
+                              << siteId;
+      if (sizes[siteId] <= 0)
+        return emitError(loc) << "invalid scalar runtime list size "
+                              << sizes[siteId] << " for site " << siteId;
+      return sizes[siteId];
+    }
+
+    int64_t siteSize = 1;
+    for (const ScalarRuntimeListDimHostInfo &dim : dims) {
+      if (dim.extent <= 0)
+        return emitError(loc) << "invalid scalar runtime list extent "
+                              << dim.extent << " for site " << siteId;
+      if (siteSize > std::numeric_limits<int64_t>::max() / dim.extent)
+        return emitError(loc)
+               << "scalar runtime list size overflow for site " << siteId;
+      siteSize *= dim.extent;
+    }
+    return siteSize;
+  }
+
+  FailureOr<SmallVector<std::string, 4>>
+  buildScalarRuntimeOffsetExprs(
+      memref::ReinterpretCastOp sourceRC,
+      ArrayRef<ScalarRuntimeListDimHostInfo> dims, int64_t siteSize) const {
+    SmallVector<std::string, 4> offsetExprs;
+
+    Value offsetValue;
+    auto offsets = sourceRC.getOffsets();
+    if (!offsets.empty()) {
+      offsetValue = offsets.front();
+    } else {
+      auto mixedOffsets = sourceRC.getMixedOffsets();
+      if (!mixedOffsets.empty() && isa<Attribute>(mixedOffsets.front())) {
+        auto intAttr =
+            dyn_cast<IntegerAttr>(cast<Attribute>(mixedOffsets.front()));
+        if (intAttr) {
+          offsetExprs.push_back(std::to_string(intAttr.getInt()));
+          return offsetExprs;
+        }
+      }
+      return emitError(sourceRC.getLoc())
+             << "scalar runtime site requires a dynamic or static offset";
+    }
+
+    for (int64_t elementIndex = 0; elementIndex < siteSize; ++elementIndex) {
+      IndexExprMap knownExprs = parallelIvExprByValue;
+      int64_t remaining = elementIndex;
+      SmallVector<int64_t, 4> digits(dims.size(), 0);
+      for (int64_t dimIdx = static_cast<int64_t>(dims.size()) - 1; dimIdx >= 0;
+           --dimIdx) {
+        int64_t extent = dims[dimIdx].extent;
+        if (extent <= 0)
+          return emitError(sourceRC.getLoc())
+                 << "invalid scalar runtime list extent " << extent;
+        digits[dimIdx] = remaining % extent;
+        remaining /= extent;
+      }
+
+      for (auto [dim, digit] : llvm::zip(dims, digits)) {
+        int64_t ivValue = dim.lb + digit * dim.step;
+        knownExprs[dim.iv] = std::to_string(ivValue);
+      }
+
+      auto offsetExpr = buildIndexExpr(offsetValue, knownExprs);
+      if (!offsetExpr)
+        return emitError(sourceRC.getLoc())
+               << "failed to build offset expression for scalar runtime site";
+      offsetExprs.push_back(*offsetExpr);
+    }
+
+    return offsetExprs;
+  }
+
   void collectScalarRuntimeSites() {
     scalarRuntimeSites.clear();
     if (parallelIvExprByValue.empty())
@@ -2777,21 +3197,27 @@ private:
         return;
       unsigned sourceArgIndex = blockArg.getArgNumber();
 
-      std::optional<std::string> offsetExpr;
-      auto offsets = sourceRC.getOffsets();
-      if (!offsets.empty()) {
-        offsetExpr = buildIndexExpr(offsets.front(), parallelIvExprByValue);
-      } else {
-        auto mixedOffsets = sourceRC.getMixedOffsets();
-        if (!mixedOffsets.empty() && isa<Attribute>(mixedOffsets.front())) {
-          auto intAttr =
-              dyn_cast<IntegerAttr>(cast<Attribute>(mixedOffsets.front()));
-          if (intAttr)
-            offsetExpr = std::to_string(intAttr.getInt());
-        }
+      SmallVector<ScalarRuntimeListDimHostInfo, 4> dims =
+          collectScalarRuntimeListDims(op.getOperation(), siteAttr.getInt());
+      FailureOr<int64_t> siteSize =
+          getScalarRuntimeSiteSize(siteAttr.getInt(), dims, op.getLoc());
+      if (failed(siteSize)) {
+        status = failure();
+        return;
       }
-      if (!offsetExpr)
-        offsetExpr = "0";
+
+      auto offsetExprs = buildScalarRuntimeOffsetExprs(sourceRC, dims, *siteSize);
+      if (failed(offsetExprs)) {
+        status = failure();
+        return;
+      }
+      if (static_cast<int64_t>(offsetExprs->size()) != *siteSize) {
+        op.emitError() << "scalar runtime site " << siteAttr.getInt()
+                       << " expected " << *siteSize
+                       << " offsets but built " << offsetExprs->size();
+        status = failure();
+        return;
+      }
 
       unsigned scalarHostArgOrdinal =
           getOrCreateScalarRuntimeHostArg(sourceArgIndex);
@@ -2801,7 +3227,7 @@ private:
           siteAttr.getInt(),
           sourceArgIndex,
           scalarHostArgOrdinal,
-          *offsetExpr,
+          *offsetExprs,
           "",
           "",
           hostArgInfo.valuesName});
@@ -3196,10 +3622,21 @@ private:
     return {};
   }
 
-  void emitScalarRuntimeIndex(const ScalarRuntimeSiteInfo &site,
-                              const std::string &sitePrefix) {
+  static std::string getScalarRuntimePrefix(const ScalarRuntimeSiteInfo &site,
+                                            int64_t elementIndex) {
+    return "scalar_site_" + std::to_string(site.siteId) + "_" +
+           std::to_string(elementIndex);
+  }
+
+  static std::string getScalarRuntimePackedName(
+      const ScalarRuntimeSiteInfo &site, int64_t elementIndex) {
+    return getScalarRuntimePrefix(site, elementIndex) + "_packed";
+  }
+
+  void emitScalarRuntimeIndex(const std::string &sitePrefix,
+                              const std::string &offsetExpr) {
     emitLine("std::size_t " + sitePrefix +
-             "_index = static_cast<std::size_t>(" + site.offsetExpr + ");");
+             "_index = static_cast<std::size_t>(" + offsetExpr + ");");
   }
 
   void emitScalarRuntimePybindLoad(const ScalarRuntimeSiteInfo &site,
@@ -3214,7 +3651,11 @@ private:
   bool scalarRuntimeOffsetsUseCore() const {
     return llvm::any_of(scalarRuntimeSites,
                         [](const ScalarRuntimeSiteInfo &site) {
-                          return StringRef(site.offsetExpr).contains("core.");
+                          return llvm::any_of(
+                              site.offsetExprs,
+                              [](StringRef offsetExpr) {
+                                return offsetExpr.contains("core.");
+                              });
                         });
   }
 
@@ -3341,8 +3782,11 @@ private:
       }
       llvm_unreachable("unknown reduce runtime field");
     case RuntimeArgKind::ScalarSite:
-      if (const auto *site = findScalarRuntimeSite(key.id))
-        return "scalar_site_" + std::to_string(site->siteId) + "_packed";
+      if (const auto *site = findScalarRuntimeSite(key.id)) {
+        if (key.field >= 0 &&
+            key.field < static_cast<int64_t>(site->offsetExprs.size()))
+          return getScalarRuntimePackedName(*site, key.field);
+      }
       return "0";
     case RuntimeArgKind::CoreCoord:
       switch (static_cast<CoreCoordRuntimeField>(key.field)) {
@@ -3434,17 +3878,22 @@ private:
     }
 
     for (const ScalarRuntimeSiteInfo &site : scalarRuntimeSites) {
-      std::string sitePrefix = "scalar_site_" + std::to_string(site.siteId);
-      emitScalarRuntimeIndex(site, sitePrefix);
-      emitScalarRuntimePybindLoad(site, sitePrefix);
-      RuntimeArgKey scalarKey = RuntimeArgKey::scalarSite(site.siteId);
-      std::string packedExpr = sitePrefix + "_packed";
-      emitRuntimePatchIfPresent(KernelRuntimeRole::Reader, scalarKey,
-                                packedExpr);
-      emitRuntimePatchIfPresent(KernelRuntimeRole::Writer, scalarKey,
-                                packedExpr);
-      emitRuntimePatchIfPresent(KernelRuntimeRole::Compute, scalarKey,
-                                packedExpr);
+      for (auto [elementIndex, offsetExpr] : llvm::enumerate(site.offsetExprs)) {
+        std::string sitePrefix =
+            getScalarRuntimePrefix(site, static_cast<int64_t>(elementIndex));
+        emitScalarRuntimeIndex(sitePrefix, offsetExpr);
+        emitScalarRuntimePybindLoad(site, sitePrefix);
+        RuntimeArgKey scalarKey = RuntimeArgKey::scalarSite(
+            site.siteId, static_cast<int64_t>(elementIndex));
+        std::string packedExpr =
+            getScalarRuntimePackedName(site, static_cast<int64_t>(elementIndex));
+        emitRuntimePatchIfPresent(KernelRuntimeRole::Reader, scalarKey,
+                                  packedExpr);
+        emitRuntimePatchIfPresent(KernelRuntimeRole::Writer, scalarKey,
+                                  packedExpr);
+        emitRuntimePatchIfPresent(KernelRuntimeRole::Compute, scalarKey,
+                                  packedExpr);
+      }
     }
 
     emitLine("}");
@@ -3578,17 +4027,19 @@ private:
     }
 
     for (const ScalarRuntimeSiteInfo &site : scalarRuntimeSites) {
-      std::string sitePrefix = "scalar_site_" + std::to_string(site.siteId);
-      emitLine("std::size_t " + sitePrefix +
-               "_index = static_cast<std::size_t>(" + site.offsetExpr + ");");
-      if (kind == HostProgramKind::Cpp) {
-        emitLine("bfloat16 " + sitePrefix + "_value = " +
-                 site.scalarValuesName + "[" + sitePrefix + "_index];");
-        emitLine("uint32_t " + sitePrefix +
-                 "_packed = pack_two_bfloat16_into_uint32({" + sitePrefix +
-                 "_value, " + sitePrefix + "_value});");
-      } else {
-        emitScalarRuntimePybindLoad(site, sitePrefix);
+      for (auto [elementIndex, offsetExpr] : llvm::enumerate(site.offsetExprs)) {
+        std::string sitePrefix =
+            getScalarRuntimePrefix(site, static_cast<int64_t>(elementIndex));
+        emitScalarRuntimeIndex(sitePrefix, offsetExpr);
+        if (kind == HostProgramKind::Cpp) {
+          emitLine("bfloat16 " + sitePrefix + "_value = " +
+                   site.scalarValuesName + "[" + sitePrefix + "_index];");
+          emitLine("uint32_t " + sitePrefix +
+                   "_packed = pack_two_bfloat16_into_uint32({" + sitePrefix +
+                   "_value, " + sitePrefix + "_value});");
+        } else {
+          emitScalarRuntimePybindLoad(site, sitePrefix);
+        }
       }
     }
 
@@ -3821,7 +4272,8 @@ LogicalResult mlir::loom::specializeFunctionsForTTKernel(ModuleOp module) {
 
     // Mark scalar load-copy sites so host/device scalar runtime-arg
     // extraction remains in per-copy-site order.
-    annotateScalarRuntimeSites(func);
+    if (failed(annotateScalarRuntimeSites(func)))
+      return failure();
 
     // Ensure every reduction generic has a dedicated scaler semaphore input.
     // This avoids reusing reduction outputs as scaler CBs during compute lowering.

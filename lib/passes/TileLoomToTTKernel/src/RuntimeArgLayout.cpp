@@ -135,8 +135,23 @@ mlir::loom::buildRuntimeArgLayout(func::FuncOp func) {
   if (*role == KernelRuntimeRole::Compute) {
     if (auto scalarSiteCountAttr =
             func->getAttrOfType<IntegerAttr>(kScalarSiteCountAttrName)) {
-      for (int64_t siteId = 0; siteId < scalarSiteCountAttr.getInt(); ++siteId)
-        layout.add(RuntimeArgKey::scalarSite(siteId));
+      DenseI64ArrayAttr scalarSiteSizesAttr =
+          func->getAttrOfType<DenseI64ArrayAttr>(kScalarSiteSizesAttrName);
+      ArrayRef<int64_t> scalarSiteSizes =
+          scalarSiteSizesAttr ? scalarSiteSizesAttr.asArrayRef()
+                              : ArrayRef<int64_t>();
+      for (int64_t siteId = 0; siteId < scalarSiteCountAttr.getInt(); ++siteId) {
+        int64_t siteSize =
+            (siteId < static_cast<int64_t>(scalarSiteSizes.size()))
+                ? scalarSiteSizes[siteId]
+                : 1;
+        if (siteSize <= 0)
+          return func.emitError()
+                 << "invalid scalar runtime list size for site " << siteId
+                 << ": " << siteSize;
+        for (int64_t elementIndex = 0; elementIndex < siteSize; ++elementIndex)
+          layout.add(RuntimeArgKey::scalarSite(siteId, elementIndex));
+      }
     }
   }
 

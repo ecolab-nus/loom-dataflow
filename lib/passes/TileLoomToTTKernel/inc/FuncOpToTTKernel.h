@@ -93,8 +93,8 @@ struct RuntimeArgKey {
                          static_cast<int64_t>(field)};
   }
 
-  static RuntimeArgKey scalarSite(int64_t siteId) {
-    return RuntimeArgKey{RuntimeArgKind::ScalarSite, siteId, 0};
+  static RuntimeArgKey scalarSite(int64_t siteId, int64_t elementIndex = 0) {
+    return RuntimeArgKey{RuntimeArgKind::ScalarSite, siteId, elementIndex};
   }
 
   static RuntimeArgKey coreCoord(CoreCoordRuntimeField field) {
@@ -375,8 +375,12 @@ public:
   const ReduceRuntimeArgs *getReduceRuntimeArgs(Operation *funcOp) const;
   ReduceRuntimeArgs *getReduceRuntimeArgs(Operation *funcOp);
 
-  /// Get a per-function scalar runtime arg (packed scalar word) by site id.
+  /// Get the first per-function scalar runtime arg (packed scalar word) by site id.
   Value getScalarRuntimeArg(Operation *funcOp, int64_t siteId) const;
+
+  /// Get all packed scalar runtime args for one scalar site.
+  ArrayRef<Value> getScalarRuntimeArgs(Operation *funcOp,
+                                       int64_t siteId) const;
 
   /**
    * @brief Get the runtime tuple data for a per-copy binding slot.
@@ -518,8 +522,8 @@ private:
   /// Optional per-function reduce synchronization runtime args.
   llvm::DenseMap<Operation *, ReduceRuntimeArgs> funcToReduceRuntimeArgs;
 
-  /// Per-function scalar runtime args in scalar-site order.
-  llvm::DenseMap<Operation *, llvm::SmallVector<Value, 4>>
+  /// Per-function scalar runtime args in scalar-site/list-element order.
+  llvm::DenseMap<Operation *, llvm::SmallVector<llvm::SmallVector<Value, 4>, 4>>
       funcToScalarRuntimeArgs;
 };
 
