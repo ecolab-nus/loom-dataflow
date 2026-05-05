@@ -112,13 +112,13 @@ cd third_party/loom-dataflow
 ```bash
 # Step 1
 build/tool/loom-opt/single_stage/tensor_canonicalize \
-  --input test/Passes/mm_2Dmesh/IR/00_from_helion_frontend.mlir \
-  > test/Passes/mm_2Dmesh/IR/01_tensor_canonicalized.mlir
+  --input test/Passes/mqa_decode/IR/00_from_helion_frontend.mlir \
+  > test/Passes/mqa_decode/IR/01_tensor_canonicalized.mlir
 
 # Step 2
 build/tool/loom-opt/single_stage/memory_binding \
-  --input test/Passes/mm_2Dmesh/IR/01_tensor_canonicalized.mlir \
-  > test/Passes/mm_2Dmesh/IR/02_explicit_memory_access.mlir
+  --input test/Passes/mqa_decode/IR/01_tensor_canonicalized.mlir \
+  > test/Passes/mqa_decode/IR/02_explicit_memory_access.mlir
 
 # Step 3
 build/tool/loom-opt/single_stage/enumerate_hw_mapping \

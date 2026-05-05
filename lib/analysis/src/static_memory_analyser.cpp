@@ -37,6 +37,8 @@ llvm::StringRef loom::toString(VBType type) {
     return "Eternal";
   case VBType::LoopCarried:
     return "LoopCarried";
+  case VBType::Exclusive:
+    return "Exclusive";
   }
   return "???";
 }
@@ -184,6 +186,59 @@ void MemoryAnalysisContext::computeDeathIndices() {
   }
 }
 
+void MemoryAnalysisContext::markExclusiveTarget(Value target, Operation *anchor,
+                                                llvm::StringRef reason) {
+  if (!target)
+    return;
+
+  if (!mlir::isa<RankedTensorType>(target.getType())) {
+    anchor->emitError() << reason << " target must be a ranked tensor";
+    llvm::report_fatal_error("exclusive handoff target is not a ranked tensor");
+  }
+
+  if (auto result = dyn_cast<OpResult>(target)) {
+    if (isa<scf::ForOp, affine::AffineForOp>(result.getOwner())) {
+      anchor->emitError()
+          << "canonicalization failed to materialize a post-loop proxy for "
+          << reason << " target";
+      llvm::report_fatal_error(
+          "loop handoff target reached memory analysis without proxy copy");
+    }
+  }
+
+  if (valueToNodeMap_.find(target) == valueToNodeMap_.end()) {
+    anchor->emitError() << "memory analysis could not find tensor node for "
+                        << reason << " target";
+    llvm::report_fatal_error("missing tensor node for exclusive handoff target");
+  }
+
+  exclusiveTargetValues_.insert(target);
+}
+
+void MemoryAnalysisContext::collectExclusiveHandoffTargets(func::FuncOp func) {
+  func.walk([&](Operation *op) {
+    if (auto toTensorOp = dyn_cast<bufferization::ToTensorOp>(op)) {
+      markExclusiveTarget(toTensorOp.getResult(), op,
+                          "bufferization.to_tensor");
+      return;
+    }
+
+    if (auto gatherOp = dyn_cast<loom::GatherOp>(op)) {
+      markExclusiveTarget(gatherOp.getIns(), op, "loom.gather input");
+      if (gatherOp->getNumResults() > 0)
+        markExclusiveTarget(gatherOp->getResult(0), op,
+                            "loom.gather result");
+      return;
+    }
+
+    if (auto toBufferOp = dyn_cast<bufferization::ToBufferOp>(op)) {
+      markExclusiveTarget(toBufferOp.getTensor(), op,
+                          "bufferization.to_buffer input");
+      return;
+    }
+  });
+}
+
 std::optional<LoopContext> MemoryAnalysisContext::findLoopContext() const {
   for (auto &entry : opIndexMap_) {
     if (auto parallelOp =
@@ -220,6 +275,20 @@ static bool isInitPure(Value initVal, Operation *loopOp) {
   return true;
 }
 
+void MemoryAnalysisContext::applyExclusiveTargetAxiom(Bucket &bucket) {
+  for (auto &node : bucket.nodes) {
+    if (node.mappedVBId.has_value() ||
+        !exclusiveTargetValues_.contains(node.value))
+      continue;
+
+    VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Exclusive);
+    vb->addMember(&node);
+    vb->liveness = {node.linearIndex, node.deathIndex};
+    vb->updateDefiningOp();
+    bucket.exclusiveVBIds.insert(vb->id);
+  }
+}
+
 void MemoryAnalysisContext::applyPhiFusionAxiom(
     Bucket &bucket, const LoopContext &loopContext) {
   Operation *loopOp = loopContext.loopOp;
@@ -248,7 +317,7 @@ void MemoryAnalysisContext::applyPhiFusionAxiom(
   for (unsigned i = 0; i < numIterArgs; ++i) {
     Value argVal = regionIterArgs[i];
     TensorNode *argNode = bucket.findNode(argVal);
-    if (!argNode)
+    if (!argNode || argNode->mappedVBId.has_value())
       continue;
 
     Value initVal = inits[i];
@@ -265,12 +334,13 @@ void MemoryAnalysisContext::applyPhiFusionAxiom(
 
     // Phase 1: Core members (init and iterarg)
     vb->addMember(argNode);
-    if (pure)
+    if (pure && !initNode->mappedVBId.has_value())
       vb->addMember(initNode);
 
     // Phase 2: Conditionally merge yield (handoff logic)
     bool mergedYield = false;
-    if (yieldNode && yieldNode != argNode && yieldNode != initNode) {
+    if (yieldNode && !yieldNode->mappedVBId.has_value() &&
+        yieldNode != argNode && yieldNode != initNode) {
       int argDeath = getValueDeathIndex(argVal);
       // Handoff check: yield birth >= arg death
       if (yieldNode->linearIndex >= argDeath) {
@@ -280,7 +350,8 @@ void MemoryAnalysisContext::applyPhiFusionAxiom(
     }
 
     // Phase 3: Unconditionally add return
-    if (resultNode && resultNode != argNode && resultNode != initNode &&
+    if (resultNode && !resultNode->mappedVBId.has_value() &&
+        resultNode != argNode && resultNode != initNode &&
         resultNode != yieldNode) {
       vb->addMember(resultNode);
     }
@@ -351,6 +422,7 @@ void MemoryAnalysisContext::buildVirtualBuffers() {
   auto loopOpt = findLoopContext();
 
   for (auto &[sig, bucket] : buckets_) {
+    applyExclusiveTargetAxiom(bucket);
     if (loopOpt) {
       applyPhiFusionAxiom(bucket, *loopOpt);
       applyExternalEternityAxiom(bucket, *loopOpt);
@@ -644,6 +716,20 @@ void InterferenceGraph::build() {
       }
     }
   }
+
+  for (int exclusiveVBId : bucket_.exclusiveVBIds) {
+    int exclusiveColorNode = getColorNodeForVB(exclusiveVBId);
+    if (exclusiveColorNode < 0)
+      llvm::report_fatal_error(
+          "exclusive buffer rule found unmapped virtual buffer");
+
+    for (const ColorNode &node : colorNodes_) {
+      if (node.id == exclusiveColorNode)
+        continue;
+      colorNodeEdges_.insert({std::min(exclusiveColorNode, node.id),
+                              std::max(exclusiveColorNode, node.id)});
+    }
+  }
 }
 
 void InterferenceGraph::dump(llvm::raw_ostream &os) const {
@@ -872,6 +958,8 @@ void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
           if (i < vb->members.size() - 1)
             os << ", ";
         }
+        if (bucket.exclusiveVBIds.contains(vb->id))
+          os << " (exclusive)";
         os << "\n";
       }
     }
@@ -935,6 +1023,7 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
   });
 
   ctx.computeDeathIndices();
+  ctx.collectExclusiveHandoffTargets(func);
 
   // Axioms phase
   ctx.buildVirtualBuffers();

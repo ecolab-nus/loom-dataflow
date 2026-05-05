@@ -133,4 +133,15 @@ def HandoffSyncInsertionPass : Pass<"loom-handoff-sync-insertion", "mlir::Module
   let constructor = "loom::passes::createHandoffSyncInsertionPass()";
 }
 
+def LoopHandoffProxyCopyInsertionPass : Pass<"loom-loop-handoff-proxy-copy-insertion", "mlir::ModuleOp"> {
+  let summary = "Insert post-loop proxy copies for communication handoffs";
+  let description = [{
+    For loop results consumed directly by communication boundary operations,
+    insert tensor.empty + linalg.copy after the loop and rewrite only those
+    communication operands to use the proxy tensor. This preserves loop Phi
+    reuse while giving memory analysis a singleton handoff tensor.
+  }];
+  let constructor = "loom::passes::createLoopHandoffProxyCopyInsertionPass()";
+}
+
 #endif // LOOM_TRITON_SHARED_PASSES

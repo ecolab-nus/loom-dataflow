@@ -8,6 +8,7 @@
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
@@ -35,7 +36,8 @@ enum class VBType {
   Standard,   // Internal computation (Axiom 3)
   Fused,      // Loop Phi-node fusion (Axiom 1)
   Eternal,    // External read-only / template (Axiom 2)
-  LoopCarried // Loop-carried but not fusing Init (Axiom 1 split)
+  LoopCarried, // Loop-carried but not fusing Init (Axiom 1 split)
+  Exclusive    // Handoff tensor requiring a singleton physical buffer
 };
 
 llvm::StringRef toString(VBType type);
@@ -118,6 +120,7 @@ struct Bucket {
   ShapeSignature signature;
   std::deque<TensorNode> nodes;
   std::vector<std::unique_ptr<VirtualBuffer>> virtualBuffers;
+  llvm::DenseSet<int> exclusiveVBIds;
   int maxColorsRequired = 0;
   std::unique_ptr<class InterferenceGraph> interferenceGraph;
   mlir::Operation *scopeOp =
@@ -244,6 +247,7 @@ public:
   void addTensor(mlir::Value v, ShapeSignature sig, mlir::Operation *defOp,
                  int idx);
   void computeDeathIndices();
+  void collectExclusiveHandoffTargets(mlir::func::FuncOp func);
   void buildVirtualBuffers();
   void fuseRelayVirtualBuffers();
   void buildInterferenceGraphs();
@@ -257,12 +261,16 @@ private:
   llvm::DenseMap<mlir::Operation *, int> opIndexMap_;
   std::vector<mlir::Operation *> indexToOpMap_;
   llvm::DenseMap<mlir::Value, TensorNode *> valueToNodeMap_;
+  llvm::DenseSet<mlir::Value> exclusiveTargetValues_;
   std::vector<SplitYieldInfo> splitYields_;
   int nextVBId_ = 0;
   LoomAllocationPlan allocationPlan_;
 
   // --- Internal Helpers ---
   std::optional<LoopContext> findLoopContext() const;
+  void markExclusiveTarget(mlir::Value target, mlir::Operation *anchor,
+                           llvm::StringRef reason);
+  void applyExclusiveTargetAxiom(Bucket &bucket);
   void applyPhiFusionAxiom(Bucket &bucket, const LoopContext &loop);
   void applyExternalEternityAxiom(Bucket &bucket, const LoopContext &loop);
   void applyStandardAxiom(Bucket &bucket);

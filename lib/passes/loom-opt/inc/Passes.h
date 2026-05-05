@@ -34,6 +34,7 @@ std::unique_ptr<mlir::Pass> createSinkFillOpsPass();
 std::unique_ptr<mlir::Pass> createLinalgGuardedElementwiseOpFusionPass();
 std::unique_ptr<mlir::Pass> createLowerAffineWithAttrPass();
 std::unique_ptr<mlir::Pass> createHandoffSyncInsertionPass();
+std::unique_ptr<mlir::Pass> createLoopHandoffProxyCopyInsertionPass();
 
 // Pass registration functions
 void registerTritonSharedExploreSpatialMappingsPass();
