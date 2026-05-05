@@ -84,18 +84,32 @@ struct LowerAffineWithAttrPass
     SmallVector<Attribute> physicalDims;
     SmallVector<Attribute> logicalLevels;
     SmallVector<Attribute> iterTypes;
+    SmallVector<Attribute> blockSyms;
     bool hasAnyAttr = false;
 
     for (auto parOp : nest) {
       auto pd = parOp->getAttr("loom.physical_dim");
       auto ll = parOp->getAttr("loom.logical_level");
       auto it = parOp->getAttr("loom.iter_type");
+      auto bs = parOp->getAttr("loom.block_sym");
+      auto constantRanges = parOp.getConstantRanges();
 
       for (unsigned i = 0; i < parOp.getNumDims(); ++i) {
         // Lower bounds using affine.apply (temporary, will be lowered later)
-        lowerBounds.push_back(affine::AffineApplyOp::create(
+        Value lowerBound = affine::AffineApplyOp::create(
             builder, loc, parOp.getLowerBoundMap(i),
-            parOp.getLowerBoundsOperands()));
+            parOp.getLowerBoundsOperands());
+
+        // Fold single-iteration affine.parallel dimensions before creating
+        // scf.parallel. The upstream scf.parallel canonicalizer also folds
+        // these dims, but rebuilds the op without preserving discardable attrs.
+        if (constantRanges && (*constantRanges)[i] > 0 &&
+            (*constantRanges)[i] <= parOp.getSteps()[i]) {
+          mapping.map(parOp.getBody()->getArgument(i), lowerBound);
+          continue;
+        }
+
+        lowerBounds.push_back(lowerBound);
         upperBounds.push_back(affine::AffineApplyOp::create(
             builder, loc, parOp.getUpperBoundMap(i),
             parOp.getUpperBoundsOperands()));
@@ -105,9 +119,18 @@ struct LowerAffineWithAttrPass
         physicalDims.push_back(pd ? pd : builder.getUnitAttr());
         logicalLevels.push_back(ll ? ll : builder.getUnitAttr());
         iterTypes.push_back(it ? it : builder.getUnitAttr());
+        blockSyms.push_back(bs ? bs : builder.getUnitAttr());
       }
-      if (pd || ll || it)
+      if (pd || ll || it || bs)
         hasAnyAttr = true;
+    }
+
+    if (lowerBounds.empty()) {
+      Block *innermostBody = nest.back().getBody();
+      for (auto &innerOp : innermostBody->without_terminator())
+        builder.clone(innerOp, mapping);
+      rootOp.erase();
+      return success();
     }
 
     auto scfPar = scf::ParallelOp::create(
@@ -117,7 +140,10 @@ struct LowerAffineWithAttrPass
           unsigned scfIvIdx = 0;
           for (auto parOp : nest) {
             for (unsigned i = 0; i < parOp.getNumDims(); ++i) {
-              mapping.map(parOp.getBody()->getArgument(i), ivs[scfIvIdx++]);
+              Value iv = parOp.getBody()->getArgument(i);
+              if (mapping.contains(iv))
+                continue;
+              mapping.map(iv, ivs[scfIvIdx++]);
             }
           }
 
@@ -135,6 +161,7 @@ struct LowerAffineWithAttrPass
       scfPar->setAttr("loom.logical_levels",
                       builder.getArrayAttr(logicalLevels));
       scfPar->setAttr("loom.iter_types", builder.getArrayAttr(iterTypes));
+      scfPar->setAttr("loom.block_syms", builder.getArrayAttr(blockSyms));
     }
 
     // Erase the old nest
