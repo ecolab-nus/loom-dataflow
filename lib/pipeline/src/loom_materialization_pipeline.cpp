@@ -12,7 +12,7 @@
 // (which re-includes GEN_PASS_REGISTRATION and causes redefinition conflicts).
 // TODO: distinguish per-backend pass sets when multiple backends are supported.
 namespace loom::passes {
-std::unique_ptr<mlir::Pass> createFuseZeroFillMatmulPass();
+std::unique_ptr<mlir::Pass> createFoldZeroFillLinalgPass();
 } // namespace loom::passes
 
 #include "mlir/Conversion/Passes.h"
@@ -221,7 +221,7 @@ runMaterializationCore(const char *input_mlir_text,
   // Stage 6: Backend-specific tensor-level optimizations.
   // TODO: gate these passes on a backend enum once multiple backends are
   //       supported (e.g. TT-Metal vs. others).
-  pm.addPass(loom::passes::createFuseZeroFillMatmulPass());
+  pm.addPass(loom::passes::createFoldZeroFillLinalgPass());
 
   // --- Run pipeline ---
   if (failed(pm.run(*module)))

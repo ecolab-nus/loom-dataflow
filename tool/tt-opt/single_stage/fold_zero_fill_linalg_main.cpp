@@ -1,7 +1,7 @@
-// Standalone driver to run the TT fuse-zero-fill-matmul pass.
+// Standalone driver to run the TT fold-zero-fill-linalg pass.
 //
 // Usage:
-//   fuse_fill_matmul --input <input.mlir>
+//   fold_zero_fill_linalg --input <input.mlir>
 
 #include "tt-opt/inc/Passes.h"
 
@@ -40,7 +40,7 @@ static llvm::cl::opt<std::string>
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
-                                    "TT fuse-zero-fill-matmul pass driver\n");
+                                    "TT fold-zero-fill-linalg pass driver\n");
 
   MLIRContext context;
   (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
@@ -70,12 +70,12 @@ int main(int argc, char **argv) {
   }
 
   PassManager pm(&context);
-  pm.addPass(loom::passes::createFuseZeroFillMatmulPass());
+  pm.addPass(loom::passes::createFoldZeroFillLinalgPass());
   pm.addPass(mlir::createCanonicalizerPass());
 
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs())
-        << "TT fuse-zero-fill-matmul pass failed\n";
+        << "TT fold-zero-fill-linalg pass failed\n";
     return 2;
   }
 

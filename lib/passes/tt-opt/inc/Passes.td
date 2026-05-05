@@ -3,14 +3,14 @@
 
 include "mlir/Pass/PassBase.td"
 
-def FuseZeroFillMatmul : Pass<"tt-fuse-zero-fill-matmul", "mlir::ModuleOp"> {
-  let summary = "Fuse linalg.fill(0) and linalg.matmul into loom.matmul";
+def FoldZeroFillLinalg : Pass<"tt-fold-zero-fill-linalg", "mlir::ModuleOp"> {
+  let summary = "Fold linalg.fill(0) feeding linalg outs operands";
   let description = [{
-    Detects the pattern where a `linalg.matmul` op's `outs` operand is defined 
-    by a `linalg.fill` with constant-zero, and replaces both with a single 
-    `loom.matmul` op.
+    Detects linalg destination operands initialized by a `linalg.fill` with
+    constant zero, removes the redundant fill when there is no intervening use,
+    and preserves the existing linalg.matmul/batch_matmul lowering to Loom ops.
   }];
-  let constructor = "loom::passes::createFuseZeroFillMatmulPass()";
+  let constructor = "loom::passes::createFoldZeroFillLinalgPass()";
   let dependentDialects = [
     "mlir::linalg::LinalgDialect",
     "mlir::arith::ArithDialect",

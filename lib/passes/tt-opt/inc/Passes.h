@@ -14,7 +14,7 @@ namespace passes {
 #define GEN_PASS_DECL
 #include "Passes.h.inc"
 
-std::unique_ptr<mlir::Pass> createFuseZeroFillMatmulPass();
+std::unique_ptr<mlir::Pass> createFoldZeroFillLinalgPass();
 
 #define GEN_PASS_REGISTRATION
 #include "Passes.h.inc"
