@@ -227,7 +227,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           } {loom.block_sym = @tile_s, loom.iter_type = #loom.iter_type<temporal>}
         } {loom.block_sym = @tile_b, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
-      }
+      } {loom.block_syms = [@tile_b, @tile_s], loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [1, 0], loom.physical_dims = [@dim_y, @dim_x]}
       return
     }
   }
@@ -441,7 +441,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           }
         } {loom.block_sym = @tile_b, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
-      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [1, 0, 0], loom.physical_dims = [@dim_y, @dim_x, @dim_y]}
+      } {loom.block_syms = [@tile_b, @tile_s, @tile_s], loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [1, 0, 0], loom.physical_dims = [@dim_y, @dim_x, @dim_y]}
       return
     }
   }
@@ -656,7 +656,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           }
         } {loom.block_sym = @tile_b, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
-      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [1, 0, 0], loom.physical_dims = [@dim_y, @dim_x, @dim_y]}
+      } {loom.block_syms = [@tile_b, @tile_s, @tile_s], loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [1, 0, 0], loom.physical_dims = [@dim_y, @dim_x, @dim_y]}
       return
     }
   }
@@ -864,7 +864,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           }
         } {loom.block_sym = @tile_b, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
-      }
+      } {loom.block_syms = [@tile_s, @tile_s], loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [0, 0], loom.physical_dims = [@dim_x, @dim_y]}
       return
     }
   }
@@ -1073,7 +1073,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           } {loom.block_sym = @tile_s, loom.iter_type = #loom.iter_type<temporal>}
         } {loom.block_sym = @tile_b, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
-      }
+      } {loom.block_syms = [@tile_b, @tile_s], loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [1, 0], loom.physical_dims = [@dim_x, @dim_y]}
       return
     }
   }
@@ -1287,7 +1287,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           }
         } {loom.block_sym = @tile_b, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
-      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [1, 0, 0], loom.physical_dims = [@dim_x, @dim_x, @dim_y]}
+      } {loom.block_syms = [@tile_b, @tile_s, @tile_s], loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [1, 0, 0], loom.physical_dims = [@dim_x, @dim_x, @dim_y]}
       return
     }
   }
@@ -1502,7 +1502,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           }
         } {loom.block_sym = @tile_b, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
-      } {loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [1, 0, 0], loom.physical_dims = [@dim_x, @dim_x, @dim_y]}
+      } {loom.block_syms = [@tile_b, @tile_s, @tile_s], loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [1, 0, 0], loom.physical_dims = [@dim_x, @dim_x, @dim_y]}
       return
     }
   }
@@ -1710,7 +1710,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           }
         } {loom.block_sym = @tile_b, loom.iter_type = #loom.iter_type<temporal>}
         scf.reduce 
-      }
+      } {loom.block_syms = [@tile_s, @tile_s], loom.iter_types = [#loom.iter_type<spatial>, #loom.iter_type<spatial>], loom.logical_levels = [0, 0], loom.physical_dims = [@dim_x, @dim_y]}
       return
     }
   }
