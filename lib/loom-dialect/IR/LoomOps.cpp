@@ -661,6 +661,25 @@ struct FoldSemaphoreTakeType : public OpRewritePattern<SemaphoreTakeOp> {
   }
 };
 
+struct DropUnusedSemaphoreTakeGive : public OpRewritePattern<SemaphoreTakeOp> {
+  using OpRewritePattern<SemaphoreTakeOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(SemaphoreTakeOp op,
+                                PatternRewriter &rewriter) const override {
+    Value semaphore = op.getResult();
+    if (!semaphore.hasOneUse())
+      return failure();
+
+    auto giveOp = dyn_cast<SemaphoreGiveOp>(*semaphore.user_begin());
+    if (!giveOp || giveOp.getSource() != semaphore)
+      return failure();
+
+    rewriter.eraseOp(giveOp);
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
 /// Peek through tensor.cast on ins/init and update the result type to a
 /// fully-static shape once the init tensor's shape becomes known.  Mirrors
 /// StaticizeReduceSum but accounts for the fact that ins and init have
@@ -893,7 +912,7 @@ void CopyToTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
 
 void SemaphoreTakeOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                                   MLIRContext *context) {
-  results.add<FoldSemaphoreTakeType>(context);
+  results.add<FoldSemaphoreTakeType, DropUnusedSemaphoreTakeGive>(context);
 }
 
 void CopyOp::getCanonicalizationPatterns(RewritePatternSet &results,
