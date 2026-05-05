@@ -8,6 +8,7 @@
 #include "mlir/IR/Matchers.h"
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/STLExtras.h"
 
 #include "LoomDialect.h.inc"
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
@@ -77,6 +78,11 @@ bool isInterveningUsage(Operation *start, Operation *end, Value memref) {
 }
 
 linalg::FillOp findZeroFillForOutput(Operation *consumer, Value outs) {
+  if (auto linalgOp = dyn_cast<linalg::LinalgOp>(consumer)) {
+    if (llvm::is_contained(linalgOp.getDpsInputs(), outs))
+      return nullptr;
+  }
+
   for (Operation *user : outs.getUsers()) {
     auto candidate = dyn_cast<linalg::FillOp>(user);
     if (!candidate || candidate.getOutputs().size() != 1 ||
