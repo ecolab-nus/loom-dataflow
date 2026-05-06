@@ -10,7 +10,6 @@
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace loom {
-class SyncOp;
 class BroadcastOp;
 } // namespace loom
 
@@ -49,9 +48,6 @@ bool shouldConvertComputeLinalgCopy(mlir::linalg::CopyOp op);
 /// Returns true when this `linalg.transpose` is a compute-kernel transpose
 /// handled by this pass.
 bool shouldConvertComputeLinalgTranspose(mlir::linalg::TransposeOp op);
-
-/// Returns true when this `loom.sync` should be lowered in compute kernels.
-bool shouldConvertComputeLoomSync(::loom::SyncOp op);
 
 /// Returns true when this `loom.broadcast` should be lowered in compute kernels.
 bool shouldConvertComputeLoomBroadcast(::loom::BroadcastOp op);

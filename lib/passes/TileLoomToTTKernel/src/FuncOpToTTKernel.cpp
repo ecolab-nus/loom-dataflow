@@ -922,7 +922,6 @@ static bool preprocessScalarMemoryOpsTmp(func::FuncOp func) {
     auto &semaphores = semaphoresByAlloc[allocValue];
     IntegerAttr siteAttr;
     SmallVector<::loom::SemaphoreGiveOp, 4> giveOps;
-    llvm::SmallPtrSet<Operation *, 4> syncOps;
 
     for (::loom::SemaphoreTakeOp sem : semaphores) {
       if (!siteAttr)
@@ -933,8 +932,6 @@ static bool preprocessScalarMemoryOpsTmp(func::FuncOp func) {
           giveOps.push_back(giveOp);
           continue;
         }
-        if (auto syncOp = dyn_cast<::loom::SyncOp>(user))
-          syncOps.insert(syncOp.getOperation());
       }
     }
 
@@ -948,10 +945,6 @@ static bool preprocessScalarMemoryOpsTmp(func::FuncOp func) {
     for (::loom::SemaphoreGiveOp giveOp : giveOps)
       if (giveOp->getBlock())
         giveOp.erase();
-
-    for (Operation *syncOp : syncOps)
-      if (syncOp->getBlock())
-        syncOp->erase();
 
     for (::loom::SemaphoreTakeOp sem : llvm::reverse(semaphores))
       if (sem->getBlock())

@@ -92,7 +92,6 @@ The main pass lives in `src/TileLoomToTTKernel.cpp`. The real execution order is
    - selected `linalg.generic` (including reduction-style sum)
    - `linalg.fill`
    - selected `linalg.copy`
-   - compute-side `loom.sync` (CB-to-CB transport)
    - `memref.reinterpret_cast`
    - shape-preserving `memref.collapse_shape` / `memref.expand_shape`
 10. Erase leftover host lowering artifacts.
@@ -297,8 +296,6 @@ This section lists the most important functions to inspect before editing code.
   Lowers `linalg.fill` into SFPU tile generation plus pack loop.
 - `ConvertLinalgCopyOp::matchAndRewrite(...)`
   Handles compute-side CB-to-CB copies when input/output tile counts match.
-- `ConvertLoomSyncOp::matchAndRewrite(...)`
-  Lowers compute-side `loom.sync` into a CB-to-CB `copy_tile` transport path.
 - `ConvertFlashAttentionGenericOp::matchAndRewrite(...)`
   Dispatches supported `linalg.generic` ops into reduction or elementwise
   lowering.

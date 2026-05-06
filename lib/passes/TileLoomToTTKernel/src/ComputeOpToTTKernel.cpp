@@ -2451,18 +2451,6 @@ bool mlir::loom::shouldConvertComputeLinalgTranspose(linalg::TransposeOp op) {
   return inTiles && outTiles && *inTiles == *outTiles;
 }
 
-bool mlir::loom::shouldConvertComputeLoomSync(::loom::SyncOp op) {
-  if (!isComputeKernel(op.getOperation()))
-    return false;
-
-  if (op.getNumResults() != 0)
-    return false;
-
-  auto inTiles = getNumTilesFromShapedType(op.getIns().getType());
-  auto outTiles = getNumTilesFromShapedType(op.getInit().getType());
-  return inTiles && outTiles && *inTiles == *outTiles;
-}
-
 bool mlir::loom::shouldConvertComputeLoomBroadcast(::loom::BroadcastOp op) {
   if (!isComputeKernel(op.getOperation()))
     return false;

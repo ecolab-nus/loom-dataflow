@@ -842,10 +842,6 @@ public:
         [&](linalg::TransposeOp op) {
           return !mlir::loom::shouldConvertComputeLinalgTranspose(op);
         });
-    target.addDynamicallyLegalOp<::loom::SyncOp>(
-        [&](::loom::SyncOp op) {
-          return !mlir::loom::shouldConvertComputeLoomSync(op);
-        });
     target.addDynamicallyLegalOp<::loom::BroadcastOp>(
         [&](::loom::BroadcastOp op) {
           return !mlir::loom::shouldConvertComputeLoomBroadcast(op);
