@@ -9,6 +9,7 @@
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 #include "LoomDialect.h.inc"
+#include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 

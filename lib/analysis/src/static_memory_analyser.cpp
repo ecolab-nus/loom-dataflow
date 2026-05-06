@@ -17,6 +17,7 @@
 #include <limits>
 
 // Note: Reusing generated LoomOps if needed
+#include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -217,29 +218,17 @@ void MemoryAnalysisContext::markExclusiveTarget(Value target, Operation *anchor,
 
 void MemoryAnalysisContext::collectExclusiveHandoffTargets(func::FuncOp func) {
   func.walk([&](Operation *op) {
-    if (auto toTensorOp = dyn_cast<loom::BufferizeToTensorOp>(op)) {
-      markExclusiveTarget(toTensorOp.getResult(), op,
-                          "loom.bufferize_to_tensor");
+    if (auto handoffOp = dyn_cast<loom::ComputeMemoryHandoffOpInterface>(op)) {
+      for (Value target : handoffOp.getHandoffTargetTensors())
+        markExclusiveTarget(target, op, "compute-memory handoff");
       return;
     }
 
+    // Compatibility for standalone pre-migration inputs that still use the
+    // upstream bufferization dialect as handoff anchors.
     if (auto toTensorOp = dyn_cast<bufferization::ToTensorOp>(op)) {
       markExclusiveTarget(toTensorOp.getResult(), op,
                           "bufferization.to_tensor");
-      return;
-    }
-
-    if (auto gatherOp = dyn_cast<loom::GatherOp>(op)) {
-      markExclusiveTarget(gatherOp.getIns(), op, "loom.gather input");
-      if (gatherOp->getNumResults() > 0)
-        markExclusiveTarget(gatherOp->getResult(0), op,
-                            "loom.gather result");
-      return;
-    }
-
-    if (auto toMemrefOp = dyn_cast<loom::BufferizeToMemrefOp>(op)) {
-      markExclusiveTarget(toMemrefOp.getSource(), op,
-                          "loom.bufferize_to_memref input");
       return;
     }
 

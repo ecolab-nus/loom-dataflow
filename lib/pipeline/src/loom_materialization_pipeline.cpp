@@ -49,6 +49,7 @@ std::unique_ptr<mlir::Pass> createFoldZeroFillLinalgPass();
 #define GET_OP_CLASSES
 #include "ADLOps.h.inc"
 #include "LoomDialect.h.inc"
+#include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 

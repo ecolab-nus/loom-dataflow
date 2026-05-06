@@ -37,6 +37,7 @@
 // Include Loom dialect headers for CopyOp and SubviewOp
 #include "mlir/Interfaces/ViewLikeInterface.h"
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
+#include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 

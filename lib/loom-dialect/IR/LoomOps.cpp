@@ -26,6 +26,7 @@
 #include "LoomAttributes.h.inc"
 
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
+#include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -38,6 +39,8 @@ using namespace loom;
 
 #define GET_ATTRDEF_CLASSES
 #include "LoomAttributes.cpp.inc"
+
+#include "LoomInterfaces.cpp.inc"
 
 void LoomDialect::initialize() {
   addOperations<
@@ -938,6 +941,28 @@ void BroadcastOp::getCanonicalizationPatterns(RewritePatternSet &results,
 //===----------------------------------------------------------------------===//
 // BufferizeToTensorOp / BufferizeToMemrefOp
 //===----------------------------------------------------------------------===//
+
+::mlir::SmallVector<::mlir::Value>
+loom::BufferizeToTensorOp::getHandoffTargetTensors() {
+  return {getResult()};
+}
+
+::mlir::SmallVector<::mlir::Value>
+loom::BufferizeToMemrefOp::getHandoffTargetTensors() {
+  return {getSource()};
+}
+
+::mlir::SmallVector<::mlir::Value>
+loom::GatherOp::getHandoffTargetTensors() {
+  ::mlir::SmallVector<::mlir::Value> targets;
+  if (::mlir::isa<::mlir::RankedTensorType>(getIns().getType()))
+    targets.push_back(getIns());
+  for (::mlir::Value result : getResults()) {
+    if (::mlir::isa<::mlir::RankedTensorType>(result.getType()))
+      targets.push_back(result);
+  }
+  return targets;
+}
 
 ::mlir::RankedTensorType
 loom::BufferizeToTensorOp::inferResultType(

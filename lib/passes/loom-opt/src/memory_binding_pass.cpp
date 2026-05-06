@@ -20,6 +20,7 @@
 #include "LoomDialect.h.inc"
 #include "static_memory_analyser.h"
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
+#include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 

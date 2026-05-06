@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "LoomDialect.h.inc"
+#include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 
@@ -58,6 +59,18 @@ static void addProxyUse(Value value, OpOperand *operand,
   proxy.resultIndex = key->second;
   proxy.uses.push_back(operand);
   proxies.push_back(std::move(proxy));
+}
+
+static void addProxyUsesForHandoffOp(
+    loom::ComputeMemoryHandoffOpInterface handoffOp,
+    SmallVectorImpl<LoopHandoffProxy> &proxies) {
+  SmallVector<Value> targets = handoffOp.getHandoffTargetTensors();
+  for (Value target : targets) {
+    for (OpOperand &operand : handoffOp->getOpOperands()) {
+      if (operand.get() == target)
+        addProxyUse(target, &operand, proxies);
+    }
+  }
 }
 
 static Value createProxyCopy(OpBuilder &builder, Location loc,
@@ -124,17 +137,13 @@ public:
     SmallVector<LoopHandoffProxy, 8> proxies;
 
     module.walk([&](Operation *op) {
-      if (auto gatherOp = dyn_cast<loom::GatherOp>(op)) {
-        addProxyUse(gatherOp.getIns(), &gatherOp->getOpOperand(0), proxies);
+      if (auto handoffOp = dyn_cast<loom::ComputeMemoryHandoffOpInterface>(op)) {
+        addProxyUsesForHandoffOp(handoffOp, proxies);
         return;
       }
 
-      if (auto toMemrefOp = dyn_cast<loom::BufferizeToMemrefOp>(op)) {
-        addProxyUse(toMemrefOp.getSource(), &toMemrefOp->getOpOperand(0),
-                    proxies);
-        return;
-      }
-
+      // Compatibility for standalone pre-migration inputs that still use the
+      // upstream bufferization dialect as handoff anchors.
       if (auto toBufferOp = dyn_cast<bufferization::ToBufferOp>(op)) {
         addProxyUse(toBufferOp.getTensor(), &toBufferOp->getOpOperand(0),
                     proxies);

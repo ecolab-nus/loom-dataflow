@@ -15,6 +15,7 @@
 
 // Include Loom dialect headers
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
+#include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 

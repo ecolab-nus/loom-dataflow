@@ -8,6 +8,7 @@
 #include "mlir/Pass/Pass.h"
 
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
+#include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 

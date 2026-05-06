@@ -3,6 +3,7 @@
 //===----------------------------------------------------------------------===//
 
 include "LoomDialect.td"
+include "LoomInterfaces.td"
 
 include "mlir/IR/OpBase.td"
 include "mlir/IR/BuiltinAttributes.td"
@@ -325,7 +326,10 @@ def CopyFromTensorOp : Loom_Op<"copy_from_tensor", [
   let hasCanonicalizer = 1;
 }
 
-def BufferizeToTensorOp : Loom_Op<"bufferize_to_tensor", [Pure]> {
+def BufferizeToTensorOp : Loom_Op<"bufferize_to_tensor", [
+  Pure,
+  DeclareOpInterfaceMethods<ComputeMemoryHandoffOpInterface>
+]> {
   let summary = "Reinterpret a memref as a tensor (pure view, no copy)";
   let description = [{
     The `loom.bufferize_to_tensor` operation reinterprets a memref as a
@@ -376,7 +380,10 @@ def BufferizeToTensorOp : Loom_Op<"bufferize_to_tensor", [Pure]> {
   }];
 }
 
-def BufferizeToMemrefOp : Loom_Op<"bufferize_to_memref", [Pure]> {
+def BufferizeToMemrefOp : Loom_Op<"bufferize_to_memref", [
+  Pure,
+  DeclareOpInterfaceMethods<ComputeMemoryHandoffOpInterface>
+]> {
   let summary = "Reinterpret a tensor as a memref (pure view, no copy)";
   let description = [{
     The `loom.bufferize_to_memref` operation reinterprets a ranked tensor
@@ -761,6 +768,7 @@ def MatmulOp : Loom_Op<"matmul", [
 
 def GatherOp : Loom_Op<"gather", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  DeclareOpInterfaceMethods<ComputeMemoryHandoffOpInterface>,
   DestinationStyleOpInterface,
   AttrSizedOperandSegments
 ]> {

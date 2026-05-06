@@ -23,6 +23,7 @@
 #include <set>
 #define GET_OP_CLASSES
 #include "LoomEnums.h.inc"
+#include "LoomInterfaces.h.inc"
 #include "LoomOps.h.inc"
 #define GET_ATTRDEF_CLASSES
 #include "LoomAttributes.h.inc"

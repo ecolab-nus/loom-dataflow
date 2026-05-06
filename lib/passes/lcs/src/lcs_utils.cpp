@@ -6,6 +6,7 @@
 #include "lcs_utils.h"
 #include "ssa_utils.h"
 #include "utils.h"
+#include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
 #include "mlir/Dialect/Arith/IR/Arith.h"
