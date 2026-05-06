@@ -2216,54 +2216,6 @@ public:
   }
 };
 
-class ConvertLoomSyncOp : public OpConversionPattern<::loom::SyncOp> {
-public:
-  using OpConversionPattern<::loom::SyncOp>::OpConversionPattern;
-
-  LogicalResult
-  matchAndRewrite(::loom::SyncOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    if (!mlir::loom::shouldConvertComputeLoomSync(op))
-      return failure();
-
-    if (adaptor.getOperands().size() != 2)
-      return failure();
-
-    Value inCb = adaptor.getOperands()[0];
-    Value outCb = adaptor.getOperands()[1];
-    if (!isa<CBType>(inCb.getType()) || !isa<CBType>(outCb.getType()))
-      return failure();
-
-    // Memref-form loom.sync has no result value to replace.
-    if (op.getNumResults() != 0)
-      return failure();
-
-    auto inTiles = getNumTilesFromShapedType(op.getIns().getType());
-    auto outTiles = getNumTilesFromShapedType(op.getInit().getType());
-    if (!inTiles || !outTiles || *inTiles != *outTiles)
-      return failure();
-
-    // Synchronization source/destination may alias the same CB handle. In that
-    // case, no transport is needed.
-    if (inCb == outCb) {
-      rewriter.eraseOp(op);
-      return success();
-    }
-
-    Location loc = op.getLoc();
-    Value tileCount = i32Const(rewriter, loc, *inTiles);
-
-    // Keep input ownership with semaphore_give lowering to avoid double-pop.
-    //[IMPORTANT] it seems hangs for mamba chunk scan, not safe
-    //CBPopFrontOp::create(rewriter, loc, inCb, tileCount);
-    //copyTile(rewriter, loc, inCb, outCb, tileCount, /*popInputCb=*/false);
-    CBWaitFrontOp::create(rewriter, loc, inCb, tileCount);
-    CBPushBackOp::create(rewriter, loc, outCb, tileCount);
-
-    rewriter.eraseOp(op);
-    return success();
-  }
-};
 
 class ConvertLoomBroadcastOp : public OpConversionPattern<::loom::BroadcastOp> {
 public:
@@ -2551,7 +2503,6 @@ void mlir::loom::populateComputeOpConversionPatterns(
   patterns.add<ConvertLinalgFillOp>(typeConverter, context);
   patterns.add<ConvertLinalgCopyOp>(typeConverter, context);
   patterns.add<ConvertLinalgTransposeOp>(typeConverter, context);
-  patterns.add<ConvertLoomSyncOp>(typeConverter, context);
   patterns.add<ConvertLoomBroadcastOp>(typeConverter, context);
   patterns.add<ConvertLinalgBatchMatmulOp>(typeConverter, context);
   patterns.add<ConvertMemrefCollapseShapeOp>(typeConverter, context);
