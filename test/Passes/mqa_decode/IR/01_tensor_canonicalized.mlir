@@ -18,7 +18,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       %6 = tensor.empty(%0) : tensor<?x32x128xf16>
       %7 = arith.muli %arg4, %0 : index
       %subview = memref.subview %arg3[%7, 0, 0] [%0, 32, 128] [1, 1, 1] : memref<16x32x128xf16> to memref<?x32x128xf16, strided<[4096, 128, 1], offset: ?>>
-      %8 = bufferization.to_tensor %subview : memref<?x32x128xf16, strided<[4096, 128, 1], offset: ?>> to tensor<?x32x128xf16>
+      %8 = loom.bufferize_to_tensor %subview[%0, 32, 128] : memref<?x32x128xf16, strided<[4096, 128, 1], offset: ?>> -> tensor<?x32x128xf16>
       %9 = arith.muli %arg5, %1 : index
       %10 = arith.ceildivui %1, %2 : index
       %11 = linalg.fill ins(%cst : f16) outs(%6 : tensor<?x32x128xf16>) -> tensor<?x32x128xf16>
@@ -28,7 +28,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
         %24 = arith.muli %arg6, %2 : index
         %25 = arith.addi %9, %24 : index
         %subview_3 = memref.subview %arg0[%7, 0, %25] [%0, 128, %2] [1, 1, 1] : memref<16x128x8192xf16> to memref<?x128x?xf16, strided<[1048576, 8192, 1], offset: ?>>
-        %26 = bufferization.to_tensor %subview_3 : memref<?x128x?xf16, strided<[1048576, 8192, 1], offset: ?>> to tensor<?x128x?xf16>
+        %26 = loom.bufferize_to_tensor %subview_3[%0, 128, %2] : memref<?x128x?xf16, strided<[1048576, 8192, 1], offset: ?>> -> tensor<?x128x?xf16>
         %27 = tensor.empty(%0, %2) : tensor<?x32x?xf16>
         %28 = linalg.fill ins(%cst : f16) outs(%27 : tensor<?x32x?xf16>) -> tensor<?x32x?xf16>
         %29 = linalg.batch_matmul ins(%8, %26 : tensor<?x32x128xf16>, tensor<?x128x?xf16>) outs(%28 : tensor<?x32x?xf16>) -> tensor<?x32x?xf16>
@@ -74,7 +74,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
         } -> tensor<?x32x1xf16>
         %40 = loom.broadcast ins(%38 : tensor<?x32x1xf16>) outs(%33 : tensor<?x32x32xf16>) dim(2) -> tensor<?x32x128xf16>
         %subview_4 = memref.subview %arg1[%7, %25, 0] [%0, %2, 128] [1, 1, 1] : memref<16x8192x128xf16> to memref<?x?x128xf16, strided<[1048576, 128, 1], offset: ?>>
-        %41 = bufferization.to_tensor %subview_4 : memref<?x?x128xf16, strided<[1048576, 128, 1], offset: ?>> to tensor<?x?x128xf16>
+        %41 = loom.bufferize_to_tensor %subview_4[%0, %2, 128] : memref<?x?x128xf16, strided<[1048576, 128, 1], offset: ?>> -> tensor<?x?x128xf16>
         %42 = linalg.fill ins(%cst : f16) outs(%6 : tensor<?x32x128xf16>) -> tensor<?x32x128xf16>
         %43 = linalg.batch_matmul ins(%35, %41 : tensor<?x32x?xf16>, tensor<?x?x128xf16>) outs(%42 : tensor<?x32x128xf16>) -> tensor<?x32x128xf16>
         %44 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1, d2)>], iterator_types = ["parallel", "parallel", "parallel"]} ins(%43, %arg9, %40 : tensor<?x32x128xf16>, tensor<?x32x128xf16>, tensor<?x32x128xf16>) outs(%6 : tensor<?x32x128xf16>) {
@@ -142,7 +142,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           linalg.yield %37 : f16
         } -> tensor<?x32x128xf16>
         %subview_3 = memref.subview %arg2[%7, 0, 0] [%0, 32, 128] [1, 1, 1] : memref<16x32x128xf16> to memref<?x32x128xf16, strided<[4096, 128, 1], offset: ?>>
-        %36 = bufferization.to_buffer %35 : tensor<?x32x128xf16> to memref<?x32x128xf16, strided<[4096, 128, 1], offset: ?>>
+        %36 = loom.bufferize_to_memref %35 : tensor<?x32x128xf16> -> memref<?x32x128xf16, strided<[4096, 128, 1], offset: ?>>
         memref.copy %36, %subview_3 : memref<?x32x128xf16, strided<[4096, 128, 1], offset: ?>> to memref<?x32x128xf16, strided<[4096, 128, 1], offset: ?>>
       }
     }
