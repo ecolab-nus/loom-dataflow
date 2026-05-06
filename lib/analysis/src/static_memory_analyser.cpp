@@ -38,8 +38,6 @@ llvm::StringRef loom::toString(VBType type) {
     return "Eternal";
   case VBType::LoopCarried:
     return "LoopCarried";
-  case VBType::Exclusive:
-    return "Exclusive";
   }
   return "???";
 }
@@ -276,17 +274,16 @@ static bool isInitPure(Value initVal, Operation *loopOp) {
   return true;
 }
 
-void MemoryAnalysisContext::applyExclusiveTargetAxiom(Bucket &bucket) {
+bool MemoryAnalysisContext::isExclusiveTarget(Value value) const {
+  return exclusiveTargetValues_.contains(value);
+}
+
+void MemoryAnalysisContext::assignExclusiveTargetAttributes(Bucket &bucket) {
   for (auto &node : bucket.nodes) {
-    if (node.mappedVBId.has_value() ||
-        !exclusiveTargetValues_.contains(node.value))
+    if (!node.mappedVBId.has_value() || !isExclusiveTarget(node.value))
       continue;
 
-    VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Exclusive);
-    vb->addMember(&node);
-    vb->liveness = {node.linearIndex, node.deathIndex};
-    vb->updateDefiningOp();
-    bucket.exclusiveVBIds.insert(vb->id);
+    bucket.exclusiveVBIds.insert(*node.mappedVBId);
   }
 }
 
@@ -318,7 +315,8 @@ void MemoryAnalysisContext::applyPhiFusionAxiom(
   for (unsigned i = 0; i < numIterArgs; ++i) {
     Value argVal = regionIterArgs[i];
     TensorNode *argNode = bucket.findNode(argVal);
-    if (!argNode || argNode->mappedVBId.has_value())
+    if (!argNode || argNode->mappedVBId.has_value() ||
+        isExclusiveTarget(argVal))
       continue;
 
     Value initVal = inits[i];
@@ -329,7 +327,8 @@ void MemoryAnalysisContext::applyPhiFusionAxiom(
     TensorNode *yieldNode = bucket.findNode(yieldVal);
     TensorNode *resultNode = bucket.findNode(resultVal);
 
-    bool pure = initNode && isInitPure(initVal, loopOp);
+    bool pure = initNode && !isExclusiveTarget(initVal) &&
+                isInitPure(initVal, loopOp);
     VirtualBuffer *vb = bucket.createVB(
         nextVBId_++, pure ? VBType::Fused : VBType::LoopCarried);
 
@@ -341,7 +340,8 @@ void MemoryAnalysisContext::applyPhiFusionAxiom(
     // Phase 2: Conditionally merge yield (handoff logic)
     bool mergedYield = false;
     if (yieldNode && !yieldNode->mappedVBId.has_value() &&
-        yieldNode != argNode && yieldNode != initNode) {
+        yieldNode != argNode && yieldNode != initNode &&
+        !isExclusiveTarget(yieldVal)) {
       int argDeath = getValueDeathIndex(argVal);
       // Handoff check: yield birth >= arg death
       if (yieldNode->linearIndex >= argDeath) {
@@ -353,7 +353,7 @@ void MemoryAnalysisContext::applyPhiFusionAxiom(
     // Phase 3: Unconditionally add return
     if (resultNode && !resultNode->mappedVBId.has_value() &&
         resultNode != argNode && resultNode != initNode &&
-        resultNode != yieldNode) {
+        resultNode != yieldNode && !isExclusiveTarget(resultVal)) {
       vb->addMember(resultNode);
     }
 
@@ -423,12 +423,12 @@ void MemoryAnalysisContext::buildVirtualBuffers() {
   auto loopOpt = findLoopContext();
 
   for (auto &[sig, bucket] : buckets_) {
-    applyExclusiveTargetAxiom(bucket);
     if (loopOpt) {
       applyPhiFusionAxiom(bucket, *loopOpt);
       applyExternalEternityAxiom(bucket, *loopOpt);
     }
     applyStandardAxiom(bucket);
+    assignExclusiveTargetAttributes(bucket);
   }
 }
 
@@ -446,10 +446,12 @@ void MemoryAnalysisContext::fuseRelayVirtualBuffers() {
       int mergeA = -1, mergeB = -1;
 
       for (int i = 0; i < n && mergeA == -1; ++i) {
-        if (bucket.virtualBuffers[i]->type != VBType::Standard)
+        if (bucket.virtualBuffers[i]->type != VBType::Standard ||
+            bucket.exclusiveVBIds.contains(bucket.virtualBuffers[i]->id))
           continue;
         for (int j = i + 1; j < n; ++j) {
-          if (bucket.virtualBuffers[j]->type != VBType::Standard)
+          if (bucket.virtualBuffers[j]->type != VBType::Standard ||
+              bucket.exclusiveVBIds.contains(bucket.virtualBuffers[j]->id))
             continue;
 
           if (graph.canRelay(*bucket.virtualBuffers[i],

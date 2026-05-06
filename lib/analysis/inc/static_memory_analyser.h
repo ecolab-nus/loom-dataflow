@@ -36,8 +36,7 @@ enum class VBType {
   Standard,   // Internal computation (Axiom 3)
   Fused,      // Loop Phi-node fusion (Axiom 1)
   Eternal,    // External read-only / template (Axiom 2)
-  LoopCarried, // Loop-carried but not fusing Init (Axiom 1 split)
-  Exclusive    // Handoff tensor requiring a singleton physical buffer
+  LoopCarried // Loop-carried but not fusing Init (Axiom 1 split)
 };
 
 llvm::StringRef toString(VBType type);
@@ -270,7 +269,8 @@ private:
   std::optional<LoopContext> findLoopContext() const;
   void markExclusiveTarget(mlir::Value target, mlir::Operation *anchor,
                            llvm::StringRef reason);
-  void applyExclusiveTargetAxiom(Bucket &bucket);
+  bool isExclusiveTarget(mlir::Value value) const;
+  void assignExclusiveTargetAttributes(Bucket &bucket);
   void applyPhiFusionAxiom(Bucket &bucket, const LoopContext &loop);
   void applyExternalEternityAxiom(Bucket &bucket, const LoopContext &loop);
   void applyStandardAxiom(Bucket &bucket);
