@@ -50,6 +50,7 @@ int main(int argc, char **argv) {
 
   pm.addPass(loom::passes::createSinkFillOpsPass());
   pm.addPass(loom::passes::createLoopHandoffProxyCopyInsertionPass());
+  pm.addPass(loom::passes::createCanonicalBufferizationToLoomPass());
   // pm.addPass(loom::passes::createHandoffSyncInsertionPass());
 
   if (failed(pm.run(*module))) {

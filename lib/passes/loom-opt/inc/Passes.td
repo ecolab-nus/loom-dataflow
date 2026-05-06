@@ -110,6 +110,16 @@ def MemoryBindingPass : Pass<"loom-memory-binding", "mlir::ModuleOp"> {
   let constructor = "loom::passes::createMemoryBindingPass()";
 }
 
+def CanonicalBufferizationToLoomPass : Pass<"loom-canonical-bufferization-to-loom", "mlir::ModuleOp"> {
+  let summary = "Rewrite canonical bufferization handoff ops to loom dialect";
+  let description = [{
+    Convert bufferization.to_tensor and bufferization.to_buffer handoff anchors
+    to loom.bufferize_to_tensor and loom.bufferize_to_memref after tensor
+    canonicalization.
+  }];
+  let constructor = "loom::passes::createCanonicalBufferizationToLoomPass()";
+}
+
 def LowerAffineWithAttr : Pass<"loom-lower-affine-with-attr", "mlir::ModuleOp"> {
   let summary = "Lower affine to SCF while preserving loom attributes";
   let description = [{

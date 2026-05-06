@@ -32,6 +32,7 @@ std::unique_ptr<mlir::Pass> createLinalgDestinationSpecializationPass();
 std::unique_ptr<mlir::Pass> createFoldRedundantExtractSlicePass();
 std::unique_ptr<mlir::Pass> createSinkFillOpsPass();
 std::unique_ptr<mlir::Pass> createLinalgGuardedElementwiseOpFusionPass();
+std::unique_ptr<mlir::Pass> createCanonicalBufferizationToLoomPass();
 std::unique_ptr<mlir::Pass> createLowerAffineWithAttrPass();
 std::unique_ptr<mlir::Pass> createHandoffSyncInsertionPass();
 std::unique_ptr<mlir::Pass> createLoopHandoffProxyCopyInsertionPass();

@@ -217,6 +217,12 @@ void MemoryAnalysisContext::markExclusiveTarget(Value target, Operation *anchor,
 
 void MemoryAnalysisContext::collectExclusiveHandoffTargets(func::FuncOp func) {
   func.walk([&](Operation *op) {
+    if (auto toTensorOp = dyn_cast<loom::BufferizeToTensorOp>(op)) {
+      markExclusiveTarget(toTensorOp.getResult(), op,
+                          "loom.bufferize_to_tensor");
+      return;
+    }
+
     if (auto toTensorOp = dyn_cast<bufferization::ToTensorOp>(op)) {
       markExclusiveTarget(toTensorOp.getResult(), op,
                           "bufferization.to_tensor");
@@ -228,6 +234,12 @@ void MemoryAnalysisContext::collectExclusiveHandoffTargets(func::FuncOp func) {
       if (gatherOp->getNumResults() > 0)
         markExclusiveTarget(gatherOp->getResult(0), op,
                             "loom.gather result");
+      return;
+    }
+
+    if (auto toMemrefOp = dyn_cast<loom::BufferizeToMemrefOp>(op)) {
+      markExclusiveTarget(toMemrefOp.getSource(), op,
+                          "loom.bufferize_to_memref input");
       return;
     }
 

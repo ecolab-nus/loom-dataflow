@@ -28,10 +28,10 @@ using namespace loom;
 
 namespace {
 
-/// Pattern 1: Lower memref.subview + bufferization.to_tensor
+/// Pattern 1: Lower memref.subview + loom.bufferize_to_tensor
 /// to loom.subview + loom.copy (DRAM→L1) + loom.bufferize_to_tensor
 struct ReadBlockLoadingLowering
-    : public OpRewritePattern<bufferization::ToTensorOp> {
+    : public OpRewritePattern<loom::BufferizeToTensorOp> {
   const llvm::DenseMap<std::pair<ShapeSignature, int>, Value> &colorToAlloc;
   const llvm::DenseMap<Value, LoomAllocationPlan::Assignment>
       &tensorToBufferMap;
@@ -47,9 +47,9 @@ struct ReadBlockLoadingLowering
       : OpRewritePattern(ctx), colorToAlloc(c2a), tensorToBufferMap(t2b),
         tensorToVBIdMap(t2v), vbIdToSemaphoreMap(v2s) {}
 
-  LogicalResult matchAndRewrite(bufferization::ToTensorOp op,
+  LogicalResult matchAndRewrite(loom::BufferizeToTensorOp op,
                                 PatternRewriter &rewriter) const override {
-    auto subviewOp = op.getBuffer().getDefiningOp<memref::SubViewOp>();
+    auto subviewOp = op.getSource().getDefiningOp<memref::SubViewOp>();
     if (!subviewOp)
       return failure();
 
@@ -99,27 +99,11 @@ struct ReadBlockLoadingLowering
                          dramSymbol, l1Symbol, defaultBroadcast,
                          Value{}, Value{}, Value{}, Value{});
 
-    // 4. loom.bufferize_to_tensor: pure view of the now-populated L1 buffer.
-    //    Filter sizes to match the result tensor rank (drop unit-size dims).
-    ArrayRef<int64_t> fullStaticSizes = subviewOp.getStaticSizes();
-    auto fullDynSizes = subviewOp.getSizes();
-    SmallVector<int64_t, 4> staticSizes;
-    SmallVector<Value, 4> dynSizes;
-    unsigned dynIdx = 0;
-    for (int64_t s : fullStaticSizes) {
-      bool isDynamic = (s == ShapedType::kDynamic);
-      if (isDynamic || s != 1) {
-        staticSizes.push_back(s);
-        if (isDynamic)
-          dynSizes.push_back(fullDynSizes[dynIdx]);
-      }
-      if (isDynamic)
-        ++dynIdx;
-    }
     rewriter.replaceOp(op, loom::BufferizeToTensorOp::create(
                                rewriter, loc, op.getType(), semaphore,
-                               dynSizes,
-                               rewriter.getDenseI64ArrayAttr(staticSizes)));
+                               op.getSizes(),
+                               rewriter.getDenseI64ArrayAttr(
+                                   op.getStaticSizes())));
 
     // We can't safely remove subview yet if it has other uses.
     if (subviewOp->use_empty()) {
@@ -131,7 +115,7 @@ struct ReadBlockLoadingLowering
 };
 
 /// Pattern 2: Transform write-back chain
-/// (memref.subview + bufferization.to_buffer + memref.copy)
+/// (memref.subview + loom.bufferize_to_memref + memref.copy)
 /// to loom.subview + loom.bufferize_to_memref + loom.copy (L1→DRAM)
 struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
   WriteBackLowering(MLIRContext *context,
@@ -143,10 +127,10 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
 
   LogicalResult matchAndRewrite(memref::CopyOp op,
                                 PatternRewriter &rewriter) const override {
-    auto toBufferOp = op.getSource().getDefiningOp<bufferization::ToBufferOp>();
+    auto toMemrefOp = op.getSource().getDefiningOp<loom::BufferizeToMemrefOp>();
     auto subviewOp = op.getTarget().getDefiningOp<memref::SubViewOp>();
 
-    if (!toBufferOp || !subviewOp)
+    if (!toMemrefOp || !subviewOp)
       return failure();
 
     Location loc = subviewOp.getLoc();
@@ -161,7 +145,7 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
         subviewOp.getStaticStrides(), false, false, false);
 
     // 2. loom.bufferize_to_memref: pure view of the L1 tensor as a memref.
-    Value srcTensor = toBufferOp.getTensor();
+    Value srcTensor = toMemrefOp.getSource();
     auto srcTensorType = llvm::cast<RankedTensorType>(srcTensor.getType());
     auto l1MemrefType =
         MemRefType::get(srcTensorType.getShape(), srcTensorType.getElementType());
@@ -192,8 +176,8 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
 
     // Erase original ops
     rewriter.eraseOp(op);
-    if (toBufferOp->use_empty())
-      rewriter.eraseOp(toBufferOp);
+    if (toMemrefOp->use_empty())
+      rewriter.eraseOp(toMemrefOp);
     if (subviewOp->use_empty())
       rewriter.eraseOp(subviewOp);
 
@@ -223,8 +207,8 @@ public:
 
 private:
   /// Trace the outs operand of a linalg op back to its defining loom.alloc.
-  /// After applyPatternRewrites, all bufferization.to_tensor ops have been
-  /// converted to loom.bufferize_to_tensor, so only loom ops remain.
+  /// After tensor canonicalization, handoff anchors are loom.bufferize_to_tensor
+  /// ops. Keep a compatibility fallback for older standalone inputs below.
   Value traceOutsToAlloc(Value tensor) {
     // 1. Primary path: Use the pre-computed allocation plan
     auto it = plan.tensorToBufferMap.find(tensor);
@@ -251,9 +235,12 @@ private:
         current = semOp.getSource();
         continue;
       }
-      if (auto toTensorOp =
-              current.getDefiningOp<bufferization::ToTensorOp>()) {
-        current = toTensorOp->getOperand(0);
+      if (auto toTensorOp = current.getDefiningOp<loom::BufferizeToTensorOp>()) {
+        current = toTensorOp.getSource();
+        continue;
+      }
+      if (auto toTensorOp = current.getDefiningOp<bufferization::ToTensorOp>()) {
+        current = toTensorOp.getBuffer();
         continue;
       }
 

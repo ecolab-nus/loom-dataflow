@@ -129,6 +129,12 @@ public:
         return;
       }
 
+      if (auto toMemrefOp = dyn_cast<loom::BufferizeToMemrefOp>(op)) {
+        addProxyUse(toMemrefOp.getSource(), &toMemrefOp->getOpOperand(0),
+                    proxies);
+        return;
+      }
+
       if (auto toBufferOp = dyn_cast<bufferization::ToBufferOp>(op)) {
         addProxyUse(toBufferOp.getTensor(), &toBufferOp->getOpOperand(0),
                     proxies);
