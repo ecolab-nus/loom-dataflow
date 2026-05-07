@@ -49,7 +49,4 @@ bool shouldConvertComputeLinalgCopy(mlir::linalg::CopyOp op);
 /// handled by this pass.
 bool shouldConvertComputeLinalgTranspose(mlir::linalg::TransposeOp op);
 
-/// Returns true when this `loom.broadcast` should be lowered in compute kernels.
-bool shouldConvertComputeLoomBroadcast(::loom::BroadcastOp op);
-
 } // namespace mlir::loom

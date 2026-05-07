@@ -24,6 +24,7 @@
 #include "ttmlir/Dialect/TTKernel/IR/TTKernel.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOps.h"
 #include "ttmlir/Dialect/TTKernel/IR/TTKernelOpsTypes.h"
+#include "ttmlir/Dialect/TTCore/IR/TTCoreOpsTypes.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/DenseMap.h"
@@ -747,6 +748,27 @@ getElementwiseTileShapeInfo(ShapedType type) {
   }
 
   return info;
+}
+
+static bool hasTileShapeDroppingDim(ArrayRef<int64_t> sourceTileShape,
+                                    ArrayRef<int64_t> targetTileShape,
+                                    unsigned droppedDim) {
+  if (droppedDim >= targetTileShape.size() ||
+      sourceTileShape.size() + 1 != targetTileShape.size())
+    return false;
+
+  unsigned sourceDim = 0;
+  for (unsigned targetDim = 0; targetDim < targetTileShape.size();
+       ++targetDim) {
+    if (targetDim == droppedDim)
+      continue;
+    if (sourceDim >= sourceTileShape.size() ||
+        sourceTileShape[sourceDim] != targetTileShape[targetDim])
+      return false;
+    ++sourceDim;
+  }
+
+  return sourceDim == sourceTileShape.size();
 }
 
 static std::optional<int64_t> getTileDim(ShapedType type, unsigned dim) {
@@ -2176,6 +2198,102 @@ static bool has2DSwapPermutation(linalg::TransposeOp op) {
   return false;
 }
 
+struct WHTransposeTileInfo {
+  int64_t heightTiles = 0;
+  int64_t widthTiles = 0;
+  int64_t totalTiles = 0;
+};
+
+static LogicalResult getWHTransposeTileInfo(linalg::TransposeOp op,
+                                            WHTransposeTileInfo &info) {
+  auto inType = dyn_cast<ShapedType>(op.getInput().getType());
+  auto outType = dyn_cast<ShapedType>(op.getInit().getType());
+  if (!inType || !outType || !inType.hasStaticShape() ||
+      !outType.hasStaticShape())
+    return failure();
+
+  if (inType.getRank() != 2 || outType.getRank() != 2)
+    return failure();
+
+  int64_t inputH = inType.getDimSize(0);
+  int64_t inputW = inType.getDimSize(1);
+  int64_t outputH = outType.getDimSize(0);
+  int64_t outputW = outType.getDimSize(1);
+
+  if (outputH != inputW || outputW != inputH) {
+    return op.emitOpError()
+           << "unsupported compute WH transpose: output shape must be [W, H]";
+  }
+
+  constexpr int64_t kTileDim = 32;
+  if (inputH <= 0 || inputW <= 0 || inputH % kTileDim != 0 ||
+      inputW % kTileDim != 0) {
+    return op.emitOpError()
+           << "unsupported compute WH transpose: input H and W must be "
+              "positive multiples of 32";
+  }
+
+  info.heightTiles = inputH / kTileDim;
+  info.widthTiles = inputW / kTileDim;
+  info.totalTiles = info.heightTiles * info.widthTiles;
+  return success();
+}
+
+static Value getOrCreateTileTypedCB(ConversionPatternRewriter &rewriter,
+                                    Location loc, Value cb,
+                                    int64_t tileCount,
+                                    StringRef nameSuffix) {
+  auto cbType = dyn_cast<CBType>(cb.getType());
+  if (!cbType)
+    return {};
+  if (isa<mlir::tt::ttcore::TileType>(cbType.getElementType()))
+    return cb;
+
+  Type tileType = mlir::tt::ttcore::TileType::get(cbType.getElementType());
+  Type tileCbType = CBType::get(rewriter.getContext(), tileCount, tileType);
+
+  Value cbRoot = cb;
+  while (auto cast = cbRoot.getDefiningOp<UnrealizedConversionCastOp>()) {
+    if (cast.getNumOperands() != 1 || !isa<CBType>(cast.getOperand(0).getType()))
+      break;
+    cbRoot = cast.getOperand(0);
+  }
+
+  auto cbConst = cbRoot.getDefiningOp<GetCompileArgValOp>();
+  if (!cbConst) {
+    auto cast =
+        rewriter.create<UnrealizedConversionCastOp>(loc, tileCbType, cb);
+    return cast.getResult(0);
+  }
+
+  std::optional<int64_t> cbIndex;
+  if (auto valueAttr =
+          cbConst->getAttrOfType<IntegerAttr>(kCBConstValueAttrName))
+    cbIndex = valueAttr.getInt();
+  else
+    cbIndex = cbConst.getArgIndex();
+
+  auto parentFunc = cbConst->getParentOfType<func::FuncOp>();
+  if (!parentFunc || !cbIndex)
+    return {};
+
+  std::string name;
+  if (auto nameAttr =
+          cbConst->getAttrOfType<StringAttr>(kCBConstNameAttrName)) {
+    name = nameAttr.getValue().str();
+  } else {
+    name = "cb_id_transpose_" + std::to_string(*cbIndex);
+  }
+  name += "_tile_";
+  name += nameSuffix.str();
+
+  FailureOr<Value> tileCb =
+      getOrCreateCBConst(loc, rewriter, parentFunc, *cbIndex, name, tileCbType);
+  if (failed(tileCb))
+    return {};
+  return *tileCb;
+}
+
 class ConvertLinalgTransposeOp : public OpConversionPattern<linalg::TransposeOp> {
 public:
   using OpConversionPattern<linalg::TransposeOp>::OpConversionPattern;
@@ -2191,25 +2309,66 @@ public:
     if (!isa<CBType>(inCb.getType()) || !isa<CBType>(outCb.getType()))
       return failure();
 
-    auto inTiles = getNumTilesFromShapedType(op.getInput().getType());
-    auto outTiles = getNumTilesFromShapedType(op.getInit().getType());
-    if (!inTiles || !outTiles || *inTiles != *outTiles)
+    WHTransposeTileInfo tileInfo;
+    if (failed(getWHTransposeTileInfo(op, tileInfo)))
       return failure();
 
-    if (inCb == outCb) {
-      rewriter.eraseOp(op);
-      return success();
-    }
+    if (inCb == outCb)
+      return op.emitOpError()
+             << "unsupported compute WH transpose: in-place transpose is not "
+                "supported";
 
     Location loc = op.getLoc();
-    Value tileCount = i32Const(rewriter, loc, *inTiles);
+    Value zero = i32Const(rewriter, loc, 0);
+    Value one = i32Const(rewriter, loc, 1);
+    Value heightTiles = i32Const(rewriter, loc, tileInfo.heightTiles);
+    Value widthTiles = i32Const(rewriter, loc, tileInfo.widthTiles);
+    Value totalTiles = i32Const(rewriter, loc, tileInfo.totalTiles);
 
-    // Reuse copyTile transport path as an initial transpose lowering entry.
-    // linalg.transpose is typically followed by loom.semaphore_give on the
-    // source buffer; let that lowering own the cb_pop_front to avoid
-    // double-pop mismatches.
-    copyTile(rewriter, loc, inCb, outCb, tileCount, /*popInputCb=*/false);
-    CBPushBackOp::create(rewriter, loc, outCb, tileCount);
+    Value tileInCb = getOrCreateTileTypedCB(rewriter, loc, inCb,
+                                            tileInfo.totalTiles, "in");
+    Value tileOutCb = getOrCreateTileTypedCB(rewriter, loc, outCb,
+                                             tileInfo.totalTiles, "out");
+    if (!tileInCb || !tileOutCb)
+      return failure();
+
+    CBWaitFrontOp::create(rewriter, loc, inCb, totalTiles);
+    CBReserveBackOp::create(rewriter, loc, outCb, totalTiles);
+    rewriter.create<TransposeInitOp>(loc, tileInCb, tileOutCb);
+
+    scf::ForOp wtLoop =
+        scf::ForOp::create(rewriter, loc, zero, widthTiles, one);
+    {
+      OpBuilder::InsertionGuard wtGuard(rewriter);
+      rewriter.setInsertionPointToStart(wtLoop.getBody());
+      Value wt = wtLoop.getInductionVar();
+
+      scf::ForOp htLoop =
+          scf::ForOp::create(rewriter, loc, zero, heightTiles, one);
+      {
+        OpBuilder::InsertionGuard htGuard(rewriter);
+        rewriter.setInsertionPointToStart(htLoop.getBody());
+        Value ht = htLoop.getInductionVar();
+
+        Value inputRowBase =
+            arith::MulIOp::create(rewriter, loc, ht, widthTiles);
+        Value inputTileIdx =
+            arith::AddIOp::create(rewriter, loc, inputRowBase, wt);
+        Value outputRowBase =
+            arith::MulIOp::create(rewriter, loc, wt, heightTiles);
+        Value outputTileIdx =
+            arith::AddIOp::create(rewriter, loc, outputRowBase, ht);
+
+        TileRegsAcquireOp::create(rewriter, loc);
+        rewriter.create<TransposeTileOp>(loc, tileInCb, inputTileIdx, zero);
+        TileRegsCommitOp::create(rewriter, loc);
+        TileRegsWaitOp::create(rewriter, loc);
+        PackTileOp::create(rewriter, loc, zero, tileOutCb, outputTileIdx);
+        TileRegsReleaseOp::create(rewriter, loc);
+      }
+    }
+
+    CBPushBackOp::create(rewriter, loc, outCb, totalTiles);
 
     rewriter.eraseOp(op);
     return success();
@@ -2224,7 +2383,7 @@ public:
   LogicalResult
   matchAndRewrite(::loom::BroadcastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    if (!mlir::loom::shouldConvertComputeLoomBroadcast(op))
+    if (!isComputeKernel(op.getOperation()))
       return failure();
     if (adaptor.getOperands().size() != 2)
       return failure();
@@ -2234,10 +2393,20 @@ public:
     if (!isa<CBType>(inCb.getType()) || !isa<CBType>(outCb.getType()))
       return failure();
 
+    auto inputType = dyn_cast<ShapedType>(op.getIns().getType());
+    auto outputType = dyn_cast<ShapedType>(op.getInit().getType());
+    if (!inputType || !outputType || !inputType.hasStaticShape() ||
+        !outputType.hasStaticShape())
+      return op.emitOpError()
+             << "unsupported compute broadcast: requires static shaped input "
+                "and output";
+
     auto inTiles = getNumTilesFromShapedType(op.getIns().getType());
     auto outTiles = getNumTilesFromShapedType(op.getInit().getType());
-    if (!inTiles || !outTiles || *inTiles != *outTiles)
-      return failure();
+    if (!inTiles || !outTiles)
+      return op.emitOpError()
+             << "unsupported compute broadcast: failed to compute input/output "
+                "tile counts";
 
     unsigned rank = 0;
     if (op.getNumResults() > 0) {
@@ -2260,7 +2429,40 @@ public:
 
     auto kind = classifyElementwiseBroadcastKind(static_cast<unsigned>(dim), rank);
     std::optional<BcastType> bcastType = getUnaryBcastType(kind);
-    auto finalizeReplacement = [&]() -> LogicalResult {
+    bool equalTileBroadcast = *inTiles == *outTiles;
+    bool rankDroppingDim0Broadcast = false;
+
+    if (!equalTileBroadcast) {
+      if (dim != 0)
+        return op.emitOpError()
+               << "unsupported rank-dropping compute broadcast: only dim(0) "
+                  "is currently supported";
+      if (!bcastType)
+        return op.emitOpError()
+               << "unsupported rank-dropping compute broadcast: dim(0) must "
+                  "be a row/col broadcast";
+      if (inputType.getRank() + 1 != outputType.getRank())
+        return op.emitOpError()
+               << "unsupported rank-dropping compute broadcast: expected "
+                  "input rank + 1 to equal output rank";
+
+      auto inputTileInfo = getElementwiseTileShapeInfo(inputType);
+      auto outputTileInfo = getElementwiseTileShapeInfo(outputType);
+      if (!inputTileInfo || !outputTileInfo)
+        return op.emitOpError()
+               << "unsupported rank-dropping compute broadcast: failed to "
+                  "compute tile shapes";
+      if (!hasTileShapeDroppingDim(inputTileInfo->dimExtents,
+                                   outputTileInfo->dimExtents,
+                                   /*droppedDim=*/0))
+        return op.emitOpError()
+               << "unsupported rank-dropping compute broadcast: input tile "
+                  "shape must match output tile shape with dim(0) removed";
+
+      rankDroppingDim0Broadcast = true;
+    }
+
+    auto finalizeReplacement = [&](bool materializedFullOutput) -> LogicalResult {
       if (op.getNumResults() == 0) {
         rewriter.eraseOp(op);
         return success();
@@ -2275,6 +2477,11 @@ public:
         return success();
       }
 
+      if (materializedFullOutput)
+        return op.emitOpError()
+               << "unsupported rank-dropping compute broadcast: result type "
+                  "must match materialized output CB type";
+
       auto cast = rewriter.create<UnrealizedConversionCastOp>(
           op.getLoc(), TypeRange{convertedResultType}, outCb);
       cast->setAttr(kBroadcastDimAttrName, rewriter.getI64IntegerAttr(dim));
@@ -2283,17 +2490,18 @@ public:
     };
 
     if (inCb == outCb && !bcastType)
-      return finalizeReplacement();
+      return finalizeReplacement(/*materializedFullOutput=*/false);
     if (inCb == outCb && bcastType)
       return failure();
 
     Location loc = op.getLoc();
-    Value tileCount = i32Const(rewriter, loc, *inTiles);
+    Value inputTileCount = i32Const(rewriter, loc, *inTiles);
+    Value outputTileCount = i32Const(rewriter, loc, *outTiles);
     Value zero = i32Const(rewriter, loc, 0);
     Value one = i32Const(rewriter, loc, 1);
-    CBWaitFrontOp::create(rewriter, loc, inCb, tileCount);
+    CBWaitFrontOp::create(rewriter, loc, inCb, inputTileCount);
     if (inCb != outCb)
-      CBReserveBackOp::create(rewriter, loc, outCb, tileCount);
+      CBReserveBackOp::create(rewriter, loc, outCb, outputTileCount);
 
     if (bcastType)
       rewriter.create<UnaryBcastInitOp>(loc, inCb, outCb, *bcastType);
@@ -2301,16 +2509,21 @@ public:
       rewriter.create<CopyTileInitOp>(loc, inCb);
 
     scf::ForOp tileLoop =
-        scf::ForOp::create(rewriter, loc, zero, tileCount, one);
+        scf::ForOp::create(rewriter, loc, zero, outputTileCount, one);
     {
       OpBuilder::InsertionGuard guard(rewriter);
       rewriter.setInsertionPointToStart(tileLoop.getBody());
       Value tileIdx = tileLoop.getInductionVar();
+      Value sourceTileIdx = tileIdx;
+      if (rankDroppingDim0Broadcast)
+        sourceTileIdx =
+            rewriter.create<arith::RemSIOp>(loc, tileIdx, inputTileCount);
       TileRegsAcquireOp::create(rewriter, loc);
       if (bcastType) {
-        rewriter.create<UnaryBcastTileOp>(loc, inCb, tileIdx, zero, *bcastType);
+        rewriter.create<UnaryBcastTileOp>(loc, inCb, sourceTileIdx, zero,
+                                          *bcastType);
       } else {
-        rewriter.create<CopyTileOp>(loc, inCb, tileIdx, zero);
+        rewriter.create<CopyTileOp>(loc, inCb, sourceTileIdx, zero);
       }
       TileRegsCommitOp::create(rewriter, loc);
       TileRegsWaitOp::create(rewriter, loc);
@@ -2320,11 +2533,12 @@ public:
     }
 
     if (inCb != outCb) {
-      //CBPopFrontOp::create(rewriter, loc, inCb, tileCount);
-      CBPushBackOp::create(rewriter, loc, outCb, tileCount);
+      //CBPopFrontOp::create(rewriter, loc, inCb, inputTileCount);
+      CBPushBackOp::create(rewriter, loc, outCb, outputTileCount);
     }
 
-    return finalizeReplacement();
+    return finalizeReplacement(
+        /*materializedFullOutput=*/rankDroppingDim0Broadcast);
   }
 };
 
@@ -2446,43 +2660,7 @@ bool mlir::loom::shouldConvertComputeLinalgTranspose(linalg::TransposeOp op) {
   if (!has2DSwapPermutation(op))
     return false;
 
-  auto inTiles = getNumTilesFromShapedType(op.getInput().getType());
-  auto outTiles = getNumTilesFromShapedType(op.getInit().getType());
-  return inTiles && outTiles && *inTiles == *outTiles;
-}
-
-bool mlir::loom::shouldConvertComputeLoomBroadcast(::loom::BroadcastOp op) {
-  if (!isComputeKernel(op.getOperation()))
-    return false;
-
-  auto inTiles = getNumTilesFromShapedType(op.getIns().getType());
-  auto outTiles = getNumTilesFromShapedType(op.getInit().getType());
-  if (!inTiles || !outTiles || *inTiles != *outTiles)
-    return false;
-
-  int64_t dim = op.getDim();
-  if (dim < 0)
-    return false;
-
-  unsigned rank = 0;
-  if (op.getNumResults() > 0) {
-    if (op.getNumResults() != 1)
-      return false;
-    auto resultType = dyn_cast<ShapedType>(op->getResult(0).getType());
-    if (!resultType || !resultType.hasStaticShape())
-      return false;
-    auto resultTiles = getNumTilesFromShapedType(resultType);
-    if (!resultTiles || *resultTiles < *outTiles || *resultTiles % *outTiles != 0)
-      return false;
-    rank = resultType.getRank();
-  } else {
-    auto initType = dyn_cast<ShapedType>(op.getInit().getType());
-    if (!initType || !initType.hasStaticShape())
-      return false;
-    rank = initType.getRank();
-  }
-
-  return static_cast<unsigned>(dim) < rank;
+  return true;
 }
 
 void mlir::loom::populateComputeOpConversionPatterns(

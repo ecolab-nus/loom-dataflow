@@ -844,7 +844,7 @@ public:
         });
     target.addDynamicallyLegalOp<::loom::BroadcastOp>(
         [&](::loom::BroadcastOp op) {
-          return !mlir::loom::shouldConvertComputeLoomBroadcast(op);
+          return !mlir::loom::isComputeKernel(op.getOperation());
         });
     target.addDynamicallyLegalOp<::loom::CopyOp>(
         [&](::loom::CopyOp op) {
