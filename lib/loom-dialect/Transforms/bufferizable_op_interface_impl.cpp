@@ -24,6 +24,14 @@ using namespace loom;
 
 namespace {
 
+static DenseI64ArrayAttr toDenseI64ArrayAttr(OpBuilder &builder,
+                                             ArrayAttr attr) {
+  SmallVector<int64_t> values;
+  for (Attribute value : attr)
+    values.push_back(cast<IntegerAttr>(value).getInt());
+  return builder.getDenseI64ArrayAttr(values);
+}
+
 struct InitTensorOpInterface
     : public BufferizableOpInterface::ExternalModel<InitTensorOpInterface,
                                                     loom::InitTensorOp> {
@@ -81,8 +89,9 @@ struct CopyToTensorOpInterface
     auto l1Symbol = SymbolRefAttr::get(op->getContext(), "L1");
 
     loom::CopyOp::create(
-        rewriter, loc, copyOp.getSourceView(), copyOp.getBuffer(), dramSymbol,
-        l1Symbol, copyOp.getBroadcastAttr(),
+        rewriter, loc, copyOp.getSourceView(), copyOp.getBuffer(),
+        ValueRange{}, dramSymbol, l1Symbol,
+        toDenseI64ArrayAttr(rewriter, copyOp.getBroadcastAttr()),
         mlir::Value{}, mlir::Value{}, mlir::Value{}, mlir::Value{});
 
     replaceOpWithBufferizedValues(rewriter, op, copyOp.getBuffer());
@@ -124,8 +133,8 @@ struct CopyFromTensorOpInterface
     auto dramSymbol = SymbolRefAttr::get(op->getContext(), "DRAM");
 
     loom::CopyOp::create(rewriter, loc, *srcBuffer, copyOp.getTargetView(),
-                         l1Symbol, dramSymbol,
-                         /*broadcast=*/rewriter.getI64ArrayAttr({1, 1}),
+                         ValueRange{}, l1Symbol, dramSymbol,
+                         /*staticArea=*/rewriter.getDenseI64ArrayAttr({1, 1}),
                          mlir::Value{}, mlir::Value{},
                          mlir::Value{}, mlir::Value{});
 

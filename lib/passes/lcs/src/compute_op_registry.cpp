@@ -383,12 +383,8 @@ HWOpRegistry::extractDataMoverFromFunc(mlir::func::FuncOp func,
   if (auto attr = copyOp.getDstMemSpaceAttr())
     result.dst_mem_space = attr.getLeafReference().str();
 
-  if (auto broadcastAttr = copyOp.getBroadcastAttr()) {
-    for (auto val : broadcastAttr) {
-      result.broadcast.push_back(
-          mlir::cast<mlir::IntegerAttr>(val).getInt());
-    }
-  }
+  for (int64_t value : copyOp.getStaticAreaValues())
+    result.broadcast.push_back(value);
 
   // Source binding (input)
   auto srcIt = bindingMap.find(copyOp.getSource());

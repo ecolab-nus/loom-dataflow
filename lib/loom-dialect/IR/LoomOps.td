@@ -572,13 +572,13 @@ def CopyOp : Loom_Op<"copy", [
     The broadcast region is specified by UL (upper-left) and LR (lower-right)
     mesh coordinates. When UL == LR, no broadcast occurs (unicast). When
     they differ, the data is broadcast to all cores in the rectangular region.
-    The `broadcast` attribute is a cached summary of the broadcast factor
-    per dimension, kept for backward compatibility with LCS consumers.
+    The `area` list is a cached summary of the broadcast factor per dimension.
+    Entries may be static integers or dynamic index operands.
 
     Example:
     ```mlir
     loom.copy %src, %dst src_mem_space @DRAM dst_mem_space @L1,
-              broadcast : [1, 1]
+              area : [1, 1]
               (UL : [%ul_x, %ul_y], LR : [%lr_x, %lr_y])
               : memref<64x64xf32, strided<[512, 1], offset: ?>>,
                 memref<64x64xf32>
@@ -591,9 +591,10 @@ def CopyOp : Loom_Op<"copy", [
       ins
       AnyMemRef:$source,
       AnyMemRef:$destination,
+      Variadic<Index>:$area,
       OptionalAttr<SymbolRefAttr>:$src_mem_space,
       OptionalAttr<SymbolRefAttr>:$dst_mem_space,
-      DefaultValuedAttr<I64ArrayAttr, "{1, 1}">:$broadcast
+      DefaultValuedAttr<DenseI64ArrayAttr, "{1, 1}">:$static_area
     ),
     MeshBoundsArgs
   );
@@ -604,13 +605,31 @@ def CopyOp : Loom_Op<"copy", [
     $source `,` $destination
     (`src_mem_space` $src_mem_space^)?
     (`dst_mem_space` $dst_mem_space^)?
-    `,` `broadcast` `:` $broadcast
+    `,` `area` `:` custom<DynamicIndexList>($area, $static_area)
     ( `region` `:` `(` `UL` `:` `[` $ul_x^ `,` $ul_y `]` `,`
          `LR` `:` `[` $lr_x `,` $lr_y `]` `)` )?
     attr-dict `:` type($source) `to` type($destination)
   }];
 
   let hasCanonicalizer = 1;
+
+  let extraClassDeclaration = [{
+    ::mlir::SmallVector<::mlir::OpFoldResult, 4> getMixedArea() {
+      ::mlir::Builder builder(getContext());
+      return ::mlir::getMixedValues(getStaticArea(), getArea(), builder);
+    }
+
+    ::mlir::SmallVector<int64_t, 4> getStaticAreaValues() {
+      assert(getArea().empty() && "loom.copy area must be static here");
+      ::mlir::SmallVector<int64_t, 4> values;
+      for (int64_t value : getStaticArea()) {
+        assert(value != ::mlir::ShapedType::kDynamic &&
+               "loom.copy area must be static here");
+        values.push_back(value);
+      }
+      return values;
+    }
+  }];
 }
 
 //===----------------------------------------------------------------------===//

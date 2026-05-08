@@ -87,20 +87,6 @@ struct DimBroadcastResult {
 
 
 /**
- * @brief Set the broadcast attribute on a loom.copy operation.
- */
-static void setBroadcastAttribute(Operation *copyOp,
-                                  ArrayRef<int64_t> broadcastValues) {
-  MLIRContext *ctx = copyOp->getContext();
-  SmallVector<Attribute> broadcastAttrs;
-  for (int64_t val : broadcastValues) {
-    broadcastAttrs.push_back(IntegerAttr::get(IntegerType::get(ctx, 64), val));
-  }
-  auto finalBroadcastAttr = ArrayAttr::get(ctx, broadcastAttrs);
-  copyOp->setAttr("broadcast", finalBroadcastAttr);
-}
-
-/**
  * @brief Check if any offset value depends on any of the given induction
  * variables.
  */
@@ -480,12 +466,13 @@ private:
       auto [ul_x, lr_x] = computeAxisBounds(meshCoords.xAxis, 0);
       auto [ul_y, lr_y] = computeAxisBounds(meshCoords.yAxis, 1);
 
-      // Create replacement CopyOp with broadcast attr and UL/LR bounds.
-      auto newBroadcastAttr = builder.getI64ArrayAttr(choice.values);
+      // Create replacement CopyOp with static area and UL/LR bounds.
+      auto newAreaAttr = builder.getDenseI64ArrayAttr(choice.values);
       loom::CopyOp::create(builder, loc, copyOp.getSource(),
                            copyOp.getDestination(),
+                           ValueRange{},
                            copyOp.getSrcMemSpaceAttr(),
-                           copyOp.getDstMemSpaceAttr(), newBroadcastAttr,
+                           copyOp.getDstMemSpaceAttr(), newAreaAttr,
                            ul_x, ul_y, lr_x, lr_y);
       copyOp.erase();
     }

@@ -548,9 +548,8 @@ void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
     dstMem = attr.getLeafReference().str();
 
   std::vector<int64_t> bcastVec;
-  if (auto broadcastAttr = copyOp.getBroadcastAttr())
-    for (auto val : broadcastAttr)
-      bcastVec.push_back(mlir::cast<mlir::IntegerAttr>(val).getInt());
+  for (int64_t value : copyOp.getStaticAreaValues())
+    bcastVec.push_back(value);
 
   const HWComputeFunc *hwFunc =
       hw_registry_->lookup(HWOpKey::dataMover(srcMem, dstMem, bcastVec));
