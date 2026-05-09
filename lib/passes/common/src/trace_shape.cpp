@@ -141,10 +141,6 @@ SmallVector<SymbolicDim, 4> traceShape(Value v) {
   else if (auto extractSlice = mlir::dyn_cast<tensor::ExtractSliceOp>(op)) {
     rawDims = extractSlice.getMixedSizes();
   }
-  // loom.gather — DPS, output rank = 1 + input rank, must follow init.
-  else if (auto gatherOp = mlir::dyn_cast<loom::GatherOp>(op)) {
-    return traceShape(gatherOp.getInit());
-  }
   // loom.broadcast — physical destination is the init.
   else if (auto broadcastOp = mlir::dyn_cast<loom::BroadcastOp>(op)) {
     return traceShape(broadcastOp.getInit());

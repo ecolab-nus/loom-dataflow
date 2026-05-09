@@ -60,6 +60,8 @@ detectReductionAxis(affine::AffineParallelOp root) {
     if (result)
       return;
     Value across = gatherOp.getAcross();
+    if (!across)
+      return;
     auto ivs = root.getIVs();
     for (unsigned i = 0; i < ivs.size(); ++i) {
       if (ivs[i] == across) {
@@ -373,11 +375,11 @@ static LogicalResult applyMappingToFunction(
           lr_y = meshCoords.emitLinearIndexWithOverride(
               gBuilder, loc, meshCoords.yAxis, levelIdx, hwm.hwDimSize - 1);
         }
-        auto newGather = loom::GatherOp::create(
-            gBuilder, loc, gatherOp->getResultTypes(), gatherOp.getIns(),
-            gatherOp.getInit(), hwm.iv,
-            ul_x, ul_y, lr_x, lr_y);
-        gatherOp->replaceAllUsesWith(newGather->getResults());
+        loom::GatherOp::create(gBuilder, loc, gatherOp.getSource(),
+                               gatherOp.getDestination(), hwm.iv,
+                               gatherOp.getArea(),
+                               gatherOp.getStaticAreaAttr(), ul_x, ul_y, lr_x,
+                               lr_y);
         gatherOp.erase();
       });
     }

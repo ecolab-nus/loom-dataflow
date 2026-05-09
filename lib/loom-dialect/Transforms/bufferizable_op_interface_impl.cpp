@@ -90,7 +90,7 @@ struct CopyToTensorOpInterface
 
     loom::CopyOp::create(
         rewriter, loc, copyOp.getSourceView(), copyOp.getBuffer(),
-        ValueRange{}, dramSymbol, l1Symbol,
+        dramSymbol, l1Symbol, ValueRange{},
         toDenseI64ArrayAttr(rewriter, copyOp.getBroadcastAttr()),
         mlir::Value{}, mlir::Value{}, mlir::Value{}, mlir::Value{});
 
@@ -133,7 +133,7 @@ struct CopyFromTensorOpInterface
     auto dramSymbol = SymbolRefAttr::get(op->getContext(), "DRAM");
 
     loom::CopyOp::create(rewriter, loc, *srcBuffer, copyOp.getTargetView(),
-                         ValueRange{}, l1Symbol, dramSymbol,
+                         l1Symbol, dramSymbol, ValueRange{},
                          /*staticArea=*/rewriter.getDenseI64ArrayAttr({1, 1}),
                          mlir::Value{}, mlir::Value{},
                          mlir::Value{}, mlir::Value{});
@@ -221,41 +221,6 @@ struct BufferizeToMemrefOpInterface
     if (failed(srcBuffer))
       return failure();
     replaceOpWithBufferizedValues(rewriter, op, *srcBuffer);
-    return success();
-  }
-};
-
-/// GatherOp implements DestinationStyleOpInterface.  The base class
-/// DstBufferizableOpInterfaceExternalModel provides bufferizesToMemoryRead,
-/// bufferizesToMemoryWrite, and getAliasingValues.  We only need to supply
-/// the bufferize() method.
-struct GatherOpInterface
-    : public bufferization::DstBufferizableOpInterfaceExternalModel<
-          GatherOpInterface, loom::GatherOp> {
-
-  LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
-                          const BufferizationOptions &options,
-                          BufferizationState &state) const {
-    auto gatherOp = cast<loom::GatherOp>(op);
-
-    FailureOr<Value> insBuffer =
-        getBuffer(rewriter, gatherOp.getIns(), options, state);
-    if (failed(insBuffer))
-      return failure();
-
-    FailureOr<Value> initBuffer =
-        getBuffer(rewriter, gatherOp.getInit(), options, state);
-    if (failed(initBuffer))
-      return failure();
-
-    // Create memref-mode GatherOp (no results — pure buffer semantics).
-    loom::GatherOp::create(rewriter, op->getLoc(), /*resultTypes=*/TypeRange{},
-                           *insBuffer, *initBuffer, gatherOp.getAcross(),
-                           gatherOp.getUlX(), gatherOp.getUlY(),
-                           gatherOp.getLrX(), gatherOp.getLrY());
-
-    // The init buffer IS the result (DPS in-place semantics).
-    replaceOpWithBufferizedValues(rewriter, op, *initBuffer);
     return success();
   }
 };
@@ -393,7 +358,6 @@ void loom::registerBufferizableOpInterfaceExternalModels(MLIRContext *ctx) {
       *ctx);
   loom::BufferizeToMemrefOp::attachInterface<BufferizeToMemrefOpInterface>(
       *ctx);
-  loom::GatherOp::attachInterface<GatherOpInterface>(*ctx);
   loom::BroadcastOp::attachInterface<BroadcastOpInterface>(*ctx);
   loom::SyncOp::attachInterface<SyncOpInterface>(*ctx);
 }

@@ -97,7 +97,7 @@ struct ReadBlockLoadingLowering
     auto l1Symbol = SymbolRefAttr::get(rewriter.getContext(), "mem_L1");
     auto defaultArea = rewriter.getDenseI64ArrayAttr({1, 1});
     loom::CopyOp::create(rewriter, loc, loomSubviewOp.getResult(), semaphore,
-                         ValueRange{}, dramSymbol, l1Symbol, defaultArea,
+                         dramSymbol, l1Symbol, ValueRange{}, defaultArea,
                          Value{}, Value{}, Value{}, Value{});
 
     rewriter.replaceOp(op, loom::BufferizeToTensorOp::create(
@@ -158,7 +158,7 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
     auto dramSymbol = SymbolRefAttr::get(rewriter.getContext(), "mem_DRAM");
     auto loomCopyOp = loom::CopyOp::create(
         rewriter, loc, bufToMemref.getResult(), loomSubviewOp.getResult(),
-        ValueRange{}, l1Symbol, dramSymbol,
+        l1Symbol, dramSymbol, ValueRange{},
         rewriter.getDenseI64ArrayAttr({1, 1}),
         Value{}, Value{}, Value{}, Value{});
 
@@ -186,6 +186,109 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
   }
 
 private:
+  const llvm::DenseMap<Value, int> &tensorToVBIdMap;
+  const llvm::DenseMap<int, Value> &vbIdToSemaphoreMap;
+};
+
+/// Pattern 3: Replace a pre-binding gather placeholder destination with the
+/// real L1 buffer selected for the following loom.bufferize_to_tensor result.
+struct GatherPlaceholderLowering
+    : public OpRewritePattern<loom::BufferizeToTensorOp> {
+  GatherPlaceholderLowering(
+      MLIRContext *context,
+      const llvm::DenseMap<std::pair<ShapeSignature, int>, Value> &c2a,
+      const llvm::DenseMap<Value, LoomAllocationPlan::Assignment> &t2b,
+      const llvm::DenseMap<Value, int> &t2v,
+      const llvm::DenseMap<int, Value> &v2s)
+      : OpRewritePattern<loom::BufferizeToTensorOp>(context),
+        colorToAlloc(c2a), tensorToBufferMap(t2b), tensorToVBIdMap(t2v),
+        vbIdToSemaphoreMap(v2s) {}
+
+  LogicalResult matchAndRewrite(loom::BufferizeToTensorOp op,
+                                PatternRewriter &rewriter) const override {
+    auto placeholder = op.getSource().getDefiningOp<loom::PlaceholderOp>();
+    if (!placeholder)
+      return failure();
+
+    loom::GatherOp gatherOp;
+    for (Operation *user : placeholder->getUsers()) {
+      auto candidate = dyn_cast<loom::GatherOp>(user);
+      if (!candidate || candidate.getDestination() != placeholder.getResult())
+        continue;
+      if (gatherOp) {
+        op.emitError("expected exactly one loom.gather writing placeholder");
+        return failure();
+      }
+      gatherOp = candidate;
+    }
+
+    if (!gatherOp) {
+      op.emitError("expected loom.bufferize_to_tensor source placeholder to be "
+                   "written by loom.gather");
+      return failure();
+    }
+
+    auto it = tensorToBufferMap.find(op.getResult());
+    if (it == tensorToBufferMap.end())
+      return failure();
+    auto allocIt =
+        colorToAlloc.find({it->second.bucketKey, it->second.colorId});
+    if (allocIt == colorToAlloc.end())
+      return failure();
+
+    Value semaphore;
+    auto vbIt = tensorToVBIdMap.find(op.getResult());
+    if (vbIt != tensorToVBIdMap.end())
+      semaphore = vbIdToSemaphoreMap.lookup(vbIt->second);
+
+    if (!semaphore) {
+      OpBuilder semBuilder(rewriter.getContext());
+      semBuilder.setInsertionPoint(op);
+      semaphore = loom::SemaphoreTakeOp::create(
+          semBuilder, op.getLoc(), cast<MemRefType>(allocIt->second.getType()),
+          allocIt->second);
+    }
+
+    rewriter.setInsertionPoint(op);
+    auto newGather = loom::GatherOp::create(
+        rewriter, gatherOp.getLoc(), gatherOp.getSource(), semaphore,
+        gatherOp.getAcross(), gatherOp.getArea(), gatherOp.getStaticAreaAttr(),
+        gatherOp.getUlX(), gatherOp.getUlY(), gatherOp.getLrX(),
+        gatherOp.getLrY());
+
+    if (auto srcToMemref =
+            gatherOp.getSource().getDefiningOp<loom::BufferizeToMemrefOp>()) {
+      auto srcVbIt = tensorToVBIdMap.find(srcToMemref.getSource());
+      if (srcVbIt != tensorToVBIdMap.end()) {
+        Value srcSemaphore = vbIdToSemaphoreMap.lookup(srcVbIt->second);
+        if (srcSemaphore) {
+          SmallVector<Operation *, 2> gives;
+          for (Operation *user : srcSemaphore.getUsers()) {
+            if (isa<loom::SemaphoreGiveOp>(user))
+              gives.push_back(user);
+          }
+          for (Operation *give : gives)
+            give->moveAfter(newGather);
+        }
+      }
+    }
+
+    auto newToTensor = loom::BufferizeToTensorOp::create(
+        rewriter, op.getLoc(), op.getType(), semaphore, op.getSizes(),
+        rewriter.getDenseI64ArrayAttr(op.getStaticSizes()));
+
+    rewriter.replaceOp(op, newToTensor.getResult());
+    rewriter.eraseOp(gatherOp);
+    if (placeholder->use_empty())
+      rewriter.eraseOp(placeholder);
+
+    return success();
+  }
+
+private:
+  const llvm::DenseMap<std::pair<ShapeSignature, int>, Value> &colorToAlloc;
+  const llvm::DenseMap<Value, LoomAllocationPlan::Assignment>
+      &tensorToBufferMap;
   const llvm::DenseMap<Value, int> &tensorToVBIdMap;
   const llvm::DenseMap<int, Value> &vbIdToSemaphoreMap;
 };
@@ -707,6 +810,9 @@ private:
                                            tensorToVBIdMap, vbIdToSemaphoreMap);
     patterns.add<WriteBackLowering>(context, tensorToVBIdMap,
                                     vbIdToSemaphoreMap);
+    patterns.add<GatherPlaceholderLowering>(
+        context, colorToAlloc, plan.tensorToBufferMap, tensorToVBIdMap,
+        vbIdToSemaphoreMap);
 
     if (failed(applyPatternsGreedily(funcOp, std::move(patterns)))) {
       funcOp.emitError("Failed to apply pattern rewrites");

@@ -470,9 +470,9 @@ private:
       auto newAreaAttr = builder.getDenseI64ArrayAttr(choice.values);
       loom::CopyOp::create(builder, loc, copyOp.getSource(),
                            copyOp.getDestination(),
-                           ValueRange{},
                            copyOp.getSrcMemSpaceAttr(),
-                           copyOp.getDstMemSpaceAttr(), newAreaAttr,
+                           copyOp.getDstMemSpaceAttr(), ValueRange{},
+                           newAreaAttr,
                            ul_x, ul_y, lr_x, lr_y);
       copyOp.erase();
     }

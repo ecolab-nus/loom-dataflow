@@ -61,6 +61,7 @@ def SubviewOp : Loom_Op<"subview", [
     %view_a = loom.subview %arg0[%0, %2][%0, %2][1, 1] 
               : memref<128x128xf32> to memref<?x?xf32>
     ```
+    attr-dict
   }];
 
   let arguments = (ins
@@ -132,6 +133,11 @@ defvar MeshBoundsArgs = (ins
     Optional<Index>:$lr_y
 );
 
+defvar CopyAreaArgs = (ins
+    Variadic<Index>:$area,
+    DefaultValuedAttr<DenseI64ArrayAttr, "{1, 1}">:$static_area
+);
+
 def AllocOp : Loom_Op<"alloc"> {
   let summary = "Allocate L1 buffer and return a memref";
   let description = [{
@@ -173,6 +179,41 @@ def AllocOp : Loom_Op<"alloc"> {
         ::mlir::Type elementType);
   }];
 }
+
+def PlaceholderOp : Loom_Op<"placeholder", [Pure]> {
+  let summary = "Create a fake memref destination before memory binding";
+  let description = [{
+    The `loom.placeholder` operation produces a memref-shaped SSA value without
+    allocating memory. It is used as a pre-memory-binding destination for
+    memory-only ops whose real physical buffer will be selected by the memory
+    binding pass.
+
+    Example:
+    ```mlir
+    %dst = loom.placeholder [%m, %n] : memref<?x?xf16>
+    ```
+  }];
+
+  let arguments = (ins
+    Variadic<Index>:$sizes,
+    DenseI64ArrayAttr:$static_sizes
+  );
+
+  let results = (outs AnyMemRef:$result);
+
+  let assemblyFormat = [{
+    custom<DynamicIndexList>($sizes, $static_sizes) attr-dict `:`
+    type($result)
+  }];
+
+  let extraClassDeclaration = [{
+    ::mlir::SmallVector<::mlir::OpFoldResult, 4> getMixedSizes() {
+      ::mlir::Builder builder(getContext());
+      return ::mlir::getMixedValues(getStaticSizes(), getSizes(), builder);
+    }
+  }];
+}
+
 def SemaphoreTakeOp : Loom_Op<"semaphore_take", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
 ]> {
@@ -591,11 +632,10 @@ def CopyOp : Loom_Op<"copy", [
       ins
       AnyMemRef:$source,
       AnyMemRef:$destination,
-      Variadic<Index>:$area,
       OptionalAttr<SymbolRefAttr>:$src_mem_space,
-      OptionalAttr<SymbolRefAttr>:$dst_mem_space,
-      DefaultValuedAttr<DenseI64ArrayAttr, "{1, 1}">:$static_area
+      OptionalAttr<SymbolRefAttr>:$dst_mem_space
     ),
+    CopyAreaArgs,
     MeshBoundsArgs
   );
 
@@ -787,59 +827,69 @@ def MatmulOp : Loom_Op<"matmul", [
 
 def GatherOp : Loom_Op<"gather", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-  DeclareOpInterfaceMethods<ComputeMemoryHandoffOpInterface>,
-  DestinationStyleOpInterface,
   AttrSizedOperandSegments
 ]> {
-  let summary = "Gather a tile tensor across all iterations of a loop axis (DPS)";
+  let summary = "Gather a tile buffer across all iterations of a loop axis";
   let description = [{
-    The `loom.gather` operation collects a tile tensor `ins` from every
+    The `loom.gather` operation collects a tile memref `source` from every
     iteration of the loop axis identified by `across`, writing the stacked
-    result into the destination buffer `outs`.
+    result into the destination memref.
 
-    Operand convention (mirrors linalg DPS):
-    - ins:    source tile tensor of shape S
-    - outs:   destination buffer of shape [N, *S] where N = trip-count
-    - across: loop IV index of the gathered axis
+    Operand convention:
+    - source:      source tile memref of shape S
+    - destination: destination memref of shape [N, *S] where N = trip-count
+    - across: optional loop IV index of the gathered axis
 
-    The optional `region` bounds (UL/LR) follow the same mesh-broadcast
-    convention as `loom.reduce_sum`.
+    The optional `region` bounds (UL/LR) follow the same mesh convention as
+    `loom.copy`.
 
     Example:
     ```mlir
-    %empty = tensor.empty(%n, %m, %k) : tensor<?x?x?xf16>
-    %gathered = loom.gather
-        ins(%src : tensor<?x?xf16>)
-        outs(%empty : tensor<?x?x?xf16>)
-        across(%iv : index)
-        -> tensor<?x?x?xf16>
+    loom.gather %src, %dst across(%iv : index), area : [1, 1]
+        : memref<?x?xf16> to memref<?x?x?xf16>
     ```
   }];
 
   let arguments = !con(
     (ins
-      AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$ins,
-      AnyTypeOf<[AnyRankedTensor, AnyMemRef]>:$init,
-      Index:$across
+      AnyMemRef:$source,
+      AnyMemRef:$destination,
+      Optional<Index>:$across
     ),
+    CopyAreaArgs,
     MeshBoundsArgs
   );
 
-  let results = (outs Variadic<AnyRankedTensor>:$result);
+  let results = (outs);
 
   let assemblyFormat = [{
-    `ins` `(` $ins `:` type($ins) `)`
-    `outs` `(` $init `:` type($init) `)`
-    `across` `(` $across `:` type($across) `)`
+    $source `,` $destination
+    ( `across` `(` $across^ `:` type($across) `)` `,`)?
+    `area` `:` custom<DynamicIndexList>($area, $static_area)
     ( `region` `:` `(` `UL` `:` `[` $ul_x^ `,` $ul_y `]` `,`
         `LR` `:` `[` $lr_x `,` $lr_y `]` `)` )?
-    attr-dict (`->` type($result)^ )?
+    attr-dict `:` type($source) `to` type($destination)
   }];
 
   let hasCanonicalizer = 1;
 
   let extraClassDeclaration = [{
-    ::mlir::MutableOperandRange getDpsInitsMutable() { return getInitMutable(); }
+    ::mlir::SmallVector<::mlir::OpFoldResult, 4> getMixedArea() {
+      ::mlir::Builder builder(getContext());
+      return ::mlir::getMixedValues(getStaticArea(), getArea(), builder);
+    }
+
+    ::mlir::SmallVector<int64_t, 4> getStaticAreaValues() {
+      assert(getArea().empty() && "loom.gather area must be static here");
+      ::mlir::SmallVector<int64_t, 4> values;
+      for (int64_t value : getStaticArea()) {
+        assert(value != ::mlir::ShapedType::kDynamic &&
+               "loom.gather area must be static here");
+        values.push_back(value);
+      }
+      return values;
+    }
+
   }];
 }
 

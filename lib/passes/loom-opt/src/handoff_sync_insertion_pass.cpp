@@ -44,44 +44,6 @@ static bool isL1ToDramCopy(loom::CopyOp copyOp) {
          dst.getLeafReference() == "mem_DRAM";
 }
 
-static std::optional<WriteOutChain> buildGatherChain(loom::GatherOp gatherOp) {
-  if (!isa<RankedTensorType>(gatherOp.getIns().getType()))
-    return std::nullopt;
-
-  WriteOutChain chain;
-  chain.ops.push_back(gatherOp.getOperation());
-  chain.targetTensor = gatherOp.getIns();
-  return chain;
-}
-
-static std::optional<WriteOutChain>
-buildGatherFirstConsumerChain(loom::GatherOp gatherOp) {
-  if (gatherOp->getNumResults() == 0)
-    return std::nullopt;
-  Value gatherResult = gatherOp->getResult(0);
-  if (!isa<RankedTensorType>(gatherResult.getType()))
-    return std::nullopt;
-
-  Operation *firstConsumer = nullptr;
-  for (Operation *user : gatherResult.getUsers()) {
-    if (!firstConsumer) {
-      firstConsumer = user;
-      continue;
-    }
-    if (user->getBlock() == firstConsumer->getBlock() &&
-        user->isBeforeInBlock(firstConsumer)) {
-      firstConsumer = user;
-    }
-  }
-  if (!firstConsumer)
-    return std::nullopt;
-
-  WriteOutChain chain;
-  chain.ops.push_back(firstConsumer);
-  chain.targetTensor = gatherResult;
-  return chain;
-}
-
 static FailureOr<WriteOutChain> buildL1ToDramCopyChain(loom::CopyOp copyOp) {
   if (!isL1ToDramCopy(copyOp))
     return failure();
@@ -233,13 +195,6 @@ public:
     module.walk([&](Operation *op) {
       if (auto toTensorOp = dyn_cast<bufferization::ToTensorOp>(op)) {
         toTensorOps.push_back(toTensorOp);
-        return;
-      }
-      if (auto gatherOp = dyn_cast<loom::GatherOp>(op)) {
-        if (auto chain = buildGatherChain(gatherOp))
-          chains.push_back(*chain);
-        if (auto chain = buildGatherFirstConsumerChain(gatherOp))
-          chains.push_back(*chain);
         return;
       }
       if (auto memCopyOp = dyn_cast<memref::CopyOp>(op)) {

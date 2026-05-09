@@ -683,59 +683,6 @@ struct DropUnusedSemaphoreTakeGive : public OpRewritePattern<SemaphoreTakeOp> {
   }
 };
 
-/// Peek through tensor.cast on ins/init and update the result type to a
-/// fully-static shape once the init tensor's shape becomes known.  Mirrors
-/// StaticizeReduceSum but accounts for the fact that ins and init have
-/// different ranks (init has an extra leading trip-count dimension).
-struct StaticizeGather : public OpRewritePattern<GatherOp> {
-  using OpRewritePattern<GatherOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(GatherOp op,
-                                PatternRewriter &rewriter) const override {
-    Value ins = op.getIns();
-    if (auto cast = ins.getDefiningOp<tensor::CastOp>())
-      ins = cast.getSource();
-
-    Value init = op.getInit();
-    if (auto cast = init.getDefiningOp<tensor::CastOp>())
-      init = cast.getSource();
-
-    if (op->getNumResults() == 0)
-      return failure();
-
-    auto initType = llvm::dyn_cast<RankedTensorType>(init.getType());
-    if (!initType)
-      return failure();
-
-    auto resultType =
-        llvm::dyn_cast<RankedTensorType>(op->getResultTypes()[0]);
-    if (!resultType)
-      return failure();
-
-    bool needsInsUpdate  = (ins  != op.getIns());
-    bool needsInitUpdate = (init != op.getInit());
-    bool needsTypeUpdate =
-        initType.hasStaticShape() && !resultType.hasStaticShape();
-
-    if (!needsInsUpdate && !needsInitUpdate && !needsTypeUpdate)
-      return failure();
-
-    Type newResultType = needsTypeUpdate ? Type(initType) : Type(resultType);
-
-    auto newOp = GatherOp::create(
-        rewriter, op.getLoc(), newResultType, ins, init, op.getAcross(),
-        op.getUlX(), op.getUlY(), op.getLrX(), op.getLrY());
-
-    if (newResultType != resultType) {
-      rewriter.replaceOpWithNewOp<tensor::CastOp>(op, resultType,
-                                                  newOp.getResult());
-    } else {
-      rewriter.replaceOp(op, newOp.getResult());
-    }
-    return success();
-  }
-};
-
 /// Staticize loom.broadcast by peeking through tensor.cast on ins/init and
 /// unwrapping casts on ins/init. Broadcast may intentionally have init/outs
 /// type different from result type, so we never derive result type from init.
@@ -879,9 +826,33 @@ struct StaticizeCopy : public OpRewritePattern<CopyOp> {
     }
 
     rewriter.replaceOpWithNewOp<CopyOp>(
-        op, source, destination, op.getArea(), op.getSrcMemSpaceAttr(),
-        op.getDstMemSpaceAttr(), op.getStaticAreaAttr(),
+        op, source, destination, op.getSrcMemSpaceAttr(),
+        op.getDstMemSpaceAttr(), op.getArea(), op.getStaticAreaAttr(),
         op.getUlX(), op.getUlY(), op.getLrX(), op.getLrY());
+    return success();
+  }
+};
+
+struct StaticizeGather : public OpRewritePattern<GatherOp> {
+  using OpRewritePattern<GatherOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(GatherOp op,
+                                PatternRewriter &rewriter) const override {
+    Value source = op.getSource();
+    if (auto cast = source.getDefiningOp<memref::CastOp>())
+      source = cast.getSource();
+
+    Value destination = op.getDestination();
+    if (auto cast = destination.getDefiningOp<memref::CastOp>())
+      destination = cast.getSource();
+
+    if (source == op.getSource() && destination == op.getDestination())
+      return failure();
+
+    rewriter.replaceOpWithNewOp<GatherOp>(
+        op, source, destination, op.getAcross(), op.getArea(),
+        op.getStaticAreaAttr(), op.getUlX(), op.getUlY(), op.getLrX(),
+        op.getLrY());
     return success();
   }
 };
@@ -950,18 +921,6 @@ loom::BufferizeToTensorOp::getHandoffTargetTensors() {
 ::mlir::SmallVector<::mlir::Value>
 loom::BufferizeToMemrefOp::getHandoffTargetTensors() {
   return {getSource()};
-}
-
-::mlir::SmallVector<::mlir::Value>
-loom::GatherOp::getHandoffTargetTensors() {
-  ::mlir::SmallVector<::mlir::Value> targets;
-  if (::mlir::isa<::mlir::RankedTensorType>(getIns().getType()))
-    targets.push_back(getIns());
-  for (::mlir::Value result : getResults()) {
-    if (::mlir::isa<::mlir::RankedTensorType>(result.getType()))
-      targets.push_back(result);
-  }
-  return targets;
 }
 
 ::mlir::RankedTensorType
