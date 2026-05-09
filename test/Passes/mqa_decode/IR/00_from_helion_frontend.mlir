@@ -139,9 +139,15 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
         linalg.yield %27 : f16
       } -> tensor<?x32x128xf16>
       %22 = tensor.empty(%4, %0) : tensor<?x?x32x1xf16>
-      %23 = "loom.gather"(%18, %22, %arg5) {operandSegmentSizes = array<i32: 1, 1, 1, 0, 0, 0, 0>} : (tensor<?x32x1xf16>, tensor<?x?x32x1xf16>, index) -> tensor<?x?x32x1xf16>
+      %gather_src = loom.bufferize_to_memref %18 : tensor<?x32x1xf16> -> memref<?x32x1xf16>
+      %gather_dst = loom.placeholder [%4, %0, 32, 1] : memref<?x?x32x1xf16>
+      loom.gather %gather_src, %gather_dst across(%arg5 : index), area : [1, 1] : memref<?x32x1xf16> to memref<?x?x32x1xf16>
+      %23 = loom.bufferize_to_tensor %gather_dst[%4, %0, 32, 1] : memref<?x?x32x1xf16> -> tensor<?x?x32x1xf16>
       %24 = tensor.empty(%4, %0) : tensor<?x?x32x128xf16>
-      %25 = "loom.gather"(%21, %24, %arg5) {operandSegmentSizes = array<i32: 1, 1, 1, 0, 0, 0, 0>} : (tensor<?x32x128xf16>, tensor<?x?x32x128xf16>, index) -> tensor<?x?x32x128xf16>
+      %gather_src_0 = loom.bufferize_to_memref %21 : tensor<?x32x128xf16> -> memref<?x32x128xf16>
+      %gather_dst_1 = loom.placeholder [%4, %0, 32, 128] : memref<?x?x32x128xf16>
+      loom.gather %gather_src_0, %gather_dst_1 across(%arg5 : index), area : [1, 1] : memref<?x32x128xf16> to memref<?x?x32x128xf16>
+      %25 = loom.bufferize_to_tensor %gather_dst_1[%4, %0, 32, 128] : memref<?x?x32x128xf16> -> tensor<?x?x32x128xf16>
       %26 = arith.cmpi eq, %arg5, %c0 : index
       scf.if %26 {
         %27 = tensor.empty(%0) : tensor<?x32x1xi64>
