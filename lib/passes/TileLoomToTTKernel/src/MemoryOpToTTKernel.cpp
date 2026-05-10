@@ -357,6 +357,34 @@ static std::optional<int64_t> getRank1VecTilesFromMemref(Type type) {
   return ceilDiv32(memrefType.getShape().front());
 }
 
+static std::optional<int64_t> getElementByteSize(Type elementType) {
+  if (auto tileType = dyn_cast_or_null<TileType>(elementType)) {
+    switch (tileType.getDataType()) {
+    case DataType::BFloat16:
+    case DataType::Float16:
+    case DataType::UInt16:
+      return 2;
+    case DataType::Float32:
+    case DataType::UInt32:
+    case DataType::Int32:
+      return 4;
+    case DataType::UInt8:
+    case DataType::Bool:
+      return 1;
+    default:
+      return std::nullopt;
+    }
+  }
+
+  if (elementType.isF16() || elementType.isBF16())
+    return 2;
+  if (elementType.isF32())
+    return 4;
+  if (auto intType = dyn_cast<IntegerType>(elementType))
+    return (intType.getWidth() + 7) / 8;
+  return std::nullopt;
+}
+
 static int64_t getPackedWordForScalarOne(Type elementType) {
   if (auto tileType = dyn_cast_or_null<TileType>(elementType)) {
     switch (tileType.getDataType()) {
@@ -659,6 +687,10 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
   // Use num_tiles from bindingData (pre-computed by caller for domination correctness)
   // If not set yet (non-broadcast case), compute it now.
   Value numPages = bindingData->num_tiles;
+  if (!numPages) {
+    emitError(loc) << "missing page count for DRAM read copy binding";
+    return std::make_pair(Value(), Value());
+  }
   Value totalSizeBytes = arith::MulIOp::create(rewriter, loc, numPages, pageSize);
 
   Value accessorOp = bindingData->tensorAccessor;
@@ -703,10 +735,96 @@ std::pair<Value, Value> dram_read(Value source, Location loc,
   Value tileDimVal = rewriter.create<arith::ConstantIntOp>(
       loc, rewriter.getI32Type(), kTileDim);
 
-  if (shape.size() <= 1) {
-    // Rank-0/1 payloads use a synthetic [1, N] view so tile-id mapping
-    // remains valid and avoids rank-2 indexing assumptions.
-    int64_t logicalCols = shape.empty() ? 1 : shape.back();
+  if (shape.size() == 1) {
+    int64_t logicalCols = shape.back();
+    if (logicalCols <= 0) {
+      emitError(loc) << "rank-1 DRAM vector load requires a positive static "
+                        "length";
+      return std::make_pair(Value(), Value());
+    }
+    if (strides.empty() || strides.back() != 1) {
+      emitError(loc) << "rank-1 DRAM vector load requires contiguous stride 1";
+      return std::make_pair(Value(), Value());
+    }
+
+    auto elemByteSizeOpt = getElementByteSize(resultType.getElementType());
+    if (!elemByteSizeOpt) {
+      emitError(loc) << "unsupported element type for rank-1 DRAM vector load";
+      return std::make_pair(Value(), Value());
+    }
+    int64_t elemByteSize = *elemByteSizeOpt;
+    Value elemByteSizeVal = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(), elemByteSize);
+    Value face1Row0ByteOffset = rewriter.create<arith::ConstantIntOp>(
+        loc, rewriter.getI32Type(), 256 * elemByteSize);
+
+    auto emitVecSegmentRead = [&](int64_t chunkIdx, int64_t segmentStart,
+                                  int64_t readElems) {
+      int64_t staticElemOffset = chunkIdx * kTileDim + segmentStart;
+      Value srcElemOffset = baseElemOffset;
+      if (staticElemOffset != 0) {
+        Value staticElemOffsetVal = rewriter.create<arith::ConstantIntOp>(
+            loc, rewriter.getI32Type(), staticElemOffset);
+        srcElemOffset = arith::AddIOp::create(
+            rewriter, loc, srcElemOffset, staticElemOffsetVal,
+            arith::IntegerOverflowFlags::nsw);
+      }
+
+      Value srcByteOffset = arith::MulIOp::create(
+          rewriter, loc, srcElemOffset, elemByteSizeVal,
+          arith::IntegerOverflowFlags::nsw);
+      Value srcPage =
+          arith::DivSIOp::create(rewriter, loc, srcByteOffset, pageSize);
+      Value srcPageOffset =
+          arith::RemSIOp::create(rewriter, loc, srcByteOffset, pageSize);
+      Value srcNocAddr = TensorAccessorGetNocAddrOp::create(
+          rewriter, loc, accessorOp, srcPage, srcPageOffset, Value());
+
+      Value tileL1Addr = l1Addr;
+      if (chunkIdx != 0) {
+        Value chunkIdxVal = rewriter.create<arith::ConstantIntOp>(
+            loc, rewriter.getI32Type(), chunkIdx);
+        Value chunkByteOffset = arith::MulIOp::create(
+            rewriter, loc, chunkIdxVal, pageSize,
+            arith::IntegerOverflowFlags::nsw);
+        tileL1Addr = arith::AddIOp::create(
+            rewriter, loc, l1Addr, chunkByteOffset,
+            arith::IntegerOverflowFlags::nsw);
+      }
+
+      Value dstL1Addr = tileL1Addr;
+      if (segmentStart >= 16) {
+        dstL1Addr = arith::AddIOp::create(
+            rewriter, loc, tileL1Addr, face1Row0ByteOffset,
+            arith::IntegerOverflowFlags::nsw);
+      }
+
+      Value readSizeBytes = rewriter.create<arith::ConstantIntOp>(
+          loc, rewriter.getI32Type(), readElems * elemByteSize);
+      NocAsyncReadOp::create(rewriter, loc, srcNocAddr, dstL1Addr,
+                             readSizeBytes);
+    };
+
+    int64_t numVecTiles = (logicalCols + kTileDim - 1) / kTileDim;
+    for (int64_t chunkIdx = 0; chunkIdx < numVecTiles; ++chunkIdx) {
+      int64_t remaining = logicalCols - chunkIdx * kTileDim;
+      if (remaining <= 0)
+        break;
+
+      int64_t firstReadElems = remaining < 16 ? remaining : 16;
+      if (firstReadElems > 0)
+        emitVecSegmentRead(chunkIdx, /*segmentStart=*/0, firstReadElems);
+
+      int64_t secondRemaining = remaining - 16;
+      int64_t secondReadElems =
+          secondRemaining < 16 ? secondRemaining : 16;
+      if (secondReadElems > 0)
+        emitVecSegmentRead(chunkIdx, /*segmentStart=*/16, secondReadElems);
+    }
+  } else if (shape.empty()) {
+    // Rank-0 payloads keep the old synthetic [1, 1] tile-id path. Scalar
+    // runtime loads are normally removed before this function is called.
+    int64_t logicalCols = 1;
     int64_t numTileCols = (logicalCols + kTileDim - 1) / kTileDim;
 
     Value numTileColsVal = rewriter.create<arith::ConstantIntOp>(
@@ -1283,6 +1401,21 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
         getRank1VecTilesFromMemref(reinterpretCastOp.getResult().getType());
 
     if (rank1VecTiles) {
+      if (auto vecKindAttr = op->getAttrOfType<StringAttr>(kVecKindAttrName)) {
+        if (vecKindAttr.getValue() == "row_bcast") {
+          return op.emitOpError()
+                 << "rank-1 DRAM vector load currently supports only "
+                    "row-0 tile-lane placement for dim(0) broadcast; "
+                    "row_bcast/column-lane placement is unsupported";
+        }
+      }
+      if (annotatedVecTiles && *annotatedVecTiles != *rank1VecTiles) {
+        return op.emitOpError()
+               << "rank-1 DRAM vector load annotated tile count "
+               << *annotatedVecTiles << " does not match vector length tile "
+                  "count "
+               << *rank1VecTiles;
+      }
       int64_t vecTiles = annotatedVecTiles.value_or(*rank1VecTiles);
       if (vecTiles <= 0) {
         return rewriter.notifyMatchFailure(
@@ -1297,16 +1430,12 @@ struct ConvertLoomMemoryLoadOp : public OpConversionPattern<::loom::CopyOp> {
           loc, rewriter.getI32Type(), numTiles);
     } else {
       const int64_t numElements = cbType.getNumElements();
-      int32_t elementSizeBytes = 4;
-      if (elementType.isF16() || elementType.isBF16())
-        elementSizeBytes = 2;
-      else if (elementType.isF32())
-        elementSizeBytes = 4;
-      else if (auto intType = llvm::dyn_cast<IntegerType>(elementType))
-        elementSizeBytes = (intType.getWidth() + 7) / 8;
+      auto elementSizeBytes = getElementByteSize(elementType);
+      if (!elementSizeBytes)
+        return op.emitOpError("unsupported CB element type for DRAM load");
       Value pageSize = GetTileSizeOp::create(rewriter, loc, cb);
       Value totalSize = rewriter.create<arith::ConstantIntOp>(
-          loc, rewriter.getI32Type(), numElements * elementSizeBytes);
+          loc, rewriter.getI32Type(), numElements * *elementSizeBytes);
       numPages = ceilDivSICompat(rewriter, loc, totalSize, pageSize);
     }
 

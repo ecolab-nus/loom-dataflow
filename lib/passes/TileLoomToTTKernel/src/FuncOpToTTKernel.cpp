@@ -2214,8 +2214,6 @@ private:
     std::string inputName;
     std::string configName;
     std::string bufferName;
-    std::string tilesVarName;
-    std::string tilesExpr;
     std::string sizeExpr;
   };
 
@@ -2727,6 +2725,53 @@ private:
     return expr;
   }
 
+  static FailureOr<std::string> buildElementByteSizeExpr(Type elementType,
+                                                         Location loc) {
+    if (elementType.isBF16())
+      return std::string("sizeof(bfloat16)");
+    if (elementType.isF16())
+      return std::string("sizeof(uint16_t)");
+    if (elementType.isF32())
+      return std::string("sizeof(float)");
+    if (elementType.isF64())
+      return std::string("sizeof(double)");
+    if (elementType.isIndex())
+      return std::string("sizeof(std::size_t)");
+
+    if (auto intType = dyn_cast<IntegerType>(elementType)) {
+      unsigned bytes = std::max<unsigned>(1, (intType.getWidth() + 7) / 8);
+      return std::to_string(bytes);
+    }
+
+    return emitError(loc)
+           << "unsupported memref element type in host byte-size expression: "
+           << elementType;
+  }
+
+  static FailureOr<std::string> buildMemrefByteSizeExpr(MemRefType memrefType,
+                                                        Location loc) {
+    if (!memrefType.hasStaticShape())
+      return emitError(loc) << "dynamic memref dimension is unsupported in "
+                               "host byte-size expression";
+
+    FailureOr<std::string> elementBytes =
+        buildElementByteSizeExpr(memrefType.getElementType(), loc);
+    if (failed(elementBytes))
+      return failure();
+
+    std::string expr = *elementBytes;
+    for (int64_t dim : memrefType.getShape()) {
+      if (dim == ShapedType::kDynamic)
+        return emitError(loc) << "dynamic memref dimension is unsupported in "
+                                 "host byte-size expression";
+      if (dim < 0)
+        return emitError(loc) << "negative memref dimension is unsupported in "
+                                 "host byte-size expression";
+      expr += " * " + std::to_string(dim);
+    }
+    return expr;
+  }
+
   static std::string stringifyAttr(Attribute attr) {
     std::string text;
     llvm::raw_string_ostream os(text);
@@ -2909,8 +2954,9 @@ private:
         continue;
       }
 
-      FailureOr<std::string> tilesExpr = buildTilesExpr(memrefType, loc);
-      if (failed(tilesExpr)) {
+      FailureOr<std::string> sizeExpr =
+          buildMemrefByteSizeExpr(memrefType, loc);
+      if (failed(sizeExpr)) {
         status = failure();
         continue;
       }
@@ -2930,9 +2976,6 @@ private:
         roleName = "arg" + std::to_string(argIdx++);
 
       std::string letter = getLetterName(dramInfos.size());
-      std::string sizeExpr = "single_tile_size";
-      if (*tilesExpr != "1")
-        sizeExpr += " * " + *tilesExpr;
       bool isInput = isLoad;
       bool isOutput = isStore;
       int inputTensorOrdinal =
@@ -2955,9 +2998,7 @@ private:
           inputName,
           "dram_config_" + letter,
           roleName + "_dram_buffer",
-          letter + "_tiles_per_block",
-          *tilesExpr,
-          sizeExpr});
+          *sizeExpr});
       hostArgKinds.push_back(HostArgKind::Memref);
     }
   }
