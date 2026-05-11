@@ -179,11 +179,6 @@ runExplorationPipeline(const std::string &input_mlir_text,
   MLIRContext context(registry);
   context.loadAllAvailableDialects();
 
-  // --- Load hardware compute IR registry ---
-  loom::lcs::HWOpRegistry computeRegistry;
-  if (mlir::failed(computeRegistry.loadFromPlatformFile(hw_spec_file, context)))
-    return {"Failed to load platform IR from: " + hw_spec_file, "", ""};
-
   // --- Parse input MLIR from string ---
   auto inputBuf = llvm::MemoryBuffer::getMemBufferCopy(
       llvm::StringRef(input_mlir_text), "input_mlir");
@@ -328,6 +323,11 @@ runExplorationPipeline(const std::string &input_mlir_text,
   std::string etg_json;
   const bool shouldProduceEtg = produce_etg && !skip_etg;
   if (shouldProduceEtg) {
+    loom::lcs::HWOpRegistry computeRegistry;
+    if (mlir::failed(
+            computeRegistry.loadFromPlatformFile(hw_spec_file, context)))
+      return {"Failed to load platform IR from: " + hw_spec_file, "", ""};
+
     auto [etgErr, etgText] = buildETGString(*merged, computeRegistry);
     if (!etgErr.empty())
       return {etgErr, "", ""};
