@@ -241,6 +241,8 @@ static LogicalResult applyMappingToFunction(
   builder.setInsertionPointToStart(tar_forOp.getBody());
   Location loc = tar_forOp.getLoc();
 
+  llvm::DenseMap<unsigned, Value> reconstructedIVByIterIdx;
+
   for (unsigned i = 0; i < tar_forOp.getNumDims(); ++i) {
     Value waveIV = tar_forOp.getBody()->getArgument(i);
     Value reconstructedIV = nullptr;
@@ -270,6 +272,8 @@ static LogicalResult applyMappingToFunction(
             builder, loc, map, ValueRange{nonUnitHWMappings[0]->iv, waveIV});
       }
     }
+
+    reconstructedIVByIterIdx[i] = reconstructedIV ? reconstructedIV : waveIV;
 
     if (reconstructedIV) {
       for (auto &use : llvm::make_early_inc_range(waveIV.getUses())) {
@@ -321,65 +325,71 @@ static LogicalResult applyMappingToFunction(
     sortAxis(meshCoords.xAxis);
     sortAxis(meshCoords.yAxis);
 
-    // Identfy reduction axis in the mesh coordinate system
-    // Based on Enhancement 1, it must be at logicalDimIndices[0]
     unsigned reductionIterIdx = reductionInfo->parallelIterIdx;
     auto it = iterIdxToHWMappings.find(reductionIterIdx);
     if (it != iterIdxToHWMappings.end() && !it->second.empty()) {
-      // Per Enhancement 1, it's pushed to HW dim 0 (logical dim 0)
-      const auto &hwm = it->second.front();
-      unsigned hwDimIdx = hwm.hwDimIdx;
-      unsigned srcIdx = dims[hwDimIdx].sourceIdx;
-      loom::AxisLinearIndex &targetAxis =
-          (srcIdx == 0) ? meshCoords.xAxis : meshCoords.yAxis;
+      SmallVector<int64_t, 2> gatherArea(2, 1);
+      llvm::DenseMap<unsigned, int64_t> ulXOverrides;
+      llvm::DenseMap<unsigned, int64_t> lrXOverrides;
+      llvm::DenseMap<unsigned, int64_t> ulYOverrides;
+      llvm::DenseMap<unsigned, int64_t> lrYOverrides;
 
-      unsigned levelIdx = 0;
-      for (unsigned i = 0; i < targetAxis.logicalDimIndices.size(); ++i) {
-        if (targetAxis.logicalDimIndices[i] == hwDimIdx) {
-          levelIdx = i;
-          break;
+      for (const auto &hwm : it->second) {
+        unsigned srcIdx = dims[hwm.hwDimIdx].sourceIdx;
+        loom::AxisLinearIndex &axis =
+            (srcIdx == 0) ? meshCoords.xAxis : meshCoords.yAxis;
+
+        std::optional<unsigned> levelIdx;
+        for (unsigned i = 0; i < axis.logicalDimIndices.size(); ++i) {
+          if (axis.logicalDimIndices[i] == hwm.hwDimIdx) {
+            levelIdx = i;
+            break;
+          }
+        }
+        if (!levelIdx)
+          continue;
+
+        if (srcIdx < gatherArea.size())
+          gatherArea[srcIdx] *= hwm.hwDimSize;
+
+        if (srcIdx == 0) {
+          ulXOverrides[*levelIdx] = 0;
+          lrXOverrides[*levelIdx] = hwm.hwDimSize - 1;
+        } else if (srcIdx == 1) {
+          ulYOverrides[*levelIdx] = 0;
+          lrYOverrides[*levelIdx] = hwm.hwDimSize - 1;
         }
       }
 
-      // Rewrite scf.if condition
-      func.walk([&](scf::IfOp ifOp) {
-        OpBuilder condBuilder(ifOp);
-        Value c0 = condBuilder.create<arith::ConstantIndexOp>(loc, 0);
-        Value newCond = condBuilder.create<arith::CmpIOp>(
-            loc, arith::CmpIPredicate::eq, hwm.iv, c0);
-        ifOp.getConditionMutable().assign(newCond);
-      });
+      Value reconstructedAcross =
+          reconstructedIVByIterIdx.lookup(reductionIterIdx);
+      if (reductionInfo->ifOp && reconstructedAcross) {
+        OpBuilder condBuilder(reductionInfo->ifOp);
+        Location ifLoc = reductionInfo->ifOp.getLoc();
+        Value c0 = arith::ConstantIndexOp::create(condBuilder, ifLoc, 0);
+        Value newCond = arith::CmpIOp::create(
+            condBuilder, ifLoc, arith::CmpIPredicate::eq, reconstructedAcross,
+            c0);
+        reductionInfo->ifOp.getConditionMutable().assign(newCond);
+      }
 
-      // Update loom.gather mesh bounds.
-      // Note: by the time this runs, IV reconstruction has already replaced
-      // gatherOp.getAcross() with the full reconstructed IV. We use hwm.iv
-      // (the K-spatial HW IV) as the new `across` instead, since gather
-      // semantically gathers across the spatial dimension only.
       func.walk([&](loom::GatherOp gatherOp) {
         OpBuilder gBuilder(gatherOp);
-        Value ul_x, ul_y, lr_x, lr_y;
-        if (srcIdx == 0) { // reduction on x
-          ul_x = meshCoords.emitLinearIndexWithOverride(gBuilder, loc,
-                                                        meshCoords.xAxis,
-                                                        levelIdx, 0);
-          ul_y = meshCoords.emitLinearIndex(gBuilder, loc, meshCoords.yAxis);
-          lr_x = meshCoords.emitLinearIndexWithOverride(
-              gBuilder, loc, meshCoords.xAxis, levelIdx, hwm.hwDimSize - 1);
-          lr_y = meshCoords.emitLinearIndex(gBuilder, loc, meshCoords.yAxis);
-        } else { // reduction on y
-          ul_x = meshCoords.emitLinearIndex(gBuilder, loc, meshCoords.xAxis);
-          ul_y = meshCoords.emitLinearIndexWithOverride(gBuilder, loc,
-                                                        meshCoords.yAxis,
-                                                        levelIdx, 0);
-          lr_x = meshCoords.emitLinearIndex(gBuilder, loc, meshCoords.xAxis);
-          lr_y = meshCoords.emitLinearIndexWithOverride(
-              gBuilder, loc, meshCoords.yAxis, levelIdx, hwm.hwDimSize - 1);
-        }
-        loom::GatherOp::create(gBuilder, loc, gatherOp.getSource(),
-                               gatherOp.getDestination(), hwm.iv,
-                               gatherOp.getArea(),
-                               gatherOp.getStaticAreaAttr(), ul_x, ul_y, lr_x,
-                               lr_y);
+        Location gatherLoc = gatherOp.getLoc();
+        Value ul_x = meshCoords.emitLinearIndexWithMultiOverride(
+            gBuilder, gatherLoc, meshCoords.xAxis, ulXOverrides);
+        Value ul_y = meshCoords.emitLinearIndexWithMultiOverride(
+            gBuilder, gatherLoc, meshCoords.yAxis, ulYOverrides);
+        Value lr_x = meshCoords.emitLinearIndexWithMultiOverride(
+            gBuilder, gatherLoc, meshCoords.xAxis, lrXOverrides);
+        Value lr_y = meshCoords.emitLinearIndexWithMultiOverride(
+            gBuilder, gatherLoc, meshCoords.yAxis, lrYOverrides);
+        auto staticAreaAttr = gBuilder.getDenseI64ArrayAttr(gatherArea);
+
+        loom::GatherOp::create(gBuilder, gatherLoc, gatherOp.getSource(),
+                               gatherOp.getDestination(), gatherOp.getAcross(),
+                               ValueRange{}, staticAreaAttr, ul_x, ul_y,
+                               lr_x, lr_y);
         gatherOp.erase();
       });
     }
