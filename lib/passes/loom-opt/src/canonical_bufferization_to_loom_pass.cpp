@@ -23,7 +23,9 @@ deriveTensorSizes(Location loc, Value source, RankedTensorType resultType,
                   SmallVectorImpl<int64_t> &staticSizes) {
   SmallVector<OpFoldResult, 4> mixedSizes;
 
-  if (auto subview = source.getDefiningOp<memref::SubViewOp>()) {
+  if (auto placeholder = source.getDefiningOp<loom::PlaceholderOp>()) {
+    mixedSizes = placeholder.getMixedSizes();
+  } else if (auto subview = source.getDefiningOp<memref::SubViewOp>()) {
     ArrayRef<int64_t> allStaticSizes = subview.getStaticSizes();
     SmallVector<OpFoldResult, 4> allMixedSizes = subview.getMixedSizes();
     if (allStaticSizes.size() != allMixedSizes.size())
