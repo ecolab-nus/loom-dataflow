@@ -162,11 +162,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
             loom.semaphore_give %27 : memref<1x32x128xf16>
             %63 = loom.alloc [16, 1, 32, 1] on @L1 : memref<16x1x32x1xf16>
             %64 = loom.semaphore_take %63 : memref<16x1x32x1xf16> -> memref<16x1x32x1xf16>
-            loom.gather %59, %64 across(%21 : index), area : [8, 1] region : (UL : [%c0, %arg4], LR : [%c7, %arg4]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
+            loom.gather %59, %64 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%21 : index), area : [8, 1] region : (UL : [%c0, %arg4], LR : [%c7, %arg4]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
             loom.semaphore_give %59 : memref<1x32x1xf16>
             %65 = loom.alloc [16, 1, 32, 128] on @L1 : memref<16x1x32x128xf16>
             %66 = loom.semaphore_take %65 : memref<16x1x32x128xf16> -> memref<16x1x32x128xf16>
-            loom.gather %62, %66 across(%21 : index), area : [8, 1] region : (UL : [%c0, %arg4], LR : [%c7, %arg4]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
+            loom.gather %62, %66 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%21 : index), area : [8, 1] region : (UL : [%c0, %arg4], LR : [%c7, %arg4]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
             loom.semaphore_give %62 : memref<1x32x128xf16>
             %67 = arith.cmpi eq, %21, %c0 : index
             %68 = loom.alloc [1, 32, 128] on @L1 : memref<1x32x128xf16>
@@ -377,11 +377,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           loom.semaphore_give %29 : memref<1x32x128xf16>
           %66 = loom.alloc [16, 1, 32, 1] on @L1 : memref<16x1x32x1xf16>
           %67 = loom.semaphore_take %66 : memref<16x1x32x1xf16> -> memref<16x1x32x1xf16>
-          loom.gather %62, %67 across(%21 : index), area : [8, 2] region : (UL : [%c0, %25], LR : [%c7, %26]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
+          loom.gather %62, %67 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%21 : index), area : [8, 2] region : (UL : [%c0, %25], LR : [%c7, %26]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
           loom.semaphore_give %62 : memref<1x32x1xf16>
           %68 = loom.alloc [16, 1, 32, 128] on @L1 : memref<16x1x32x128xf16>
           %69 = loom.semaphore_take %68 : memref<16x1x32x128xf16> -> memref<16x1x32x128xf16>
-          loom.gather %65, %69 across(%21 : index), area : [8, 2] region : (UL : [%c0, %25], LR : [%c7, %26]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
+          loom.gather %65, %69 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%21 : index), area : [8, 2] region : (UL : [%c0, %25], LR : [%c7, %26]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
           loom.semaphore_give %65 : memref<1x32x128xf16>
           %70 = arith.cmpi eq, %21, %c0 : index
           %71 = loom.alloc [1, 32, 128] on @L1 : memref<1x32x128xf16>
@@ -592,11 +592,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           loom.semaphore_give %29 : memref<1x32x128xf16>
           %66 = loom.alloc [16, 1, 32, 1] on @L1 : memref<16x1x32x1xf16>
           %67 = loom.semaphore_take %66 : memref<16x1x32x1xf16> -> memref<16x1x32x1xf16>
-          loom.gather %62, %67 across(%21 : index), area : [8, 4] region : (UL : [%c0, %25], LR : [%c7, %26]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
+          loom.gather %62, %67 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%21 : index), area : [8, 4] region : (UL : [%c0, %25], LR : [%c7, %26]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
           loom.semaphore_give %62 : memref<1x32x1xf16>
           %68 = loom.alloc [16, 1, 32, 128] on @L1 : memref<16x1x32x128xf16>
           %69 = loom.semaphore_take %68 : memref<16x1x32x128xf16> -> memref<16x1x32x128xf16>
-          loom.gather %65, %69 across(%21 : index), area : [8, 4] region : (UL : [%c0, %25], LR : [%c7, %26]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
+          loom.gather %65, %69 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%21 : index), area : [8, 4] region : (UL : [%c0, %25], LR : [%c7, %26]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
           loom.semaphore_give %65 : memref<1x32x128xf16>
           %70 = arith.cmpi eq, %21, %c0 : index
           %71 = loom.alloc [1, 32, 128] on @L1 : memref<1x32x128xf16>
@@ -800,11 +800,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           loom.semaphore_give %25 : memref<1x32x128xf16>
           %61 = loom.alloc [16, 1, 32, 1] on @L1 : memref<16x1x32x1xf16>
           %62 = loom.semaphore_take %61 : memref<16x1x32x1xf16> -> memref<16x1x32x1xf16>
-          loom.gather %57, %62 across(%19 : index), area : [8, 8] region : (UL : [%c0, %c0], LR : [%c7, %c7]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
+          loom.gather %57, %62 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%19 : index), area : [8, 8] region : (UL : [%c0, %c0], LR : [%c7, %c7]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
           loom.semaphore_give %57 : memref<1x32x1xf16>
           %63 = loom.alloc [16, 1, 32, 128] on @L1 : memref<16x1x32x128xf16>
           %64 = loom.semaphore_take %63 : memref<16x1x32x128xf16> -> memref<16x1x32x128xf16>
-          loom.gather %60, %64 across(%19 : index), area : [8, 8] region : (UL : [%c0, %c0], LR : [%c7, %c7]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
+          loom.gather %60, %64 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%19 : index), area : [8, 8] region : (UL : [%c0, %c0], LR : [%c7, %c7]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
           loom.semaphore_give %60 : memref<1x32x128xf16>
           %65 = arith.cmpi eq, %19, %c0 : index
           %66 = loom.alloc [1, 32, 128] on @L1 : memref<1x32x128xf16>
@@ -1011,11 +1011,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
             loom.semaphore_give %27 : memref<1x32x128xf16>
             %63 = loom.alloc [16, 1, 32, 1] on @L1 : memref<16x1x32x1xf16>
             %64 = loom.semaphore_take %63 : memref<16x1x32x1xf16> -> memref<16x1x32x1xf16>
-            loom.gather %59, %64 across(%21 : index), area : [1, 8] region : (UL : [%arg4, %c0], LR : [%arg4, %c7]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
+            loom.gather %59, %64 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%21 : index), area : [1, 8] region : (UL : [%arg4, %c0], LR : [%arg4, %c7]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
             loom.semaphore_give %59 : memref<1x32x1xf16>
             %65 = loom.alloc [16, 1, 32, 128] on @L1 : memref<16x1x32x128xf16>
             %66 = loom.semaphore_take %65 : memref<16x1x32x128xf16> -> memref<16x1x32x128xf16>
-            loom.gather %62, %66 across(%21 : index), area : [1, 8] region : (UL : [%arg4, %c0], LR : [%arg4, %c7]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
+            loom.gather %62, %66 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%21 : index), area : [1, 8] region : (UL : [%arg4, %c0], LR : [%arg4, %c7]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
             loom.semaphore_give %62 : memref<1x32x128xf16>
             %67 = arith.cmpi eq, %21, %c0 : index
             %68 = loom.alloc [1, 32, 128] on @L1 : memref<1x32x128xf16>
@@ -1226,11 +1226,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           loom.semaphore_give %29 : memref<1x32x128xf16>
           %66 = loom.alloc [16, 1, 32, 1] on @L1 : memref<16x1x32x1xf16>
           %67 = loom.semaphore_take %66 : memref<16x1x32x1xf16> -> memref<16x1x32x1xf16>
-          loom.gather %62, %67 across(%21 : index), area : [2, 8] region : (UL : [%25, %c0], LR : [%26, %c7]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
+          loom.gather %62, %67 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%21 : index), area : [2, 8] region : (UL : [%25, %c0], LR : [%26, %c7]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
           loom.semaphore_give %62 : memref<1x32x1xf16>
           %68 = loom.alloc [16, 1, 32, 128] on @L1 : memref<16x1x32x128xf16>
           %69 = loom.semaphore_take %68 : memref<16x1x32x128xf16> -> memref<16x1x32x128xf16>
-          loom.gather %65, %69 across(%21 : index), area : [2, 8] region : (UL : [%25, %c0], LR : [%26, %c7]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
+          loom.gather %65, %69 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%21 : index), area : [2, 8] region : (UL : [%25, %c0], LR : [%26, %c7]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
           loom.semaphore_give %65 : memref<1x32x128xf16>
           %70 = arith.cmpi eq, %21, %c0 : index
           %71 = loom.alloc [1, 32, 128] on @L1 : memref<1x32x128xf16>
@@ -1441,11 +1441,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           loom.semaphore_give %29 : memref<1x32x128xf16>
           %66 = loom.alloc [16, 1, 32, 1] on @L1 : memref<16x1x32x1xf16>
           %67 = loom.semaphore_take %66 : memref<16x1x32x1xf16> -> memref<16x1x32x1xf16>
-          loom.gather %62, %67 across(%21 : index), area : [4, 8] region : (UL : [%25, %c0], LR : [%26, %c7]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
+          loom.gather %62, %67 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%21 : index), area : [4, 8] region : (UL : [%25, %c0], LR : [%26, %c7]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
           loom.semaphore_give %62 : memref<1x32x1xf16>
           %68 = loom.alloc [16, 1, 32, 128] on @L1 : memref<16x1x32x128xf16>
           %69 = loom.semaphore_take %68 : memref<16x1x32x128xf16> -> memref<16x1x32x128xf16>
-          loom.gather %65, %69 across(%21 : index), area : [4, 8] region : (UL : [%25, %c0], LR : [%26, %c7]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
+          loom.gather %65, %69 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%21 : index), area : [4, 8] region : (UL : [%25, %c0], LR : [%26, %c7]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
           loom.semaphore_give %65 : memref<1x32x128xf16>
           %70 = arith.cmpi eq, %21, %c0 : index
           %71 = loom.alloc [1, 32, 128] on @L1 : memref<1x32x128xf16>
@@ -1649,11 +1649,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           loom.semaphore_give %25 : memref<1x32x128xf16>
           %61 = loom.alloc [16, 1, 32, 1] on @L1 : memref<16x1x32x1xf16>
           %62 = loom.semaphore_take %61 : memref<16x1x32x1xf16> -> memref<16x1x32x1xf16>
-          loom.gather %57, %62 across(%19 : index), area : [8, 8] region : (UL : [%c0, %c0], LR : [%c7, %c7]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
+          loom.gather %57, %62 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%19 : index), area : [8, 8] region : (UL : [%c0, %c0], LR : [%c7, %c7]) : memref<1x32x1xf16> to memref<16x1x32x1xf16>
           loom.semaphore_give %57 : memref<1x32x1xf16>
           %63 = loom.alloc [16, 1, 32, 128] on @L1 : memref<16x1x32x128xf16>
           %64 = loom.semaphore_take %63 : memref<16x1x32x128xf16> -> memref<16x1x32x128xf16>
-          loom.gather %60, %64 across(%19 : index), area : [8, 8] region : (UL : [%c0, %c0], LR : [%c7, %c7]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
+          loom.gather %60, %64 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%19 : index), area : [8, 8] region : (UL : [%c0, %c0], LR : [%c7, %c7]) : memref<1x32x128xf16> to memref<16x1x32x128xf16>
           loom.semaphore_give %60 : memref<1x32x128xf16>
           %65 = arith.cmpi eq, %19, %c0 : index
           %66 = loom.alloc [1, 32, 128] on @L1 : memref<1x32x128xf16>

@@ -163,13 +163,13 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       %66 = loom.bufferize_to_memref %60 : tensor<?x32x1xf16> -> memref<?x32x1xf16>
       %67 = loom.alloc [%4, %0, 32, 1] on @L1 : memref<?x?x32x1xf16>
       %68 = loom.semaphore_take %67 : memref<?x?x32x1xf16> -> memref<?x?x32x1xf16>
-      loom.gather %66, %68 across(%arg5 : index), area : [1, 1] : memref<?x32x1xf16> to memref<?x?x32x1xf16>
+      loom.gather %66, %68 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%arg5 : index), area : [1, 1] : memref<?x32x1xf16> to memref<?x?x32x1xf16>
       loom.semaphore_give %58 : memref<?x32x1xf16>
       %69 = loom.bufferize_to_tensor %68[%4, %0, 32, 1] : memref<?x?x32x1xf16> -> tensor<?x?x32x1xf16>
       %70 = loom.bufferize_to_memref %65 : tensor<?x32x128xf16> -> memref<?x32x128xf16>
       %71 = loom.alloc [%4, %0, 32, 128] on @L1 : memref<?x?x32x128xf16>
       %72 = loom.semaphore_take %71 : memref<?x?x32x128xf16> -> memref<?x?x32x128xf16>
-      loom.gather %70, %72 across(%arg5 : index), area : [1, 1] : memref<?x32x128xf16> to memref<?x?x32x128xf16>
+      loom.gather %70, %72 src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1 across(%arg5 : index), area : [1, 1] : memref<?x32x128xf16> to memref<?x?x32x128xf16>
       loom.semaphore_give %63 : memref<?x32x128xf16>
       %73 = loom.bufferize_to_tensor %72[%4, %0, 32, 128] : memref<?x?x32x128xf16> -> tensor<?x?x32x128xf16>
       %74 = arith.cmpi eq, %arg5, %c0 : index
