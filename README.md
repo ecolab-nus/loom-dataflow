@@ -107,7 +107,7 @@ cd third_party/loom-dataflow
 ./run_pipeline.sh
 ```
 
-### Step-by-step example (mm_2Dmesh)
+### Step-by-step example (mqa_decode)
 
 ```bash
 # Step 1
@@ -122,35 +122,35 @@ build/tool/loom-opt/single_stage/memory_binding \
 
 # Step 3
 build/tool/loom-opt/single_stage/enumerate_hw_mapping \
-  --input test/Passes/mm_2Dmesh/IR/02_explicit_memory_access.mlir \
-  --hw_spec /root/loom-monorepo/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
-  > test/Passes/mm_2Dmesh/IR/03_after_hardware_mapping.mlir
+  --input test/Passes/mqa_decode/IR/02_explicit_memory_access.mlir \
+  --hw_spec /root/loom/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
+  > test/Passes/mqa_decode/IR/03_after_hardware_mapping.mlir
 
 # Step 4
 build/tool/loom-opt/single_stage/analyze_reuse \
-  --input test/Passes/mm_2Dmesh/IR/03_after_hardware_mapping.mlir \
-  > test/Passes/mm_2Dmesh/IR/04_after_reuse_analyzation.mlir
+  --input test/Passes/mqa_decode/IR/03_after_hardware_mapping.mlir \
+  > test/Passes/mqa_decode/IR/04_after_reuse_analyzation.mlir
 
 # Step 5
 build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
-  --input test/Passes/mm_2Dmesh/IR/04_after_reuse_analyzation.mlir \
-  > test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir
+  --input test/Passes/mqa_decode/IR/04_after_reuse_analyzation.mlir \
+  > test/Passes/mqa_decode/IR/05_after_enumerate_broadcast.mlir
 
 # Step 6 — emits JSON constraint model
 build/tool/loom-opt/single_stage/staged_etg \
-  --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
-  --hw_spec /root/loom-monorepo/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
-  --output test/Passes/mm_2Dmesh/constraint_space/staged_etg_dump.json
+  --input test/Passes/mqa_decode/IR/05_after_enumerate_broadcast.mlir \
+  --hw_spec /root/loom/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
+  --output test/Passes/mqa_decode/constraint_space/staged_etg_dump.json
 
 # Step 7
 build/tool/loom-opt/single_stage/canonicalize \
-  --input test/Passes/mm_2Dmesh/IR/05_after_enumerate_broadcast.mlir \
-  > test/Passes/mm_2Dmesh/IR/06_after_canonicalize.mlir
+  --input test/Passes/mqa_decode/IR/05_after_enumerate_broadcast.mlir \
+  > test/Passes/mqa_decode/IR/06_after_canonicalize.mlir
 
 # Step 8
 build/tool/loom-opt/single_stage/one_shot_bufferize \
-  --input test/Passes/mm_2Dmesh/IR/06_after_canonicalize.mlir \
-  > test/Passes/mm_2Dmesh/IR/07_after_osb.mlir
+  --input test/Passes/mqa_decode/IR/06_after_canonicalize.mlir \
+  > test/Passes/mqa_decode/IR/07_after_osb.mlir
 
 # Step 9
 build/tool/tt-opt/single_stage/fold_zero_fill_linalg \
@@ -215,7 +215,7 @@ build/tool/loom-opt/single_stage/static_memory_analyser --input <file.mlir>
 
 ```bash
 ./benchmark.sh --warmup=3 --runs=10 -- build/tool/loom-opt/single_stage/tensor_canonicalize \
-  --input test/Passes/mm_2Dmesh/IR/00_from_helion_frontend.mlir
+  --input test/Passes/mqa_decode/IR/00_from_helion_frontend.mlir
 ```
 
 ## Tests
