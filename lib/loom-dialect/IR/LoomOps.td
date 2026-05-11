@@ -845,7 +845,8 @@ def GatherOp : Loom_Op<"gather", [
 
     Example:
     ```mlir
-    loom.gather %src, %dst across(%iv : index), area : [1, 1]
+    loom.gather %src, %dst src_mem_space @mem_array_L1 dst_mem_space @mem_array_L1
+        across(%iv : index), area : [1, 1]
         : memref<?x?xf16> to memref<?x?x?xf16>
     ```
   }];
@@ -854,6 +855,8 @@ def GatherOp : Loom_Op<"gather", [
     (ins
       AnyMemRef:$source,
       AnyMemRef:$destination,
+      OptionalAttr<SymbolRefAttr>:$src_mem_space,
+      OptionalAttr<SymbolRefAttr>:$dst_mem_space,
       Optional<Index>:$across
     ),
     CopyAreaArgs,
@@ -864,6 +867,8 @@ def GatherOp : Loom_Op<"gather", [
 
   let assemblyFormat = [{
     $source `,` $destination
+    (`src_mem_space` $src_mem_space^)?
+    (`dst_mem_space` $dst_mem_space^)?
     ( `across` `(` $across^ `:` type($across) `)` `,`)?
     `area` `:` custom<DynamicIndexList>($area, $static_area)
     ( `region` `:` `(` `UL` `:` `[` $ul_x^ `,` $ul_y `]` `,`

@@ -385,11 +385,12 @@ static LogicalResult applyMappingToFunction(
         Value lr_y = meshCoords.emitLinearIndexWithMultiOverride(
             gBuilder, gatherLoc, meshCoords.yAxis, lrYOverrides);
         auto staticAreaAttr = gBuilder.getDenseI64ArrayAttr(gatherArea);
+        auto l1Symbol = SymbolRefAttr::get(gBuilder.getContext(), "mem_array_L1");
 
         loom::GatherOp::create(gBuilder, gatherLoc, gatherOp.getSource(),
-                               gatherOp.getDestination(), gatherOp.getAcross(),
-                               ValueRange{}, staticAreaAttr, ul_x, ul_y,
-                               lr_x, lr_y);
+                               gatherOp.getDestination(), l1Symbol, l1Symbol,
+                               gatherOp.getAcross(), ValueRange{},
+                               staticAreaAttr, ul_x, ul_y, lr_x, lr_y);
         gatherOp.erase();
       });
     }

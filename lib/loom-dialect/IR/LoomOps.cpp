@@ -850,7 +850,8 @@ struct StaticizeGather : public OpRewritePattern<GatherOp> {
       return failure();
 
     rewriter.replaceOpWithNewOp<GatherOp>(
-        op, source, destination, op.getAcross(), op.getArea(),
+        op, source, destination, op.getSrcMemSpaceAttr(),
+        op.getDstMemSpaceAttr(), op.getAcross(), op.getArea(),
         op.getStaticAreaAttr(), op.getUlX(), op.getUlY(), op.getLrX(),
         op.getLrY());
     return success();

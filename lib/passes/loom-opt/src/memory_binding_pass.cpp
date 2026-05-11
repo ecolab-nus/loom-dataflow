@@ -250,11 +250,12 @@ struct GatherPlaceholderLowering
     }
 
     rewriter.setInsertionPoint(op);
+    auto l1Symbol = SymbolRefAttr::get(rewriter.getContext(), "mem_array_L1");
     auto newGather = loom::GatherOp::create(
         rewriter, gatherOp.getLoc(), gatherOp.getSource(), semaphore,
-        gatherOp.getAcross(), gatherOp.getArea(), gatherOp.getStaticAreaAttr(),
-        gatherOp.getUlX(), gatherOp.getUlY(), gatherOp.getLrX(),
-        gatherOp.getLrY());
+        l1Symbol, l1Symbol, gatherOp.getAcross(), gatherOp.getArea(),
+        gatherOp.getStaticAreaAttr(), gatherOp.getUlX(), gatherOp.getUlY(),
+        gatherOp.getLrX(), gatherOp.getLrY());
 
     if (auto srcToMemref =
             gatherOp.getSource().getDefiningOp<loom::BufferizeToMemrefOp>()) {
