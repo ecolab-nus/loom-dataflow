@@ -20,6 +20,7 @@
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/JSON.h"
 #include <cassert>
+#include <optional>
 #include <set>
 #define GET_OP_CLASSES
 #include "LoomEnums.h.inc"
@@ -54,6 +55,30 @@ struct ResourceGroup {
   std::set<std::string> resources;
   std::vector<const Workload *> workloads;
 };
+
+std::optional<int64_t> staticIndexFromOfr(mlir::OpFoldResult value) {
+  if (auto attr = value.dyn_cast<mlir::Attribute>())
+    if (auto intAttr = mlir::dyn_cast<mlir::IntegerAttr>(attr))
+      return intAttr.getInt();
+  mlir::Value ssaValue = value.dyn_cast<mlir::Value>();
+  if (!ssaValue)
+    return std::nullopt;
+  if (auto constOp = ssaValue.getDefiningOp<mlir::arith::ConstantOp>())
+    if (auto intAttr = mlir::dyn_cast<mlir::IntegerAttr>(constOp.getValue()))
+      return intAttr.getInt();
+  return std::nullopt;
+}
+
+void addBindingDimsFromValue(mlir::Value value, const HWTensorBinding &binding,
+                             std::map<std::string, Expr> &dimMap) {
+  loom::AllocOp allocOp = loom::utils::traceToRootAllocOp(value);
+  if (!allocOp)
+    return;
+  std::vector<Expr> opDims = formatAllocDims(allocOp);
+  for (size_t d = 0; d < binding.dim_symbols.size() && d < opDims.size(); ++d)
+    if (dimMap.count(binding.dim_symbols[d]) == 0)
+      dimMap[binding.dim_symbols[d]] = opDims[d];
+}
 
 /// Partition workloads by resource overlap using transitive closure.
 /// Workloads with disjoint resource sets end up in separate groups
@@ -418,6 +443,18 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
         // for_op result tensors are visible to siblings; treat them as
         // becoming ready one stage after the loop.
         // (advances_stage = true)
+      } else if (llvm::isa<mlir::scf::IfOp>(op)) {
+        op->walk([&](mlir::Operation *nested) {
+          if (nested == op)
+            return;
+          llvm::StringRef name = nested->getName().getStringRef();
+          if (name != "loom.copy" && name != "loom.gather")
+            return;
+          dispatchToMemoryQueues(
+              nested, memory_scope.getOrCreateWorkloadStage(required_stage));
+        });
+        dispatched = true;
+        advances_stage = false;
       } else if (llvm::isa<mlir::affine::AffineParallelOp>(op)) {
         // Transparent: descend with the same target scopes and the same
         // readiness map. Block args of the parallel op inherit the current
@@ -432,7 +469,8 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
         advances_stage = false; // parallel op itself produces no modelled work
       } else {
         bool is_compute = llvm::isa<mlir::linalg::LinalgOp>(op);
-        bool is_memory = op->getName().getStringRef() == "loom.copy";
+        bool is_memory = op->getName().getStringRef() == "loom.copy" ||
+                         op->getName().getStringRef() == "loom.gather";
         bool is_linalg_infra =
             is_compute &&
             llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
@@ -538,43 +576,67 @@ void VariantETG::dispatchGenericOp(mlir::Operation *op,
 void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
                                         WorkloadStageBody &target) {
   auto copyOp = llvm::dyn_cast<loom::CopyOp>(op);
-  if (!copyOp)
+  auto gatherOp = llvm::dyn_cast<loom::GatherOp>(op);
+  if (!copyOp && !gatherOp)
     return;
 
   std::string srcMem, dstMem;
-  if (auto attr = copyOp.getSrcMemSpaceAttr())
-    srcMem = attr.getLeafReference().str();
-  if (auto attr = copyOp.getDstMemSpaceAttr())
-    dstMem = attr.getLeafReference().str();
+  mlir::Value source;
+  mlir::Value destination;
+  mlir::SmallVector<mlir::OpFoldResult, 4> mixedArea;
+  DataMoverKind kind = copyOp ? DataMoverKind::Copy : DataMoverKind::Gather;
+  std::string opName = copyOp ? "loom.copy" : "loom.gather";
+
+  if (copyOp) {
+    source = copyOp.getSource();
+    destination = copyOp.getDestination();
+    mixedArea = copyOp.getMixedArea();
+    if (auto attr = copyOp.getSrcMemSpaceAttr())
+      srcMem = attr.getLeafReference().str();
+    if (auto attr = copyOp.getDstMemSpaceAttr())
+      dstMem = attr.getLeafReference().str();
+  } else {
+    source = gatherOp.getSource();
+    destination = gatherOp.getDestination();
+    mixedArea = gatherOp.getMixedArea();
+    if (auto attr = gatherOp.getSrcMemSpaceAttr())
+      srcMem = attr.getLeafReference().str();
+    if (auto attr = gatherOp.getDstMemSpaceAttr())
+      dstMem = attr.getLeafReference().str();
+  }
 
   std::vector<int64_t> bcastVec;
-  for (int64_t value : copyOp.getStaticAreaValues())
-    bcastVec.push_back(value);
+  for (mlir::OpFoldResult area : mixedArea) {
+    if (std::optional<int64_t> value = staticIndexFromOfr(area)) {
+      bcastVec.push_back(*value);
+    } else {
+      bcastVec.push_back(mlir::ShapedType::kDynamic);
+    }
+  }
 
   const HWComputeFunc *hwFunc =
-      hw_registry_->lookup(HWOpKey::dataMover(srcMem, dstMem, bcastVec));
+      hw_registry_->lookupDataMover(kind, srcMem, dstMem, bcastVec);
   if (!hwFunc) {
     auto ph = HWOpRegistry::makePlaceholder(
-        "loom.copy[" + srcMem + "->" + dstMem + "]", "data_movers");
+        opName + "[" + srcMem + "->" + dstMem + "]", "data_movers");
     target.pushWorkload(ph.hw_component, ph.hw_func_name, {}, {});
     return;
   }
 
-  // Trace the L1 alloc — try source first (L1→DRAM), then destination (DRAM→L1).
-  // Use the silent common primitive here because either side may legitimately
-  // be a non-alloc value (the DRAM endpoint).
   std::map<std::string, Expr> dimMap;
-  loom::AllocOp allocOp =
-      loom::utils::traceToRootAllocOp(copyOp.getSource());
-  if (!allocOp)
-    allocOp = loom::utils::traceToRootAllocOp(copyOp.getDestination());
-  if (allocOp && !hwFunc->input_bindings.empty()) {
-    std::vector<Expr> opDims = formatAllocDims(allocOp);
-    const auto &binding = hwFunc->input_bindings[0];
-    for (size_t d = 0; d < binding.dim_symbols.size() && d < opDims.size(); ++d)
-      if (dimMap.count(binding.dim_symbols[d]) == 0)
-        dimMap[binding.dim_symbols[d]] = opDims[d];
+
+  for (size_t i = 0; i < bcastVec.size() && i < hwFunc->area_symbols.size();
+       ++i) {
+    const std::string &symbol = hwFunc->area_symbols[i];
+    if (!symbol.empty() && symbol != "?" &&
+        !mlir::ShapedType::isDynamic(bcastVec[i]))
+      dimMap[symbol] = Expr::con(bcastVec[i]);
   }
+
+  if (!hwFunc->input_bindings.empty())
+    addBindingDimsFromValue(source, hwFunc->input_bindings[0], dimMap);
+  if (!hwFunc->output_bindings.empty())
+    addBindingDimsFromValue(destination, hwFunc->output_bindings[0], dimMap);
 
   target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
                       std::move(dimMap), hwFunc->resources);

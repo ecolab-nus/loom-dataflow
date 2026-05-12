@@ -13,9 +13,11 @@
 #define GET_OP_CLASSES
 #include "ADLOps.h.inc"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Support/FileUtilities.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/SourceMgr.h"
@@ -26,6 +28,30 @@
 
 namespace loom {
 namespace lcs {
+namespace {
+
+bool isAllOnes(llvm::ArrayRef<int64_t> area) {
+  return !area.empty() && llvm::all_of(area, [](int64_t value) {
+           return value == 1;
+         });
+}
+
+bool isSymbolicArea(llvm::ArrayRef<int64_t> area) {
+  return llvm::any_of(area, [](int64_t value) {
+    return mlir::ShapedType::isDynamic(value);
+  });
+}
+
+std::string canonicalMemSpace(llvm::StringRef memSpace) {
+  if (memSpace == "L1" || memSpace == "array_L1" || memSpace == "mem_L1" ||
+      memSpace == "mem_array_L1")
+    return "mem_array_L1";
+  if (memSpace == "DRAM" || memSpace == "mem_DRAM")
+    return "mem_DRAM";
+  return memSpace.str();
+}
+
+} // namespace
 
 // ============================================================
 // HWOpKey
@@ -42,6 +68,8 @@ bool HWOpKey::operator<(const HWOpKey &rhs) const {
       return body_op_name < rhs.body_op_name;
     return generic_class < rhs.generic_class;
   case DataMover:
+    if (data_mover_kind != rhs.data_mover_kind)
+      return data_mover_kind < rhs.data_mover_kind;
     if (src_mem_space != rhs.src_mem_space)
       return src_mem_space < rhs.src_mem_space;
     if (dst_mem_space != rhs.dst_mem_space)
@@ -66,10 +94,11 @@ HWOpKey HWOpKey::generic(std::string body_op, GenericClass cls) {
   return k;
 }
 
-HWOpKey HWOpKey::dataMover(std::string src, std::string dst,
+HWOpKey HWOpKey::dataMover(DataMoverKind kind, std::string src, std::string dst,
                            std::vector<int64_t> bcast) {
   HWOpKey k;
   k.kind = DataMover;
+  k.data_mover_kind = kind;
   k.src_mem_space = std::move(src);
   k.dst_mem_space = std::move(dst);
   k.broadcast = std::move(bcast);
@@ -156,9 +185,10 @@ HWOpRegistry::loadFromPlatformFile(llvm::StringRef file_path,
     if (component.empty())
       continue;
 
-    // Detect data mover module: any func containing a loom.copy op.
+    // Detect data mover module: any func containing a loom.copy or loom.gather.
     bool is_data_mover = false;
     subModule.walk([&](loom::CopyOp) { is_data_mover = true; });
+    subModule.walk([&](loom::GatherOp) { is_data_mover = true; });
 
     indexModule(subModule, component, is_data_mover);
   }
@@ -175,6 +205,41 @@ const HWComputeFunc *HWOpRegistry::lookup(const HWOpKey &key) const {
   auto it = registry_.find(key);
   if (it != registry_.end())
     return &it->second;
+  return nullptr;
+}
+
+const HWComputeFunc *HWOpRegistry::lookupDataMover(
+    DataMoverKind kind, llvm::StringRef src_mem_space,
+    llvm::StringRef dst_mem_space, llvm::ArrayRef<int64_t> area) const {
+  std::string src = canonicalMemSpace(src_mem_space);
+  std::string dst = canonicalMemSpace(dst_mem_space);
+  HWOpKey exact =
+      HWOpKey::dataMover(kind, src, dst,
+                         std::vector<int64_t>(area.begin(), area.end()));
+  if (const HWComputeFunc *hwFunc = lookup(exact))
+    return hwFunc;
+
+  if (kind == DataMoverKind::Copy && isAllOnes(area))
+    return nullptr;
+
+  for (const HWComputeFunc &candidate : symbolic_data_movers_) {
+    if (candidate.data_mover_kind != kind ||
+        candidate.src_mem_space != src || candidate.dst_mem_space != dst ||
+        candidate.broadcast.size() != area.size())
+      continue;
+
+    bool matches = true;
+    for (size_t i = 0; i < area.size(); ++i) {
+      int64_t hwArea = candidate.broadcast[i];
+      if (!mlir::ShapedType::isDynamic(hwArea) && hwArea != area[i]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches)
+      return &candidate;
+  }
+
   return nullptr;
 }
 
@@ -216,7 +281,12 @@ void HWOpRegistry::indexModule(mlir::ModuleOp module,
     // Build unified key and insert.
     HWOpKey key;
     if (hwFunc->is_data_mover) {
-      key = HWOpKey::dataMover(hwFunc->src_mem_space, hwFunc->dst_mem_space,
+      if (isSymbolicArea(hwFunc->broadcast)) {
+        symbolic_data_movers_.push_back(std::move(*hwFunc));
+        return;
+      }
+      key = HWOpKey::dataMover(hwFunc->data_mover_kind,
+                               hwFunc->src_mem_space, hwFunc->dst_mem_space,
                                hwFunc->broadcast);
     } else if (!hwFunc->body_op_name.empty()) {
       key = HWOpKey::generic(hwFunc->body_op_name, hwFunc->generic_class);
@@ -353,7 +423,7 @@ HWOpRegistry::extractFromFunc(mlir::func::FuncOp func,
 }
 
 // ============================================================
-// Extraction: data mover ops (loom.copy-based)
+// Extraction: data mover ops (loom.copy / loom.gather based)
 // ============================================================
 
 std::optional<HWComputeFunc>
@@ -362,32 +432,69 @@ HWOpRegistry::extractDataMoverFromFunc(mlir::func::FuncOp func,
   // 1. Collect loom.bind_shape bindings.
   auto bindingMap = collectBindingMap(func);
 
-  // 2. Find the unique loom.copy op.
+  // 2. Find the unique transfer op.
   loom::CopyOp copyOp = nullptr;
+  loom::GatherOp gatherOp = nullptr;
   func.walk([&](loom::CopyOp op) {
-    assert(!copyOp && "Expected exactly one loom.copy per data mover func");
+    assert(!copyOp && "Expected at most one loom.copy per data mover func");
     copyOp = op;
   });
+  func.walk([&](loom::GatherOp op) {
+    assert(!gatherOp && "Expected at most one loom.gather per data mover func");
+    gatherOp = op;
+  });
 
-  if (!copyOp)
+  assert(!(copyOp && gatherOp) &&
+         "Expected exactly one loom.copy or loom.gather per data mover func");
+  if (!copyOp && !gatherOp)
     return std::nullopt;
 
   HWComputeFunc result;
   result.is_data_mover = true;
+  result.data_mover_kind =
+      copyOp ? DataMoverKind::Copy : DataMoverKind::Gather;
   result.hw_func_name = func.getName().str();
   result.hw_component = hw_component.str();
 
-  // Extract key attributes
-  if (auto attr = copyOp.getSrcMemSpaceAttr())
-    result.src_mem_space = attr.getLeafReference().str();
-  if (auto attr = copyOp.getDstMemSpaceAttr())
-    result.dst_mem_space = attr.getLeafReference().str();
+  mlir::Value source;
+  mlir::Value destination;
+  mlir::SmallVector<mlir::OpFoldResult, 4> mixedArea;
 
-  for (int64_t value : copyOp.getStaticAreaValues())
-    result.broadcast.push_back(value);
+  // Extract key attributes
+  if (copyOp) {
+    source = copyOp.getSource();
+    destination = copyOp.getDestination();
+    mixedArea = copyOp.getMixedArea();
+    if (auto attr = copyOp.getSrcMemSpaceAttr())
+      result.src_mem_space = canonicalMemSpace(attr.getLeafReference());
+    if (auto attr = copyOp.getDstMemSpaceAttr())
+      result.dst_mem_space = canonicalMemSpace(attr.getLeafReference());
+  } else {
+    source = gatherOp.getSource();
+    destination = gatherOp.getDestination();
+    mixedArea = gatherOp.getMixedArea();
+    if (auto attr = gatherOp.getSrcMemSpaceAttr())
+      result.src_mem_space = canonicalMemSpace(attr.getLeafReference());
+    if (auto attr = gatherOp.getDstMemSpaceAttr())
+      result.dst_mem_space = canonicalMemSpace(attr.getLeafReference());
+  }
+
+  for (mlir::OpFoldResult area : mixedArea) {
+    if (auto attr = area.dyn_cast<mlir::Attribute>()) {
+      if (auto intAttr = mlir::dyn_cast<mlir::IntegerAttr>(attr)) {
+        result.broadcast.push_back(intAttr.getInt());
+        result.area_symbols.push_back("");
+        continue;
+      }
+    }
+    mlir::Value areaValue = area.dyn_cast<mlir::Value>();
+    llvm::StringRef symName = loom::utils::traceToSymbolicVar(areaValue);
+    result.broadcast.push_back(mlir::ShapedType::kDynamic);
+    result.area_symbols.push_back(symName.empty() ? "?" : symName.str());
+  }
 
   // Source binding (input)
-  auto srcIt = bindingMap.find(copyOp.getSource());
+  auto srcIt = bindingMap.find(source);
   if (srcIt != bindingMap.end()) {
     result.input_bindings.push_back(srcIt->second);
   } else {
@@ -395,7 +502,7 @@ HWOpRegistry::extractDataMoverFromFunc(mlir::func::FuncOp func,
   }
 
   // Destination binding (output)
-  auto dstIt = bindingMap.find(copyOp.getDestination());
+  auto dstIt = bindingMap.find(destination);
   if (dstIt != bindingMap.end()) {
     result.output_bindings.push_back(dstIt->second);
   } else {

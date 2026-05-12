@@ -6,6 +6,7 @@
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OwningOpRef.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/LogicalResult.h"
 #include <map>
 #include <optional>
@@ -14,6 +15,8 @@
 
 namespace loom {
 namespace lcs {
+
+enum class DataMoverKind { Copy, Gather };
 
 /// Per-tensor binding from hardware IR: symbol names for each dimension.
 /// For `loom.bind %A, [%M, %K]`, stores dim_symbols = ["M", "K"].
@@ -34,6 +37,7 @@ struct HWOpKey {
   GenericClass generic_class = GenericClass::Parallel;
 
   // DataMover: transfer attributes
+  DataMoverKind data_mover_kind = DataMoverKind::Copy;
   std::string src_mem_space;
   std::string dst_mem_space;
   std::vector<int64_t> broadcast;
@@ -42,7 +46,7 @@ struct HWOpKey {
 
   static HWOpKey named(std::string op_name);
   static HWOpKey generic(std::string body_op, GenericClass cls);
-  static HWOpKey dataMover(std::string src, std::string dst,
+  static HWOpKey dataMover(DataMoverKind kind, std::string src, std::string dst,
                            std::vector<int64_t> bcast);
 };
 
@@ -61,9 +65,13 @@ struct HWComputeFunc {
 
   // Data mover specific (empty for compute ops)
   bool is_data_mover = false;
+  DataMoverKind data_mover_kind = DataMoverKind::Copy;
   std::string src_mem_space;        // e.g., "DRAM"
   std::string dst_mem_space;        // e.g., "L1"
-  std::vector<int64_t> broadcast;   // e.g., {1,1} or {8,8}
+  // Static entries are constants; dynamic entries use ShapedType::kDynamic and
+  // carry the corresponding hardware symbol in area_symbols.
+  std::vector<int64_t> broadcast;   // e.g., {1,1} or {?,?}
+  std::vector<std::string> area_symbols;
 };
 
 /// Registry that loads a platform IR file and indexes hardware functions
@@ -78,6 +86,12 @@ public:
   /// Unified lookup: find a registered hw func by key.
   const HWComputeFunc *lookup(const HWOpKey &key) const;
 
+  /// Data-mover lookup with symbolic-area fallback.
+  const HWComputeFunc *lookupDataMover(DataMoverKind kind,
+                                       llvm::StringRef src_mem_space,
+                                       llvm::StringRef dst_mem_space,
+                                       llvm::ArrayRef<int64_t> area) const;
+
   /// Create a placeholder entry for an unregistered operation.
   static HWComputeFunc makePlaceholder(llvm::StringRef op_name,
                                         llvm::StringRef hw_component = "__unregistered__");
@@ -88,6 +102,9 @@ public:
 private:
   /// Unified registry keyed by HWOpKey.
   std::map<HWOpKey, HWComputeFunc> registry_;
+
+  /// Symbolic-area data movers that cannot be represented by exact static key.
+  std::vector<HWComputeFunc> symbolic_data_movers_;
 
   /// Maps processor module name -> resource names. Built once during load.
   std::map<std::string, std::vector<std::string>> module_resource_map_;
