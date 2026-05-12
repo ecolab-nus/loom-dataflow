@@ -5,7 +5,9 @@ add_library(loomLCS STATIC
     src/expr.cpp
     src/staged_etg_builder.cpp
     src/lcs_utils.cpp
-    src/compute_op_registry.cpp
+    src/hw_op_registry.cpp
+    src/hw_op_registry_compute.cpp
+    src/hw_op_registry_datamover.cpp
 )
 
 target_include_directories(loomLCS PUBLIC

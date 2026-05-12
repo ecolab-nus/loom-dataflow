@@ -1,5 +1,5 @@
-#ifndef LOOM_LCS_COMPUTE_OP_REGISTRY_H
-#define LOOM_LCS_COMPUTE_OP_REGISTRY_H
+#ifndef LOOM_LCS_HW_OP_REGISTRY_H
+#define LOOM_LCS_HW_OP_REGISTRY_H
 
 #include "lcs_utils.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -153,4 +153,4 @@ private:
 } // namespace lcs
 } // namespace loom
 
-#endif // LOOM_LCS_COMPUTE_OP_REGISTRY_H
+#endif // LOOM_LCS_HW_OP_REGISTRY_H

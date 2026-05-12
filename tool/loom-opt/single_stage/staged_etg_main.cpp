@@ -1,5 +1,5 @@
 #include "staged_etg_builder.h"
-#include "compute_op_registry.h"
+#include "hw_op_registry.h"
 #include "driver_utils.h"
 
 #include "mlir/Dialect/Math/IR/Math.h"

@@ -1,5 +1,5 @@
 #include "staged_etg_builder.h"
-#include "compute_op_registry.h"
+#include "hw_op_registry.h"
 #include "lcs_utils.h"
 #include "ssa_utils.h"
 #include "ADLDialect.h.inc"

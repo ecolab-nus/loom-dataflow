@@ -10,7 +10,7 @@
 
 #include "loom_exploration_pipeline.h"
 #include "Passes.h"
-#include "compute_op_registry.h"
+#include "hw_op_registry.h"
 #include "hardware_info.h"
 #include "staged_etg_builder.h"
 #include "driver_utils.h"
