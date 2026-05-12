@@ -176,13 +176,16 @@ runMaterializationCore(const char *input_mlir_text,
     auto allIt = blockSizeMap.find("ALL");
     if (allIt != blockSizeMap.end()) {
       const auto allBinding = allIt->second;
+      // Erase by key before inserting new entries. Inserting into StringMap may
+      // rehash and invalidate iterators, so using `allIt` after insertions can
+      // trigger LLVM StringMap internal assertions.
+      blockSizeMap.erase("ALL");
       module->walk([&](func::FuncOp func) {
         StringRef funcName = func.getName();
         if (blockSizeMap.find(funcName) == blockSizeMap.end()) {
           blockSizeMap[funcName] = allBinding;
         }
       });
-      blockSizeMap.erase(allIt);
     }
   }
 
