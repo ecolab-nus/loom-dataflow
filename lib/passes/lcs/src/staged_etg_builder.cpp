@@ -1,4 +1,5 @@
 #include "staged_etg_builder.h"
+#include "hw_alignment.h"
 #include "hw_op_registry.h"
 #include "lcs_utils.h"
 #include "ssa_utils.h"
@@ -347,6 +348,7 @@ llvm::json::Value ConstraintScope::toJSON() const {
   for (const auto &[name, info] : symbols) {
     llvm::json::Object sym_obj;
     sym_obj["type"] = info.type;
+    sym_obj["alignment"] = info.alignment;
     if (info.natural_ub >= 0)
       sym_obj["natural_ub"] = info.natural_ub;
     symbols_json[name] = std::move(sym_obj);
@@ -706,6 +708,7 @@ void VariantETG::collectL1Footprint(mlir::func::FuncOp func_op) {
 
 void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
   collectSymbols(func_op);
+  applyHardwareAlignments(func_op, constraint_scope_.symbols);
   constraint_scope_.booleans.push_back("is_double_buffer");
   analyzeLoopIterations(func_op);
   // addIterDivisibilityConstraints(constraint_scope_.seq_iter);

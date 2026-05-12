@@ -3,6 +3,7 @@
 add_library(loomLCS STATIC
     src/constraint_expr.cpp
     src/expr.cpp
+    src/hw_alignment.cpp
     src/staged_etg_builder.cpp
     src/lcs_utils.cpp
     src/hw_op_registry.cpp

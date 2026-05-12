@@ -189,6 +189,7 @@ private:
 struct SymbolInfo {
   std::string type;        // always "int" for now
   int64_t natural_ub = -1; // -1 = unknown / not provided by loom.sym
+  int64_t alignment = 1;   // hardware alignment factor for this symbol
 };
 
 /// ConstraintScope: Captures constraint metadata from a computation variant.
