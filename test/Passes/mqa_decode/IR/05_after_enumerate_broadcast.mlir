@@ -1,4 +1,4 @@
-module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
+module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
   %0 = adl.memory.bank "mem_DRAM_bank", {bsize = 8192 : i64, nblk = 196608 : i64}
   %1 = adl.spatial_dim "dim_dram_channel", 8
   %2 = adl.memory.array "mem_DRAM", [%1] of %0
@@ -17,7 +17,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
   %15 = adl.processor.dmover @proc_dram_l1_noc0, [(%2, %14)]
   %16 = adl.processor.dmover @proc_dram_l1_noc1, [(%14, %2), (%14, %14)]
   %17 = adl.arch.compose "arch_system", arch[%13, %15, %16], mem[%2]
-  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
     func.func @flash_decode__x8_y1y8__d0i1_d1i1_d2i0__f01__dim_x_level0_bc8_n_n_n(%arg0: memref<16x128x8192xf16>, %arg1: memref<16x8192x128xf16>, %arg2: memref<16x32x128xf16>, %arg3: memref<16x32x128xf16>) {
       %c7 = arith.constant 7 : index
       %c8 = arith.constant 8 : index
@@ -27,11 +27,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       %cst_1 = arith.constant 0xFC00 : f16
       %c1 = arith.constant 1 : index
       %cst_2 = arith.constant 8.837890e-02 : f16
-      %c8192 = arith.constant 8192 : index
       %c16 = arith.constant 16 : index
+      %c8192 = arith.constant 8192 : index
       %18 = loom.sym @tile_b {upper_bound = 16 : index} : index
       %19 = loom.sym @tile_s {upper_bound = 8192 : index} : index
-      %20 = loom.sym @tile_n {upper_bound = 64 : index} : index
+      %20 = loom.sym @tile_n {upper_bound = 8192 : index} : index
       %21 = arith.ceildivui %c16, %18 : index
       %22 = arith.ceildivui %c8192, %19 : index
       affine.parallel (%arg4) = (0) to (8) {
@@ -266,7 +266,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       return
     }
   }
-  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
     func.func @flash_decode__x8_y2y4__d0i1_d1i1_d2i0__f01__dim_x_level0_bc8_dim_y_level0_bc2_n_n_n(%arg0: memref<16x128x8192xf16>, %arg1: memref<16x8192x128xf16>, %arg2: memref<16x32x128xf16>, %arg3: memref<16x32x128xf16>) {
       %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
@@ -277,11 +277,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       %cst_1 = arith.constant 0xFC00 : f16
       %c1 = arith.constant 1 : index
       %cst_2 = arith.constant 8.837890e-02 : f16
-      %c8192 = arith.constant 8192 : index
       %c16 = arith.constant 16 : index
+      %c8192 = arith.constant 8192 : index
       %18 = loom.sym @tile_b {upper_bound = 16 : index} : index
       %19 = loom.sym @tile_s {upper_bound = 8192 : index} : index
-      %20 = loom.sym @tile_n {upper_bound = 64 : index} : index
+      %20 = loom.sym @tile_n {upper_bound = 8192 : index} : index
       %21 = arith.ceildivui %c16, %18 : index
       %22 = arith.ceildivui %c8192, %19 : index
       affine.parallel (%arg4) = (0) to (4) {
@@ -519,7 +519,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       return
     }
   }
-  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
     func.func @flash_decode__x8_y4y2__d0i1_d1i1_d2i0__f01__dim_x_level0_bc8_dim_y_level0_bc4_n_n_n(%arg0: memref<16x128x8192xf16>, %arg1: memref<16x8192x128xf16>, %arg2: memref<16x32x128xf16>, %arg3: memref<16x32x128xf16>) {
       %c3 = arith.constant 3 : index
       %c7 = arith.constant 7 : index
@@ -532,11 +532,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       %cst_1 = arith.constant 0xFC00 : f16
       %c1 = arith.constant 1 : index
       %cst_2 = arith.constant 8.837890e-02 : f16
-      %c8192 = arith.constant 8192 : index
       %c16 = arith.constant 16 : index
+      %c8192 = arith.constant 8192 : index
       %18 = loom.sym @tile_b {upper_bound = 16 : index} : index
       %19 = loom.sym @tile_s {upper_bound = 8192 : index} : index
-      %20 = loom.sym @tile_n {upper_bound = 64 : index} : index
+      %20 = loom.sym @tile_n {upper_bound = 8192 : index} : index
       %21 = arith.ceildivui %c16, %18 : index
       %22 = arith.ceildivui %c8192, %19 : index
       affine.parallel (%arg4) = (0) to (2) {
@@ -774,7 +774,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       return
     }
   }
-  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
     func.func @flash_decode__x8_y8y1__d0i1_d1i1_d2i0__f01__dim_x_level0_bc8_dim_y_level1_bc8_n_n_n(%arg0: memref<16x128x8192xf16>, %arg1: memref<16x8192x128xf16>, %arg2: memref<16x32x128xf16>, %arg3: memref<16x32x128xf16>) {
       %c7 = arith.constant 7 : index
       %c8 = arith.constant 8 : index
@@ -785,11 +785,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       %cst_1 = arith.constant 0xFC00 : f16
       %c1 = arith.constant 1 : index
       %cst_2 = arith.constant 8.837890e-02 : f16
-      %c8192 = arith.constant 8192 : index
       %c16 = arith.constant 16 : index
+      %c8192 = arith.constant 8192 : index
       %18 = loom.sym @tile_b {upper_bound = 16 : index} : index
       %19 = loom.sym @tile_s {upper_bound = 8192 : index} : index
-      %20 = loom.sym @tile_n {upper_bound = 64 : index} : index
+      %20 = loom.sym @tile_n {upper_bound = 8192 : index} : index
       %21 = arith.ceildivui %c16, %18 : index
       %22 = arith.ceildivui %c8192, %19 : index
       affine.parallel (%arg4) = (0) to (1) {
@@ -1026,7 +1026,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       return
     }
   }
-  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
     func.func @flash_decode__x1x8_y8__d0i1_d1i1_d2i0__f01__dim_y_level0_bc8_n_n_n(%arg0: memref<16x128x8192xf16>, %arg1: memref<16x8192x128xf16>, %arg2: memref<16x32x128xf16>, %arg3: memref<16x32x128xf16>) {
       %c7 = arith.constant 7 : index
       %c8 = arith.constant 8 : index
@@ -1036,11 +1036,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       %cst_1 = arith.constant 0xFC00 : f16
       %c1 = arith.constant 1 : index
       %cst_2 = arith.constant 8.837890e-02 : f16
-      %c8192 = arith.constant 8192 : index
       %c16 = arith.constant 16 : index
+      %c8192 = arith.constant 8192 : index
       %18 = loom.sym @tile_b {upper_bound = 16 : index} : index
       %19 = loom.sym @tile_s {upper_bound = 8192 : index} : index
-      %20 = loom.sym @tile_n {upper_bound = 64 : index} : index
+      %20 = loom.sym @tile_n {upper_bound = 8192 : index} : index
       %21 = arith.ceildivui %c16, %18 : index
       %22 = arith.ceildivui %c8192, %19 : index
       affine.parallel (%arg4) = (0) to (8) {
@@ -1275,7 +1275,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       return
     }
   }
-  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
     func.func @flash_decode__x2x4_y8__d0i1_d1i1_d2i0__f01__dim_x_level0_bc2_dim_y_level0_bc8_n_n_n(%arg0: memref<16x128x8192xf16>, %arg1: memref<16x8192x128xf16>, %arg2: memref<16x32x128xf16>, %arg3: memref<16x32x128xf16>) {
       %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
@@ -1286,11 +1286,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       %cst_1 = arith.constant 0xFC00 : f16
       %c1 = arith.constant 1 : index
       %cst_2 = arith.constant 8.837890e-02 : f16
-      %c8192 = arith.constant 8192 : index
       %c16 = arith.constant 16 : index
+      %c8192 = arith.constant 8192 : index
       %18 = loom.sym @tile_b {upper_bound = 16 : index} : index
       %19 = loom.sym @tile_s {upper_bound = 8192 : index} : index
-      %20 = loom.sym @tile_n {upper_bound = 64 : index} : index
+      %20 = loom.sym @tile_n {upper_bound = 8192 : index} : index
       %21 = arith.ceildivui %c16, %18 : index
       %22 = arith.ceildivui %c8192, %19 : index
       affine.parallel (%arg4) = (0) to (4) {
@@ -1528,7 +1528,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       return
     }
   }
-  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
     func.func @flash_decode__x4x2_y8__d0i1_d1i1_d2i0__f01__dim_x_level0_bc4_dim_y_level0_bc8_n_n_n(%arg0: memref<16x128x8192xf16>, %arg1: memref<16x8192x128xf16>, %arg2: memref<16x32x128xf16>, %arg3: memref<16x32x128xf16>) {
       %c7 = arith.constant 7 : index
       %c3 = arith.constant 3 : index
@@ -1541,11 +1541,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       %cst_1 = arith.constant 0xFC00 : f16
       %c1 = arith.constant 1 : index
       %cst_2 = arith.constant 8.837890e-02 : f16
-      %c8192 = arith.constant 8192 : index
       %c16 = arith.constant 16 : index
+      %c8192 = arith.constant 8192 : index
       %18 = loom.sym @tile_b {upper_bound = 16 : index} : index
       %19 = loom.sym @tile_s {upper_bound = 8192 : index} : index
-      %20 = loom.sym @tile_n {upper_bound = 64 : index} : index
+      %20 = loom.sym @tile_n {upper_bound = 8192 : index} : index
       %21 = arith.ceildivui %c16, %18 : index
       %22 = arith.ceildivui %c8192, %19 : index
       affine.parallel (%arg4) = (0) to (2) {
@@ -1783,7 +1783,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       return
     }
   }
-  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
     func.func @flash_decode__x8x1_y8__d0i1_d1i1_d2i0__f01__dim_x_level1_bc8_dim_y_level0_bc8_n_n_n(%arg0: memref<16x128x8192xf16>, %arg1: memref<16x8192x128xf16>, %arg2: memref<16x32x128xf16>, %arg3: memref<16x32x128xf16>) {
       %c7 = arith.constant 7 : index
       %c8 = arith.constant 8 : index
@@ -1794,11 +1794,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
       %cst_1 = arith.constant 0xFC00 : f16
       %c1 = arith.constant 1 : index
       %cst_2 = arith.constant 8.837890e-02 : f16
-      %c8192 = arith.constant 8192 : index
       %c16 = arith.constant 16 : index
+      %c8192 = arith.constant 8192 : index
       %18 = loom.sym @tile_b {upper_bound = 16 : index} : index
       %19 = loom.sym @tile_s {upper_bound = 8192 : index} : index
-      %20 = loom.sym @tile_n {upper_bound = 64 : index} : index
+      %20 = loom.sym @tile_n {upper_bound = 8192 : index} : index
       %21 = arith.ceildivui %c16, %18 : index
       %22 = arith.ceildivui %c8192, %19 : index
       affine.parallel (%arg4) = (0) to (1) {

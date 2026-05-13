@@ -2,7 +2,7 @@
 #map1 = affine_map<(d0, d1, d2) -> (d0, d1, 0)>
 #map2 = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #map3 = affine_map<(d0, d1, d2, d3) -> (d1, d2, d3)>
-module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 64 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
+module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index}, loom.tile_n = {is_reduction = false, upper_bound = 8192 : index}, loom.tile_s = {is_reduction = false, upper_bound = 8192 : index}} {
   func.func @flash_decode(%k_view_arg: memref<16x128x8192xf16>, %v_view_arg: memref<16x8192x128xf16>, %q_view_arg: memref<16x32x128xf16>, %out__arg: memref<16x32x128xf16>) {
     %c0_i64 = arith.constant 0 : i64
     %c0 = arith.constant 0 : index
@@ -11,11 +11,11 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
     %cst_1 = arith.constant 0xFC00 : f16
     %c1 = arith.constant 1 : index
     %cst_2 = arith.constant 8.837890e-02 : f16
-    %c8192 = arith.constant 8192 : index
     %c16 = arith.constant 16 : index
+    %c8192 = arith.constant 8192 : index
     %0 = "loom.sym"() {is_reduction = false, symbol_ref = @tile_b, upper_bound = 16 : index} : () -> index
     %1 = "loom.sym"() {is_reduction = false, symbol_ref = @tile_s, upper_bound = 8192 : index} : () -> index
-    %2 = "loom.sym"() {is_reduction = false, symbol_ref = @tile_n, upper_bound = 64 : index} : () -> index
+    %2 = "loom.sym"() {is_reduction = false, symbol_ref = @tile_n, upper_bound = 8192 : index} : () -> index
     %3 = arith.ceildivui %c16, %0 : index
     %4 = arith.ceildivui %c8192, %1 : index
     affine.parallel (%arg4, %arg5) = (0, 0) to (symbol(%3), symbol(%4)) {
