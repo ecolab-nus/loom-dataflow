@@ -138,7 +138,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
             }
             loom.semaphore_give %38 : memref<1x32x128xf16>
             loom.semaphore_give %36 : memref<1x32x128xf16>
-            linalg.copy ins(%40 : memref<1x32x1xf16>) outs(%33 : memref<1x32x1xf16>)
+            loom.copy %40, %33 src_mem_space @mem_L1 dst_mem_space @mem_L1, area : [1, 1] {reclaim = true} : memref<1x32x1xf16> to memref<1x32x1xf16>
             loom.semaphore_give %40 : memref<1x32x1xf16>
             loom.semaphore_give %23 : memref<1x32x128xf16>
             %59 = loom.alloc [1, 32, 1] on @L1 : memref<1x32x1xf16>
@@ -352,7 +352,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           }
           loom.semaphore_give %40 : memref<1x32x128xf16>
           loom.semaphore_give %38 : memref<1x32x128xf16>
-          linalg.copy ins(%42 : memref<1x32x1xf16>) outs(%35 : memref<1x32x1xf16>)
+          loom.copy %42, %35 src_mem_space @mem_L1 dst_mem_space @mem_L1, area : [1, 1] {reclaim = true} : memref<1x32x1xf16> to memref<1x32x1xf16>
           loom.semaphore_give %42 : memref<1x32x1xf16>
           loom.semaphore_give %23 : memref<1x32x128xf16>
           %62 = loom.alloc [1, 32, 1] on @L1 : memref<1x32x1xf16>
@@ -566,7 +566,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           }
           loom.semaphore_give %40 : memref<1x32x128xf16>
           loom.semaphore_give %38 : memref<1x32x128xf16>
-          linalg.copy ins(%42 : memref<1x32x1xf16>) outs(%35 : memref<1x32x1xf16>)
+          loom.copy %42, %35 src_mem_space @mem_L1 dst_mem_space @mem_L1, area : [1, 1] {reclaim = true} : memref<1x32x1xf16> to memref<1x32x1xf16>
           loom.semaphore_give %42 : memref<1x32x1xf16>
           loom.semaphore_give %23 : memref<1x32x128xf16>
           %62 = loom.alloc [1, 32, 1] on @L1 : memref<1x32x1xf16>
@@ -773,7 +773,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           }
           loom.semaphore_give %36 : memref<1x32x128xf16>
           loom.semaphore_give %34 : memref<1x32x128xf16>
-          linalg.copy ins(%38 : memref<1x32x1xf16>) outs(%31 : memref<1x32x1xf16>)
+          loom.copy %38, %31 src_mem_space @mem_L1 dst_mem_space @mem_L1, area : [1, 1] {reclaim = true} : memref<1x32x1xf16> to memref<1x32x1xf16>
           loom.semaphore_give %38 : memref<1x32x1xf16>
           loom.semaphore_give %21 : memref<1x32x128xf16>
           %57 = loom.alloc [1, 32, 1] on @L1 : memref<1x32x1xf16>
@@ -983,7 +983,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
             }
             loom.semaphore_give %38 : memref<1x32x128xf16>
             loom.semaphore_give %36 : memref<1x32x128xf16>
-            linalg.copy ins(%40 : memref<1x32x1xf16>) outs(%33 : memref<1x32x1xf16>)
+            loom.copy %40, %33 src_mem_space @mem_L1 dst_mem_space @mem_L1, area : [1, 1] {reclaim = true} : memref<1x32x1xf16> to memref<1x32x1xf16>
             loom.semaphore_give %40 : memref<1x32x1xf16>
             loom.semaphore_give %23 : memref<1x32x128xf16>
             %59 = loom.alloc [1, 32, 1] on @L1 : memref<1x32x1xf16>
@@ -1197,7 +1197,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           }
           loom.semaphore_give %40 : memref<1x32x128xf16>
           loom.semaphore_give %38 : memref<1x32x128xf16>
-          linalg.copy ins(%42 : memref<1x32x1xf16>) outs(%35 : memref<1x32x1xf16>)
+          loom.copy %42, %35 src_mem_space @mem_L1 dst_mem_space @mem_L1, area : [1, 1] {reclaim = true} : memref<1x32x1xf16> to memref<1x32x1xf16>
           loom.semaphore_give %42 : memref<1x32x1xf16>
           loom.semaphore_give %23 : memref<1x32x128xf16>
           %62 = loom.alloc [1, 32, 1] on @L1 : memref<1x32x1xf16>
@@ -1411,7 +1411,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           }
           loom.semaphore_give %40 : memref<1x32x128xf16>
           loom.semaphore_give %38 : memref<1x32x128xf16>
-          linalg.copy ins(%42 : memref<1x32x1xf16>) outs(%35 : memref<1x32x1xf16>)
+          loom.copy %42, %35 src_mem_space @mem_L1 dst_mem_space @mem_L1, area : [1, 1] {reclaim = true} : memref<1x32x1xf16> to memref<1x32x1xf16>
           loom.semaphore_give %42 : memref<1x32x1xf16>
           loom.semaphore_give %23 : memref<1x32x128xf16>
           %62 = loom.alloc [1, 32, 1] on @L1 : memref<1x32x1xf16>
@@ -1618,7 +1618,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           }
           loom.semaphore_give %36 : memref<1x32x128xf16>
           loom.semaphore_give %34 : memref<1x32x128xf16>
-          linalg.copy ins(%38 : memref<1x32x1xf16>) outs(%31 : memref<1x32x1xf16>)
+          loom.copy %38, %31 src_mem_space @mem_L1 dst_mem_space @mem_L1, area : [1, 1] {reclaim = true} : memref<1x32x1xf16> to memref<1x32x1xf16>
           loom.semaphore_give %38 : memref<1x32x1xf16>
           loom.semaphore_give %21 : memref<1x32x128xf16>
           %57 = loom.alloc [1, 32, 1] on @L1 : memref<1x32x1xf16>
