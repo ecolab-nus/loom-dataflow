@@ -22,6 +22,7 @@ add_library(loomTritonSharedPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/linalg_guarded_elementwise_fusion_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/canonical_bufferization_to_loom_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/loop_handoff_proxy_copy_insertion_pass.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/lower_linalg_copy_to_loom_copy_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/memory_binding_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/view_to_reinterpret_cast.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/lower_affine_with_attr.cpp

@@ -154,4 +154,14 @@ def LoopHandoffProxyCopyInsertionPass : Pass<"loom-loop-handoff-proxy-copy-inser
   let constructor = "loom::passes::createLoopHandoffProxyCopyInsertionPass()";
 }
 
+def LowerLinalgCopyToLoomCopyPass : Pass<"loom-lower-linalg-copy-to-loom-copy", "mlir::ModuleOp"> {
+  let summary = "Lower post-bufferization linalg.copy ops to loom.copy";
+  let description = [{
+    Replace memref-form linalg.copy operations with L1-to-L1 loom.copy
+    operations after one-shot bufferization. Tensor-form linalg.copy operations
+    are left unchanged.
+  }];
+  let constructor = "loom::passes::createLowerLinalgCopyToLoomCopyPass()";
+}
+
 #endif // LOOM_TRITON_SHARED_PASSES

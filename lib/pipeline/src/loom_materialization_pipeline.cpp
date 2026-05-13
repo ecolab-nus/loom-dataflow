@@ -226,6 +226,7 @@ runMaterializationCore(const char *input_mlir_text,
   // TODO: gate these passes on a backend enum once multiple backends are
   //       supported (e.g. TT-Metal vs. others).
   pm.addPass(loom::passes::createFoldZeroFillLinalgPass());
+  pm.addPass(loom::passes::createLowerLinalgCopyToLoomCopyPass());
 
   // --- Run pipeline ---
   if (failed(pm.run(*module)))

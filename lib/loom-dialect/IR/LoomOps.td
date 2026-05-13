@@ -636,7 +636,8 @@ def CopyOp : Loom_Op<"copy", [
       OptionalAttr<SymbolRefAttr>:$dst_mem_space
     ),
     CopyAreaArgs,
-    MeshBoundsArgs
+    MeshBoundsArgs,
+    (ins DefaultValuedAttr<BoolAttr, "false">:$reclaim)
   );
 
   let results = (outs);

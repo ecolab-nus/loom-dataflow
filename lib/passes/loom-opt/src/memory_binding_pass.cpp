@@ -98,7 +98,8 @@ struct ReadBlockLoadingLowering
     auto defaultArea = rewriter.getDenseI64ArrayAttr({1, 1});
     loom::CopyOp::create(rewriter, loc, loomSubviewOp.getResult(), semaphore,
                          dramSymbol, l1Symbol, ValueRange{}, defaultArea,
-                         Value{}, Value{}, Value{}, Value{});
+                         Value{}, Value{}, Value{}, Value{},
+                         rewriter.getBoolAttr(false));
 
     rewriter.replaceOp(op, loom::BufferizeToTensorOp::create(
                                rewriter, loc, op.getType(), semaphore,
@@ -160,7 +161,7 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
         rewriter, loc, bufToMemref.getResult(), loomSubviewOp.getResult(),
         l1Symbol, dramSymbol, ValueRange{},
         rewriter.getDenseI64ArrayAttr({1, 1}),
-        Value{}, Value{}, Value{}, Value{});
+        Value{}, Value{}, Value{}, Value{}, rewriter.getBoolAttr(false));
 
     // 4. Move semaphore_give to after the copy if it exists.
     auto vbIt = tensorToVBIdMap.find(srcTensor);

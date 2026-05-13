@@ -92,7 +92,8 @@ struct CopyToTensorOpInterface
         rewriter, loc, copyOp.getSourceView(), copyOp.getBuffer(),
         dramSymbol, l1Symbol, ValueRange{},
         toDenseI64ArrayAttr(rewriter, copyOp.getBroadcastAttr()),
-        mlir::Value{}, mlir::Value{}, mlir::Value{}, mlir::Value{});
+        mlir::Value{}, mlir::Value{}, mlir::Value{}, mlir::Value{},
+        rewriter.getBoolAttr(false));
 
     replaceOpWithBufferizedValues(rewriter, op, copyOp.getBuffer());
     return success();
@@ -136,7 +137,8 @@ struct CopyFromTensorOpInterface
                          l1Symbol, dramSymbol, ValueRange{},
                          /*staticArea=*/rewriter.getDenseI64ArrayAttr({1, 1}),
                          mlir::Value{}, mlir::Value{},
-                         mlir::Value{}, mlir::Value{});
+                         mlir::Value{}, mlir::Value{},
+                         rewriter.getBoolAttr(false));
 
     rewriter.eraseOp(op);
     return success();

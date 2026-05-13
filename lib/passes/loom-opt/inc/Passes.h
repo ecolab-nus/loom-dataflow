@@ -36,6 +36,7 @@ std::unique_ptr<mlir::Pass> createCanonicalBufferizationToLoomPass();
 std::unique_ptr<mlir::Pass> createLowerAffineWithAttrPass();
 std::unique_ptr<mlir::Pass> createHandoffSyncInsertionPass();
 std::unique_ptr<mlir::Pass> createLoopHandoffProxyCopyInsertionPass();
+std::unique_ptr<mlir::Pass> createLowerLinalgCopyToLoomCopyPass();
 
 // Pass registration functions
 void registerTritonSharedExploreSpatialMappingsPass();

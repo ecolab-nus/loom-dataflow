@@ -117,6 +117,7 @@ int main(int argc, char **argv) {
 
   pm.addPass(mlir::createCanonicalizerPass());
   pm.addPass(mlir::createCSEPass());
+  pm.addPass(loom::passes::createLowerLinalgCopyToLoomCopyPass());
 
   if (failed(pm.run(*module))) {
     llvm::WithColor::error(llvm::errs()) << "One-Shot Bufferization failed\n";
