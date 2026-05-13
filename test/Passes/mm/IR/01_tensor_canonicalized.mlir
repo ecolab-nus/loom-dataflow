@@ -22,14 +22,8 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 512 : inde
         %17 = arith.muli %arg4, %1 : index
         %subview_1 = memref.subview %arg1[%15, %17] [%2, %1] [1, 1] : memref<512x4096xf16> to memref<?x?xf16, strided<[4096, 1], offset: ?>>
         %18 = loom.bufferize_to_tensor %subview_1[%2, %1] : memref<?x?xf16, strided<[4096, 1], offset: ?>> -> tensor<?x?xf16>
-        %19 = linalg.fill ins(%cst : f16) outs(%5 : tensor<?x?xf16>) -> tensor<?x?xf16>
-        %20 = linalg.matmul ins(%16, %18 : tensor<?x?xf16>, tensor<?x?xf16>) outs(%19 : tensor<?x?xf16>) -> tensor<?x?xf16>
-        %21 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%arg6, %20 : tensor<?x?xf16>, tensor<?x?xf16>) outs(%5 : tensor<?x?xf16>) {
-        ^bb0(%in: f16, %in_2: f16, %out: f16):
-          %22 = arith.addf %in, %in_2 : f16
-          linalg.yield %22 : f16
-        } -> tensor<?x?xf16>
-        scf.yield %21 : tensor<?x?xf16>
+        %19 = linalg.matmul ins(%16, %18 : tensor<?x?xf16>, tensor<?x?xf16>) outs(%arg6 : tensor<?x?xf16>) -> tensor<?x?xf16>
+        scf.yield %19 : tensor<?x?xf16>
       }
       %9 = tensor.empty(%0, %1) : tensor<?x?xf16>
       %10 = linalg.copy ins(%8 : tensor<?x?xf16>) outs(%9 : tensor<?x?xf16>) -> tensor<?x?xf16>
