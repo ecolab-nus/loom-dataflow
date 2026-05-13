@@ -53,7 +53,7 @@ struct BlockSizeBinding {
 /// Used only when no external BlockSizeMap is provided (backward compat).
 SmallVector<SmallVector<int64_t>> solveCandidateBlockSizes(unsigned numVars) {
   if (numVars == 3) {
-    return {{1, 512, 512}};
+    return {{64, 64, 512}};
   }
   else if (numVars == 6) {
     return {{64, 32, 64, 8, 1, 4}};

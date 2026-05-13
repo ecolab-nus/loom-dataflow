@@ -109,7 +109,7 @@ void collectZeroFillsForLinalgOp(linalg::LinalgOp linalgOp,
   }
 }
 
-template <typename LinalgMatmulOp, typename LoomMatmulOp>
+template <typename LinalgMatmulOp>
 void processLinalgMatmul(LinalgMatmulOp matmulOp,
                          SmallPtrSetImpl<Operation *> &fillsToErase) {
   if (matmulOp.getNumDpsInits() != 1)
@@ -122,11 +122,7 @@ void processLinalgMatmul(LinalgMatmulOp matmulOp,
     return;
 
   // Pattern matched: linalg.fill(0, outs) exists and matmul uses outs.
-  OpBuilder builder(matmulOp);
-  LoomMatmulOp::create(builder, matmulOp.getLoc(), matmulOp.getInputs()[0],
-                       matmulOp.getInputs()[1], outs);
-
-  matmulOp.erase();
+  // Keep linalg.matmul in place; only remove the redundant zero fill.
   fillsToErase.insert(fillOp);
 }
 
@@ -136,10 +132,10 @@ struct FoldZeroFillLinalgPass
 
   StringRef getArgument() const override { return "tt-fold-zero-fill-linalg"; }
 
-  StringRef getDescription() const override {
-    return "Fold linalg.fill(0) feeding linalg outs operands, preserving "
-           "matmul/batch_matmul lowering to loom ops.";
-  }
+	  StringRef getDescription() const override {
+	    return "Fold linalg.fill(0) feeding linalg outs operands, preserving "
+	           "linalg.matmul and batch_matmul lowering to loom ops.";
+	  }
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
@@ -148,18 +144,17 @@ struct FoldZeroFillLinalgPass
       SmallPtrSet<Operation *, 4> fillsToErase;
 
       // 1. Process regular matmuls
-      SmallVector<linalg::MatmulOp> matmuls;
-      funcOp.walk([&](linalg::MatmulOp op) { matmuls.push_back(op); });
-      for (auto op : matmuls)
-        processLinalgMatmul<linalg::MatmulOp, loom::MatmulOp>(op, fillsToErase);
+	      SmallVector<linalg::MatmulOp> matmuls;
+	      funcOp.walk([&](linalg::MatmulOp op) { matmuls.push_back(op); });
+	      for (auto op : matmuls)
+	        processLinalgMatmul<linalg::MatmulOp>(op, fillsToErase);
 
       // 2. Process batch matmuls
       SmallVector<linalg::BatchMatmulOp> batchMatmuls;
       funcOp.walk(
           [&](linalg::BatchMatmulOp op) { batchMatmuls.push_back(op); });
       for (auto op : batchMatmuls)
-        processLinalgMatmul<linalg::BatchMatmulOp, loom::BatchMatmulOp>(
-            op, fillsToErase);
+        processLinalgMatmul<linalg::BatchMatmulOp>(op, fillsToErase);
 
       // 3. Process all other linalg destination-style ops per output.
       SmallVector<linalg::LinalgOp> linalgOps;
