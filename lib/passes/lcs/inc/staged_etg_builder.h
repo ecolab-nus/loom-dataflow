@@ -126,23 +126,26 @@ struct Scope {
 // FusedOpBlock / KernelBlock / ForLoopBlockStageBody
 // =============================================================================
 
-/// Shared body shape: a compute scope and a memory scope that hold the
-/// modelled workloads of a fused operation. Used by both `KernelBlock`
-/// (variant root) and `ForLoopBlockStageBody` (nested loop level).
+/// Shared body shape: load, compute, and store scopes that hold the modelled
+/// workloads of a fused operation. Used by both `KernelBlock` (variant root)
+/// and `ForLoopBlockStageBody` (nested loop level).
 struct FusedOpBlock {
+  Scope load_scope;
   Scope compute_scope;
-  Scope memory_scope;
+  Scope store_scope;
 
-  FusedOpBlock() : compute_scope("ComputeScope"), memory_scope("MemoryScope") {}
+  FusedOpBlock()
+      : load_scope("LoadScope"), compute_scope("ComputeScope"),
+        store_scope("StoreScope") {}
 
-  /// Emit `{"compute_scope": ..., "memory_scope": ...}` (without enclosing
-  /// braces of any wrapping object).
+  /// Emit `{"load_scope": ..., "compute_scope": ..., "store_scope": ...}`
+  /// (without enclosing braces of any wrapping object).
   llvm::json::Object emitScopesJSON() const;
   void dumpScopes(llvm::raw_ostream &os, int indent) const;
 };
 
-/// Top-level container of a variant. Holds the kernel func's compute and
-/// memory scopes; nested scf.for loops appear as `for_loop_block` stages
+/// Top-level container of a variant. Holds the kernel func's load, compute,
+/// and store scopes; nested scf.for loops appear as `for_loop_block` stages
 /// inside `compute_scope.stages`.
 class KernelBlock {
 public:
@@ -157,7 +160,7 @@ public:
 enum class IterTypeTag { Sequential, Temporal };
 
 /// A stage body that represents a nested scf.for level. Recursively contains
-/// its own compute/memory scopes through `body`.
+/// its own load/compute/store scopes through `body`.
 class ForLoopBlockStageBody : public StageBody {
 public:
   ForLoopBlockStageBody(std::string block_sym, IterTypeTag iter_type,
@@ -167,10 +170,12 @@ public:
 
   FusedOpBlock body;
 
+  Scope &loadScope() { return body.load_scope; }
   Scope &computeScope() { return body.compute_scope; }
-  Scope &memoryScope() { return body.memory_scope; }
+  Scope &storeScope() { return body.store_scope; }
+  const Scope &loadScope() const { return body.load_scope; }
   const Scope &computeScope() const { return body.compute_scope; }
-  const Scope &memoryScope() const { return body.memory_scope; }
+  const Scope &storeScope() const { return body.store_scope; }
 
   llvm::json::Object toJSONFragment() const override;
   void dump(llvm::raw_ostream &os, int indent) const override;
@@ -258,16 +263,16 @@ private:
   const HWOpRegistry *hw_registry_;
 
   // Recursive scope population. Walks `region`'s direct ops, dispatching
-  // each into the given compute / memory scope according to its kind.
-  void populateScopesFromRegion(mlir::Region &region, Scope &compute_scope,
-                                Scope &memory_scope);
+  // each into the given load / compute / store scope according to its kind.
+  void populateScopesFromRegion(mlir::Region &region, Scope &load_scope,
+                                Scope &compute_scope, Scope &store_scope);
 
   void dispatchToComputeQueues(mlir::Operation *op,
                                WorkloadStageBody &target);
   void dispatchNamedOp(mlir::Operation *op, WorkloadStageBody &target);
   void dispatchGenericOp(mlir::Operation *op, WorkloadStageBody &target);
-  void dispatchToMemoryQueues(mlir::Operation *op,
-                              WorkloadStageBody &target);
+  void dispatchToDataMoverQueues(mlir::Operation *op,
+                                 WorkloadStageBody &target);
 
   void collectSymbols(mlir::func::FuncOp func_op);
   void analyzeLoopIterations(mlir::func::FuncOp func_op);

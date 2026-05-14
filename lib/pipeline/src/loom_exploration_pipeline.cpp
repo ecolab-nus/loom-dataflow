@@ -112,14 +112,29 @@ void writeETGJson(llvm::raw_ostream &os, const llvm::json::Value &val,
     }
     os << "{\n";
     size_t i = 0, size = obj->size();
-    for (const auto &kv : *obj) {
+    auto isScopeKey = [](llvm::StringRef key) {
+      return key == "load_scope" || key == "compute_scope" ||
+             key == "store_scope";
+    };
+    auto writeKV = [&](llvm::StringRef key, const llvm::json::Value &value) {
       os.indent(indent + 2);
-      llvm::StringRef key = kv.first;
       os << "\"" << key << "\": ";
-      writeETGJson(os, kv.second, indent + 2);
+      writeETGJson(os, value, indent + 2);
       if (++i < size)
         os << ",";
       os << "\n";
+    };
+    static const llvm::StringRef kScopeOrder[] = {
+        "load_scope", "compute_scope", "store_scope"};
+    for (llvm::StringRef key : kScopeOrder) {
+      auto it = obj->find(key);
+      if (it != obj->end())
+        writeKV(it->first, it->second);
+    }
+    for (const auto &kv : *obj) {
+      if (isScopeKey(kv.first))
+        continue;
+      writeKV(kv.first, kv.second);
     }
     os.indent(indent) << "}";
     return;

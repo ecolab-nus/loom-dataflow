@@ -2,6 +2,7 @@
 #include "hard_constraint_pipeline.h"
 #include "hw_alignment.h"
 #include "hw_op_registry.h"
+#include "hw_op_registry_detail.h"
 #include "l1_footprint_estimator.h"
 #include "lcs_utils.h"
 #include "ssa_utils.h"
@@ -146,6 +147,25 @@ std::string blockSymFromAttr(mlir::Operation *op) {
   if (auto attr = op->getAttrOfType<mlir::SymbolRefAttr>("loom.block_sym"))
     return attr.getLeafReference().str();
   return std::string();
+}
+
+enum class CopyScopeKind { Load, Store, Unsupported };
+
+CopyScopeKind classifyCopyScope(loom::CopyOp copyOp) {
+  if (!copyOp)
+    return CopyScopeKind::Unsupported;
+
+  std::string srcMem, dstMem;
+  if (auto attr = copyOp.getSrcMemSpaceAttr())
+    srcMem = detail::canonicalMemSpace(attr.getLeafReference());
+  if (auto attr = copyOp.getDstMemSpaceAttr())
+    dstMem = detail::canonicalMemSpace(attr.getLeafReference());
+
+  if (srcMem == "mem_DRAM" && dstMem == "mem_array_L1")
+    return CopyScopeKind::Load;
+  if (srcMem == "mem_array_L1" && dstMem == "mem_DRAM")
+    return CopyScopeKind::Store;
+  return CopyScopeKind::Unsupported;
 }
 
 } // namespace
@@ -300,13 +320,15 @@ llvm::json::Value Scope::toJSON() const {
 // FusedOpBlock
 // ==========================================
 llvm::json::Object FusedOpBlock::emitScopesJSON() const {
-  return llvm::json::Object{{"compute_scope", compute_scope.toJSON()},
-                            {"memory_scope", memory_scope.toJSON()}};
+  return llvm::json::Object{{"load_scope", load_scope.toJSON()},
+                            {"compute_scope", compute_scope.toJSON()},
+                            {"store_scope", store_scope.toJSON()}};
 }
 
 void FusedOpBlock::dumpScopes(llvm::raw_ostream &os, int indent) const {
+  load_scope.dump(os, indent);
   compute_scope.dump(os, indent);
-  memory_scope.dump(os, indent);
+  store_scope.dump(os, indent);
 }
 
 // ==========================================
@@ -403,13 +425,15 @@ void VariantETG::buildFromFunc(mlir::func::FuncOp func_op) {
   if (func_op.isExternal() || func_op.empty())
     return;
   populateScopesFromRegion(func_op.getRegion(),
+                           kernel_block_.body.load_scope,
                            kernel_block_.body.compute_scope,
-                           kernel_block_.body.memory_scope);
+                           kernel_block_.body.store_scope);
 }
 
 void VariantETG::populateScopesFromRegion(mlir::Region &region,
+                                          Scope &load_scope,
                                           Scope &compute_scope,
-                                          Scope &memory_scope) {
+                                          Scope &store_scope) {
   if (region.empty())
     return;
 
@@ -444,8 +468,8 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
             extractLoopTripCount(for_op));
         // Recurse into the loop body with fresh scopes (a fresh region walk
         // re-seeds its own value_ready_stage from the for_op block args).
-        populateScopesFromRegion(for_op.getRegion(), child->computeScope(),
-                                 child->memoryScope());
+        populateScopesFromRegion(for_op.getRegion(), child->loadScope(),
+                                 child->computeScope(), child->storeScope());
         compute_scope.placeStage(required_stage, std::move(child));
         dispatched = true;
         // for_op result tensors are visible to siblings; treat them as
@@ -456,10 +480,17 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
           if (nested == op)
             return;
           llvm::StringRef name = nested->getName().getStringRef();
-          if (name != "loom.copy" && name != "loom.gather")
+          if (name != "loom.copy")
             return;
-          dispatchToMemoryQueues(
-              nested, memory_scope.getOrCreateWorkloadStage(required_stage));
+          auto copyOp = llvm::dyn_cast<loom::CopyOp>(nested);
+          CopyScopeKind scopeKind = classifyCopyScope(copyOp);
+          if (scopeKind == CopyScopeKind::Load) {
+            dispatchToDataMoverQueues(
+                nested, load_scope.getOrCreateWorkloadStage(required_stage));
+          } else if (scopeKind == CopyScopeKind::Store) {
+            dispatchToDataMoverQueues(
+                nested, store_scope.getOrCreateWorkloadStage(required_stage));
+          }
         });
         dispatched = true;
         advances_stage = false;
@@ -477,8 +508,7 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
         advances_stage = false; // parallel op itself produces no modelled work
       } else {
         bool is_compute = llvm::isa<mlir::linalg::LinalgOp>(op);
-        bool is_memory = op->getName().getStringRef() == "loom.copy" ||
-                         op->getName().getStringRef() == "loom.gather";
+        bool is_data_mover = op->getName().getStringRef() == "loom.copy";
         bool is_linalg_infra =
             is_compute &&
             llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
@@ -487,11 +517,18 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
           dispatchToComputeQueues(
               op, compute_scope.getOrCreateWorkloadStage(required_stage));
           dispatched = true;
-        } else if (is_memory) {
-          dispatchToMemoryQueues(
-              op, memory_scope.getOrCreateWorkloadStage(required_stage));
+        } else if (is_data_mover) {
+          auto copyOp = llvm::dyn_cast<loom::CopyOp>(op);
+          CopyScopeKind scopeKind = classifyCopyScope(copyOp);
+          if (scopeKind == CopyScopeKind::Load) {
+            dispatchToDataMoverQueues(
+                op, load_scope.getOrCreateWorkloadStage(required_stage));
+          } else if (scopeKind == CopyScopeKind::Store) {
+            dispatchToDataMoverQueues(
+                op, store_scope.getOrCreateWorkloadStage(required_stage));
+          }
           dispatched = true;
-          advances_stage = false; // memory ops are non-blocking
+          advances_stage = false; // data-mover ops are non-blocking
         } else if (is_linalg_infra) {
           advances_stage = false; // matches legacy: linalg.fill/copy don't bump
         }
@@ -581,37 +618,26 @@ void VariantETG::dispatchGenericOp(mlir::Operation *op,
   }
 }
 
-void VariantETG::dispatchToMemoryQueues(mlir::Operation *op,
-                                        WorkloadStageBody &target) {
+void VariantETG::dispatchToDataMoverQueues(mlir::Operation *op,
+                                           WorkloadStageBody &target) {
   auto copyOp = llvm::dyn_cast<loom::CopyOp>(op);
-  auto gatherOp = llvm::dyn_cast<loom::GatherOp>(op);
-  if (!copyOp && !gatherOp)
+  if (!copyOp)
     return;
 
   std::string srcMem, dstMem;
   mlir::Value source;
   mlir::Value destination;
   mlir::SmallVector<mlir::OpFoldResult, 4> mixedArea;
-  DataMoverKind kind = copyOp ? DataMoverKind::Copy : DataMoverKind::Gather;
-  std::string opName = copyOp ? "loom.copy" : "loom.gather";
+  DataMoverKind kind = DataMoverKind::Copy;
+  std::string opName = "loom.copy";
 
-  if (copyOp) {
-    source = copyOp.getSource();
-    destination = copyOp.getDestination();
-    mixedArea = copyOp.getMixedArea();
-    if (auto attr = copyOp.getSrcMemSpaceAttr())
-      srcMem = attr.getLeafReference().str();
-    if (auto attr = copyOp.getDstMemSpaceAttr())
-      dstMem = attr.getLeafReference().str();
-  } else {
-    source = gatherOp.getSource();
-    destination = gatherOp.getDestination();
-    mixedArea = gatherOp.getMixedArea();
-    if (auto attr = gatherOp.getSrcMemSpaceAttr())
-      srcMem = attr.getLeafReference().str();
-    if (auto attr = gatherOp.getDstMemSpaceAttr())
-      dstMem = attr.getLeafReference().str();
-  }
+  source = copyOp.getSource();
+  destination = copyOp.getDestination();
+  mixedArea = copyOp.getMixedArea();
+  if (auto attr = copyOp.getSrcMemSpaceAttr())
+    srcMem = attr.getLeafReference().str();
+  if (auto attr = copyOp.getDstMemSpaceAttr())
+    dstMem = attr.getLeafReference().str();
 
   std::vector<int64_t> bcastVec;
   for (mlir::OpFoldResult area : mixedArea) {
