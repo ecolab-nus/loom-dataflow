@@ -1,4 +1,5 @@
 #include "staged_etg_builder.h"
+#include "hard_constraint_pipeline.h"
 #include "hw_alignment.h"
 #include "hw_op_registry.h"
 #include "l1_footprint_estimator.h"
@@ -385,6 +386,10 @@ llvm::json::Value ConstraintScope::toJSON() const {
       {"hard_constraints", std::move(hard_constraints_json)}};
 }
 
+void ConstraintScope::pushHardConstraint(ConstraintExpr constraint) {
+  hard_constraints.push_back(std::move(constraint));
+}
+
 // ==========================================
 // VariantETG — construction
 // ==========================================
@@ -678,12 +683,10 @@ void VariantETG::analyzeLoopIterations(mlir::func::FuncOp func_op) {
 void VariantETG::addIterDivisibilityConstraints(const Expr &iter) {
   if (iter.isNone())
     return;
-  constraint_scope_.hard_constraints.push_back(
-      ConstraintExpr::ge(iter, Expr::con(1)));
+  constraint_scope_.pushHardConstraint(ConstraintExpr::ge(iter, Expr::con(1)));
   auto [num, den] = findDivNode(iter);
   if (!num.isNone())
-    constraint_scope_.hard_constraints.push_back(
-        ConstraintExpr::divisible(num, den));
+    constraint_scope_.pushHardConstraint(ConstraintExpr::divisible(num, den));
 }
 
 void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
@@ -714,53 +717,12 @@ llvm::json::Value VariantETG::toJSON() const {
 }
 
 void VariantETG::buildL1FootprintConstraint() {
-  // TODO: should be removed after mlar is ready.
-  //       This is a workaround method to extract L1 size from the ADL
-  //       platform header (adl.memory.array / adl.memory.bank / adl.spatial_dim).
-  if (!hw_registry_ || constraint_scope_.l1_footprint.empty())
-    return;
+  HardConstraintPipeline::pushAll(hw_registry_, constraint_scope_);
+}
 
-  mlir::ModuleOp platformModule = hw_registry_->getPlatformModule();
-  if (!platformModule)
-    return;
-
-  int64_t l1_size = 0;
-  platformModule.walk([&](adl::MemoryArrayOp arrayOp) {
-    if (arrayOp->getParentOp() != platformModule.getOperation())
-      return mlir::WalkResult::skip();
-    if (arrayOp.getSymName() != "mem_L1")
-      return mlir::WalkResult::advance();
-
-    int64_t spatial_product = 1;
-    for (mlir::Value spatialVal : arrayOp.getSpatialDims())
-      if (auto dimOp = spatialVal.getDefiningOp<adl::SpatialDimOp>())
-        spatial_product *= static_cast<int64_t>(dimOp.getSize());
-
-    if (auto bankOp = arrayOp.getBank().getDefiningOp<adl::MemoryBankOp>()) {
-      int64_t bsize = static_cast<int64_t>(bankOp.getBsize());
-      int64_t nblk  = static_cast<int64_t>(bankOp.getNblk());
-      l1_size = spatial_product * bsize * nblk;
-    }
-    return mlir::WalkResult::advance();
-  });
-
-  if (l1_size == 0)
-    return;
-
-  Expr footprint_sum = Expr::con(0);
-  for (const Expr &term : constraint_scope_.l1_footprint)
-    footprint_sum = footprint_sum + term;
-
-  // IfElse(is_double_buffer == 1, elem_bytes*2, elem_bytes):
-  //   double-buffered → 2× buffer space needed in L1.
-  int64_t elem_bytes = 2;
-  auto db_cond = std::make_shared<ConstraintExpr>(
-      ConstraintExpr::eq(Expr::sym("is_double_buffer"), Expr::con(1)));
-  Expr multiplier =
-      Expr::ifelse(db_cond, Expr::con(elem_bytes * 2), Expr::con(elem_bytes));
-
-  constraint_scope_.hard_constraints.push_back(
-      ConstraintExpr::le(footprint_sum * multiplier, Expr::con(l1_size)));
+void VariantETG::buildHardConstraints(mlir::func::FuncOp func_op) {
+  (void)func_op;
+  HardConstraintPipeline::pushAll(hw_registry_, constraint_scope_);
 }
 
 } // namespace lcs

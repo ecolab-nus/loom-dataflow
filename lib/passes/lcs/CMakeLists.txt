@@ -3,6 +3,7 @@
 add_library(loomLCS STATIC
     src/constraint_expr.cpp
     src/expr.cpp
+    src/hard_constraint_pipeline.cpp
     src/hw_alignment.cpp
     src/l1_footprint_estimator.cpp
     src/staged_etg_builder.cpp

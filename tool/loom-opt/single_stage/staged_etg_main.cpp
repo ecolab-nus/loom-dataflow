@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     VariantETG etg(func_op.getName(), &registry);
     etg.buildFromFunc(func_op);
     etg.buildConstraintScope(func_op);
-    etg.buildL1FootprintConstraint();
+    etg.buildHardConstraints(func_op);
     json_etgs.push_back(etg.toJSON());
   });
 

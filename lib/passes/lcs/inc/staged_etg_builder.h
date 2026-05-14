@@ -211,6 +211,9 @@ struct ConstraintScope {
   // Represented as integer symbols constrained to {0, 1} in the SMT model.
   std::vector<std::string> booleans;
 
+  /// Public API for appending a new hard constraint to the ETG.
+  void pushHardConstraint(ConstraintExpr constraint);
+
   llvm::json::Value toJSON() const;
 };
 
@@ -241,6 +244,9 @@ public:
 
   /// Build and push the L1 footprint capacity constraint.
   void buildL1FootprintConstraint();
+
+  /// Build and push all hard constraints through the centralized pipeline.
+  void buildHardConstraints(mlir::func::FuncOp func_op);
 
   void dump(llvm::raw_ostream &os) const;
   llvm::json::Value toJSON() const;
