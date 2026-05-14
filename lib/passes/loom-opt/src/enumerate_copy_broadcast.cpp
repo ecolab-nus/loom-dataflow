@@ -28,11 +28,11 @@
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Pass/Pass.h"
+#include "loop_iv_dependency.h"
 #include "utils.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
-#include "ssa_utils.h"
 
 // Include Loom dialect headers for CopyOp and SubviewOp
 #include "mlir/Interfaces/ViewLikeInterface.h"
@@ -87,16 +87,14 @@ struct DimBroadcastResult {
 
 
 /**
- * @brief Check if any offset value depends on any of the given induction
- * variables.
+ * @brief Check if the precomputed offset dependency set contains any IV.
  */
-static bool checkOffsetDependencyOnIVs(ArrayRef<Value> offsets,
-                                       ValueRange ivs) {
+static bool hasDependencyOnAnyIV(
+    ArrayRef<loom::utils::LoopIVDependency> dependencies, ValueRange ivs) {
   for (Value iv : ivs) {
-    for (Value offset : offsets) {
-      if (loom::utils::dependsOn(offset, iv)) {
+    for (const auto &dep : dependencies) {
+      if (dep.iv == iv)
         return true;
-      }
     }
   }
   return false;
@@ -179,14 +177,14 @@ collectSpatialLoopsByDim(Operation *op) {
 static DimBroadcastResult
 computeDimBroadcastCoeff(StringRef dimName,
                          SmallVectorImpl<SpatialLoopEntry> &levelEntries,
-                         ArrayRef<Value> offsets) {
+                         ArrayRef<loom::utils::LoopIVDependency> spatialDeps) {
   int64_t coeff = 1;
   int64_t highestLevel = -1;
   SmallVector<unsigned> independentLevelIndices;
 
   for (unsigned idx = 0; idx < levelEntries.size(); ++idx) {
     auto &entry = levelEntries[idx];
-    bool independent = !checkOffsetDependencyOnIVs(offsets, entry.parOp.getIVs());
+    bool independent = !hasDependencyOnAnyIV(spatialDeps, entry.parOp.getIVs());
     if (!independent)
       break; // chain broken - stop accumulating
     coeff *= entry.upperBound;
@@ -269,6 +267,9 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp /*outerModule*/,
   if (offsets.empty())
     return candidates;
 
+  SmallVector<loom::utils::LoopIVDependency, 8> spatialDeps =
+      loom::utils::collectSpatialIVDependencies(offsets);
+
   // Collect spatial loops grouped by physical dim
   auto dimLoops = collectSpatialLoopsByDim(copyOp);
 
@@ -278,7 +279,7 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp /*outerModule*/,
     auto it = dimLoops.find(dimName);
     if (it != dimLoops.end())
       dimResults.push_back(
-          computeDimBroadcastCoeff(dimName, it->second, offsets));
+          computeDimBroadcastCoeff(dimName, it->second, spatialDeps));
     else
       dimResults.push_back({dimName, 1, -1, false, {}});
   }

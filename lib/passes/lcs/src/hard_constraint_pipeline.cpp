@@ -1,6 +1,6 @@
 #include "hard_constraint_pipeline.h"
-#include "gather_across_iv_tracer.h"
 #include "hw_op_registry.h"
+#include "loop_iv_dependency.h"
 #include "staged_etg_builder.h"
 #include "utils.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -221,38 +221,28 @@ void pushGatherTemporalAcrossConstraints(mlir::func::FuncOp funcOp,
   if (!funcOp)
     return;
 
-  llvm::SmallPtrSet<mlir::Operation *, 16> constrainedLoops;
+  llvm::SmallPtrSet<mlir::Value, 16> constrainedIVs;
 
   funcOp.walk([&](loom::GatherOp gatherOp) {
     mlir::Value across = gatherOp.getAcross();
-    auto temporalLoops = loom::utils::collectTemporalDependentLoops(across);
-    if (temporalLoops.empty())
+    auto temporalDeps = loom::utils::collectTemporalIVDependencies(across);
+    if (temporalDeps.empty())
       failGatherConstraint(gatherOp, "across does not depend on any temporal loop IV");
 
-    auto dependentIvs = loom::utils::collectDependentIVs(across);
-    for (mlir::Operation *loopOp : temporalLoops) {
-      if (!constrainedLoops.insert(loopOp).second)
+    for (const auto &dep : temporalDeps) {
+      if (!constrainedIVs.insert(dep.iv).second)
         continue;
 
+      mlir::Operation *loopOp = dep.loop;
       if (auto scfFor = llvm::dyn_cast<mlir::scf::ForOp>(loopOp)) {
         scope.pushHardConstraint(makeScfForStepCountEqOne(scfFor));
         continue;
       }
 
       if (auto par = llvm::dyn_cast<mlir::affine::AffineParallelOp>(loopOp)) {
-        unsigned dimIdx = par.getNumDims();
-        for (mlir::Value iv : dependentIvs) {
-          auto barg = llvm::dyn_cast<mlir::BlockArgument>(iv);
-          if (!barg || barg.getOwner()->getParentOp() != par.getOperation())
-            continue;
-          if (barg.getArgNumber() < par.getNumDims()) {
-            dimIdx = barg.getArgNumber();
-            break;
-          }
-        }
-        if (dimIdx >= par.getNumDims())
+        if (dep.ivIndex >= par.getNumDims())
           failGatherConstraint(gatherOp, "cannot resolve affine.parallel IV dimension for across");
-        scope.pushHardConstraint(makeAffineParallelStepCountEqOne(par, dimIdx));
+        scope.pushHardConstraint(makeAffineParallelStepCountEqOne(par, dep.ivIndex));
         continue;
       }
 

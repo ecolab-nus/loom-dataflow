@@ -11,7 +11,7 @@ add_library(LoomPassesCommon
   src/index_mapping.cpp
   src/driver_utils.cpp
   src/ssa_utils.cpp
-  src/gather_across_iv_tracer.cpp
+  src/loop_iv_dependency.cpp
 )
 
 target_include_directories(LoomPassesCommon

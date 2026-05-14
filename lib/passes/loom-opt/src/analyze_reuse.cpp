@@ -24,10 +24,11 @@
 #include "mlir/IR/Value.h"
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 
-#include "ssa_utils.h"
+#include "loop_iv_dependency.h"
 
 // Loom dialect headers
 #include "LoomDialect.h.inc"
@@ -96,14 +97,20 @@ public:
         dynamicOffsets.push_back(offsetVal);
       }
 
+      SmallVector<loom::utils::LoopIVDependency, 8> offsetDeps =
+          loom::utils::collectLoopIVDependencies(dynamicOffsets);
+      llvm::SmallPtrSet<Value, 16> dependentIVs;
+      for (const auto &dep : offsetDeps)
+        dependentIVs.insert(dep.iv);
+
       // Gather enclosing affine.parallel IVs. These are used to detect
       // scf.for loops whose upper bounds vary across spatial blocks.
-      SmallVector<Value, 8> enclosingParallelIVs;
+      llvm::SmallPtrSet<Value, 8> enclosingParallelIVSet;
       for (Operation *parent = op->getParentOp(); parent;
            parent = parent->getParentOp()) {
         if (auto par = dyn_cast<affine::AffineParallelOp>(parent)) {
           for (Value iv : par.getIVs())
-            enclosingParallelIVs.push_back(iv);
+            enclosingParallelIVSet.insert(iv);
         }
       }
 
@@ -117,8 +124,9 @@ public:
           continue;
 
         Value ub = scfFor.getUpperBound();
-        if (llvm::any_of(enclosingParallelIVs, [&](Value parIV) {
-              return loom::utils::dependsOn(ub, parIV);
+        auto ubSpatialDeps = loom::utils::collectSpatialIVDependencies(ub);
+        if (llvm::any_of(ubSpatialDeps, [&](const auto &dep) {
+              return enclosingParallelIVSet.contains(dep.iv);
             })) {
           skipSpatialReuse = true;
           break;
@@ -170,8 +178,7 @@ public:
         // on it).
         bool loopHasReuse = false;
         for (Value iv : ivs) {
-          bool isVariant = llvm::any_of(
-              dynamicOffsets, [&](Value v) { return loom::utils::dependsOn(v, iv); });
+          bool isVariant = dependentIVs.contains(iv);
           if (!isVariant) {
             loopHasReuse = true;
             break;
