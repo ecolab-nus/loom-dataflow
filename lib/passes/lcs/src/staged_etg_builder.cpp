@@ -717,12 +717,12 @@ llvm::json::Value VariantETG::toJSON() const {
 }
 
 void VariantETG::buildL1FootprintConstraint() {
-  HardConstraintPipeline::pushAll(hw_registry_, constraint_scope_);
+  HardConstraintPipeline::pushAll(mlir::func::FuncOp(), hw_registry_,
+                                  constraint_scope_);
 }
 
 void VariantETG::buildHardConstraints(mlir::func::FuncOp func_op) {
-  (void)func_op;
-  HardConstraintPipeline::pushAll(hw_registry_, constraint_scope_);
+  HardConstraintPipeline::pushAll(func_op, hw_registry_, constraint_scope_);
 }
 
 } // namespace lcs
