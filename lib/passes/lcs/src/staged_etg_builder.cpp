@@ -1,6 +1,7 @@
 #include "staged_etg_builder.h"
 #include "hw_alignment.h"
 #include "hw_op_registry.h"
+#include "l1_footprint_estimator.h"
 #include "lcs_utils.h"
 #include "ssa_utils.h"
 #include "ADLDialect.h.inc"
@@ -685,27 +686,6 @@ void VariantETG::addIterDivisibilityConstraints(const Expr &iter) {
         ConstraintExpr::divisible(num, den));
 }
 
-void VariantETG::collectL1Footprint(mlir::func::FuncOp func_op) {
-  mlir::Type expectedElemType;
-  func_op.walk([&](loom::AllocOp allocOp) {
-    if (allocOp.getMemory().getLeafReference() != "L1")
-      return;
-    auto memrefType =
-        mlir::cast<mlir::MemRefType>(allocOp.getResult().getType());
-    mlir::Type elemType = memrefType.getElementType();
-    if (!expectedElemType) {
-      expectedElemType = elemType;
-      constraint_scope_.datatype = formatElementType(elemType);
-    } else {
-      assert(elemType == expectedElemType &&
-             "All L1 allocations must have the same element type");
-    }
-    Expr dims = productOfDims(formatAllocDims(allocOp));
-    if (!dims.isNone())
-      constraint_scope_.l1_footprint.push_back(dims);
-  });
-}
-
 void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
   collectSymbols(func_op);
   applyHardwareAlignments(func_op, constraint_scope_.symbols);
@@ -714,7 +694,9 @@ void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
   // addIterDivisibilityConstraints(constraint_scope_.seq_iter);
   // for (const Expr &t : constraint_scope_.temp_iter)
     // addIterDivisibilityConstraints(t);
-  collectL1Footprint(func_op);
+  L1FootprintResult l1Result = L1FootprintEstimator::estimateFromFunc(func_op);
+  constraint_scope_.datatype = std::move(l1Result.datatype);
+  constraint_scope_.l1_footprint = std::move(l1Result.l1_footprint);
 }
 
 // ==========================================

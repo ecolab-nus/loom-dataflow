@@ -265,7 +265,6 @@ private:
 
   void collectSymbols(mlir::func::FuncOp func_op);
   void analyzeLoopIterations(mlir::func::FuncOp func_op);
-  void collectL1Footprint(mlir::func::FuncOp func_op);
   void addIterDivisibilityConstraints(const Expr &iter);
 };
 
