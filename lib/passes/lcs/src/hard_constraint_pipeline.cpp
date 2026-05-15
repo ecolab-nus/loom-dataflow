@@ -257,7 +257,7 @@ void pushGatherTemporalAcrossConstraints(mlir::func::FuncOp funcOp,
 void HardConstraintPipeline::pushAll(mlir::func::FuncOp funcOp,
                                      const HWOpRegistry *registry,
                                      ConstraintScope &scope) {
-  pushL1SizeConstraint(registry, scope);
+  // pushL1SizeConstraint(registry, scope);
   pushGatherTemporalAcrossConstraints(funcOp, scope);
 }
 
