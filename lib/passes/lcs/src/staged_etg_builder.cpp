@@ -280,6 +280,11 @@ Scope::Scope(std::string name) : scope_name(std::move(name)) {}
 
 WorkloadStageBody &Scope::getOrCreateWorkloadStage(int id) {
   auto it = stages.find(id);
+  while (it != stages.end() && it->second.body &&
+         it->second.body->getKind() != StageBody::Kind::Workload) {
+    ++id;
+    it = stages.find(id);
+  }
   if (it == stages.end()) {
     auto inserted = stages.emplace(
         std::piecewise_construct, std::forward_as_tuple(id),
@@ -476,22 +481,12 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
         // becoming ready one stage after the loop.
         // (advances_stage = true)
       } else if (llvm::isa<mlir::scf::IfOp>(op)) {
-        op->walk([&](mlir::Operation *nested) {
-          if (nested == op)
-            return;
-          llvm::StringRef name = nested->getName().getStringRef();
-          if (name != "loom.copy")
-            return;
-          auto copyOp = llvm::dyn_cast<loom::CopyOp>(nested);
-          CopyScopeKind scopeKind = classifyCopyScope(copyOp);
-          if (scopeKind == CopyScopeKind::Load) {
-            dispatchToDataMoverQueues(
-                nested, load_scope.getOrCreateWorkloadStage(required_stage));
-          } else if (scopeKind == CopyScopeKind::Store) {
-            dispatchToDataMoverQueues(
-                nested, store_scope.getOrCreateWorkloadStage(required_stage));
+        for (mlir::Region &inner_region : op->getRegions())
+          for (mlir::Block &inner_block : inner_region) {
+            for (mlir::Value barg : inner_block.getArguments())
+              value_ready_stage[barg] = required_stage;
+            walkBlock(inner_block);
           }
-        });
         dispatched = true;
         advances_stage = false;
       } else if (llvm::isa<mlir::affine::AffineParallelOp>(op)) {
