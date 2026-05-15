@@ -177,17 +177,18 @@ void pushL1SizeConstraint(const HWOpRegistry *registry, ConstraintScope &scope) 
     return;
 
   Expr footprint_sum = Expr::con(0);
-  for (const Expr &term : scope.l1_footprint)
-    footprint_sum = footprint_sum + term;
+  auto addTerms = [&](const std::vector<Expr> &terms) {
+    for (const Expr &term : terms)
+      footprint_sum = footprint_sum + term;
+  };
+  addTerms(scope.l1_footprint.load);
+  addTerms(scope.l1_footprint.compute);
+  addTerms(scope.l1_footprint.store);
 
   int64_t elem_bytes = 2;
-  auto db_cond = std::make_shared<ConstraintExpr>(
-      ConstraintExpr::eq(Expr::sym("is_double_buffer"), Expr::con(1)));
-  Expr multiplier =
-      Expr::ifelse(db_cond, Expr::con(elem_bytes * 2), Expr::con(elem_bytes));
-
   scope.pushHardConstraint(
-      ConstraintExpr::le(footprint_sum * multiplier, Expr::con(l1_size)));
+      ConstraintExpr::le(footprint_sum * Expr::con(elem_bytes),
+                         Expr::con(l1_size)));
 }
 
 ConstraintExpr makeScfForStepCountEqOne(mlir::scf::ForOp forOp) {

@@ -3,6 +3,7 @@
 
 #include "constraint_expr.h"
 #include "expr.h"
+#include "l1_footprint_estimator.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Operation.h"
@@ -202,8 +203,8 @@ struct SymbolInfo {
 struct ConstraintScope {
   // metadata.symbols: maps symbol name (e.g., "tile_m") to SymbolInfo
   std::map<std::string, SymbolInfo> symbols;
-  // metadata.L1_footprint: symbolic size of each @L1 allocation
-  std::vector<Expr> l1_footprint;
+  // metadata.L1_footprint: symbolic sizes of @L1 allocations by usage class
+  L1FootprintByScope l1_footprint;
   // metadata.datatype: element type shared by all @L1 allocations (e.g., "f32")
   std::string datatype;
   // metadata.iter_num.seq_iter: symbolic trip count of the sequential loop

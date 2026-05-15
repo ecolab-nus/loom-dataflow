@@ -1,7 +1,10 @@
 #include "l1_footprint_estimator.h"
 #include "lcs_utils.h"
+#include "ssa_utils.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Location.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <optional>
@@ -23,7 +26,10 @@ struct AllocInfo {
   std::vector<int64_t> static_sizes;
   std::vector<Expr> expr_dims;
   mlir::Type elem_type;
+  Expr footprint;
 };
+
+enum class FootprintClass { Compute, Load, Store };
 
 std::string locToString(mlir::Location loc) {
   std::string s;
@@ -43,6 +49,15 @@ std::string locToString(mlir::Location loc) {
   llvm_unreachable("assert should have terminated");
 }
 
+[[noreturn]] void failClassifyAssert(loom::AllocOp allocOp,
+                                     llvm::StringRef reason) {
+  llvm::errs() << "L1 footprint classification failed: " << reason << "\n";
+  llvm::errs() << "  alloc location: " << locToString(allocOp->getLoc())
+               << "\n";
+  assert(false && "L1 footprint classification failed");
+  llvm_unreachable("assert should have terminated");
+}
+
 std::vector<AllocInfo> readAllL1Allocs(mlir::func::FuncOp funcOp) {
   std::vector<AllocInfo> allocs;
   funcOp.walk([&](loom::AllocOp allocOp) {
@@ -55,6 +70,7 @@ std::vector<AllocInfo> readAllL1Allocs(mlir::func::FuncOp funcOp) {
                              allocOp.getStaticSizes().end()),
         formatAllocDims(allocOp),
         memrefType.getElementType(),
+        Expr::none(),
     });
   });
   return allocs;
@@ -106,14 +122,67 @@ Expr buildFootprintExpr(const std::vector<Expr> &alignedDims) {
   return productOfDims(alignedDims);
 }
 
+void markAllocClass(llvm::DenseMap<mlir::Operation *, FootprintClass> &classes,
+                    loom::AllocOp allocOp, FootprintClass nextClass) {
+  mlir::Operation *key = allocOp.getOperation();
+  auto [it, inserted] = classes.try_emplace(key, nextClass);
+  if (inserted || it->second == nextClass)
+    return;
+  failClassifyAssert(allocOp, "same alloc is classified as both load and store");
+}
+
+void classifyCopyEndpoints(
+    mlir::func::FuncOp funcOp,
+    const llvm::DenseMap<mlir::Operation *, size_t> &allocIndex,
+    llvm::DenseMap<mlir::Operation *, FootprintClass> &classes) {
+  funcOp.walk([&](loom::CopyOp copyOp) {
+    loom::utils::CopyMemoryDirection direction =
+        loom::utils::classifyCopyMemoryDirection(copyOp.getOperation());
+    if (direction == loom::utils::CopyMemoryDirection::Other)
+      return;
+
+    loom::AllocOp endpoint =
+        loom::utils::traceCopyL1EndpointRootAlloc(copyOp.getOperation());
+    if (!endpoint || !allocIndex.count(endpoint.getOperation()))
+      return;
+
+    FootprintClass cls =
+        direction == loom::utils::CopyMemoryDirection::Load
+            ? FootprintClass::Load
+            : FootprintClass::Store;
+    markAllocClass(classes, endpoint, cls);
+  });
+}
+
+void pushFootprint(L1FootprintByScope &footprint, FootprintClass cls,
+                   Expr term) {
+  if (term.isNone())
+    return;
+  switch (cls) {
+  case FootprintClass::Load:
+    footprint.load.push_back(term);
+    return;
+  case FootprintClass::Store:
+    footprint.store.push_back(term);
+    return;
+  case FootprintClass::Compute:
+    footprint.compute.push_back(term);
+    return;
+  }
+  llvm_unreachable("unknown L1 footprint class");
+}
+
 } // namespace
 
 L1FootprintResult L1FootprintEstimator::estimateFromFunc(mlir::func::FuncOp funcOp) {
   L1FootprintResult result;
   std::vector<AllocInfo> allocs = readAllL1Allocs(funcOp);
+  llvm::DenseMap<mlir::Operation *, size_t> allocIndex;
+  for (size_t i = 0; i < allocs.size(); ++i)
+    allocIndex[allocs[i].alloc_op.getOperation()] = i;
 
   mlir::Type expectedElemType;
-  for (const AllocInfo &info : allocs) {
+  for (AllocInfo &info : allocs) {
     if (!expectedElemType) {
       expectedElemType = info.elem_type;
       result.datatype = formatElementType(info.elem_type);
@@ -124,9 +193,18 @@ L1FootprintResult L1FootprintEstimator::estimateFromFunc(mlir::func::FuncOp func
 
     validateBottom2Dims(info);
     std::vector<Expr> aligned = applyBottom2Padding(info);
-    Expr term = buildFootprintExpr(aligned);
-    if (!term.isNone())
-      result.l1_footprint.push_back(term);
+    info.footprint = buildFootprintExpr(aligned);
+  }
+
+  llvm::DenseMap<mlir::Operation *, FootprintClass> classes;
+  classifyCopyEndpoints(funcOp, allocIndex, classes);
+
+  for (AllocInfo &info : allocs) {
+    FootprintClass cls = FootprintClass::Compute;
+    auto it = classes.find(info.alloc_op.getOperation());
+    if (it != classes.end())
+      cls = it->second;
+    pushFootprint(result.l1_footprint, cls, info.footprint);
   }
 
   return result;

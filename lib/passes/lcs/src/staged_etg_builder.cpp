@@ -2,7 +2,6 @@
 #include "hard_constraint_pipeline.h"
 #include "hw_alignment.h"
 #include "hw_op_registry.h"
-#include "hw_op_registry_detail.h"
 #include "l1_footprint_estimator.h"
 #include "lcs_utils.h"
 #include "ssa_utils.h"
@@ -147,25 +146,6 @@ std::string blockSymFromAttr(mlir::Operation *op) {
   if (auto attr = op->getAttrOfType<mlir::SymbolRefAttr>("loom.block_sym"))
     return attr.getLeafReference().str();
   return std::string();
-}
-
-enum class CopyScopeKind { Load, Store, Unsupported };
-
-CopyScopeKind classifyCopyScope(loom::CopyOp copyOp) {
-  if (!copyOp)
-    return CopyScopeKind::Unsupported;
-
-  std::string srcMem, dstMem;
-  if (auto attr = copyOp.getSrcMemSpaceAttr())
-    srcMem = detail::canonicalMemSpace(attr.getLeafReference());
-  if (auto attr = copyOp.getDstMemSpaceAttr())
-    dstMem = detail::canonicalMemSpace(attr.getLeafReference());
-
-  if (srcMem == "mem_DRAM" && dstMem == "mem_array_L1")
-    return CopyScopeKind::Load;
-  if (srcMem == "mem_array_L1" && dstMem == "mem_DRAM")
-    return CopyScopeKind::Store;
-  return CopyScopeKind::Unsupported;
 }
 
 } // namespace
@@ -387,9 +367,16 @@ llvm::json::Value ConstraintScope::toJSON() const {
   for (const auto &t : temp_iter)
     temp_iter_json.push_back(t.toJSON());
 
-  llvm::json::Array footprint_json;
-  for (const auto &term : l1_footprint)
-    footprint_json.push_back(term.toJSON());
+  auto footprintArray = [](const std::vector<Expr> &terms) {
+    llvm::json::Array arr;
+    for (const auto &term : terms)
+      arr.push_back(term.toJSON());
+    return arr;
+  };
+  llvm::json::Object footprint_json;
+  footprint_json["load"] = footprintArray(l1_footprint.load);
+  footprint_json["compute"] = footprintArray(l1_footprint.compute);
+  footprint_json["store"] = footprintArray(l1_footprint.store);
 
   llvm::json::Array booleans_json;
   for (const auto &name : booleans)
@@ -513,12 +500,12 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
               op, compute_scope.getOrCreateWorkloadStage(required_stage));
           dispatched = true;
         } else if (is_data_mover) {
-          auto copyOp = llvm::dyn_cast<loom::CopyOp>(op);
-          CopyScopeKind scopeKind = classifyCopyScope(copyOp);
-          if (scopeKind == CopyScopeKind::Load) {
+          loom::utils::CopyMemoryDirection direction =
+              loom::utils::classifyCopyMemoryDirection(op);
+          if (direction == loom::utils::CopyMemoryDirection::Load) {
             dispatchToDataMoverQueues(
                 op, load_scope.getOrCreateWorkloadStage(required_stage));
-          } else if (scopeKind == CopyScopeKind::Store) {
+          } else if (direction == loom::utils::CopyMemoryDirection::Store) {
             dispatchToDataMoverQueues(
                 op, store_scope.getOrCreateWorkloadStage(required_stage));
           }

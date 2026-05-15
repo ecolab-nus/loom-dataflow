@@ -8,8 +8,18 @@
 namespace loom {
 namespace lcs {
 
+struct L1FootprintByScope {
+  std::vector<Expr> load;
+  std::vector<Expr> compute;
+  std::vector<Expr> store;
+
+  bool empty() const {
+    return load.empty() && compute.empty() && store.empty();
+  }
+};
+
 struct L1FootprintResult {
-  std::vector<Expr> l1_footprint;
+  L1FootprintByScope l1_footprint;
   std::string datatype;
 };
 
@@ -20,4 +30,3 @@ public:
 
 } // namespace lcs
 } // namespace loom
-

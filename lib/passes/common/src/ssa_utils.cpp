@@ -9,6 +9,8 @@
 #include "mlir/IR/Operation.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/ErrorHandling.h"
+#include <string>
 
 #include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
@@ -17,6 +19,18 @@
 using namespace mlir;
 
 namespace loom::utils {
+namespace {
+
+std::string canonicalMemSpace(StringRef memSpace) {
+  if (memSpace == "L1" || memSpace == "array_L1" || memSpace == "mem_L1" ||
+      memSpace == "mem_array_L1")
+    return "mem_array_L1";
+  if (memSpace == "DRAM" || memSpace == "mem_DRAM")
+    return "mem_DRAM";
+  return memSpace.str();
+}
+
+} // namespace
 
 bool dependsOn(Value value, Value target) {
   if (!value || value == target)
@@ -157,6 +171,40 @@ Value traceToRootAlloc(Value value) {
 loom::AllocOp traceToRootAllocOp(Value value) {
   Value root = traceToRootAlloc(value);
   return root ? root.getDefiningOp<loom::AllocOp>() : nullptr;
+}
+
+CopyMemoryDirection classifyCopyMemoryDirection(Operation *op) {
+  auto copyOp = dyn_cast_or_null<loom::CopyOp>(op);
+  if (!copyOp)
+    return CopyMemoryDirection::Other;
+
+  std::string srcMem, dstMem;
+  if (auto attr = copyOp.getSrcMemSpaceAttr())
+    srcMem = canonicalMemSpace(attr.getLeafReference());
+  if (auto attr = copyOp.getDstMemSpaceAttr())
+    dstMem = canonicalMemSpace(attr.getLeafReference());
+
+  if (srcMem == "mem_DRAM" && dstMem == "mem_array_L1")
+    return CopyMemoryDirection::Load;
+  if (srcMem == "mem_array_L1" && dstMem == "mem_DRAM")
+    return CopyMemoryDirection::Store;
+  return CopyMemoryDirection::Other;
+}
+
+loom::AllocOp traceCopyL1EndpointRootAlloc(Operation *op) {
+  auto copyOp = dyn_cast_or_null<loom::CopyOp>(op);
+  if (!copyOp)
+    return nullptr;
+
+  switch (classifyCopyMemoryDirection(op)) {
+  case CopyMemoryDirection::Load:
+    return traceToRootAllocOp(copyOp.getDestination());
+  case CopyMemoryDirection::Store:
+    return traceToRootAllocOp(copyOp.getSource());
+  case CopyMemoryDirection::Other:
+    return nullptr;
+  }
+  llvm_unreachable("unknown copy memory direction");
 }
 
 } // namespace loom::utils
