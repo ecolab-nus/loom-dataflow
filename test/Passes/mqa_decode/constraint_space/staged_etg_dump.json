@@ -1,12 +1,33 @@
 [
   {
+    "variant_name": "flash_decode__x8_y1y8__d0i1_d1i1_d2i0__f01__dim_x_level0_bc8_n_n_n",
     "constraint_scope": {
       "metadata": {
-        "L1_footprint": {
-          "capacity": 1499136,
-          "store": [
-            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":8}]},
+            {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":8}]}
           ],
+          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]}
+        },
+        "symbols": {
+          "tile_n": {
+            "alignment": 32,
+            "type": "int",
+            "natural_ub": 8192
+          },
+          "tile_b": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 16
+          },
+          "tile_s": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 8192
+          }
+        },
+        "L1_footprint": {
           "compute": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":32}]},
@@ -25,38 +46,18 @@
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":32}]},
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":128}]}
           ],
+          "capacity": 1499136,
           "load": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":128}]},{"Sym":"tile_n"}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_n"}]},{"Const":128}]}
+          ],
+          "store": [
+            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
           ]
         },
-        "booleans": ["is_double_buffer"],
-        "symbols": {
-          "tile_n": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 32
-          },
-          "tile_b": {
-            "natural_ub": 16,
-            "type": "int",
-            "alignment": 1
-          },
-          "tile_s": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 1
-          }
-        },
-        "iter_num": {
-          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-          "temp_iter": [
-            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":8}]},
-            {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":8}]}
-          ]
-        },
-        "datatype": "f16"
+        "datatype": "f16",
+        "booleans": ["is_double_buffer"]
       },
       "hard_constraints": [
         {"Eq":[{"Div":[{"Sub":[{"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":8}]},{"Const":0}]},{"Const":1}]},{"Const":1}]}
@@ -87,6 +88,7 @@
                         "scope_name": "LoadScope",
                         "stages": [
                           {
+                            "stage_id": 3,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -112,8 +114,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 3
+                            ]
                           }
                         ]
                       },
@@ -127,6 +128,7 @@
                                 "scope_name": "LoadScope",
                                 "stages": [
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -172,8 +174,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   }
                                 ]
                               },
@@ -181,6 +182,7 @@
                                 "scope_name": "ComputeScope",
                                 "stages": [
                                   {
+                                    "stage_id": 1,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -206,10 +208,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 1
+                                    ]
                                   },
                                   {
+                                    "stage_id": 2,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -233,10 +235,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 2
+                                    ]
                                   },
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -287,10 +289,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   },
                                   {
+                                    "stage_id": 4,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -327,10 +329,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 4
+                                    ]
                                   },
                                   {
+                                    "stage_id": 5,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -395,10 +397,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 5
+                                    ]
                                   },
                                   {
+                                    "stage_id": 6,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -460,10 +462,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 6
+                                    ]
                                   },
                                   {
+                                    "stage_id": 7,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -486,8 +488,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 7
+                                    ]
                                   }
                                 ]
                               },
@@ -495,12 +496,13 @@
                                 "scope_name": "StoreScope",
                                 "stages": []
                               },
+                              "iter_type": "sequential",
                               "trip_count": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-                              "block_sym": "",
-                              "iter_type": "sequential"
+                              "block_sym": ""
                             }
                           },
                           {
+                            "stage_id": 4,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -587,10 +589,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 4
+                            ]
                           },
                           {
+                            "stage_id": 5,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -635,10 +637,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 5
+                            ]
                           },
                           {
+                            "stage_id": 6,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -661,10 +663,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 6
+                            ]
                           },
                           {
+                            "stage_id": 8,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -687,10 +689,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 8
+                            ]
                           },
                           {
+                            "stage_id": 9,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -714,8 +716,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 9
+                            ]
                           }
                         ]
                       },
@@ -723,6 +724,7 @@
                         "scope_name": "StoreScope",
                         "stages": [
                           {
+                            "stage_id": 11,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -746,14 +748,13 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 11
+                            ]
                           }
                         ]
                       },
+                      "iter_type": "temporal",
                       "trip_count": {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":8}]},
-                      "block_sym": "tile_s",
-                      "iter_type": "temporal"
+                      "block_sym": "tile_s"
                     }
                   }
                 ]
@@ -762,9 +763,9 @@
                 "scope_name": "StoreScope",
                 "stages": []
               },
+              "iter_type": "temporal",
               "trip_count": {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":8}]},
-              "block_sym": "tile_b",
-              "iter_type": "temporal"
+              "block_sym": "tile_b"
             }
           }
         ]
@@ -773,17 +774,37 @@
         "scope_name": "StoreScope",
         "stages": []
       }
-    },
-    "variant_name": "flash_decode__x8_y1y8__d0i1_d1i1_d2i0__f01__dim_x_level0_bc8_n_n_n"
+    }
   },
   {
+    "variant_name": "flash_decode__x8_y2y4__d0i1_d1i1_d2i0__f01__dim_x_level0_bc8_dim_y_level0_bc2_n_n_n",
     "constraint_scope": {
       "metadata": {
-        "L1_footprint": {
-          "capacity": 1499136,
-          "store": [
-            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":16}]},
+            {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":4}]}
           ],
+          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]}
+        },
+        "symbols": {
+          "tile_n": {
+            "alignment": 32,
+            "type": "int",
+            "natural_ub": 8192
+          },
+          "tile_b": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 16
+          },
+          "tile_s": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 8192
+          }
+        },
+        "L1_footprint": {
           "compute": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":32}]},
@@ -802,38 +823,18 @@
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":32}]},
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":128}]}
           ],
+          "capacity": 1499136,
           "load": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":128}]},{"Sym":"tile_n"}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_n"}]},{"Const":128}]}
+          ],
+          "store": [
+            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
           ]
         },
-        "booleans": ["is_double_buffer"],
-        "symbols": {
-          "tile_n": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 32
-          },
-          "tile_b": {
-            "natural_ub": 16,
-            "type": "int",
-            "alignment": 1
-          },
-          "tile_s": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 1
-          }
-        },
-        "iter_num": {
-          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-          "temp_iter": [
-            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":16}]},
-            {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":4}]}
-          ]
-        },
-        "datatype": "f16"
+        "datatype": "f16",
+        "booleans": ["is_double_buffer"]
       },
       "hard_constraints": [
         {"Eq":[{"Div":[{"Sub":[{"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":16}]},{"Const":0}]},{"Const":1}]},{"Const":1}]}
@@ -864,6 +865,7 @@
                         "scope_name": "LoadScope",
                         "stages": [
                           {
+                            "stage_id": 3,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -889,8 +891,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 3
+                            ]
                           }
                         ]
                       },
@@ -904,6 +905,7 @@
                                 "scope_name": "LoadScope",
                                 "stages": [
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -949,8 +951,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   }
                                 ]
                               },
@@ -958,6 +959,7 @@
                                 "scope_name": "ComputeScope",
                                 "stages": [
                                   {
+                                    "stage_id": 1,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -983,10 +985,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 1
+                                    ]
                                   },
                                   {
+                                    "stage_id": 2,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -1010,10 +1012,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 2
+                                    ]
                                   },
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -1064,10 +1066,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   },
                                   {
+                                    "stage_id": 4,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -1104,10 +1106,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 4
+                                    ]
                                   },
                                   {
+                                    "stage_id": 5,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -1172,10 +1174,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 5
+                                    ]
                                   },
                                   {
+                                    "stage_id": 6,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -1237,10 +1239,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 6
+                                    ]
                                   },
                                   {
+                                    "stage_id": 7,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -1263,8 +1265,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 7
+                                    ]
                                   }
                                 ]
                               },
@@ -1272,12 +1273,13 @@
                                 "scope_name": "StoreScope",
                                 "stages": []
                               },
+                              "iter_type": "sequential",
                               "trip_count": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-                              "block_sym": "",
-                              "iter_type": "sequential"
+                              "block_sym": ""
                             }
                           },
                           {
+                            "stage_id": 4,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -1364,10 +1366,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 4
+                            ]
                           },
                           {
+                            "stage_id": 5,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -1412,10 +1414,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 5
+                            ]
                           },
                           {
+                            "stage_id": 6,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -1438,10 +1440,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 6
+                            ]
                           },
                           {
+                            "stage_id": 8,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -1464,10 +1466,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 8
+                            ]
                           },
                           {
+                            "stage_id": 9,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -1491,8 +1493,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 9
+                            ]
                           }
                         ]
                       },
@@ -1500,6 +1501,7 @@
                         "scope_name": "StoreScope",
                         "stages": [
                           {
+                            "stage_id": 11,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -1523,14 +1525,13 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 11
+                            ]
                           }
                         ]
                       },
+                      "iter_type": "temporal",
                       "trip_count": {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":16}]},
-                      "block_sym": "tile_s",
-                      "iter_type": "temporal"
+                      "block_sym": "tile_s"
                     }
                   }
                 ]
@@ -1539,9 +1540,9 @@
                 "scope_name": "StoreScope",
                 "stages": []
               },
+              "iter_type": "temporal",
               "trip_count": {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":4}]},
-              "block_sym": "tile_b",
-              "iter_type": "temporal"
+              "block_sym": "tile_b"
             }
           }
         ]
@@ -1550,17 +1551,37 @@
         "scope_name": "StoreScope",
         "stages": []
       }
-    },
-    "variant_name": "flash_decode__x8_y2y4__d0i1_d1i1_d2i0__f01__dim_x_level0_bc8_dim_y_level0_bc2_n_n_n"
+    }
   },
   {
+    "variant_name": "flash_decode__x8_y4y2__d0i1_d1i1_d2i0__f01__dim_x_level0_bc8_dim_y_level0_bc4_n_n_n",
     "constraint_scope": {
       "metadata": {
-        "L1_footprint": {
-          "capacity": 1499136,
-          "store": [
-            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":32}]},
+            {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":2}]}
           ],
+          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]}
+        },
+        "symbols": {
+          "tile_n": {
+            "alignment": 32,
+            "type": "int",
+            "natural_ub": 8192
+          },
+          "tile_b": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 16
+          },
+          "tile_s": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 8192
+          }
+        },
+        "L1_footprint": {
           "compute": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":32}]},
@@ -1579,38 +1600,18 @@
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":32}]},
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":128}]}
           ],
+          "capacity": 1499136,
           "load": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":128}]},{"Sym":"tile_n"}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_n"}]},{"Const":128}]}
+          ],
+          "store": [
+            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
           ]
         },
-        "booleans": ["is_double_buffer"],
-        "symbols": {
-          "tile_n": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 32
-          },
-          "tile_b": {
-            "natural_ub": 16,
-            "type": "int",
-            "alignment": 1
-          },
-          "tile_s": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 1
-          }
-        },
-        "iter_num": {
-          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-          "temp_iter": [
-            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":32}]},
-            {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":2}]}
-          ]
-        },
-        "datatype": "f16"
+        "datatype": "f16",
+        "booleans": ["is_double_buffer"]
       },
       "hard_constraints": [
         {"Eq":[{"Div":[{"Sub":[{"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":32}]},{"Const":0}]},{"Const":1}]},{"Const":1}]}
@@ -1641,6 +1642,7 @@
                         "scope_name": "LoadScope",
                         "stages": [
                           {
+                            "stage_id": 3,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -1666,8 +1668,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 3
+                            ]
                           }
                         ]
                       },
@@ -1681,6 +1682,7 @@
                                 "scope_name": "LoadScope",
                                 "stages": [
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -1726,8 +1728,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   }
                                 ]
                               },
@@ -1735,6 +1736,7 @@
                                 "scope_name": "ComputeScope",
                                 "stages": [
                                   {
+                                    "stage_id": 1,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -1760,10 +1762,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 1
+                                    ]
                                   },
                                   {
+                                    "stage_id": 2,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -1787,10 +1789,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 2
+                                    ]
                                   },
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -1841,10 +1843,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   },
                                   {
+                                    "stage_id": 4,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -1881,10 +1883,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 4
+                                    ]
                                   },
                                   {
+                                    "stage_id": 5,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -1949,10 +1951,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 5
+                                    ]
                                   },
                                   {
+                                    "stage_id": 6,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -2014,10 +2016,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 6
+                                    ]
                                   },
                                   {
+                                    "stage_id": 7,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -2040,8 +2042,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 7
+                                    ]
                                   }
                                 ]
                               },
@@ -2049,12 +2050,13 @@
                                 "scope_name": "StoreScope",
                                 "stages": []
                               },
+                              "iter_type": "sequential",
                               "trip_count": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-                              "block_sym": "",
-                              "iter_type": "sequential"
+                              "block_sym": ""
                             }
                           },
                           {
+                            "stage_id": 4,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -2141,10 +2143,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 4
+                            ]
                           },
                           {
+                            "stage_id": 5,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -2189,10 +2191,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 5
+                            ]
                           },
                           {
+                            "stage_id": 6,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -2215,10 +2217,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 6
+                            ]
                           },
                           {
+                            "stage_id": 8,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -2241,10 +2243,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 8
+                            ]
                           },
                           {
+                            "stage_id": 9,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -2268,8 +2270,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 9
+                            ]
                           }
                         ]
                       },
@@ -2277,6 +2278,7 @@
                         "scope_name": "StoreScope",
                         "stages": [
                           {
+                            "stage_id": 11,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -2300,14 +2302,13 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 11
+                            ]
                           }
                         ]
                       },
+                      "iter_type": "temporal",
                       "trip_count": {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":32}]},
-                      "block_sym": "tile_s",
-                      "iter_type": "temporal"
+                      "block_sym": "tile_s"
                     }
                   }
                 ]
@@ -2316,9 +2317,9 @@
                 "scope_name": "StoreScope",
                 "stages": []
               },
+              "iter_type": "temporal",
               "trip_count": {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":2}]},
-              "block_sym": "tile_b",
-              "iter_type": "temporal"
+              "block_sym": "tile_b"
             }
           }
         ]
@@ -2327,17 +2328,37 @@
         "scope_name": "StoreScope",
         "stages": []
       }
-    },
-    "variant_name": "flash_decode__x8_y4y2__d0i1_d1i1_d2i0__f01__dim_x_level0_bc8_dim_y_level0_bc4_n_n_n"
+    }
   },
   {
+    "variant_name": "flash_decode__x8_y8y1__d0i1_d1i1_d2i0__f01__dim_x_level0_bc8_dim_y_level1_bc8_n_n_n",
     "constraint_scope": {
       "metadata": {
-        "L1_footprint": {
-          "capacity": 1499136,
-          "store": [
-            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":64}]},
+            {"Div":[{"Const":16},{"Sym":"tile_b"}]}
           ],
+          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]}
+        },
+        "symbols": {
+          "tile_n": {
+            "alignment": 32,
+            "type": "int",
+            "natural_ub": 8192
+          },
+          "tile_b": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 16
+          },
+          "tile_s": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 8192
+          }
+        },
+        "L1_footprint": {
           "compute": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":32}]},
@@ -2356,38 +2377,18 @@
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":32}]},
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":128}]}
           ],
+          "capacity": 1499136,
           "load": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":128}]},{"Sym":"tile_n"}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_n"}]},{"Const":128}]}
+          ],
+          "store": [
+            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
           ]
         },
-        "booleans": ["is_double_buffer"],
-        "symbols": {
-          "tile_n": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 32
-          },
-          "tile_b": {
-            "natural_ub": 16,
-            "type": "int",
-            "alignment": 1
-          },
-          "tile_s": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 1
-          }
-        },
-        "iter_num": {
-          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-          "temp_iter": [
-            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":64}]},
-            {"Div":[{"Const":16},{"Sym":"tile_b"}]}
-          ]
-        },
-        "datatype": "f16"
+        "datatype": "f16",
+        "booleans": ["is_double_buffer"]
       },
       "hard_constraints": [
         {"Eq":[{"Div":[{"Sub":[{"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":64}]},{"Const":0}]},{"Const":1}]},{"Const":1}]}
@@ -2418,6 +2419,7 @@
                         "scope_name": "LoadScope",
                         "stages": [
                           {
+                            "stage_id": 2,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -2443,8 +2445,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 2
+                            ]
                           }
                         ]
                       },
@@ -2458,6 +2459,7 @@
                                 "scope_name": "LoadScope",
                                 "stages": [
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -2503,8 +2505,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   }
                                 ]
                               },
@@ -2512,6 +2513,7 @@
                                 "scope_name": "ComputeScope",
                                 "stages": [
                                   {
+                                    "stage_id": 1,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -2537,10 +2539,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 1
+                                    ]
                                   },
                                   {
+                                    "stage_id": 2,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -2564,10 +2566,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 2
+                                    ]
                                   },
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -2618,10 +2620,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   },
                                   {
+                                    "stage_id": 4,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -2658,10 +2660,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 4
+                                    ]
                                   },
                                   {
+                                    "stage_id": 5,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -2726,10 +2728,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 5
+                                    ]
                                   },
                                   {
+                                    "stage_id": 6,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -2791,10 +2793,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 6
+                                    ]
                                   },
                                   {
+                                    "stage_id": 7,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -2817,8 +2819,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 7
+                                    ]
                                   }
                                 ]
                               },
@@ -2826,12 +2827,13 @@
                                 "scope_name": "StoreScope",
                                 "stages": []
                               },
+                              "iter_type": "sequential",
                               "trip_count": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-                              "block_sym": "",
-                              "iter_type": "sequential"
+                              "block_sym": ""
                             }
                           },
                           {
+                            "stage_id": 4,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -2918,10 +2920,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 4
+                            ]
                           },
                           {
+                            "stage_id": 5,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -2966,10 +2968,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 5
+                            ]
                           },
                           {
+                            "stage_id": 6,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -2992,10 +2994,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 6
+                            ]
                           },
                           {
+                            "stage_id": 8,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -3018,10 +3020,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 8
+                            ]
                           },
                           {
+                            "stage_id": 9,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -3045,8 +3047,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 9
+                            ]
                           }
                         ]
                       },
@@ -3054,6 +3055,7 @@
                         "scope_name": "StoreScope",
                         "stages": [
                           {
+                            "stage_id": 11,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -3077,14 +3079,13 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 11
+                            ]
                           }
                         ]
                       },
+                      "iter_type": "temporal",
                       "trip_count": {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":64}]},
-                      "block_sym": "tile_s",
-                      "iter_type": "temporal"
+                      "block_sym": "tile_s"
                     }
                   }
                 ]
@@ -3093,9 +3094,9 @@
                 "scope_name": "StoreScope",
                 "stages": []
               },
+              "iter_type": "temporal",
               "trip_count": {"Div":[{"Const":16},{"Sym":"tile_b"}]},
-              "block_sym": "tile_b",
-              "iter_type": "temporal"
+              "block_sym": "tile_b"
             }
           }
         ]
@@ -3104,17 +3105,37 @@
         "scope_name": "StoreScope",
         "stages": []
       }
-    },
-    "variant_name": "flash_decode__x8_y8y1__d0i1_d1i1_d2i0__f01__dim_x_level0_bc8_dim_y_level1_bc8_n_n_n"
+    }
   },
   {
+    "variant_name": "flash_decode__x1x8_y8__d0i1_d1i1_d2i0__f01__dim_y_level0_bc8_n_n_n",
     "constraint_scope": {
       "metadata": {
-        "L1_footprint": {
-          "capacity": 1499136,
-          "store": [
-            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":8}]},
+            {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":8}]}
           ],
+          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]}
+        },
+        "symbols": {
+          "tile_n": {
+            "alignment": 32,
+            "type": "int",
+            "natural_ub": 8192
+          },
+          "tile_b": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 16
+          },
+          "tile_s": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 8192
+          }
+        },
+        "L1_footprint": {
           "compute": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":32}]},
@@ -3133,38 +3154,18 @@
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":32}]},
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":128}]}
           ],
+          "capacity": 1499136,
           "load": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":128}]},{"Sym":"tile_n"}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_n"}]},{"Const":128}]}
+          ],
+          "store": [
+            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
           ]
         },
-        "booleans": ["is_double_buffer"],
-        "symbols": {
-          "tile_n": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 32
-          },
-          "tile_b": {
-            "natural_ub": 16,
-            "type": "int",
-            "alignment": 1
-          },
-          "tile_s": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 1
-          }
-        },
-        "iter_num": {
-          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-          "temp_iter": [
-            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":8}]},
-            {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":8}]}
-          ]
-        },
-        "datatype": "f16"
+        "datatype": "f16",
+        "booleans": ["is_double_buffer"]
       },
       "hard_constraints": [
         {"Eq":[{"Div":[{"Sub":[{"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":8}]},{"Const":0}]},{"Const":1}]},{"Const":1}]}
@@ -3195,6 +3196,7 @@
                         "scope_name": "LoadScope",
                         "stages": [
                           {
+                            "stage_id": 3,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -3220,8 +3222,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 3
+                            ]
                           }
                         ]
                       },
@@ -3235,6 +3236,7 @@
                                 "scope_name": "LoadScope",
                                 "stages": [
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -3280,8 +3282,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   }
                                 ]
                               },
@@ -3289,6 +3290,7 @@
                                 "scope_name": "ComputeScope",
                                 "stages": [
                                   {
+                                    "stage_id": 1,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -3314,10 +3316,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 1
+                                    ]
                                   },
                                   {
+                                    "stage_id": 2,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -3341,10 +3343,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 2
+                                    ]
                                   },
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -3395,10 +3397,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   },
                                   {
+                                    "stage_id": 4,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -3435,10 +3437,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 4
+                                    ]
                                   },
                                   {
+                                    "stage_id": 5,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -3503,10 +3505,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 5
+                                    ]
                                   },
                                   {
+                                    "stage_id": 6,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -3568,10 +3570,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 6
+                                    ]
                                   },
                                   {
+                                    "stage_id": 7,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -3594,8 +3596,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 7
+                                    ]
                                   }
                                 ]
                               },
@@ -3603,12 +3604,13 @@
                                 "scope_name": "StoreScope",
                                 "stages": []
                               },
+                              "iter_type": "sequential",
                               "trip_count": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-                              "block_sym": "",
-                              "iter_type": "sequential"
+                              "block_sym": ""
                             }
                           },
                           {
+                            "stage_id": 4,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -3695,10 +3697,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 4
+                            ]
                           },
                           {
+                            "stage_id": 5,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -3743,10 +3745,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 5
+                            ]
                           },
                           {
+                            "stage_id": 6,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -3769,10 +3771,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 6
+                            ]
                           },
                           {
+                            "stage_id": 8,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -3795,10 +3797,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 8
+                            ]
                           },
                           {
+                            "stage_id": 9,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -3822,8 +3824,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 9
+                            ]
                           }
                         ]
                       },
@@ -3831,6 +3832,7 @@
                         "scope_name": "StoreScope",
                         "stages": [
                           {
+                            "stage_id": 11,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -3854,14 +3856,13 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 11
+                            ]
                           }
                         ]
                       },
+                      "iter_type": "temporal",
                       "trip_count": {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":8}]},
-                      "block_sym": "tile_s",
-                      "iter_type": "temporal"
+                      "block_sym": "tile_s"
                     }
                   }
                 ]
@@ -3870,9 +3871,9 @@
                 "scope_name": "StoreScope",
                 "stages": []
               },
+              "iter_type": "temporal",
               "trip_count": {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":8}]},
-              "block_sym": "tile_b",
-              "iter_type": "temporal"
+              "block_sym": "tile_b"
             }
           }
         ]
@@ -3881,17 +3882,37 @@
         "scope_name": "StoreScope",
         "stages": []
       }
-    },
-    "variant_name": "flash_decode__x1x8_y8__d0i1_d1i1_d2i0__f01__dim_y_level0_bc8_n_n_n"
+    }
   },
   {
+    "variant_name": "flash_decode__x2x4_y8__d0i1_d1i1_d2i0__f01__dim_x_level0_bc2_dim_y_level0_bc8_n_n_n",
     "constraint_scope": {
       "metadata": {
-        "L1_footprint": {
-          "capacity": 1499136,
-          "store": [
-            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":16}]},
+            {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":4}]}
           ],
+          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]}
+        },
+        "symbols": {
+          "tile_n": {
+            "alignment": 32,
+            "type": "int",
+            "natural_ub": 8192
+          },
+          "tile_b": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 16
+          },
+          "tile_s": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 8192
+          }
+        },
+        "L1_footprint": {
           "compute": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":32}]},
@@ -3910,38 +3931,18 @@
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":32}]},
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":128}]}
           ],
+          "capacity": 1499136,
           "load": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":128}]},{"Sym":"tile_n"}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_n"}]},{"Const":128}]}
+          ],
+          "store": [
+            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
           ]
         },
-        "booleans": ["is_double_buffer"],
-        "symbols": {
-          "tile_n": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 32
-          },
-          "tile_b": {
-            "natural_ub": 16,
-            "type": "int",
-            "alignment": 1
-          },
-          "tile_s": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 1
-          }
-        },
-        "iter_num": {
-          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-          "temp_iter": [
-            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":16}]},
-            {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":4}]}
-          ]
-        },
-        "datatype": "f16"
+        "datatype": "f16",
+        "booleans": ["is_double_buffer"]
       },
       "hard_constraints": [
         {"Eq":[{"Div":[{"Sub":[{"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":16}]},{"Const":0}]},{"Const":1}]},{"Const":1}]}
@@ -3972,6 +3973,7 @@
                         "scope_name": "LoadScope",
                         "stages": [
                           {
+                            "stage_id": 3,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -3997,8 +3999,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 3
+                            ]
                           }
                         ]
                       },
@@ -4012,6 +4013,7 @@
                                 "scope_name": "LoadScope",
                                 "stages": [
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -4057,8 +4059,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   }
                                 ]
                               },
@@ -4066,6 +4067,7 @@
                                 "scope_name": "ComputeScope",
                                 "stages": [
                                   {
+                                    "stage_id": 1,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -4091,10 +4093,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 1
+                                    ]
                                   },
                                   {
+                                    "stage_id": 2,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -4118,10 +4120,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 2
+                                    ]
                                   },
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -4172,10 +4174,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   },
                                   {
+                                    "stage_id": 4,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -4212,10 +4214,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 4
+                                    ]
                                   },
                                   {
+                                    "stage_id": 5,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -4280,10 +4282,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 5
+                                    ]
                                   },
                                   {
+                                    "stage_id": 6,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -4345,10 +4347,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 6
+                                    ]
                                   },
                                   {
+                                    "stage_id": 7,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -4371,8 +4373,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 7
+                                    ]
                                   }
                                 ]
                               },
@@ -4380,12 +4381,13 @@
                                 "scope_name": "StoreScope",
                                 "stages": []
                               },
+                              "iter_type": "sequential",
                               "trip_count": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-                              "block_sym": "",
-                              "iter_type": "sequential"
+                              "block_sym": ""
                             }
                           },
                           {
+                            "stage_id": 4,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -4472,10 +4474,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 4
+                            ]
                           },
                           {
+                            "stage_id": 5,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -4520,10 +4522,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 5
+                            ]
                           },
                           {
+                            "stage_id": 6,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -4546,10 +4548,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 6
+                            ]
                           },
                           {
+                            "stage_id": 8,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -4572,10 +4574,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 8
+                            ]
                           },
                           {
+                            "stage_id": 9,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -4599,8 +4601,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 9
+                            ]
                           }
                         ]
                       },
@@ -4608,6 +4609,7 @@
                         "scope_name": "StoreScope",
                         "stages": [
                           {
+                            "stage_id": 11,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -4631,14 +4633,13 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 11
+                            ]
                           }
                         ]
                       },
+                      "iter_type": "temporal",
                       "trip_count": {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":16}]},
-                      "block_sym": "tile_s",
-                      "iter_type": "temporal"
+                      "block_sym": "tile_s"
                     }
                   }
                 ]
@@ -4647,9 +4648,9 @@
                 "scope_name": "StoreScope",
                 "stages": []
               },
+              "iter_type": "temporal",
               "trip_count": {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":4}]},
-              "block_sym": "tile_b",
-              "iter_type": "temporal"
+              "block_sym": "tile_b"
             }
           }
         ]
@@ -4658,17 +4659,37 @@
         "scope_name": "StoreScope",
         "stages": []
       }
-    },
-    "variant_name": "flash_decode__x2x4_y8__d0i1_d1i1_d2i0__f01__dim_x_level0_bc2_dim_y_level0_bc8_n_n_n"
+    }
   },
   {
+    "variant_name": "flash_decode__x4x2_y8__d0i1_d1i1_d2i0__f01__dim_x_level0_bc4_dim_y_level0_bc8_n_n_n",
     "constraint_scope": {
       "metadata": {
-        "L1_footprint": {
-          "capacity": 1499136,
-          "store": [
-            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":32}]},
+            {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":2}]}
           ],
+          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]}
+        },
+        "symbols": {
+          "tile_n": {
+            "alignment": 32,
+            "type": "int",
+            "natural_ub": 8192
+          },
+          "tile_b": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 16
+          },
+          "tile_s": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 8192
+          }
+        },
+        "L1_footprint": {
           "compute": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":32}]},
@@ -4687,38 +4708,18 @@
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":32}]},
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":128}]}
           ],
+          "capacity": 1499136,
           "load": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":128}]},{"Sym":"tile_n"}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_n"}]},{"Const":128}]}
+          ],
+          "store": [
+            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
           ]
         },
-        "booleans": ["is_double_buffer"],
-        "symbols": {
-          "tile_n": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 32
-          },
-          "tile_b": {
-            "natural_ub": 16,
-            "type": "int",
-            "alignment": 1
-          },
-          "tile_s": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 1
-          }
-        },
-        "iter_num": {
-          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-          "temp_iter": [
-            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":32}]},
-            {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":2}]}
-          ]
-        },
-        "datatype": "f16"
+        "datatype": "f16",
+        "booleans": ["is_double_buffer"]
       },
       "hard_constraints": [
         {"Eq":[{"Div":[{"Sub":[{"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":32}]},{"Const":0}]},{"Const":1}]},{"Const":1}]}
@@ -4749,6 +4750,7 @@
                         "scope_name": "LoadScope",
                         "stages": [
                           {
+                            "stage_id": 3,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -4774,8 +4776,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 3
+                            ]
                           }
                         ]
                       },
@@ -4789,6 +4790,7 @@
                                 "scope_name": "LoadScope",
                                 "stages": [
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -4834,8 +4836,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   }
                                 ]
                               },
@@ -4843,6 +4844,7 @@
                                 "scope_name": "ComputeScope",
                                 "stages": [
                                   {
+                                    "stage_id": 1,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -4868,10 +4870,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 1
+                                    ]
                                   },
                                   {
+                                    "stage_id": 2,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -4895,10 +4897,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 2
+                                    ]
                                   },
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -4949,10 +4951,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   },
                                   {
+                                    "stage_id": 4,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -4989,10 +4991,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 4
+                                    ]
                                   },
                                   {
+                                    "stage_id": 5,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -5057,10 +5059,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 5
+                                    ]
                                   },
                                   {
+                                    "stage_id": 6,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -5122,10 +5124,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 6
+                                    ]
                                   },
                                   {
+                                    "stage_id": 7,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -5148,8 +5150,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 7
+                                    ]
                                   }
                                 ]
                               },
@@ -5157,12 +5158,13 @@
                                 "scope_name": "StoreScope",
                                 "stages": []
                               },
+                              "iter_type": "sequential",
                               "trip_count": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-                              "block_sym": "",
-                              "iter_type": "sequential"
+                              "block_sym": ""
                             }
                           },
                           {
+                            "stage_id": 4,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -5249,10 +5251,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 4
+                            ]
                           },
                           {
+                            "stage_id": 5,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -5297,10 +5299,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 5
+                            ]
                           },
                           {
+                            "stage_id": 6,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -5323,10 +5325,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 6
+                            ]
                           },
                           {
+                            "stage_id": 8,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -5349,10 +5351,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 8
+                            ]
                           },
                           {
+                            "stage_id": 9,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -5376,8 +5378,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 9
+                            ]
                           }
                         ]
                       },
@@ -5385,6 +5386,7 @@
                         "scope_name": "StoreScope",
                         "stages": [
                           {
+                            "stage_id": 11,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -5408,14 +5410,13 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 11
+                            ]
                           }
                         ]
                       },
+                      "iter_type": "temporal",
                       "trip_count": {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":32}]},
-                      "block_sym": "tile_s",
-                      "iter_type": "temporal"
+                      "block_sym": "tile_s"
                     }
                   }
                 ]
@@ -5424,9 +5425,9 @@
                 "scope_name": "StoreScope",
                 "stages": []
               },
+              "iter_type": "temporal",
               "trip_count": {"Div":[{"Div":[{"Const":16},{"Sym":"tile_b"}]},{"Const":2}]},
-              "block_sym": "tile_b",
-              "iter_type": "temporal"
+              "block_sym": "tile_b"
             }
           }
         ]
@@ -5435,17 +5436,37 @@
         "scope_name": "StoreScope",
         "stages": []
       }
-    },
-    "variant_name": "flash_decode__x4x2_y8__d0i1_d1i1_d2i0__f01__dim_x_level0_bc4_dim_y_level0_bc8_n_n_n"
+    }
   },
   {
+    "variant_name": "flash_decode__x8x1_y8__d0i1_d1i1_d2i0__f01__dim_x_level1_bc8_dim_y_level0_bc8_n_n_n",
     "constraint_scope": {
       "metadata": {
-        "L1_footprint": {
-          "capacity": 1499136,
-          "store": [
-            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
+        "iter_num": {
+          "temp_iter": [
+            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":64}]},
+            {"Div":[{"Const":16},{"Sym":"tile_b"}]}
           ],
+          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]}
+        },
+        "symbols": {
+          "tile_n": {
+            "alignment": 32,
+            "type": "int",
+            "natural_ub": 8192
+          },
+          "tile_b": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 16
+          },
+          "tile_s": {
+            "alignment": 1,
+            "type": "int",
+            "natural_ub": 8192
+          }
+        },
+        "L1_footprint": {
           "compute": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":32}]},
@@ -5464,38 +5485,18 @@
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":32}]},
             {"Mul":[{"Mul":[{"Mul":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Sym":"tile_b"}]},{"Const":32}]},{"Const":128}]}
           ],
+          "capacity": 1499136,
           "load": [
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":128}]},{"Sym":"tile_n"}]},
             {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Sym":"tile_n"}]},{"Const":128}]}
+          ],
+          "store": [
+            {"Mul":[{"Mul":[{"Sym":"tile_b"},{"Const":32}]},{"Const":128}]}
           ]
         },
-        "booleans": ["is_double_buffer"],
-        "symbols": {
-          "tile_n": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 32
-          },
-          "tile_b": {
-            "natural_ub": 16,
-            "type": "int",
-            "alignment": 1
-          },
-          "tile_s": {
-            "natural_ub": 8192,
-            "type": "int",
-            "alignment": 1
-          }
-        },
-        "iter_num": {
-          "seq_iter": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-          "temp_iter": [
-            {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":64}]},
-            {"Div":[{"Const":16},{"Sym":"tile_b"}]}
-          ]
-        },
-        "datatype": "f16"
+        "datatype": "f16",
+        "booleans": ["is_double_buffer"]
       },
       "hard_constraints": [
         {"Eq":[{"Div":[{"Sub":[{"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":64}]},{"Const":0}]},{"Const":1}]},{"Const":1}]}
@@ -5526,6 +5527,7 @@
                         "scope_name": "LoadScope",
                         "stages": [
                           {
+                            "stage_id": 2,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -5551,8 +5553,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 2
+                            ]
                           }
                         ]
                       },
@@ -5566,6 +5567,7 @@
                                 "scope_name": "LoadScope",
                                 "stages": [
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -5611,8 +5613,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   }
                                 ]
                               },
@@ -5620,6 +5621,7 @@
                                 "scope_name": "ComputeScope",
                                 "stages": [
                                   {
+                                    "stage_id": 1,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -5645,10 +5647,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 1
+                                    ]
                                   },
                                   {
+                                    "stage_id": 2,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -5672,10 +5674,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 2
+                                    ]
                                   },
                                   {
+                                    "stage_id": 3,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -5726,10 +5728,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 3
+                                    ]
                                   },
                                   {
+                                    "stage_id": 4,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -5766,10 +5768,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 4
+                                    ]
                                   },
                                   {
+                                    "stage_id": 5,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -5834,10 +5836,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 5
+                                    ]
                                   },
                                   {
+                                    "stage_id": 6,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -5899,10 +5901,10 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 6
+                                    ]
                                   },
                                   {
+                                    "stage_id": 7,
                                     "Parallel": [
                                       {
                                         "Sequential": {
@@ -5925,8 +5927,7 @@
                                           "scenarios": []
                                         }
                                       }
-                                    ],
-                                    "stage_id": 7
+                                    ]
                                   }
                                 ]
                               },
@@ -5934,12 +5935,13 @@
                                 "scope_name": "StoreScope",
                                 "stages": []
                               },
+                              "iter_type": "sequential",
                               "trip_count": {"Div":[{"Sym":"tile_s"},{"Sym":"tile_n"}]},
-                              "block_sym": "",
-                              "iter_type": "sequential"
+                              "block_sym": ""
                             }
                           },
                           {
+                            "stage_id": 4,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -6026,10 +6028,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 4
+                            ]
                           },
                           {
+                            "stage_id": 5,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -6074,10 +6076,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 5
+                            ]
                           },
                           {
+                            "stage_id": 6,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -6100,10 +6102,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 6
+                            ]
                           },
                           {
+                            "stage_id": 8,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -6126,10 +6128,10 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 8
+                            ]
                           },
                           {
+                            "stage_id": 9,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -6153,8 +6155,7 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 9
+                            ]
                           }
                         ]
                       },
@@ -6162,6 +6163,7 @@
                         "scope_name": "StoreScope",
                         "stages": [
                           {
+                            "stage_id": 11,
                             "Parallel": [
                               {
                                 "Sequential": {
@@ -6185,14 +6187,13 @@
                                   "scenarios": []
                                 }
                               }
-                            ],
-                            "stage_id": 11
+                            ]
                           }
                         ]
                       },
+                      "iter_type": "temporal",
                       "trip_count": {"Div":[{"Div":[{"Const":8192},{"Sym":"tile_s"}]},{"Const":64}]},
-                      "block_sym": "tile_s",
-                      "iter_type": "temporal"
+                      "block_sym": "tile_s"
                     }
                   }
                 ]
@@ -6201,9 +6202,9 @@
                 "scope_name": "StoreScope",
                 "stages": []
               },
+              "iter_type": "temporal",
               "trip_count": {"Div":[{"Const":16},{"Sym":"tile_b"}]},
-              "block_sym": "tile_b",
-              "iter_type": "temporal"
+              "block_sym": "tile_b"
             }
           }
         ]
@@ -6212,7 +6213,6 @@
         "scope_name": "StoreScope",
         "stages": []
       }
-    },
-    "variant_name": "flash_decode__x8x1_y8__d0i1_d1i1_d2i0__f01__dim_x_level1_bc8_dim_y_level0_bc8_n_n_n"
+    }
   }
 ]

@@ -133,9 +133,9 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 16 : index
           linalg.yield %39 : f16
         } -> tensor<?x?x32x1xf16>
         %32 = tensor.empty(%4, %0) : tensor<?x?x32x128xf16>
-        %33 = loom.broadcast ins(%31 : tensor<?x?x32x1xf16>) outs(%32 : tensor<?x?x32x128xf16>) dim(3) -> tensor<?x?x32x128xf16>
-        %34 = arith.cmpi eq, %4, %1 : index
-        %35 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>], iterator_types = ["parallel", "parallel", "parallel", "parallel"]} ins(%23, %33 : tensor<?x?x32x128xf16>, tensor<?x?x32x128xf16>) outs(%32 : tensor<?x?x32x128xf16>) {
+        %33 = arith.cmpi eq, %4, %1 : index
+        %34 = loom.broadcast ins(%31 : tensor<?x?x32x1xf16>) outs(%32 : tensor<?x?x32x128xf16>) dim(3) -> tensor<?x?x32x128xf16>
+        %35 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>], iterator_types = ["parallel", "parallel", "parallel", "parallel"]} ins(%23, %34 : tensor<?x?x32x128xf16>, tensor<?x?x32x128xf16>) outs(%32 : tensor<?x?x32x128xf16>) {
         ^bb0(%in: f16, %in_4: f16, %out: f16):
           %39 = arith.mulf %in, %in_4 : f16
           linalg.yield %39 : f16
