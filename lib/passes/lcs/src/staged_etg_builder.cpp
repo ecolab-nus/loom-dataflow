@@ -377,6 +377,7 @@ llvm::json::Value ConstraintScope::toJSON() const {
   footprint_json["load"] = footprintArray(l1_footprint.load);
   footprint_json["compute"] = footprintArray(l1_footprint.compute);
   footprint_json["store"] = footprintArray(l1_footprint.store);
+  footprint_json["capacity"] = l1_footprint.capacity;
 
   llvm::json::Array booleans_json;
   for (const auto &name : booleans)
@@ -705,7 +706,8 @@ void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
   // addIterDivisibilityConstraints(constraint_scope_.seq_iter);
   // for (const Expr &t : constraint_scope_.temp_iter)
     // addIterDivisibilityConstraints(t);
-  L1FootprintResult l1Result = L1FootprintEstimator::estimateFromFunc(func_op);
+  L1FootprintResult l1Result =
+      L1FootprintEstimator::estimateFromFunc(func_op, hw_registry_);
   constraint_scope_.datatype = std::move(l1Result.datatype);
   constraint_scope_.l1_footprint = std::move(l1Result.l1_footprint);
 }
@@ -722,11 +724,6 @@ llvm::json::Value VariantETG::toJSON() const {
   return llvm::json::Object{{"variant_name", variant_name_},
                             {"constraint_scope", constraint_scope_.toJSON()},
                             {"kernel_block", kernel_block_.toJSON()}};
-}
-
-void VariantETG::buildL1FootprintConstraint() {
-  HardConstraintPipeline::pushAll(mlir::func::FuncOp(), hw_registry_,
-                                  constraint_scope_);
 }
 
 void VariantETG::buildHardConstraints(mlir::func::FuncOp func_op) {

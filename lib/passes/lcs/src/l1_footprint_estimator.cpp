@@ -1,4 +1,5 @@
 #include "l1_footprint_estimator.h"
+#include "hw_op_registry.h"
 #include "lcs_utils.h"
 #include "ssa_utils.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -11,6 +12,11 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "ADLDialect.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "ADLTypes.h.inc"
+#define GET_OP_CLASSES
+#include "ADLOps.h.inc"
 #include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
@@ -172,10 +178,41 @@ void pushFootprint(L1FootprintByScope &footprint, FootprintClass cls,
   llvm_unreachable("unknown L1 footprint class");
 }
 
+int64_t extractL1SizeFromPlatform(const HWOpRegistry *registry) {
+  if (!registry)
+    return 0;
+  mlir::ModuleOp platformModule = registry->getPlatformModule();
+  if (!platformModule)
+    return 0;
+
+  int64_t l1_size = 0;
+  platformModule.walk([&](adl::MemoryArrayOp arrayOp) {
+    if (arrayOp->getParentOp() != platformModule.getOperation())
+      return mlir::WalkResult::skip();
+    if (arrayOp.getSymName() != "mem_L1")
+      return mlir::WalkResult::advance();
+
+    int64_t spatial_product = 1;
+    for (mlir::Value spatialVal : arrayOp.getSpatialDims())
+      if (auto dimOp = spatialVal.getDefiningOp<adl::SpatialDimOp>())
+        spatial_product *= static_cast<int64_t>(dimOp.getSize());
+
+    if (auto bankOp = arrayOp.getBank().getDefiningOp<adl::MemoryBankOp>()) {
+      int64_t bsize = static_cast<int64_t>(bankOp.getBsize());
+      int64_t nblk = static_cast<int64_t>(bankOp.getNblk());
+      l1_size = spatial_product * bsize * nblk;
+    }
+    return mlir::WalkResult::advance();
+  });
+  return l1_size;
+}
+
 } // namespace
 
-L1FootprintResult L1FootprintEstimator::estimateFromFunc(mlir::func::FuncOp funcOp) {
+L1FootprintResult L1FootprintEstimator::estimateFromFunc(
+    mlir::func::FuncOp funcOp, const HWOpRegistry *registry) {
   L1FootprintResult result;
+  result.l1_footprint.capacity = extractL1SizeFromPlatform(registry);
   std::vector<AllocInfo> allocs = readAllL1Allocs(funcOp);
   llvm::DenseMap<mlir::Operation *, size_t> allocIndex;
   for (size_t i = 0; i < allocs.size(); ++i)

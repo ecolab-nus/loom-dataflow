@@ -155,7 +155,6 @@ buildETGString(ModuleOp module, const loom::lcs::HWOpRegistry &registry) {
     loom::lcs::VariantETG etg(func_op.getName(), &registry);
     etg.buildFromFunc(func_op);
     etg.buildConstraintScope(func_op);
-    etg.buildL1FootprintConstraint();
     json_etgs.push_back(etg.toJSON());
   });
 

@@ -203,7 +203,8 @@ struct SymbolInfo {
 struct ConstraintScope {
   // metadata.symbols: maps symbol name (e.g., "tile_m") to SymbolInfo
   std::map<std::string, SymbolInfo> symbols;
-  // metadata.L1_footprint: symbolic sizes of @L1 allocations by usage class
+  // metadata.L1_footprint: symbolic @L1 allocation sizes by usage class plus
+  // the capacity available to the solver-side memory model
   L1FootprintByScope l1_footprint;
   // metadata.datatype: element type shared by all @L1 allocations (e.g., "f32")
   std::string datatype;
@@ -247,9 +248,6 @@ public:
   /// Build constraint scope from a func operation.
   /// Extracts symbolic block sizes and global loop iteration counts.
   void buildConstraintScope(mlir::func::FuncOp func_op);
-
-  /// Build and push the L1 footprint capacity constraint.
-  void buildL1FootprintConstraint();
 
   /// Build and push all hard constraints through the centralized pipeline.
   void buildHardConstraints(mlir::func::FuncOp func_op);
