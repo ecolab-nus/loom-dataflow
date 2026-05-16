@@ -227,7 +227,7 @@ runExplorationPipeline(const std::string &input_mlir_text,
     pm.addPass(loom::passes::createFoldRedundantExtractSlicePass());
     pm.addPass(createSymbolDCEPass());
     pm.addPass(createCanonicalizerPass());
-    pm.addPass(loom::passes::createSinkFillOpsPass());
+    pm.addPass(loom::passes::createSinkPreparationOpsPass());
     pm.addPass(loom::passes::createLoopHandoffProxyCopyInsertionPass());
     pm.addPass(loom::passes::createCanonicalBufferizationToLoomPass());
 

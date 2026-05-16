@@ -45,10 +45,9 @@ int main(int argc, char **argv) {
   pm.addPass(mlir::createSymbolDCEPass());
   pm.addPass(mlir::createCanonicalizerPass());
 
-  // De-CSE: clone and sink all linalg.fill ops to ensure unique SSA chains
-  // for initialized tensors, eliminating cross-scope fill sharing.
-
-  pm.addPass(loom::passes::createSinkFillOpsPass());
+  // De-CSE: clone and sink tensor preparation ops to ensure unique SSA chains
+  // for initialized/broadcast tensors, eliminating cross-scope sharing.
+  pm.addPass(loom::passes::createSinkPreparationOpsPass());
   pm.addPass(loom::passes::createLoopHandoffProxyCopyInsertionPass());
   pm.addPass(loom::passes::createCanonicalBufferizationToLoomPass());
   // pm.addPass(loom::passes::createHandoffSyncInsertionPass());
