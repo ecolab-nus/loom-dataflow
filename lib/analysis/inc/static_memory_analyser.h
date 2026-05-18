@@ -261,6 +261,8 @@ private:
   std::vector<mlir::Operation *> indexToOpMap_;
   llvm::DenseMap<mlir::Value, TensorNode *> valueToNodeMap_;
   llvm::DenseSet<mlir::Value> exclusiveTargetValues_;
+  llvm::DenseMap<mlir::Value, unsigned> dpsInitGroupByValue_;
+  std::vector<llvm::SmallVector<TensorNode *, 4>> dpsInitGroups_;
   std::vector<SplitYieldInfo> splitYields_;
   int nextVBId_ = 0;
   LoomAllocationPlan allocationPlan_;
@@ -271,6 +273,9 @@ private:
                            llvm::StringRef reason);
   bool isExclusiveTarget(mlir::Value value) const;
   void assignExclusiveTargetAttributes(Bucket &bucket);
+  void buildDpsInitEquivalenceGroups();
+  void addDpsGroupMembersToVB(Bucket &bucket, VirtualBuffer &vb,
+                              mlir::Value seedValue, bool fatalOnConflict);
   void applyPhiFusionAxiom(Bucket &bucket, const LoopContext &loop);
   void applyExternalEternityAxiom(Bucket &bucket, const LoopContext &loop);
   void applyStandardAxiom(Bucket &bucket);
