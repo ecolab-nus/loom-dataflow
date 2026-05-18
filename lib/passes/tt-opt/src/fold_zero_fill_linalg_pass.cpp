@@ -3,6 +3,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Matchers.h"
@@ -49,11 +50,25 @@ bool isZeroConstant(Value value) {
 /// Checks if an op is effectively "between" two other ops in control flow.
 /// This is a conservative check for ops within the same block.
 bool isInterveningUsage(Operation *start, Operation *end, Value memref) {
-  if (start->getBlock() != end->getBlock())
-    return true;
+  Operation *bridgeOp = nullptr;
+  bool sameBlock = start->getBlock() == end->getBlock();
+  bool oneLevelNested = false;
 
-  if (!start->isBeforeInBlock(end))
+  if (!sameBlock) {
+    // Allow exactly one-level loop nesting:
+    //   fill in parent block, consumer in immediate child loop body block.
+    Operation *parent = end->getBlock()->getParentOp();
+    if (!parent || parent->getBlock() != start->getBlock())
+      return true;
+    if (!isa<scf::ForOp, scf::ParallelOp>(parent))
+      return true;
+    if (!start->isBeforeInBlock(parent))
+      return true;
+    bridgeOp = parent;
+    oneLevelNested = true;
+  } else if (!start->isBeforeInBlock(end)) {
     return true;
+  }
 
   // Simple check: for each user of the memref, check its position.
   for (Operation *user : memref.getUsers()) {
@@ -68,11 +83,32 @@ bool isInterveningUsage(Operation *start, Operation *end, Value memref) {
         continue;
     }
 
-    // Common pattern in this project: if in the same block, we check order.
-    if (user->getBlock() == start->getBlock()) {
-      if (start->isBeforeInBlock(user) && user->isBeforeInBlock(end)) {
+    if (sameBlock) {
+      if (user->getBlock() == start->getBlock() &&
+          start->isBeforeInBlock(user) && user->isBeforeInBlock(end)) {
         return true;
       }
+      continue;
+    }
+
+    // One-level nesting mode:
+    // 1) Parent block: disallow uses between fill and loop op.
+    if (user->getBlock() == start->getBlock()) {
+      if (start->isBeforeInBlock(user) && user->isBeforeInBlock(bridgeOp))
+        return true;
+      continue;
+    }
+
+    // 2) Consumer block: disallow uses before consumer.
+    if (user->getBlock() == end->getBlock()) {
+      if (user->isBeforeInBlock(end))
+        return true;
+      continue;
+    }
+
+    // 3) Any other block is conservatively considered intervening.
+    if (oneLevelNested) {
+      return true;
     }
   }
   return false;

@@ -218,15 +218,17 @@ runMaterializationCore(const char *input_mlir_text,
   pm.nest<ModuleOp>().addPass(
       bufferization::createOneShotBufferizePass(osbOptions));
 
-  // Stage 5: Final cleanup
+  // Stage 5: Final cleanup (matches one_shot_bufferize single-stage driver)
   pm.addPass(mlir::createCanonicalizerPass());
   pm.addPass(mlir::createCSEPass());
+  pm.addPass(loom::passes::createLowerLinalgCopyToLoomCopyPass());
 
-  // Stage 6: Backend-specific tensor-level optimizations.
+  // Stage 6: Backend-specific tensor-level optimizations
+  // (matches fold_zero_fill_linalg single-stage driver).
   // TODO: gate these passes on a backend enum once multiple backends are
   //       supported (e.g. TT-Metal vs. others).
   pm.addPass(loom::passes::createFoldZeroFillLinalgPass());
-  pm.addPass(loom::passes::createLowerLinalgCopyToLoomCopyPass());
+  pm.addPass(mlir::createCanonicalizerPass());
 
   // --- Run pipeline ---
   if (failed(pm.run(*module)))
