@@ -14,7 +14,10 @@ namespace loom {
 struct AxisScores {
   /// Sum of source memref sizes for loom.subview ops whose offsets do not
   /// depend on axis i. Higher means more data can be shared along that axis.
-  llvm::SmallVector<int64_t> reuse;
+  llvm::SmallVector<int64_t> reuseVolume;
+  /// Count of loom.subview ops whose offsets do not depend on axis i. Higher
+  /// means more independent data accesses can be shared along that axis.
+  llvm::SmallVector<int64_t> reuseAccessCount;
   /// Static upper bound on iter i's iteration range.
   llvm::SmallVector<int64_t> parallelism;
 };
@@ -31,15 +34,16 @@ public:
   AxisScores computeAxisScores(mlir::func::FuncOp func,
                                mlir::affine::AffineParallelOp rootParallel);
 
-  /// Enumerate every linearisation of the partial order induced by
-  /// (parallelism, reuse). With reductionIdx set, that iter is pinned at
-  /// position 0.
+  /// Enumerate every linearisation of the Pareto fronts induced by
+  /// (parallelism, reuseVolume, reuseAccessCount). With reductionIdx set, that
+  /// iter is pinned at position 0.
   llvm::SmallVector<llvm::SmallVector<unsigned>>
   enumeratePriorityOrderings(const AxisScores &scores,
                              std::optional<unsigned> reductionIdx);
 
   /// Generate mappings where the highest-priority iter claims the two level-0
-  /// logical dims. Priority order is sorted by parallelism DESC, reuse DESC.
+  /// logical dims. Priority order is derived from Pareto fronts over
+  /// parallelism, reuse volume, and reuse access count.
   llvm::SmallVector<DimBuckets> generateLevel0PairClaimMappings(
       const AxisScores &scores, llvm::ArrayRef<unsigned> level0DimIndices,
       llvm::ArrayRef<unsigned> nonLevel0DimIndices,

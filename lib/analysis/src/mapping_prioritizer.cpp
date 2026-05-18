@@ -88,17 +88,16 @@ int64_t getStaticIterUpperBound(affine::AffineParallelOp par,
   return 1;
 }
 
-struct AxisPriority {
-  int64_t primary;
-  int64_t secondary;
-
-  bool operator==(const AxisPriority &other) const {
-    return primary == other.primary && secondary == other.secondary;
-  }
-};
-
-AxisPriority getPriority(const AxisScores &scores, unsigned iterIdx) {
-  return {scores.parallelism[iterIdx], scores.reuse[iterIdx]};
+bool dominates(const AxisScores &scores, unsigned lhs, unsigned rhs) {
+  bool noWorse =
+      scores.parallelism[lhs] >= scores.parallelism[rhs] &&
+      scores.reuseVolume[lhs] >= scores.reuseVolume[rhs] &&
+      scores.reuseAccessCount[lhs] >= scores.reuseAccessCount[rhs];
+  bool strictlyBetter =
+      scores.parallelism[lhs] > scores.parallelism[rhs] ||
+      scores.reuseVolume[lhs] > scores.reuseVolume[rhs] ||
+      scores.reuseAccessCount[lhs] > scores.reuseAccessCount[rhs];
+  return noWorse && strictlyBetter;
 }
 
 } // namespace
@@ -136,7 +135,8 @@ MappingPrioritizer::computeAxisScores(
     func::FuncOp func, affine::AffineParallelOp rootParallel) {
   const unsigned P = rootParallel.getNumDims();
   AxisScores scores;
-  scores.reuse.assign(P, 0);
+  scores.reuseVolume.assign(P, 0);
+  scores.reuseAccessCount.assign(P, 0);
   scores.parallelism.reserve(P);
   for (unsigned i = 0; i < P; ++i)
     scores.parallelism.push_back(getStaticIterUpperBound(rootParallel, i));
@@ -170,8 +170,10 @@ MappingPrioritizer::computeAxisScores(
     // Reuse is data whose offsets do not depend on this axis.
     for (unsigned i = 0; i < P; ++i) {
       Value iv = rootParallel.getBody()->getArgument(i);
-      if (!deps.count(iv))
-        scores.reuse[i] += size;
+      if (!deps.count(iv)) {
+        scores.reuseVolume[i] += size;
+        scores.reuseAccessCount[i] += 1;
+      }
     }
   });
 
@@ -209,50 +211,54 @@ void MappingPrioritizer::cartesianPerms(
 llvm::SmallVector<llvm::SmallVector<unsigned>>
 MappingPrioritizer::enumeratePriorityOrderings(
     const AxisScores &scores, std::optional<unsigned> reductionIdx) {
-  assert(scores.reuse.size() == scores.parallelism.size());
-  assert(!scores.reuse.empty());
-  const unsigned P = static_cast<unsigned>(scores.reuse.size());
+  assert(scores.reuseVolume.size() == scores.parallelism.size());
+  assert(scores.reuseAccessCount.size() == scores.parallelism.size());
+  assert(!scores.reuseVolume.empty());
+  const unsigned P = static_cast<unsigned>(scores.reuseVolume.size());
   if (reductionIdx)
     assert(*reductionIdx < P);
 
-  llvm::SmallVector<std::pair<AxisPriority, unsigned>> pairs;
-  pairs.reserve(reductionIdx ? P - 1 : P);
+  llvm::SmallVector<unsigned> remaining;
+  remaining.reserve(reductionIdx ? P - 1 : P);
   for (unsigned i = 0; i < P; ++i) {
     if (reductionIdx && i == *reductionIdx)
       continue;
-    pairs.push_back({getPriority(scores, i), i});
+    remaining.push_back(i);
   }
 
-  std::stable_sort(pairs.begin(), pairs.end(),
-                   [](const auto &a, const auto &b) {
-                     if (a.first.primary != b.first.primary)
-                       return a.first.primary > b.first.primary;
-                     return a.first.secondary > b.first.secondary;
-                   });
-
   llvm::SmallVector<llvm::SmallVector<llvm::SmallVector<unsigned>>> groupPerms;
-  for (unsigned i = 0; i < pairs.size();) {
-    unsigned j = i + 1;
-    while (j < pairs.size() && pairs[j].first == pairs[i].first)
-      ++j;
-
-    llvm::SmallVector<unsigned> groupIters;
-    for (unsigned k = i; k < j; ++k)
-      groupIters.push_back(pairs[k].second);
+  while (!remaining.empty()) {
+    llvm::SmallVector<unsigned> front;
+    llvm::SmallVector<unsigned> nextRemaining;
+    for (unsigned candidate : remaining) {
+      bool isDominated = false;
+      for (unsigned other : remaining) {
+        if (candidate == other)
+          continue;
+        if (dominates(scores, other, candidate)) {
+          isDominated = true;
+          break;
+        }
+      }
+      if (isDominated)
+        nextRemaining.push_back(candidate);
+      else
+        front.push_back(candidate);
+    }
 
     llvm::SmallVector<llvm::SmallVector<unsigned>> perms;
-    std::sort(groupIters.begin(), groupIters.end());
+    std::sort(front.begin(), front.end());
     do {
-      perms.push_back(groupIters);
-    } while (std::next_permutation(groupIters.begin(), groupIters.end()));
+      perms.push_back(front);
+    } while (std::next_permutation(front.begin(), front.end()));
 
     groupPerms.push_back(std::move(perms));
-    i = j;
+    remaining = std::move(nextRemaining);
   }
 
   llvm::SmallVector<llvm::SmallVector<unsigned>> suffixOrderings;
   llvm::SmallVector<unsigned> current;
-  if (pairs.empty())
+  if (groupPerms.empty())
     suffixOrderings.push_back({});
   else
     cartesianPerms(0, groupPerms, current, suffixOrderings);
@@ -273,12 +279,13 @@ MappingPrioritizer::generateLevel0PairClaimMappings(
     const AxisScores &scores, llvm::ArrayRef<unsigned> level0DimIndices,
     llvm::ArrayRef<unsigned> nonLevel0DimIndices,
     std::optional<unsigned> reductionIdx) {
-  assert(scores.reuse.size() == scores.parallelism.size());
-  assert(!scores.reuse.empty());
+  assert(scores.reuseVolume.size() == scores.parallelism.size());
+  assert(scores.reuseAccessCount.size() == scores.parallelism.size());
+  assert(!scores.reuseVolume.empty());
   assert(level0DimIndices.size() == 2);
-  assert(nonLevel0DimIndices.size() == scores.reuse.size() - 1);
+  assert(nonLevel0DimIndices.size() == scores.reuseVolume.size() - 1);
 
-  const unsigned P = static_cast<unsigned>(scores.reuse.size());
+  const unsigned P = static_cast<unsigned>(scores.reuseVolume.size());
   auto orderings = enumeratePriorityOrderings(scores, reductionIdx);
   llvm::SmallVector<DimBuckets> result;
   result.reserve(orderings.size());
