@@ -14,7 +14,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
-#include <numeric>
 #include <limits>
 
 // Note: Reusing generated LoomOps if needed
@@ -288,147 +287,6 @@ void MemoryAnalysisContext::assignExclusiveTargetAttributes(Bucket &bucket) {
   }
 }
 
-void MemoryAnalysisContext::buildDpsInitEquivalenceGroups() {
-  dpsInitGroupByValue_.clear();
-  dpsInitGroups_.clear();
-
-  for (auto &[sig, bucket] : buckets_) {
-    if (bucket.nodes.empty())
-      continue;
-
-    llvm::DenseMap<TensorNode *, unsigned> nodeToIndex;
-    std::vector<TensorNode *> indexToNode;
-    indexToNode.reserve(bucket.nodes.size());
-    for (auto &node : bucket.nodes) {
-      nodeToIndex[&node] = indexToNode.size();
-      indexToNode.push_back(&node);
-    }
-
-    std::vector<unsigned> parent(indexToNode.size());
-    std::iota(parent.begin(), parent.end(), 0);
-
-    auto findRoot = [&](unsigned idx) {
-      unsigned root = idx;
-      while (parent[root] != root)
-        root = parent[root];
-      while (parent[idx] != idx) {
-        unsigned next = parent[idx];
-        parent[idx] = root;
-        idx = next;
-      }
-      return root;
-    };
-
-    auto unite = [&](unsigned lhs, unsigned rhs) {
-      unsigned lhsRoot = findRoot(lhs);
-      unsigned rhsRoot = findRoot(rhs);
-      if (lhsRoot != rhsRoot)
-        parent[rhsRoot] = lhsRoot;
-    };
-
-    for (auto &node : bucket.nodes) {
-      if (isExclusiveTarget(node.value))
-        continue;
-
-      auto result = dyn_cast<OpResult>(node.value);
-      if (!result)
-        continue;
-
-      auto dpsOp = dyn_cast_or_null<DestinationStyleOpInterface>(
-          node.definingOp);
-      if (!dpsOp)
-        continue;
-
-      unsigned resultNumber = result.getResultNumber();
-      if (resultNumber >= (unsigned)dpsOp.getNumDpsInits())
-        continue;
-
-      Value initValue = dpsOp.getDpsInitOperand(resultNumber)->get();
-      if (initValue.getDefiningOp<tensor::EmptyOp>())
-        continue;
-
-      auto initResult = dyn_cast<OpResult>(initValue);
-      if (!initResult)
-        continue;
-
-      Operation *producerOp = initResult.getOwner();
-      if (!producerOp || producerOp->getBlock() != node.definingOp->getBlock())
-        continue;
-
-      TensorNode *initNode = bucket.findNode(initValue);
-      if (!initNode || isExclusiveTarget(initValue))
-        continue;
-
-      int producerIdx = getOpIndex(producerOp);
-      int consumerIdx = node.linearIndex;
-      if (producerIdx < 0 || producerIdx >= consumerIdx)
-        continue;
-
-      if (initNode->deathIndex > consumerIdx)
-        continue;
-
-      auto consumerIt = nodeToIndex.find(&node);
-      auto initIt = nodeToIndex.find(initNode);
-      if (consumerIt == nodeToIndex.end() || initIt == nodeToIndex.end())
-        continue;
-
-      unite(consumerIt->second, initIt->second);
-    }
-
-    llvm::DenseMap<unsigned, llvm::SmallVector<TensorNode *, 4>> byRoot;
-    for (TensorNode *node : indexToNode) {
-      unsigned root = findRoot(nodeToIndex.lookup(node));
-      byRoot[root].push_back(node);
-    }
-
-    for (auto &[root, members] : byRoot) {
-      if (members.size() < 2)
-        continue;
-
-      llvm::sort(members, [](TensorNode *lhs, TensorNode *rhs) {
-        return lhs->linearIndex < rhs->linearIndex;
-      });
-
-      unsigned groupId = dpsInitGroups_.size();
-      dpsInitGroups_.push_back(members);
-      for (TensorNode *member : members)
-        dpsInitGroupByValue_[member->value] = groupId;
-    }
-  }
-}
-
-void MemoryAnalysisContext::addDpsGroupMembersToVB(Bucket &bucket,
-                                                   VirtualBuffer &vb,
-                                                   Value seedValue,
-                                                   bool fatalOnConflict) {
-  auto groupIt = dpsInitGroupByValue_.find(seedValue);
-  if (groupIt == dpsInitGroupByValue_.end())
-    return;
-
-  for (TensorNode *member : dpsInitGroups_[groupIt->second]) {
-    if (!bucket.containsNode(member))
-      continue;
-
-    if (member->mappedVBId.has_value()) {
-      if (*member->mappedVBId == vb.id)
-        continue;
-
-      if (fatalOnConflict) {
-        OpPrintingFlags flags;
-        llvm::errs() << "DPS init equivalence conflict: value ";
-        member->value.printAsOperand(llvm::errs(), flags);
-        llvm::errs() << " already belongs to VB#" << *member->mappedVBId
-                     << " while fusing into VB#" << vb.id << "\n";
-        llvm::report_fatal_error(
-            "DPS init equivalence conflicts with phi fusion");
-      }
-      continue;
-    }
-
-    vb.addMember(member);
-  }
-}
-
 void MemoryAnalysisContext::applyPhiFusionAxiom(
     Bucket &bucket, const LoopContext &loopContext) {
   Operation *loopOp = loopContext.loopOp;
@@ -488,8 +346,6 @@ void MemoryAnalysisContext::applyPhiFusionAxiom(
       // Handoff check: yield birth >= arg death
       if (yieldNode->linearIndex >= argDeath) {
         vb->addMember(yieldNode);
-        addDpsGroupMembersToVB(bucket, *vb, yieldVal,
-                               /*fatalOnConflict=*/true);
         mergedYield = true;
       }
     }
@@ -558,23 +414,13 @@ void MemoryAnalysisContext::applyStandardAxiom(Bucket &bucket) {
 
     VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Standard);
     vb->addMember(&node);
-    addDpsGroupMembersToVB(bucket, *vb, node.value,
-                           /*fatalOnConflict=*/false);
-
-    int birth = std::numeric_limits<int>::max();
-    int death = std::numeric_limits<int>::min();
-    for (TensorNode *member : vb->members) {
-      birth = std::min(birth, member->linearIndex);
-      death = std::max(death, member->deathIndex);
-    }
-    vb->liveness = {birth, death};
+    vb->liveness = {node.linearIndex, node.deathIndex};
     vb->updateDefiningOp();
   }
 }
 
 void MemoryAnalysisContext::buildVirtualBuffers() {
   auto loopOpt = findLoopContext();
-  buildDpsInitEquivalenceGroups();
 
   for (auto &[sig, bucket] : buckets_) {
     if (loopOpt) {
