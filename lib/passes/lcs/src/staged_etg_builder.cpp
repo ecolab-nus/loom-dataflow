@@ -32,6 +32,10 @@
 #define GET_ATTRDEF_CLASSES
 #include "LoomAttributes.h.inc"
 
+#ifndef ComputeKernelPipeline
+#define ComputeKernelPipeline 0
+#endif
+
 namespace loom {
 namespace lcs {
 
@@ -146,6 +150,15 @@ std::string blockSymFromAttr(mlir::Operation *op) {
   if (auto attr = op->getAttrOfType<mlir::SymbolRefAttr>("loom.block_sym"))
     return attr.getLeafReference().str();
   return std::string();
+}
+
+std::vector<std::string>
+resourcesForComputePipelineMode(const std::vector<std::string> &resources) {
+  std::vector<std::string> result = resources;
+#if !ComputeKernelPipeline
+  result.push_back("__compute_kernel_pipeline_disabled__");
+#endif
+  return result;
 }
 
 } // namespace
@@ -500,6 +513,9 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
           dispatchToComputeQueues(
               op, compute_scope.getOrCreateWorkloadStage(required_stage));
           dispatched = true;
+#if !ComputeKernelPipeline
+          advances_stage = false;
+#endif
         } else if (is_data_mover) {
           loom::utils::CopyMemoryDirection direction =
               loom::utils::classifyCopyMemoryDirection(op);
@@ -544,7 +560,8 @@ void VariantETG::dispatchNamedOp(mlir::Operation *op,
       hw_registry_->lookup(HWOpKey::named(linalg_op_name));
   if (!hwFunc) {
     auto ph = HWOpRegistry::makePlaceholder(linalg_op_name);
-    target.pushWorkload(ph.hw_component, ph.hw_func_name, {}, {});
+    target.pushWorkload(ph.hw_component, ph.hw_func_name, {},
+                        resourcesForComputePipelineMode(ph.resources));
     return;
   }
 
@@ -562,7 +579,8 @@ void VariantETG::dispatchNamedOp(mlir::Operation *op,
   }
 
   target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
-                      std::move(dimMap), hwFunc->resources);
+                      std::move(dimMap),
+                      resourcesForComputePipelineMode(hwFunc->resources));
 }
 
 void VariantETG::dispatchGenericOp(mlir::Operation *op,
@@ -585,7 +603,8 @@ void VariantETG::dispatchGenericOp(mlir::Operation *op,
         hw_registry_->lookup(HWOpKey::generic(bodyOpName, analysis.generic_class));
     if (!hwFunc) {
       auto ph = HWOpRegistry::makePlaceholder(bodyOpName);
-      target.pushWorkload(ph.hw_component, ph.hw_func_name, {}, {});
+      target.pushWorkload(ph.hw_component, ph.hw_func_name, {},
+                          resourcesForComputePipelineMode(ph.resources));
       continue;
     }
 
@@ -597,7 +616,8 @@ void VariantETG::dispatchGenericOp(mlir::Operation *op,
       dimMap[hwFunc->reduction_symbol] = analysis.reduction_product;
 
     target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
-                        std::move(dimMap), hwFunc->resources);
+                        std::move(dimMap),
+                        resourcesForComputePipelineMode(hwFunc->resources));
   }
 }
 

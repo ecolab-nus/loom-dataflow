@@ -36,3 +36,5 @@ target_link_libraries(loomLCS PUBLIC
 add_dependencies(loomLCS LOOMLoomOpsIncGen LOOMLoomDialectIncGen)
 
 target_compile_options(loomLCS PRIVATE -fno-rtti)
+
+target_compile_definitions(loomLCS PRIVATE ComputeKernelPipeline=0)
