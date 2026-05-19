@@ -252,10 +252,8 @@ struct BroadcastOpInterface
       return {};
     if (op->getNumResults() == 0)
       return {};
-    // Broadcast result is a view of destination buffer with possibly different
-    // logical shape/strides. It is a definite alias, but not necessarily
-    // equivalent type/layout to init.
-    return {AliasingValue(op->getOpResult(0), BufferRelation::Unknown,
+    // Broadcast follows DPS semantics: result reuses the destination buffer.
+    return {AliasingValue(op->getOpResult(0), BufferRelation::Equivalent,
                           /*isDefinite=*/true)};
   }
 

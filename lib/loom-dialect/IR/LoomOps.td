@@ -901,7 +901,8 @@ def GatherOp : Loom_Op<"gather", [
 }
 
 def BroadcastOp : Loom_Op<"broadcast", [
-  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  DestinationStyleOpInterface
 ]> {
   let summary = "Broadcast a source tensor/memref into a destination buffer (DPS)";
   let description = [{
@@ -930,6 +931,10 @@ def BroadcastOp : Loom_Op<"broadcast", [
     `outs` `(` $init `:` type($init) `)`
     `dim` `(` $dim `)`
     attr-dict (`->` type($result)^ )?
+  }];
+
+  let extraClassDeclaration = [{
+    ::mlir::MutableOperandRange getDpsInitsMutable() { return getInitMutable(); }
   }];
 
   let hasCanonicalizer = 1;
